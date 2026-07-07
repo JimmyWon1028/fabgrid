@@ -8,6 +8,5 @@ pnpm-debug.log*
 .env.*
 coverage/
 .nyc_output/
-dist/
 *.tmp
 *.log

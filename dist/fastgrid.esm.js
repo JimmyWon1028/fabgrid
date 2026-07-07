@@ -1,0 +1,4239 @@
+/*! FastGrid ESM | performance-first data grid */
+export function createFastGridFactory() {
+  'use strict';
+
+  var DEFAULT_OPTIONS = {
+    rowHeight: 32,
+    headerHeight: 36,
+    overscanRows: 8,
+    fastScrollOverscanRows: 64,
+    overscanColumns: 3,
+    frozenColumns: 0,
+    frozenRightColumns: 0,
+    rowHeaderWidth: 60,
+    rowHeaderHeader: '',
+    showRowHeaders: true,
+    showFooter: false,
+    footerHeight: 28,
+    footerLabel: 'Σ',
+    multiSelectRows: false,
+    selectionCheckboxWidth: 44,
+    allowSorting: true,
+    allowEditing: true,
+    editOnSelect: false,
+    allowResizing: true,
+    allowDragging: 'None',
+    allowMerging: 'None',
+    allowPinning: false,
+    alternatingRows: false,
+    alternatingRowBackground: '#fafafa',
+    autoClipboard: true,
+    copyHeaders: 'None',
+    exportBusyText: '匯出 Excel 中...',
+    frozenRows: 0,
+    syncScrollRender: true,
+    itemFormatter: null,
+    selectionMode: 'Cell',
+    columns: [],
+    itemsSource: []
+  };
+
+  function FastGrid(element, options) {
+    this.host = typeof element === 'string' ? document.querySelector(element) : element;
+    if (!this.host) {
+      throw new Error('FastGrid host element was not found.');
+    }
+
+    this.options = mergeOptions(DEFAULT_OPTIONS, options || {});
+    if (this.options.isReadOnly === true) {
+      this.options.allowEditing = false;
+    }
+    this.events = {};
+    this.wijmoEvents = {};
+    this.columns = [];
+    this.source = [];
+    this.view = [];
+    this.filterPredicate = null;
+    this.searchText = '';
+    this.sortState = null;
+    this.columnOffsets = [];
+    this.totalWidth = 0;
+    this._frozenColumns = 0;
+    this._frozenRightColumns = 0;
+    this.frozenWidth = 0;
+    this.frozenRightWidth = 0;
+    this.frozenRightStartLeft = 0;
+    this.scrollableColumnEnd = 0;
+    this.scrollableWidth = 0;
+    this.rowRange = { start: 0, end: 0 };
+    this.columnRange = { start: 0, end: 0 };
+    this.renderContentHeight = 0;
+    this.scrollState = {
+      top: 0,
+      left: 0,
+      directionY: 0,
+      extraRows: 0
+    };
+    this.selection = { row: 0, col: 0 };
+    this.rowSelection = null;
+    this.selectedRowMap = {};
+    this.hoverRow = null;
+    this.editing = null;
+    this.editorConfig = null;
+    this.dateboxState = null;
+    this.busy = false;
+    this.raf = 0;
+    this.disposed = false;
+    this.resizeState = null;
+    this.suppressClick = false;
+    this.copyBuffer = '';
+    this.cells = { grid: this, cellType: 'Cell' };
+    this.columnHeaders = { grid: this, cellType: 'ColumnHeader' };
+    this.rowHeaders = { grid: this, cellType: 'RowHeader' };
+    this.topLeftCells = { grid: this, cellType: 'TopLeft' };
+    this.bottomLeftCells = { grid: this, cellType: 'BottomLeft' };
+
+    this._boundScroll = bind(this, this.handleScroll);
+    this._boundClick = bind(this, this.handleClick);
+    this._boundDblClick = bind(this, this.handleDblClick);
+    this._boundKeyDown = bind(this, this.handleKeyDown);
+    this._boundMouseMove = bind(this, this.handleMouseMove);
+    this._boundMouseLeave = bind(this, this.handleMouseLeave);
+    this._boundPointerDown = bind(this, this.handlePointerDown);
+    this._boundPointerMove = bind(this, this.handlePointerMove);
+    this._boundPointerUp = bind(this, this.handlePointerUp);
+    this._boundEditorInput = bind(this, this.handleEditorInput);
+    this._boundEditorCopy = bind(this, this.handleEditorCopy);
+    this._boundEditorTriggerClick = bind(this, this.handleEditorTriggerClick);
+    this._boundDateboxClick = bind(this, this.handleDateboxClick);
+    this._boundDateboxChange = bind(this, this.handleDateboxChange);
+    this._boundDocumentMouseDown = bind(this, this.handleDocumentMouseDown);
+    this._boundBusyEvent = bind(this, this.blockBusyEvent);
+    this._boundResize = bind(this, this.invalidate);
+
+    this.setColumns(this.options.columns || [], true);
+    this.setItemsSource(this.options.itemsSource || [], true);
+    this.createWijmoEvents();
+    this.createDom();
+    this.bindDomEvents();
+    this.refresh();
+  }
+
+  FastGrid.prototype.on = function(name, handler) {
+    if (!this.events[name]) {
+      this.events[name] = [];
+    }
+    this.events[name].push(handler);
+    return this;
+  };
+
+  FastGrid.prototype.off = function(name, handler) {
+    var list = this.events[name];
+    var i;
+    if (!list) {
+      return this;
+    }
+    for (i = list.length - 1; i >= 0; i -= 1) {
+      if (list[i] === handler) {
+        list.splice(i, 1);
+      }
+    }
+    return this;
+  };
+
+  FastGrid.prototype.emit = function(name, detail) {
+    var list = this.events[name];
+    var wijmoEvent = this.wijmoEvents ? this.wijmoEvents[name] : null;
+    var i;
+    detail = detail || {};
+    if (list) {
+      for (i = 0; i < list.length; i += 1) {
+        if (list[i](detail) === false) {
+          detail.cancel = true;
+        }
+      }
+    }
+    if (wijmoEvent && wijmoEvent.raise(this, detail) === false) {
+      detail.cancel = true;
+    }
+    return detail.cancel !== true;
+  };
+
+  FastGrid.prototype.createWijmoEvents = function() {
+    var names = [
+      'autoGeneratedColumns',
+      'autoSizedColumn',
+      'autoSizedRow',
+      'autoSizingColumn',
+      'autoSizingRow',
+      'beginningEdit',
+      'bigCheckboxesChanged',
+      'cellEditEnding',
+      'cellEditEnded',
+      'columnGroupCollapsedChanged',
+      'columnGroupCollapsedChanging',
+      'copied',
+      'copiedCell',
+      'copying',
+      'copyingCell',
+      'deletedRow',
+      'deletingRow',
+      'draggedColumn',
+      'draggedRow',
+      'draggingColumn',
+      'draggingRow',
+      'formatItem',
+      'groupCollapsedChanged',
+      'groupCollapsedChanging',
+      'itemsSourceChanged',
+      'itemsSourceChanging',
+      'loadedRows',
+      'loadingRows',
+      'pasted',
+      'pastedCell',
+      'pasting',
+      'pastingCell',
+      'prepareCellForEdit',
+      'refreshed',
+      'refreshing',
+      'resizedColumn',
+      'resizedRow',
+      'resizingColumn',
+      'resizingRow',
+      'rowAdded',
+      'rowEditEnded',
+      'rowEditEnding',
+      'rowEditStarted',
+      'rowEditStarting',
+      'scrollPositionChanged',
+      'selectionChanged',
+      'selectionChanging',
+      'sortedColumn',
+      'sortingColumn',
+      'updatedLayout',
+      'updatedView',
+      'updatingLayout',
+      'updatingView'
+    ];
+    var i;
+    var event;
+    for (i = 0; i < names.length; i += 1) {
+      event = createWijmoEvent(this, names[i]);
+      this.wijmoEvents[names[i]] = event;
+      this[names[i]] = event;
+    }
+  };
+
+  FastGrid.prototype.createDom = function() {
+    var root = document.createElement('div');
+    root.className = 'fg-root';
+    root.tabIndex = 0;
+    root.setAttribute('role', 'grid');
+
+    root.innerHTML =
+      '<div class="fg-header">' +
+        '<div class="fg-row-header-top"></div>' +
+        '<div class="fg-selection-top"></div>' +
+        '<div class="fg-header-frozen"></div>' +
+        '<div class="fg-header-frozen-right"></div>' +
+        '<div class="fg-header-scroll"><div class="fg-header-canvas"></div></div>' +
+      '</div>' +
+      '<div class="fg-body">' +
+        '<div class="fg-body-scroll">' +
+          '<div class="fg-size-layer"></div>' +
+          '<div class="fg-cell-layer"></div>' +
+        '</div>' +
+        '<div class="fg-row-header-pane"><div class="fg-row-header-layer"></div></div>' +
+        '<div class="fg-selection-pane"><div class="fg-selection-layer"></div></div>' +
+        '<div class="fg-frozen-pane"><div class="fg-frozen-layer"></div></div>' +
+        '<div class="fg-frozen-pane-right"><div class="fg-frozen-layer-right"></div></div>' +
+        '<input class="fg-editor textbox-f" type="text" aria-label="Cell editor">' +
+        '<button class="fg-editor-trigger" type="button" aria-label="Open date picker"></button>' +
+        '<div class="fg-datebox-panel" role="dialog" aria-label="Date picker"></div>' +
+        '<div class="fg-empty">沒有資料</div>' +
+        '<div class="fg-busy-overlay" aria-live="polite"><div class="fg-busy-panel"><span class="fg-busy-spinner"></span><span class="fg-busy-text"></span></div></div>' +
+      '</div>' +
+      '<div class="fg-footer">' +
+        '<div class="fg-footer-row-header"></div>' +
+        '<div class="fg-footer-selection"></div>' +
+        '<div class="fg-footer-frozen"></div>' +
+        '<div class="fg-footer-frozen-right"></div>' +
+        '<div class="fg-footer-scroll"><div class="fg-footer-canvas"></div></div>' +
+      '</div>';
+
+    this.host.innerHTML = '';
+    this.host.appendChild(root);
+
+    this.root = root;
+    this.header = root.querySelector('.fg-header');
+    this.rowHeaderTop = root.querySelector('.fg-row-header-top');
+    this.selectionTop = root.querySelector('.fg-selection-top');
+    this.headerFrozen = root.querySelector('.fg-header-frozen');
+    this.headerFrozenRight = root.querySelector('.fg-header-frozen-right');
+    this.headerScroll = root.querySelector('.fg-header-scroll');
+    this.headerCanvas = root.querySelector('.fg-header-canvas');
+    this.body = root.querySelector('.fg-body');
+    this.bodyScroll = root.querySelector('.fg-body-scroll');
+    this.sizeLayer = root.querySelector('.fg-size-layer');
+    this.cellLayer = root.querySelector('.fg-cell-layer');
+    this.rowHeaderPane = root.querySelector('.fg-row-header-pane');
+    this.rowHeaderLayer = root.querySelector('.fg-row-header-layer');
+    this.selectionPane = root.querySelector('.fg-selection-pane');
+    this.selectionLayer = root.querySelector('.fg-selection-layer');
+    this.frozenPane = root.querySelector('.fg-frozen-pane');
+    this.frozenLayer = root.querySelector('.fg-frozen-layer');
+    this.frozenRightPane = root.querySelector('.fg-frozen-pane-right');
+    this.frozenRightLayer = root.querySelector('.fg-frozen-layer-right');
+    this.editor = root.querySelector('.fg-editor');
+    this.editorTrigger = root.querySelector('.fg-editor-trigger');
+    this.dateboxPanel = root.querySelector('.fg-datebox-panel');
+    this.footer = root.querySelector('.fg-footer');
+    this.footerRowHeader = root.querySelector('.fg-footer-row-header');
+    this.footerSelection = root.querySelector('.fg-footer-selection');
+    this.footerFrozen = root.querySelector('.fg-footer-frozen');
+    this.footerFrozenRight = root.querySelector('.fg-footer-frozen-right');
+    this.footerScroll = root.querySelector('.fg-footer-scroll');
+    this.footerCanvas = root.querySelector('.fg-footer-canvas');
+    this.empty = root.querySelector('.fg-empty');
+    this.busyOverlay = root.querySelector('.fg-busy-overlay');
+    this.busyText = root.querySelector('.fg-busy-text');
+    this.header.style.height = this.options.headerHeight + 'px';
+    this.body.style.top = this.options.headerHeight + 'px';
+    this.applyThemeOptions();
+  };
+
+  FastGrid.prototype.applyThemeOptions = function() {
+    if (this.root && this.options.alternatingRowBackground) {
+      this.root.style.setProperty('--fg-cell-alt-bg', String(this.options.alternatingRowBackground));
+    }
+  };
+
+  FastGrid.prototype.bindDomEvents = function() {
+    this.bodyScroll.addEventListener('scroll', this._boundScroll);
+    this.root.addEventListener('click', this._boundClick);
+    this.root.addEventListener('dblclick', this._boundDblClick);
+    this.root.addEventListener('keydown', this._boundKeyDown);
+    this.root.addEventListener('mousemove', this._boundMouseMove);
+    this.root.addEventListener('mouseleave', this._boundMouseLeave);
+    this.root.addEventListener('pointerdown', this._boundPointerDown);
+    this.root.addEventListener('wheel', this._boundBusyEvent, { passive: false });
+    this.root.addEventListener('touchmove', this._boundBusyEvent, { passive: false });
+    this.editor.addEventListener('input', this._boundEditorInput);
+    this.editor.addEventListener('copy', this._boundEditorCopy);
+    this.editorTrigger.addEventListener('click', this._boundEditorTriggerClick);
+    this.dateboxPanel.addEventListener('click', this._boundDateboxClick);
+    this.dateboxPanel.addEventListener('change', this._boundDateboxChange);
+    document.addEventListener('mousedown', this._boundDocumentMouseDown);
+    document.addEventListener('pointermove', this._boundPointerMove);
+    document.addEventListener('pointerup', this._boundPointerUp);
+    window.addEventListener('resize', this._boundResize);
+  };
+
+  FastGrid.prototype.setItemsSource = function(rows, silent) {
+    if (!silent && this.emit('itemsSourceChanging', { rows: rows || [] }) === false) {
+      return;
+    }
+    if (!silent && this.emit('loadingRows', { rows: rows || [] }) === false) {
+      return;
+    }
+    this.source = rows || [];
+    this.applyView();
+    if (!silent) {
+      this.emit('itemsSourceChanged', { rows: this.source });
+      this.emit('loadedRows', { rows: this.view });
+      this.refresh();
+    }
+  };
+
+  FastGrid.prototype.setColumns = function(columns, silent) {
+    var i;
+    var col;
+    this.columns = [];
+    for (i = 0; i < (columns || []).length; i += 1) {
+      col = mergeOptions({
+        binding: '',
+        header: '',
+        width: 120,
+        minWidth: 48,
+        align: '',
+        dataType: 'string',
+        visible: true,
+        formatter: null,
+        footer: null,
+        footerFormatter: null,
+        aggregate: null,
+        editor: null,
+        mask: '',
+        autoUnmask: false,
+        maskValueIncludesLiterals: null,
+        readOnly: false
+      }, columns[i]);
+      col.editor = normalizeEditorConfig(col.editor, col);
+      col._index = i;
+      col._width = Math.max(toNumber(col.width, 120), toNumber(col.minWidth, 48));
+      this.columns.push(col);
+    }
+    this.updateLayout();
+    if (!silent) {
+      this.refresh();
+    }
+  };
+
+  FastGrid.prototype.setFrozenColumns = function(count) {
+    this.options.frozenColumns = Math.max(0, toNumber(count, 0));
+    this.updateLayout();
+    this.refresh();
+  };
+
+  FastGrid.prototype.setFrozenRightColumns = function(count) {
+    this.options.frozenRightColumns = Math.max(0, toNumber(count, 0));
+    this.updateLayout();
+    this.refresh();
+  };
+
+  FastGrid.prototype.setShowRowHeaders = function(value) {
+    this.options.showRowHeaders = value !== false;
+    this.updateLayout();
+    this.refresh();
+  };
+
+  FastGrid.prototype.setShowFooter = function(value) {
+    this.options.showFooter = value === true;
+    this.refresh();
+  };
+
+  FastGrid.prototype.setEditMode = function(value) {
+    var enabled = value === true;
+    this.options.allowEditing = enabled;
+    this.options.editOnSelect = enabled;
+    if (!enabled) {
+      this.finishEditing(false);
+    }
+    this.render();
+  };
+
+  FastGrid.prototype.setMultiSelectRows = function(value) {
+    this.options.multiSelectRows = value === true;
+    if (!this.options.multiSelectRows) {
+      this.selectedRowMap = {};
+    }
+    this.updateLayout();
+    this.refresh();
+  };
+
+  FastGrid.prototype.setFilter = function(predicate) {
+    this.filterPredicate = typeof predicate === 'function' ? predicate : null;
+    this.applyView();
+    this.resetScroll();
+    this.refresh();
+  };
+
+  FastGrid.prototype.clearFilter = function() {
+    this.filterPredicate = null;
+    this.searchText = '';
+    this.applyView();
+    this.resetScroll();
+    this.refresh();
+  };
+
+  FastGrid.prototype.setSearch = function(text) {
+    this.searchText = String(text || '').toLowerCase();
+    this.applyView();
+    this.resetScroll();
+    this.refresh();
+  };
+
+  FastGrid.prototype.refresh = function() {
+    if (this.emit('refreshing', {}) === false) {
+      return;
+    }
+    this.updateLayout();
+    this.render();
+    this.emit('refreshed', {});
+  };
+
+  FastGrid.prototype.invalidate = function() {
+    this.scheduleRender();
+  };
+
+  FastGrid.prototype.dispose = function() {
+    var name;
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    if (this.raf) {
+      cancelAnimationFrame(this.raf);
+    }
+    this.finishEditing(false);
+    this.bodyScroll.removeEventListener('scroll', this._boundScroll);
+    this.root.removeEventListener('click', this._boundClick);
+    this.root.removeEventListener('dblclick', this._boundDblClick);
+    this.root.removeEventListener('keydown', this._boundKeyDown);
+    this.root.removeEventListener('mousemove', this._boundMouseMove);
+    this.root.removeEventListener('mouseleave', this._boundMouseLeave);
+    this.root.removeEventListener('pointerdown', this._boundPointerDown);
+    this.root.removeEventListener('wheel', this._boundBusyEvent);
+    this.root.removeEventListener('touchmove', this._boundBusyEvent);
+    this.editor.removeEventListener('input', this._boundEditorInput);
+    this.editor.removeEventListener('copy', this._boundEditorCopy);
+    this.editorTrigger.removeEventListener('click', this._boundEditorTriggerClick);
+    this.dateboxPanel.removeEventListener('click', this._boundDateboxClick);
+    this.dateboxPanel.removeEventListener('change', this._boundDateboxChange);
+    document.removeEventListener('mousedown', this._boundDocumentMouseDown);
+    document.removeEventListener('pointermove', this._boundPointerMove);
+    document.removeEventListener('pointerup', this._boundPointerUp);
+    window.removeEventListener('resize', this._boundResize);
+    this.host.innerHTML = '';
+    this.events = {};
+    for (name in this.wijmoEvents) {
+      if (Object.prototype.hasOwnProperty.call(this.wijmoEvents, name)) {
+        this.wijmoEvents[name].clearHandlers();
+      }
+    }
+  };
+
+  FastGrid.prototype.setBusy = function(value, text) {
+    this.busy = value === true;
+    if (!this.busyOverlay) {
+      return;
+    }
+    this.root.setAttribute('aria-busy', this.busy ? 'true' : 'false');
+    if (this.busyText) {
+      this.busyText.textContent = text || this.options.exportBusyText || 'Working...';
+    }
+    this.busyOverlay.style.display = this.busy ? 'flex' : 'none';
+  };
+
+  FastGrid.prototype.blockBusyEvent = function(event) {
+    if (!this.busy) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  FastGrid.prototype.applyView = function() {
+    var rows = this.source.slice();
+    var filterPredicate = this.filterPredicate;
+    var searchText = this.searchText;
+    var columns = this.columns;
+    var sortState = this.sortState;
+    var selectionState = this.captureSelectionState();
+
+    if (filterPredicate || searchText) {
+      rows = rows.filter(function(item, index) {
+        if (filterPredicate && !filterPredicate(item, index)) {
+          return false;
+        }
+        if (!searchText) {
+          return true;
+        }
+        return rowMatchesSearch(item, columns, searchText);
+      });
+    }
+
+    if (sortState && sortState.direction) {
+      rows.sort(function(a, b) {
+        return compareValues(
+          getByBinding(a, sortState.column.binding),
+          getByBinding(b, sortState.column.binding),
+          sortState.column.dataType
+        ) * sortState.direction;
+      });
+    }
+
+    this.view = rows;
+    this.restoreSelectionState(selectionState);
+    this.clampSelection();
+  };
+
+  FastGrid.prototype.updateLayout = function() {
+    var i;
+    var left = 0;
+    var visibleColumns = [];
+    var frozenCount;
+    var frozenRightCount;
+
+    this.emit('updatingLayout', {});
+    for (i = 0; i < this.columns.length; i += 1) {
+      if (this.columns[i].visible !== false) {
+        visibleColumns.push(this.columns[i]);
+      }
+    }
+    this.visibleColumns = visibleColumns;
+    frozenCount = Math.min(Math.max(0, toNumber(this.options.frozenColumns, 0)), visibleColumns.length);
+    frozenRightCount = Math.min(
+      Math.max(0, toNumber(this.options.frozenRightColumns, 0)),
+      Math.max(0, visibleColumns.length - frozenCount)
+    );
+    this._frozenColumns = frozenCount;
+    this._frozenRightColumns = frozenRightCount;
+    this.columnOffsets = [];
+
+    for (i = 0; i < visibleColumns.length; i += 1) {
+      visibleColumns[i]._viewIndex = i;
+      visibleColumns[i]._left = left;
+      this.columnOffsets.push(left);
+      left += visibleColumns[i]._width;
+    }
+
+    this.totalWidth = left;
+    this.scrollableColumnEnd = Math.max(frozenCount, visibleColumns.length - frozenRightCount);
+    this.frozenWidth = frozenCount > 0 ? visibleColumns[frozenCount - 1]._left + visibleColumns[frozenCount - 1]._width : 0;
+    this.frozenRightStartLeft = frozenRightCount > 0 && visibleColumns[this.scrollableColumnEnd] ? visibleColumns[this.scrollableColumnEnd]._left : this.totalWidth;
+    this.frozenRightWidth = frozenRightCount > 0 ? this.totalWidth - this.frozenRightStartLeft : 0;
+    this.scrollableWidth = Math.max(0, this.totalWidth - this.frozenWidth - this.frozenRightWidth);
+    this.emit('updatedLayout', {});
+  };
+
+  FastGrid.prototype.resetScroll = function() {
+    if (this.bodyScroll) {
+      this.bodyScroll.scrollTop = 0;
+      this.bodyScroll.scrollLeft = 0;
+    }
+  };
+
+  FastGrid.prototype.scheduleRender = function() {
+    var self = this;
+    if (this.raf || this.disposed) {
+      return;
+    }
+    this.raf = requestAnimationFrame(function() {
+      self.raf = 0;
+      self.render();
+    });
+  };
+
+  FastGrid.prototype.handleScroll = function() {
+    if (this.isDateboxPanelOpen()) {
+      this.hideDateboxPanel();
+    }
+    this.updateScrollState();
+    if (this.shouldRenderScrollImmediately()) {
+      if (this.raf) {
+        cancelAnimationFrame(this.raf);
+        this.raf = 0;
+      }
+      this.render();
+    } else {
+      this.scheduleRender();
+    }
+    this.emit('scrollPositionChanged', {
+      scrollTop: this.bodyScroll.scrollTop,
+      scrollLeft: this.bodyScroll.scrollLeft
+    });
+  };
+
+  FastGrid.prototype.updateScrollState = function() {
+    var top = this.bodyScroll ? this.bodyScroll.scrollTop : 0;
+    var left = this.bodyScroll ? this.bodyScroll.scrollLeft : 0;
+    var rowHeight = Math.max(1, toNumber(this.options.rowHeight, 32));
+    var maxExtraRows = Math.max(0, toNumber(this.options.fastScrollOverscanRows, 64));
+    var rowDelta = Math.ceil(Math.abs(top - this.scrollState.top) / rowHeight);
+    var targetExtraRows = Math.min(maxExtraRows, rowDelta * 2);
+    if (top > this.scrollState.top) {
+      this.scrollState.directionY = 1;
+    } else if (top < this.scrollState.top) {
+      this.scrollState.directionY = -1;
+    }
+    this.scrollState.extraRows = Math.max(targetExtraRows, Math.floor(this.scrollState.extraRows * 0.65));
+    this.scrollState.top = top;
+    this.scrollState.left = left;
+  };
+
+  FastGrid.prototype.shouldRenderScrollImmediately = function() {
+    var metrics;
+    var visibleRowStart;
+    var visibleRowEnd;
+    var viewportWidth;
+    var nextColumnRange;
+    if (this.options.syncScrollRender === false || !this.bodyScroll || !this.view.length) {
+      return false;
+    }
+    metrics = this.getViewportMetrics();
+    metrics.contentHeight = Math.max(0, metrics.contentHeight - this.getFooterHeight());
+    visibleRowStart = Math.floor(metrics.scrollTop / this.options.rowHeight);
+    visibleRowEnd = Math.min(this.view.length, Math.ceil((metrics.scrollTop + metrics.contentHeight) / this.options.rowHeight));
+    if (
+      visibleRowStart < this.rowRange.start ||
+      visibleRowEnd > this.rowRange.end
+    ) {
+      return true;
+    }
+    viewportWidth = Math.max(
+      0,
+      metrics.width - this.getFixedLeftWidth() - this.frozenWidth - this.frozenRightWidth
+    );
+    nextColumnRange = this.getColumnRange(metrics.scrollLeft, viewportWidth);
+    return nextColumnRange.start < this.columnRange.start ||
+      nextColumnRange.end > this.columnRange.end;
+  };
+
+  FastGrid.prototype.render = function() {
+    var metrics;
+    var rowRange;
+    var colRange;
+    var scrollLeft;
+    var scrollableViewportWidth;
+    var totalHeight;
+    var renderedCells;
+    var rowHeaderWidth;
+    var selectionCheckboxWidth;
+    var fixedLeftWidth;
+    var scrollbarGutterSize;
+    var verticalScrollbarGutterSize;
+    var footerHeight;
+
+    if (this.disposed) {
+      return;
+    }
+
+    if (this.emit('updatingView', {}) === false) {
+      return;
+    }
+    this.updateLayout();
+    footerHeight = this.getFooterHeight();
+    this.body.style.bottom = '0px';
+    metrics = this.getViewportMetrics();
+    scrollbarGutterSize = this.getScrollbarGutterSize();
+    verticalScrollbarGutterSize = this.getVerticalScrollbarGutterSize();
+    metrics.contentHeight = Math.max(0, metrics.contentHeight - footerHeight);
+    this.root.style.setProperty('--fg-scrollbar-gutter-size', scrollbarGutterSize + 'px');
+    rowHeaderWidth = this.getRowHeaderWidth();
+    selectionCheckboxWidth = this.getSelectionCheckboxWidth();
+    fixedLeftWidth = rowHeaderWidth + selectionCheckboxWidth;
+    rowRange = this.getRowRange(metrics);
+    this.renderContentHeight = metrics.contentHeight;
+    scrollableViewportWidth = Math.max(0, metrics.width - fixedLeftWidth - this.frozenWidth - this.frozenRightWidth);
+    scrollLeft = this.bodyScroll.scrollLeft;
+    colRange = this.getColumnRange(scrollLeft, scrollableViewportWidth);
+
+    this.rowRange = rowRange;
+    this.columnRange = colRange;
+    totalHeight = this.view.length * this.options.rowHeight;
+
+    this.sizeLayer.style.width = Math.max(metrics.width, fixedLeftWidth + this.frozenWidth + this.scrollableWidth + this.frozenRightWidth) + 'px';
+    this.sizeLayer.style.height = (totalHeight + footerHeight) + 'px';
+    this.rowHeaderTop.style.width = rowHeaderWidth + 'px';
+    this.rowHeaderTop.style.height = this.options.headerHeight + 'px';
+    this.rowHeaderTop.style.display = rowHeaderWidth > 0 ? 'flex' : 'none';
+    this.rowHeaderTop.textContent = rowHeaderWidth > 0 ? this.options.rowHeaderHeader : '';
+    this.rowHeaderPane.style.width = rowHeaderWidth + 'px';
+    this.rowHeaderPane.style.bottom = (scrollbarGutterSize + footerHeight) + 'px';
+    this.rowHeaderPane.style.display = rowHeaderWidth > 0 ? 'block' : 'none';
+    this.selectionTop.style.left = rowHeaderWidth + 'px';
+    this.selectionTop.style.width = selectionCheckboxWidth + 'px';
+    this.selectionTop.style.height = this.options.headerHeight + 'px';
+    this.selectionTop.style.display = selectionCheckboxWidth > 0 ? 'flex' : 'none';
+    this.selectionPane.style.left = rowHeaderWidth + 'px';
+    this.selectionPane.style.width = selectionCheckboxWidth + 'px';
+    this.selectionPane.style.bottom = (scrollbarGutterSize + footerHeight) + 'px';
+    this.selectionPane.style.display = selectionCheckboxWidth > 0 ? 'block' : 'none';
+    this.headerFrozen.style.width = this.frozenWidth + 'px';
+    this.headerFrozen.style.left = fixedLeftWidth + 'px';
+    this.headerScroll.style.left = (fixedLeftWidth + this.frozenWidth) + 'px';
+    this.headerScroll.style.right = (this.frozenRightWidth + verticalScrollbarGutterSize) + 'px';
+    this.frozenPane.style.width = this.frozenWidth + 'px';
+    this.frozenPane.style.left = fixedLeftWidth + 'px';
+    this.frozenPane.style.bottom = (scrollbarGutterSize + footerHeight) + 'px';
+    this.frozenPane.style.display = this.frozenWidth > 0 ? 'block' : 'none';
+    this.headerFrozenRight.style.width = this.frozenRightWidth + 'px';
+    this.headerFrozenRight.style.right = verticalScrollbarGutterSize + 'px';
+    this.headerFrozenRight.style.display = this.frozenRightWidth > 0 ? 'block' : 'none';
+    this.frozenRightPane.style.width = this.frozenRightWidth + 'px';
+    this.frozenRightPane.style.right = verticalScrollbarGutterSize + 'px';
+    this.frozenRightPane.style.bottom = (scrollbarGutterSize + footerHeight) + 'px';
+    this.frozenRightPane.style.display = this.frozenRightWidth > 0 ? 'block' : 'none';
+    this.headerCanvas.style.width = this.scrollableWidth + 'px';
+    this.headerCanvas.style.transform = 'translate3d(' + (-scrollLeft) + 'px,0,0)';
+    this.footer.style.height = footerHeight + 'px';
+    this.footer.style.bottom = scrollbarGutterSize + 'px';
+    this.footer.style.display = footerHeight > 0 ? 'block' : 'none';
+    this.footerRowHeader.style.width = rowHeaderWidth + 'px';
+    this.footerRowHeader.style.display = rowHeaderWidth > 0 ? 'flex' : 'none';
+    this.footerRowHeader.textContent = rowHeaderWidth > 0 ? this.options.footerLabel : '';
+    this.footerSelection.style.left = rowHeaderWidth + 'px';
+    this.footerSelection.style.width = selectionCheckboxWidth + 'px';
+    this.footerSelection.style.display = selectionCheckboxWidth > 0 ? 'block' : 'none';
+    this.footerFrozen.style.left = fixedLeftWidth + 'px';
+    this.footerFrozen.style.width = this.frozenWidth + 'px';
+    this.footerFrozen.style.display = this.frozenWidth > 0 ? 'block' : 'none';
+    this.footerScroll.style.left = (fixedLeftWidth + this.frozenWidth) + 'px';
+    this.footerScroll.style.right = (this.frozenRightWidth + verticalScrollbarGutterSize) + 'px';
+    this.footerFrozenRight.style.right = verticalScrollbarGutterSize + 'px';
+    this.footerFrozenRight.style.width = this.frozenRightWidth + 'px';
+    this.footerFrozenRight.style.display = this.frozenRightWidth > 0 ? 'block' : 'none';
+    this.footerCanvas.style.width = this.scrollableWidth + 'px';
+    this.footerCanvas.style.transform = 'translate3d(' + (-scrollLeft) + 'px,0,0)';
+
+    this.renderHeaders(colRange);
+    this.renderFooter(colRange);
+    this.renderRowHeaders(rowRange);
+    this.renderSelectionCheckboxes(rowRange);
+    renderedCells = this.renderBody(rowRange, colRange);
+    this.renderSelection();
+    this.empty.style.display = this.view.length ? 'none' : 'flex';
+
+    this.emit('viewportChanged', {
+      rowStart: rowRange.start,
+      rowEnd: rowRange.end,
+      columnStart: colRange.start,
+      columnEnd: colRange.end,
+      renderedCells: renderedCells,
+      totalRows: this.view.length
+    });
+    this.emit('updatedView', {
+      rowStart: rowRange.start,
+      rowEnd: rowRange.end,
+      columnStart: colRange.start,
+      columnEnd: colRange.end,
+      renderedCells: renderedCells,
+      totalRows: this.view.length
+    });
+  };
+
+  FastGrid.prototype.getViewportMetrics = function() {
+    return {
+      width: this.bodyScroll.clientWidth,
+      height: this.bodyScroll.clientHeight,
+      contentHeight: this.bodyScroll.clientHeight,
+      scrollTop: this.bodyScroll.scrollTop,
+      scrollLeft: this.bodyScroll.scrollLeft
+    };
+  };
+
+  FastGrid.prototype.getRowRange = function(metrics) {
+    var rowHeight = this.options.rowHeight;
+    var overscanRows = Math.max(0, toNumber(this.options.overscanRows, 8));
+    var extraRows = this.scrollState ? Math.max(0, toNumber(this.scrollState.extraRows, 0)) : 0;
+    var beforeRows = overscanRows;
+    var afterRows = overscanRows;
+    var visibleStart = Math.floor(metrics.scrollTop / rowHeight);
+    var visibleCount = Math.ceil(metrics.contentHeight / rowHeight);
+    var start;
+    var count;
+    if (this.scrollState && this.scrollState.directionY > 0) {
+      afterRows += extraRows;
+    } else if (this.scrollState && this.scrollState.directionY < 0) {
+      beforeRows += extraRows;
+    } else {
+      beforeRows += Math.ceil(extraRows / 2);
+      afterRows += Math.ceil(extraRows / 2);
+    }
+    start = visibleStart - beforeRows;
+    count = visibleCount + beforeRows + afterRows + 1;
+    start = Math.max(0, start);
+    return {
+      start: start,
+      end: Math.min(this.view.length, start + count)
+    };
+  };
+
+  FastGrid.prototype.getScrollbarGutterSize = function() {
+    return Math.max(0, this.bodyScroll.offsetHeight - this.bodyScroll.clientHeight);
+  };
+
+  FastGrid.prototype.getVerticalScrollbarGutterSize = function() {
+    return Math.max(0, this.bodyScroll.offsetWidth - this.bodyScroll.clientWidth);
+  };
+
+  FastGrid.prototype.getColumnRange = function(scrollLeft, viewportWidth) {
+    var columns = this.visibleColumns;
+    var frozen = this.frozenColumns;
+    var scrollEnd = this.scrollableColumnEnd;
+    var start;
+    var end;
+    var limit;
+    var i;
+
+    if (scrollEnd <= frozen || viewportWidth <= 0) {
+      return { start: frozen, end: frozen };
+    }
+
+    start = findColumnByOffset(columns, frozen, scrollEnd, this.frozenWidth + scrollLeft);
+    start = Math.max(frozen, start - this.options.overscanColumns);
+    limit = this.frozenWidth + scrollLeft + viewportWidth;
+    end = start;
+    for (i = start; i < scrollEnd; i += 1) {
+      end = i + 1;
+      if (columns[i]._left > limit) {
+        break;
+      }
+    }
+    end = Math.min(scrollEnd, end + this.options.overscanColumns);
+    return { start: start, end: end };
+  };
+
+  FastGrid.prototype.getRowHeaderWidth = function() {
+    if (this.options.showRowHeaders === false) {
+      return 0;
+    }
+    return Math.max(0, toNumber(this.options.rowHeaderWidth, 72));
+  };
+
+  FastGrid.prototype.getSelectionCheckboxWidth = function() {
+    if (this.options.multiSelectRows !== true) {
+      return 0;
+    }
+    return Math.max(28, toNumber(this.options.selectionCheckboxWidth, 44));
+  };
+
+  FastGrid.prototype.getFooterHeight = function() {
+    if (this.options.showFooter !== true) {
+      return 0;
+    }
+    return Math.max(0, toNumber(this.options.footerHeight, 28));
+  };
+
+  FastGrid.prototype.getFixedLeftWidth = function() {
+    return this.getRowHeaderWidth() + this.getSelectionCheckboxWidth();
+  };
+
+  FastGrid.prototype.renderHeaders = function(colRange) {
+    var frozenFragment = document.createDocumentFragment();
+    var frozenRightFragment = document.createDocumentFragment();
+    var scrollFragment = document.createDocumentFragment();
+    var i;
+    var col;
+
+    this.headerFrozen.innerHTML = '';
+    this.headerFrozenRight.innerHTML = '';
+    this.headerCanvas.innerHTML = '';
+
+    for (i = 0; i < this.frozenColumns; i += 1) {
+      col = this.visibleColumns[i];
+      frozenFragment.appendChild(this.createHeaderCell(col, col._left, true));
+    }
+
+    for (i = colRange.start; i < colRange.end; i += 1) {
+      col = this.visibleColumns[i];
+      scrollFragment.appendChild(this.createHeaderCell(col, col._left - this.frozenWidth, false));
+    }
+
+    for (i = this.scrollableColumnEnd; i < this.visibleColumns.length; i += 1) {
+      col = this.visibleColumns[i];
+      frozenRightFragment.appendChild(this.createHeaderCell(col, col._left - this.frozenRightStartLeft, true));
+    }
+
+    this.headerFrozen.appendChild(frozenFragment);
+    this.headerFrozenRight.appendChild(frozenRightFragment);
+    this.headerCanvas.appendChild(scrollFragment);
+  };
+
+  FastGrid.prototype.renderFooter = function(colRange) {
+    var frozenFragment = document.createDocumentFragment();
+    var frozenRightFragment = document.createDocumentFragment();
+    var scrollFragment = document.createDocumentFragment();
+    var i;
+    var col;
+
+    this.footerFrozen.innerHTML = '';
+    this.footerFrozenRight.innerHTML = '';
+    this.footerCanvas.innerHTML = '';
+    if (!this.getFooterHeight()) {
+      return;
+    }
+
+    for (i = 0; i < this.frozenColumns; i += 1) {
+      col = this.visibleColumns[i];
+      frozenFragment.appendChild(this.createFooterCell(col, col._left));
+    }
+
+    for (i = colRange.start; i < colRange.end; i += 1) {
+      col = this.visibleColumns[i];
+      scrollFragment.appendChild(this.createFooterCell(col, col._left - this.frozenWidth));
+    }
+
+    for (i = this.scrollableColumnEnd; i < this.visibleColumns.length; i += 1) {
+      col = this.visibleColumns[i];
+      frozenRightFragment.appendChild(this.createFooterCell(col, col._left - this.frozenRightStartLeft));
+    }
+
+    this.footerFrozen.appendChild(frozenFragment);
+    this.footerFrozenRight.appendChild(frozenRightFragment);
+    this.footerCanvas.appendChild(scrollFragment);
+  };
+
+  FastGrid.prototype.createFooterCell = function(column, left) {
+    var cell = document.createElement('div');
+    var label = document.createElement('span');
+    var text = this.getFooterCellText(column);
+    cell.className = 'fg-footer-cell';
+    if (column.align) {
+      cell.className += ' fg-align-' + column.align;
+    }
+    cell.style.left = left + 'px';
+    cell.style.width = column._width + 'px';
+    cell.style.height = this.getFooterHeight() + 'px';
+    cell.style.textAlign = normalizeTextAlign(column.align);
+    cell.style.justifyContent = normalizeJustifyContent(column.align);
+    cell.setAttribute('data-col', column._viewIndex);
+    label.className = 'fg-footer-label';
+    label.style.textAlign = normalizeTextAlign(column.align);
+    label.textContent = text;
+    cell.appendChild(label);
+    return cell;
+  };
+
+  FastGrid.prototype.getFooterCellText = function(column) {
+    var value;
+    var args;
+    if (typeof column.footer === 'function') {
+      args = {
+        grid: this,
+        column: column,
+        rows: this.view,
+        aggregate: column.aggregate
+      };
+      value = column.footer(args);
+      return value == null ? '' : String(value);
+    }
+    if (column.footer != null) {
+      return String(column.footer);
+    }
+    if (!column.aggregate) {
+      return '';
+    }
+    value = this.calculateAggregate(column.aggregate, column);
+    return this.formatAggregateValue(value, column);
+  };
+
+  FastGrid.prototype.calculateAggregate = function(aggregate, column) {
+    var rows = this.view;
+    var count = 0;
+    var sum = 0;
+    var min = null;
+    var max = null;
+    var i;
+    var value;
+    var number;
+    var name;
+    if (typeof aggregate === 'function') {
+      return aggregate({
+        grid: this,
+        column: column,
+        rows: rows,
+        getValue: function(item) {
+          return getByBinding(item, column.binding);
+        }
+      });
+    }
+    name = String(aggregate).toLowerCase();
+    if (name === 'count') {
+      return rows.length;
+    }
+    for (i = 0; i < rows.length; i += 1) {
+      value = getByBinding(rows[i], column.binding);
+      if (value == null || value === '') {
+        continue;
+      }
+      number = Number(value);
+      if (isNaN(number)) {
+        continue;
+      }
+      sum += number;
+      count += 1;
+      if (min == null || number < min) {
+        min = number;
+      }
+      if (max == null || number > max) {
+        max = number;
+      }
+    }
+    if (name === 'avg' || name === 'average') {
+      return count ? sum / count : null;
+    }
+    if (name === 'min') {
+      return min;
+    }
+    if (name === 'max') {
+      return max;
+    }
+    return count ? sum : null;
+  };
+
+  FastGrid.prototype.formatAggregateValue = function(value, column) {
+    var formatted;
+    if (value == null) {
+      return '';
+    }
+    if (typeof column.footerFormatter === 'function') {
+      formatted = column.footerFormatter(value, column, this.view);
+      return formatted == null ? '' : String(formatted);
+    }
+    if (typeof column.formatter === 'function') {
+      formatted = column.formatter(value, null, column);
+      return formatted == null ? '' : String(formatted);
+    }
+    if (typeof value === 'number') {
+      return value.toLocaleString('zh-TW', { maximumFractionDigits: 2 });
+    }
+    return String(value);
+  };
+
+  FastGrid.prototype.renderRowHeaders = function(rowRange) {
+    var fragment = document.createDocumentFragment();
+    var r;
+    var cell;
+    this.rowHeaderLayer.innerHTML = '';
+    if (!this.getRowHeaderWidth()) {
+      return;
+    }
+    for (r = rowRange.start; r < rowRange.end; r += 1) {
+      cell = this.createRowHeaderCell(r);
+      if (cell) {
+        fragment.appendChild(cell);
+      }
+    }
+    this.rowHeaderLayer.appendChild(fragment);
+  };
+
+  FastGrid.prototype.renderSelectionCheckboxes = function(rowRange) {
+    var fragment = document.createDocumentFragment();
+    var checkbox;
+    var r;
+    var cell;
+    this.selectionTop.innerHTML = '';
+    this.selectionLayer.innerHTML = '';
+    if (!this.getSelectionCheckboxWidth()) {
+      return;
+    }
+
+    checkbox = document.createElement('input');
+    checkbox.className = 'fg-selection-checkbox fg-selection-check-all';
+    checkbox.type = 'checkbox';
+    checkbox.setAttribute('aria-label', 'Select all rows');
+    checkbox.checked = this.view.length > 0 && this.getSelectedRowCount() === this.view.length;
+    checkbox.indeterminate = this.getSelectedRowCount() > 0 && this.getSelectedRowCount() < this.view.length;
+    this.selectionTop.appendChild(checkbox);
+
+    for (r = rowRange.start; r < rowRange.end; r += 1) {
+      cell = this.createSelectionCell(r);
+      if (cell) {
+        fragment.appendChild(cell);
+      }
+    }
+    this.selectionLayer.appendChild(fragment);
+  };
+
+  FastGrid.prototype.createSelectionCell = function(rowIndex) {
+    var cell = document.createElement('div');
+    var checkbox = document.createElement('input');
+    var top = rowIndex * this.options.rowHeight - this.bodyScroll.scrollTop;
+    var height = this.getVisibleRowHeight(top);
+    if (height <= 0) {
+      return null;
+    }
+    cell.className = 'fg-selection-cell';
+    if (this.options.alternatingRows && rowIndex % 2 === 1) {
+      cell.className += ' fg-row-even fg-row-alt';
+    }
+    if (this.hoverRow === rowIndex) {
+      cell.className += ' fg-row-hovered';
+    }
+    if (this.isRowSelected(rowIndex)) {
+      cell.className += ' fg-row-selected';
+    }
+    cell.style.top = top + 'px';
+    cell.style.width = this.getSelectionCheckboxWidth() + 'px';
+    cell.style.height = height + 'px';
+    cell.setAttribute('data-row', rowIndex);
+    checkbox.className = 'fg-selection-checkbox fg-selection-check';
+    checkbox.type = 'checkbox';
+    checkbox.checked = this.isRowSelected(rowIndex);
+    checkbox.setAttribute('aria-label', 'Select row ' + (rowIndex + 1));
+    checkbox.setAttribute('data-row', rowIndex);
+    cell.appendChild(checkbox);
+    return cell;
+  };
+
+  FastGrid.prototype.createRowHeaderCell = function(rowIndex) {
+    var cell = document.createElement('div');
+    var top = rowIndex * this.options.rowHeight - this.bodyScroll.scrollTop;
+    var height = this.getVisibleRowHeight(top);
+    if (height <= 0) {
+      return null;
+    }
+    cell.className = 'fg-row-header-cell';
+    if (this.options.alternatingRows && rowIndex % 2 === 1) {
+      cell.className += ' fg-row-even fg-row-alt';
+    }
+    if (this.hoverRow === rowIndex) {
+      cell.className += ' fg-row-hovered';
+    }
+    if (this.isRowSelected(rowIndex)) {
+      cell.className += ' fg-row-selected';
+    }
+    cell.style.top = top + 'px';
+    cell.style.width = this.getRowHeaderWidth() + 'px';
+    cell.style.height = height + 'px';
+    cell.setAttribute('data-row', rowIndex);
+    cell.textContent = String(rowIndex + 1);
+    return cell;
+  };
+
+  FastGrid.prototype.createHeaderCell = function(column, left, frozen) {
+    var cell = document.createElement('div');
+    var label = document.createElement('span');
+    var sort = document.createElement('span');
+    var resize = document.createElement('span');
+
+    cell.className = 'fg-header-cell';
+    if (column.align) {
+      cell.className += ' fg-header-align-' + column.align;
+    }
+    cell.style.left = left + 'px';
+    cell.style.width = column._width + 'px';
+    cell.style.height = this.options.headerHeight + 'px';
+    cell.setAttribute('data-col', column._viewIndex);
+    cell.setAttribute('data-frozen', frozen ? '1' : '0');
+    label.className = 'fg-header-label';
+    label.textContent = column.header || column.binding;
+    sort.className = 'fg-sort';
+    sort.textContent = this.getSortGlyph(column);
+    resize.className = 'fg-resize';
+    resize.setAttribute('data-resize-col', column._viewIndex);
+    cell.appendChild(label);
+    cell.appendChild(sort);
+    if (this.options.allowResizing) {
+      cell.appendChild(resize);
+    }
+    return cell;
+  };
+
+  FastGrid.prototype.renderBody = function(rowRange, colRange) {
+    var frozenFragment = document.createDocumentFragment();
+    var frozenRightFragment = document.createDocumentFragment();
+    var scrollFragment = document.createDocumentFragment();
+    var rendered = 0;
+    var cell;
+    var r;
+    var c;
+
+    this.frozenLayer.innerHTML = '';
+    this.frozenRightLayer.innerHTML = '';
+    this.cellLayer.innerHTML = '';
+
+    for (r = rowRange.start; r < rowRange.end; r += 1) {
+      for (c = 0; c < this.frozenColumns; c += 1) {
+        cell = this.createBodyCell(r, c, 'left');
+        if (cell) {
+          frozenFragment.appendChild(cell);
+          rendered += 1;
+        }
+      }
+      for (c = colRange.start; c < colRange.end; c += 1) {
+        cell = this.createBodyCell(r, c, 'scroll');
+        if (cell) {
+          scrollFragment.appendChild(cell);
+          rendered += 1;
+        }
+      }
+      for (c = this.scrollableColumnEnd; c < this.visibleColumns.length; c += 1) {
+        cell = this.createBodyCell(r, c, 'right');
+        if (cell) {
+          frozenRightFragment.appendChild(cell);
+          rendered += 1;
+        }
+      }
+    }
+
+    this.frozenLayer.appendChild(frozenFragment);
+    this.frozenRightLayer.appendChild(frozenRightFragment);
+    this.cellLayer.appendChild(scrollFragment);
+    return rendered;
+  };
+
+  FastGrid.prototype.createBodyCell = function(rowIndex, colIndex, pane) {
+    var row = this.view[rowIndex];
+    var column = this.visibleColumns[colIndex];
+    var value = getByBinding(row, column.binding);
+    var cell = document.createElement('div');
+    var isFrozen = pane === true || pane === 'left' || pane === 'right';
+    var left = this.getFixedLeftWidth() + column._left;
+    var top = isFrozen ? rowIndex * this.options.rowHeight - this.bodyScroll.scrollTop : rowIndex * this.options.rowHeight;
+    var viewportTop = rowIndex * this.options.rowHeight - this.bodyScroll.scrollTop;
+    var height = this.getVisibleRowHeight(viewportTop);
+
+    if (height <= 0) {
+      return null;
+    }
+
+    if (pane === true || pane === 'left') {
+      left = column._left;
+    } else if (pane === 'right') {
+      left = column._left - this.frozenRightStartLeft;
+    }
+
+    cell.className = 'fg-cell';
+    if (this.options.alternatingRows && rowIndex % 2 === 1) {
+      cell.className += ' fg-row-even fg-row-alt';
+    }
+    if (column.align) {
+      cell.className += ' fg-align-' + column.align;
+    }
+    if (this.hoverRow === rowIndex) {
+      cell.className += ' fg-row-hovered';
+    }
+    if (this.isRowSelected(rowIndex)) {
+      cell.className += ' fg-row-selected';
+    }
+    if (this.selection.row === rowIndex && this.selection.col === colIndex) {
+      cell.className += ' fg-selected';
+    }
+    cell.style.left = left + 'px';
+    cell.style.top = top + 'px';
+    cell.style.width = column._width + 'px';
+    cell.style.height = height + 'px';
+    cell.setAttribute('data-row', rowIndex);
+    cell.setAttribute('data-col', colIndex);
+    cell.setAttribute('role', 'gridcell');
+    this.renderCellContent(cell, row, column, value, rowIndex, colIndex);
+    return cell;
+  };
+
+  FastGrid.prototype.getVisibleRowHeight = function(viewportTop) {
+    return this.options.rowHeight;
+  };
+
+  FastGrid.prototype.renderCellContent = function(cell, item, column, value, rowIndex, colIndex) {
+    var text = value == null ? '' : String(value);
+    var args;
+    if (column.mask) {
+      text = formatMaskText(value, column);
+    }
+    if (typeof column.formatter === 'function') {
+      text = column.formatter(value, item, column);
+    }
+    cell.textContent = text == null ? '' : String(text);
+    args = {
+      grid: this,
+      panel: this.cells,
+      cell: cell,
+      item: item,
+      column: column,
+      value: value,
+      row: rowIndex,
+      col: colIndex,
+      rowIndex: rowIndex,
+      colIndex: colIndex
+    };
+    if (typeof this.options.formatCell === 'function') {
+      this.options.formatCell(args);
+    }
+    if (typeof this.options.itemFormatter === 'function') {
+      this.options.itemFormatter(this.cells, rowIndex, colIndex, cell);
+    }
+    this.emit('formatItem', args);
+  };
+
+  FastGrid.prototype.renderSelection = function() {
+    if (this.editing) {
+      this.positionEditor();
+    }
+  };
+
+  FastGrid.prototype.handleClick = function(event) {
+    var resize = closest(event.target, 'fg-resize');
+    var selectAll = closest(event.target, 'fg-selection-check-all');
+    var selectionCheck = closest(event.target, 'fg-selection-check');
+    var header = closest(event.target, 'fg-header-cell');
+    var rowHeader = closest(event.target, 'fg-row-header-cell');
+    var selectionCell = closest(event.target, 'fg-selection-cell');
+    var cell = closest(event.target, 'fg-cell');
+    var colIndex;
+    var rowIndex;
+
+    if (this.busy) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    if (this.suppressClick && (resize || header)) {
+      this.suppressClick = false;
+      event.preventDefault();
+      return;
+    }
+    this.suppressClick = false;
+
+    if (resize) {
+      event.preventDefault();
+      return;
+    }
+
+    if (selectAll) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.setAllRowsSelected(selectAll.checked);
+      this.root.focus();
+      return;
+    }
+
+    if (selectionCheck || selectionCell) {
+      event.preventDefault();
+      event.stopPropagation();
+      rowIndex = toNumber((selectionCheck || selectionCell).getAttribute('data-row'), 0);
+      this.toggleRowSelection(rowIndex);
+      this.root.focus();
+      return;
+    }
+
+    if (header && this.options.allowSorting) {
+      colIndex = toNumber(header.getAttribute('data-col'), -1);
+      this.toggleSort(colIndex);
+      return;
+    }
+
+    if (rowHeader) {
+      rowIndex = toNumber(rowHeader.getAttribute('data-row'), 0);
+      this.toggleRowSelection(rowIndex);
+      this.root.focus();
+      return;
+    }
+
+    if (cell) {
+      rowIndex = toNumber(cell.getAttribute('data-row'), 0);
+      colIndex = toNumber(cell.getAttribute('data-col'), 0);
+      if (this.editing && (this.editing.row !== rowIndex || this.editing.col !== colIndex)) {
+        if (this.finishEditing(true) === false) {
+          event.preventDefault();
+          return;
+        }
+      }
+      if (this.shouldEditOnSelect(rowIndex, colIndex)) {
+        this.selectRow(rowIndex, colIndex);
+      } else {
+        this.toggleRowSelection(rowIndex, colIndex);
+      }
+      this.scrollIntoView(rowIndex, colIndex);
+      if (this.shouldEditOnSelect(rowIndex, colIndex)) {
+        if (this.startEditing(rowIndex, colIndex)) {
+          return;
+        }
+      }
+      this.root.focus();
+    }
+  };
+
+  FastGrid.prototype.handlePointerDown = function(event) {
+    var resize = closest(event.target, 'fg-resize');
+    if (this.busy) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (!resize || this.options.allowResizing === false) {
+      return;
+    }
+    if (event.button != null && event.button !== 0) {
+      return;
+    }
+    this.startResize(event, toNumber(resize.getAttribute('data-resize-col'), 0));
+  };
+
+  FastGrid.prototype.handleDblClick = function(event) {
+    var cell = closest(event.target, 'fg-cell');
+    if (this.busy) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (!cell || !this.options.allowEditing) {
+      return;
+    }
+    this.startEditing(toNumber(cell.getAttribute('data-row'), 0), toNumber(cell.getAttribute('data-col'), 0));
+  };
+
+  FastGrid.prototype.handleMouseMove = function(event) {
+    var rowHeader = closest(event.target, 'fg-row-header-cell');
+    var selectionCell = closest(event.target, 'fg-selection-cell');
+    var cell = closest(event.target, 'fg-cell');
+    var nextRow = null;
+    if (rowHeader) {
+      nextRow = toNumber(rowHeader.getAttribute('data-row'), null);
+    } else if (selectionCell) {
+      nextRow = toNumber(selectionCell.getAttribute('data-row'), null);
+    } else if (cell) {
+      nextRow = toNumber(cell.getAttribute('data-row'), null);
+    }
+    if (this.hoverRow !== nextRow) {
+      this.hoverRow = nextRow;
+      this.render();
+    }
+  };
+
+  FastGrid.prototype.handleMouseLeave = function() {
+    if (this.hoverRow !== null) {
+      this.hoverRow = null;
+      this.render();
+    }
+  };
+
+  FastGrid.prototype.handleKeyDown = function(event) {
+    var row = this.selection.row;
+    var col = this.selection.col;
+    var targetName = event.target && event.target.tagName ? event.target.tagName.toUpperCase() : '';
+
+    if (this.busy) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    if (this.editing) {
+      if (event.key === 'Enter' || event.key === 'Tab') {
+        event.preventDefault();
+        if (event.shiftKey) {
+          this.commitEditingAndMoveLeft();
+        } else {
+          this.commitEditingAndMoveRight();
+        }
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.commitEditingAndMoveVertical(1);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.commitEditingAndMoveVertical(-1);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        this.finishEditing(false);
+      }
+      return;
+    }
+
+    if (targetName === 'INPUT' && event.target !== this.editor) {
+      return;
+    }
+
+    if (this.options.autoClipboard !== false && (event.ctrlKey || event.metaKey) && !event.altKey && String(event.key).toLowerCase() === 'c') {
+      event.preventDefault();
+      this.copySelection();
+      return;
+    }
+
+    if (event.key === ' ' || event.key === 'Spacebar' || event.code === 'Space') {
+      event.preventDefault();
+      if (this.view.length) {
+        this.toggleRowSelection(row, col);
+        this.scrollIntoView(row, col);
+      }
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      row += 1;
+      event.preventDefault();
+      this.moveVertical(row, col);
+      return;
+    } else if (event.key === 'ArrowUp') {
+      row -= 1;
+      event.preventDefault();
+      this.moveVertical(row, col);
+      return;
+    } else if (event.key === 'ArrowRight') {
+      col += 1;
+    } else if (event.key === 'ArrowLeft') {
+      col -= 1;
+    } else if (event.key === 'Enter' || event.key === 'F2') {
+      if (this.options.allowEditing) {
+        event.preventDefault();
+        this.startEditing(row, col);
+      }
+      return;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    this.moveCell(row, col);
+  };
+
+  FastGrid.prototype.moveCell = function(row, col) {
+    var next;
+    row = clamp(row, 0, Math.max(0, this.view.length - 1));
+    col = clamp(col, 0, Math.max(0, this.visibleColumns.length - 1));
+    if (this.options.editOnSelect === true) {
+      next = this.findEditableCellInRow(row, col, col >= this.selection.col ? 1 : -1);
+      if (next) {
+        row = next.row;
+        col = next.col;
+      }
+      this.select(row, col);
+      this.scrollIntoView(row, col);
+      if (this.shouldEditOnSelect(row, col)) {
+        this.startEditing(row, col, { selectRow: this.options.multiSelectRows !== true });
+      }
+      return;
+    }
+    this.selectRow(row, col);
+    this.scrollIntoView(row, col);
+  };
+
+  FastGrid.prototype.moveVertical = function(row, col) {
+    var next;
+    row = clamp(row, 0, Math.max(0, this.view.length - 1));
+    col = clamp(col, 0, Math.max(0, this.visibleColumns.length - 1));
+    if (this.options.editOnSelect === true) {
+      if (!this.isCellEditable(this.selection.row, this.selection.col)) {
+        if (this.options.multiSelectRows === true) {
+          this.select(row, col);
+        } else {
+          this.selectRow(row, col);
+        }
+        this.scrollIntoView(row, col);
+        return;
+      }
+      next = this.findEditableCellInRow(row, col, 1);
+      if (next) {
+        this.select(next.row, next.col);
+        this.scrollIntoView(next.row, next.col);
+        this.startEditing(next.row, next.col, { selectRow: this.options.multiSelectRows !== true });
+      }
+      return;
+    }
+    if (this.options.multiSelectRows === true) {
+      this.select(row, col);
+      this.scrollIntoView(row, col);
+      return;
+    }
+    this.selectRow(row, col);
+    this.scrollIntoView(row, col);
+  };
+
+  FastGrid.prototype.select = function(row, col) {
+    row = clamp(row, 0, Math.max(0, this.view.length - 1));
+    col = clamp(col, 0, Math.max(0, this.visibleColumns.length - 1));
+    this.rowSelection = null;
+    if (this.selection.row === row && this.selection.col === col) {
+      this.render();
+      return;
+    }
+    if (this.emit('selectionChanging', { row: row, col: col }) === false) {
+      return;
+    }
+    this.selection = { row: row, col: col };
+    this.emit('selectionChanged', { row: row, col: col });
+    this.render();
+  };
+
+  FastGrid.prototype.selectRow = function(row, col) {
+    row = clamp(row, 0, Math.max(0, this.view.length - 1));
+    col = col == null ? this.selection.col : col;
+    col = clamp(col, 0, Math.max(0, this.visibleColumns.length - 1));
+    if (this.emit('rowSelectionChanging', { row: row }) === false) {
+      return;
+    }
+    this.rowSelection = row;
+    if (this.options.multiSelectRows === true) {
+      this.selectedRowMap[row] = true;
+    }
+    this.selection = {
+      row: row,
+      col: col
+    };
+    this.emit('selectionChanged', { row: row, col: col });
+    this.emit('rowSelectionChanged', { row: row });
+    this.render();
+  };
+
+  FastGrid.prototype.toggleRowSelection = function(row, col) {
+    row = clamp(row, 0, Math.max(0, this.view.length - 1));
+    col = col == null ? this.selection.col : col;
+    col = clamp(col, 0, Math.max(0, this.visibleColumns.length - 1));
+    if (this.options.multiSelectRows !== true) {
+      if (this.rowSelection === row) {
+        this.rowSelection = null;
+        this.selection = { row: row, col: col };
+        this.emit('selectionChanged', { row: row, col: col });
+        this.emit('rowSelectionChanged', { row: null });
+        this.render();
+        return;
+      }
+      this.selectRow(row, col);
+      return;
+    }
+    if (this.selectedRowMap[row]) {
+      delete this.selectedRowMap[row];
+    } else {
+      this.selectedRowMap[row] = true;
+    }
+    this.rowSelection = row;
+    this.selection = { row: row, col: col };
+    this.emit('selectionChanged', { row: row, col: col });
+    this.emit('rowSelectionChanged', { row: row });
+    this.render();
+  };
+
+  FastGrid.prototype.setAllRowsSelected = function(selected) {
+    var i;
+    this.selectedRowMap = {};
+    if (this.options.multiSelectRows === true && selected) {
+      for (i = 0; i < this.view.length; i += 1) {
+        this.selectedRowMap[i] = true;
+      }
+    }
+    this.emit('selectionChanged', { allRows: selected === true });
+    this.render();
+  };
+
+  FastGrid.prototype.isRowSelected = function(row) {
+    if (this.options.multiSelectRows === true) {
+      return this.selectedRowMap[row] === true;
+    }
+    return this.rowSelection === row;
+  };
+
+  FastGrid.prototype.getSelectedRowCount = function() {
+    var count = 0;
+    var key;
+    for (key in this.selectedRowMap) {
+      if (Object.prototype.hasOwnProperty.call(this.selectedRowMap, key) && this.selectedRowMap[key]) {
+        count += 1;
+      }
+    }
+    return count;
+  };
+
+  FastGrid.prototype.captureSelectionState = function() {
+    var selectedItems = [];
+    var key;
+    var index;
+    if (this.options.multiSelectRows === true) {
+      for (key in this.selectedRowMap) {
+        if (Object.prototype.hasOwnProperty.call(this.selectedRowMap, key) && this.selectedRowMap[key]) {
+          index = toNumber(key, -1);
+          if (index >= 0 && index < this.view.length) {
+            selectedItems.push(this.view[index]);
+          }
+        }
+      }
+    }
+    return {
+      rowSelectionItem: this.rowSelection != null ? this.view[this.rowSelection] : null,
+      activeItem: this.view[this.selection.row] || null,
+      selectedItems: selectedItems
+    };
+  };
+
+  FastGrid.prototype.restoreSelectionState = function(state) {
+    var next = {};
+    var rowIndex;
+    var activeIndex;
+    var i;
+    if (!state) {
+      return;
+    }
+    if (this.options.multiSelectRows === true) {
+      for (i = 0; i < state.selectedItems.length; i += 1) {
+        rowIndex = findRowIndexByItem(this.view, state.selectedItems[i]);
+        if (rowIndex >= 0) {
+          next[rowIndex] = true;
+        }
+      }
+      this.selectedRowMap = next;
+    }
+    rowIndex = findRowIndexByItem(this.view, state.rowSelectionItem);
+    this.rowSelection = rowIndex >= 0 ? rowIndex : null;
+    activeIndex = findRowIndexByItem(this.view, state.activeItem);
+    if (activeIndex >= 0) {
+      this.selection.row = activeIndex;
+    } else if (this.rowSelection != null) {
+      this.selection.row = this.rowSelection;
+    }
+  };
+
+  FastGrid.prototype.pruneSelectedRows = function() {
+    var next = {};
+    var key;
+    var index;
+    for (key in this.selectedRowMap) {
+      if (Object.prototype.hasOwnProperty.call(this.selectedRowMap, key) && this.selectedRowMap[key]) {
+        index = toNumber(key, -1);
+        if (index >= 0 && index < this.view.length) {
+          next[index] = true;
+        }
+      }
+    }
+    this.selectedRowMap = next;
+  };
+
+  FastGrid.prototype.copySelection = function() {
+    var text = this.getSelectedText();
+    var args;
+    if (text == null) {
+      return false;
+    }
+    args = {
+      row: this.selection.row,
+      col: this.selection.col,
+      text: text,
+      data: text
+    };
+    if (this.emit('copying', args) === false) {
+      return false;
+    }
+    if (this.emit('copyingCell', args) === false) {
+      return false;
+    }
+    text = args.text == null ? '' : String(args.text);
+    this.copyText(text);
+    args.text = text;
+    args.data = text;
+    this.emit('copied', args);
+    this.emit('copiedCell', args);
+    this.emit('cellCopied', {
+      row: this.selection.row,
+      col: this.selection.col,
+      text: text
+    });
+    return true;
+  };
+
+  FastGrid.prototype.getSelectedText = function() {
+    var value = this.getCellData(this.selection.row, this.selection.col);
+    var column = this.visibleColumns[this.selection.col];
+    if (column && column.mask) {
+      return getMaskCopyText(value, column);
+    }
+    return value == null ? '' : String(value);
+  };
+
+  FastGrid.prototype.copyText = function(text) {
+    var self = this;
+    this.copyBuffer = text;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function() {
+        self.copyTextWithTextarea(text);
+      });
+      return;
+    }
+    this.copyTextWithTextarea(text);
+  };
+
+  FastGrid.prototype.copyTextWithTextarea = function(text) {
+    var textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'readonly');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '-1000px';
+    textarea.style.left = '-1000px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand('copy');
+    } catch (error) {
+      this.emit('copyFailed', { error: error, text: text });
+    }
+    document.body.removeChild(textarea);
+    this.root.focus();
+  };
+
+  FastGrid.prototype.clampSelection = function() {
+    this.selection.row = clamp(this.selection.row, 0, Math.max(0, this.view.length - 1));
+    this.selection.col = clamp(this.selection.col, 0, Math.max(0, this.visibleColumns ? this.visibleColumns.length - 1 : 0));
+    if (this.rowSelection != null && this.rowSelection >= this.view.length) {
+      this.rowSelection = this.view.length ? this.view.length - 1 : null;
+    }
+  };
+
+  FastGrid.prototype.scrollIntoView = function(row, col) {
+    var rowTop = row * this.options.rowHeight;
+    var rowBottom = rowTop + this.options.rowHeight;
+    var colObj = this.visibleColumns[col];
+    var scrollableViewportWidth = Math.max(0, this.bodyScroll.clientWidth - this.getFixedLeftWidth() - this.frozenWidth - this.frozenRightWidth);
+    var scrollLeft;
+    if (!colObj) {
+      return;
+    }
+    if (rowTop < this.bodyScroll.scrollTop) {
+      this.bodyScroll.scrollTop = rowTop;
+    } else if (rowBottom > this.bodyScroll.scrollTop + this.bodyScroll.clientHeight) {
+      this.bodyScroll.scrollTop = rowBottom - this.bodyScroll.clientHeight;
+    }
+    if (col >= this.frozenColumns && col < this.scrollableColumnEnd) {
+      scrollLeft = this.bodyScroll.scrollLeft;
+      if (colObj._left - this.frozenWidth < scrollLeft) {
+        this.bodyScroll.scrollLeft = colObj._left - this.frozenWidth;
+      } else if (colObj._left + colObj._width - this.frozenWidth > scrollLeft + scrollableViewportWidth) {
+        this.bodyScroll.scrollLeft = colObj._left + colObj._width - this.frozenWidth - scrollableViewportWidth;
+      }
+    }
+    this.render();
+  };
+
+  FastGrid.prototype.startEditing = function(row, col, options) {
+    var column = this.visibleColumns[col];
+    var item = this.view[row];
+    var args;
+    var value;
+    var shouldSelectRow = !options || options.selectRow !== false;
+    if (!this.isCellEditable(row, col) || !item) {
+      return false;
+    }
+    args = { row: row, col: col, column: column, item: item };
+    if (this.emit('beginningEdit', args) === false) {
+      return false;
+    }
+    if (this.emit('cellEditStarting', args) === false) {
+      return false;
+    }
+    value = getByBinding(item, column.binding);
+    if (shouldSelectRow) {
+      this.rowSelection = row;
+      if (this.options.multiSelectRows === true) {
+        this.selectedRowMap[row] = true;
+      }
+    }
+    this.selection = { row: row, col: col };
+    this.editorConfig = getColumnEditorConfig(column);
+    this.editing = { row: row, col: col, original: value, editor: this.editorConfig };
+    this.configureEditor(column);
+    this.editor.value = this.getEditorText(value, column);
+    this.editor.style.textAlign = normalizeTextAlign(column.align);
+    this.editor.style.display = 'block';
+    this.render();
+    this.positionEditor();
+    this.editor.focus();
+    this.editor.select();
+    return true;
+  };
+
+  FastGrid.prototype.configureEditor = function(column) {
+    var config = getColumnEditorConfig(column);
+    var type = config.type;
+    this.editorConfig = config;
+    this.editor.className = 'fg-editor textbox-f fg-editor-' + type + ' ' + type + '-f';
+    this.editor.setAttribute('data-editor-type', type);
+    this.editor.setAttribute('autocomplete', 'off');
+    this.editor.type = 'text';
+    this.editor.inputMode = type === 'numberbox' ? 'decimal' : 'text';
+    this.editorTrigger.style.display = type === 'datebox' ? 'block' : 'none';
+    if (type !== 'datebox') {
+      this.hideDateboxPanel();
+    }
+  };
+
+  FastGrid.prototype.getEditorText = function(value, column) {
+    var config = getColumnEditorConfig(column);
+    if (value == null) {
+      return '';
+    }
+    if (column && column.mask) {
+      return formatMaskText(value, column);
+    }
+    if (config.type === 'numberbox') {
+      return formatNumberEditorText(value);
+    }
+    if (config.type === 'datebox') {
+      return formatDateboxText(value, config);
+    }
+    return String(value);
+  };
+
+  FastGrid.prototype.handleEditorInput = function() {
+    var edit = this.editing;
+    var column;
+    var formatted;
+    if (!edit) {
+      return;
+    }
+    column = this.visibleColumns[edit.col];
+    if (column && column.mask) {
+      formatted = formatMaskText(this.editor.value, column);
+      if (formatted !== this.editor.value) {
+        this.editor.value = formatted;
+        this.editor.setSelectionRange(formatted.length, formatted.length);
+      }
+      return;
+    }
+    if (!column || getColumnEditorConfig(column).type !== 'numberbox') {
+      if (column && getColumnEditorConfig(column).type === 'datebox') {
+        this.syncDateboxPanelToEditor();
+      }
+      return;
+    }
+    formatted = formatNumberEditorText(this.editor.value);
+    if (formatted !== this.editor.value) {
+      this.editor.value = formatted;
+      this.editor.setSelectionRange(formatted.length, formatted.length);
+    }
+  };
+
+  FastGrid.prototype.handleEditorCopy = function(event) {
+    var edit = this.editing;
+    var column;
+    var start;
+    var end;
+    var next;
+    var text;
+    var clipboardData;
+    if (!edit) {
+      return;
+    }
+    column = this.visibleColumns[edit.col];
+    if (!column || !column.mask) {
+      return;
+    }
+    start = this.editor.selectionStart;
+    end = this.editor.selectionEnd;
+    if (start == null || end == null || start === end) {
+      return;
+    }
+    if (start > end) {
+      next = start;
+      start = end;
+      end = next;
+    }
+    text = getMaskCopyText(this.editor.value.slice(start, end), column);
+    clipboardData = event.clipboardData || window.clipboardData;
+    if (!clipboardData || !clipboardData.setData) {
+      return;
+    }
+    clipboardData.setData('text/plain', text);
+    this.copyBuffer = text;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  FastGrid.prototype.handleEditorTriggerClick = function(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!this.editing || !this.editorConfig || this.editorConfig.type !== 'datebox') {
+      return;
+    }
+    if (this.dateboxPanel.style.display === 'block') {
+      this.hideDateboxPanel();
+    } else {
+      this.showDateboxPanel();
+    }
+    this.editor.focus();
+  };
+
+  FastGrid.prototype.handleDateboxClick = function(event) {
+    var day = closest(event.target, 'fg-datebox-day');
+    var monthButton = closest(event.target, 'fg-datebox-month');
+    var control = closest(event.target, 'fg-datebox-control');
+    var action;
+    var date;
+    var month;
+    if (!this.editing || !this.editorConfig || this.editorConfig.type !== 'datebox') {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (monthButton) {
+      month = toNumber(monthButton.getAttribute('data-month'), this.dateboxState ? this.dateboxState.month : 0);
+      this.dateboxState = {
+        year: this.dateboxState ? this.dateboxState.year : new Date().getFullYear(),
+        month: clamp(month, 0, 11),
+        selected: this.dateboxState ? this.dateboxState.selected : null,
+        mode: 'calendar'
+      };
+      this.renderDateboxPanel();
+      return;
+    }
+    if (day && !hasClass(day, 'fg-datebox-disabled')) {
+      date = parseDateValue(day.getAttribute('data-date'));
+      if (date) {
+        this.editing.dateboxValue = formatDateIso(date);
+        this.editor.value = formatDateboxEditorText(date, this.editorConfig, this.visibleColumns[this.editing.col]);
+        this.hideDateboxPanel();
+        this.editor.focus();
+      }
+      return;
+    }
+    if (!control) {
+      return;
+    }
+    action = control.getAttribute('data-action');
+    if (action === 'months') {
+      this.dateboxState.mode = 'months';
+      this.renderDateboxPanel();
+      return;
+    }
+    if (action === 'close') {
+      this.hideDateboxPanel();
+      this.editor.focus();
+      return;
+    }
+    if (action === 'today') {
+      date = new Date();
+      this.editing.dateboxValue = formatDateIso(date);
+      this.editor.value = formatDateboxEditorText(date, this.editorConfig, this.visibleColumns[this.editing.col]);
+      this.dateboxState = {
+        year: date.getFullYear(),
+        month: date.getMonth(),
+        selected: date,
+        mode: 'calendar'
+      };
+      this.renderDateboxPanel();
+      this.hideDateboxPanel();
+      this.editor.focus();
+      return;
+    }
+    this.moveDateboxMonth(action);
+  };
+
+  FastGrid.prototype.handleDateboxChange = function(event) {
+    var input = closest(event.target, 'fg-datebox-year-input');
+    var year;
+    if (!input || !this.editing || !this.editorConfig || this.editorConfig.type !== 'datebox') {
+      return;
+    }
+    year = clamp(toNumber(input.value, this.dateboxState ? this.dateboxState.year : new Date().getFullYear()), 1, 9999);
+    this.dateboxState = this.dateboxState || {
+      year: year,
+      month: new Date().getMonth(),
+      selected: null,
+      mode: 'months'
+    };
+    this.dateboxState.year = year;
+    this.dateboxState.mode = 'months';
+    this.renderDateboxPanel();
+  };
+
+  FastGrid.prototype.handleDocumentMouseDown = function(event) {
+    if (!this.editing || !this.dateboxPanel || this.dateboxPanel.style.display !== 'block') {
+      return;
+    }
+    if (event.target === this.editor || event.target === this.editorTrigger || closest(event.target, 'fg-datebox-panel')) {
+      return;
+    }
+    this.hideDateboxPanel();
+  };
+
+  FastGrid.prototype.shouldEditOnSelect = function(row, col) {
+    return this.options.editOnSelect === true && this.isCellEditable(row, col);
+  };
+
+  FastGrid.prototype.isCellEditable = function(row, col) {
+    var column = this.visibleColumns[col];
+    return this.options.allowEditing !== false &&
+      row >= 0 &&
+      row < this.view.length &&
+      !!column &&
+      column.readOnly !== true;
+  };
+
+  FastGrid.prototype.commitEditingAndMoveRight = function() {
+    var edit = this.editing;
+    var next;
+    if (!edit) {
+      return false;
+    }
+    next = this.findNextEditableCell(edit.row, edit.col + 1);
+    if (this.finishEditing(true) === false) {
+      return false;
+    }
+    if (next) {
+      this.select(next.row, next.col);
+      this.scrollIntoView(next.row, next.col);
+      this.startEditing(next.row, next.col, { selectRow: this.options.multiSelectRows !== true });
+    }
+    return true;
+  };
+
+  FastGrid.prototype.commitEditingAndMoveLeft = function() {
+    var edit = this.editing;
+    var next;
+    if (!edit) {
+      return false;
+    }
+    next = this.findPreviousEditableCell(edit.row, edit.col - 1);
+    if (this.finishEditing(true) === false) {
+      return false;
+    }
+    if (next) {
+      this.select(next.row, next.col);
+      this.scrollIntoView(next.row, next.col);
+      this.startEditing(next.row, next.col, { selectRow: this.options.multiSelectRows !== true });
+    }
+    return true;
+  };
+
+  FastGrid.prototype.commitEditingAndMoveVertical = function(direction) {
+    var edit = this.editing;
+    var next;
+    if (!edit) {
+      return false;
+    }
+    next = this.findEditableCellInRow(edit.row + direction, edit.col, direction >= 0 ? 1 : -1);
+    if (this.finishEditing(true) === false) {
+      return false;
+    }
+    if (next) {
+      this.select(next.row, next.col);
+      this.scrollIntoView(next.row, next.col);
+      this.startEditing(next.row, next.col, { selectRow: this.options.multiSelectRows !== true });
+    }
+    return true;
+  };
+
+  FastGrid.prototype.findNextEditableCell = function(row, col) {
+    var r;
+    var c;
+    for (r = row; r < this.view.length; r += 1) {
+      for (c = r === row ? col : 0; c < this.visibleColumns.length; c += 1) {
+        if (this.isCellEditable(r, c)) {
+          return { row: r, col: c };
+        }
+      }
+    }
+    return null;
+  };
+
+  FastGrid.prototype.findPreviousEditableCell = function(row, col) {
+    var r;
+    var c;
+    for (r = row; r >= 0; r -= 1) {
+      for (c = r === row ? col : this.visibleColumns.length - 1; c >= 0; c -= 1) {
+        if (this.isCellEditable(r, c)) {
+          return { row: r, col: c };
+        }
+      }
+    }
+    return null;
+  };
+
+  FastGrid.prototype.findEditableCellInRow = function(row, col, direction) {
+    var c;
+    row = clamp(row, 0, Math.max(0, this.view.length - 1));
+    col = clamp(col, 0, Math.max(0, this.visibleColumns.length - 1));
+    if (this.isCellEditable(row, col)) {
+      return { row: row, col: col };
+    }
+    direction = direction < 0 ? -1 : 1;
+    for (c = col + direction; c >= 0 && c < this.visibleColumns.length; c += direction) {
+      if (this.isCellEditable(row, c)) {
+        return { row: row, col: c };
+      }
+    }
+    for (c = col - direction; c >= 0 && c < this.visibleColumns.length; c -= direction) {
+      if (this.isCellEditable(row, c)) {
+        return { row: row, col: c };
+      }
+    }
+    return null;
+  };
+
+  FastGrid.prototype.positionEditor = function() {
+    var edit = this.editing;
+    var column;
+    var left;
+    var top;
+    if (!edit) {
+      return;
+    }
+    column = this.visibleColumns[edit.col];
+    if (edit.col < this.frozenColumns) {
+      left = this.getFixedLeftWidth() + column._left;
+    } else if (edit.col >= this.scrollableColumnEnd) {
+      left = this.bodyScroll.clientWidth - this.frozenRightWidth + column._left - this.frozenRightStartLeft;
+    } else {
+      left = this.getFixedLeftWidth() + column._left - this.bodyScroll.scrollLeft;
+    }
+    top = edit.row * this.options.rowHeight - this.bodyScroll.scrollTop;
+    this.editor.style.left = left + 'px';
+    this.editor.style.top = top + 'px';
+    this.editor.style.width = column._width + 'px';
+    this.editor.style.height = this.options.rowHeight + 'px';
+    if (this.editorConfig && this.editorConfig.type === 'datebox') {
+      this.editorTrigger.style.left = (left + column._width - 22) + 'px';
+      this.editorTrigger.style.top = top + 'px';
+      this.editorTrigger.style.height = this.options.rowHeight + 'px';
+      this.positionDateboxPanel(left, top + this.options.rowHeight, column._width);
+    }
+  };
+
+  FastGrid.prototype.showDateboxPanel = function() {
+    if (!this.editing || !this.editorConfig || this.editorConfig.type !== 'datebox') {
+      return;
+    }
+    this.syncDateboxPanelToEditor();
+    this.renderDateboxPanel();
+    this.dateboxPanel.style.display = 'block';
+    this.positionEditor();
+  };
+
+  FastGrid.prototype.hideDateboxPanel = function() {
+    if (this.dateboxPanel) {
+      this.dateboxPanel.style.display = 'none';
+    }
+  };
+
+  FastGrid.prototype.isDateboxPanelOpen = function() {
+    return !!this.dateboxPanel && this.dateboxPanel.style.display === 'block';
+  };
+
+  FastGrid.prototype.syncDateboxPanelToEditor = function() {
+    var date = parseDateboxEditorValue(this.editor.value, this.editorConfig);
+    if (!date && this.editing) {
+      date = parseDateValue(this.editing.dateboxValue || this.editing.original);
+    }
+    if (!date) {
+      date = new Date();
+    }
+    this.dateboxState = {
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      selected: date,
+      mode: 'calendar'
+    };
+  };
+
+  FastGrid.prototype.moveDateboxMonth = function(action) {
+    var state = this.dateboxState || {
+      year: new Date().getFullYear(),
+      month: new Date().getMonth(),
+      selected: null,
+      mode: 'calendar'
+    };
+    var date = new Date(state.year, state.month, 1);
+    if (action === 'prev-year') {
+      date.setFullYear(date.getFullYear() - 1);
+    } else if (action === 'next-year') {
+      date.setFullYear(date.getFullYear() + 1);
+    } else if (action === 'prev-month') {
+      date.setMonth(date.getMonth() - 1);
+    } else if (action === 'next-month') {
+      date.setMonth(date.getMonth() + 1);
+    }
+    this.dateboxState = {
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      selected: state.selected,
+      mode: state.mode || 'calendar'
+    };
+    this.renderDateboxPanel();
+  };
+
+  FastGrid.prototype.renderDateboxPanel = function() {
+    var state = this.dateboxState || {};
+    var year = state.year || new Date().getFullYear();
+    var month = state.month == null ? new Date().getMonth() : state.month;
+    var mode = state.mode || 'calendar';
+    var selectedIso = state.selected ? formatDateIso(state.selected) : '';
+    var todayIso = formatDateIso(new Date());
+    var first = new Date(year, month, 1);
+    var start = new Date(year, month, 1 - first.getDay());
+    var labels = ['日', '一', '二', '三', '四', '五', '六'];
+    var html = [];
+    var i;
+    var d;
+    var iso;
+    var className;
+    html.push('<div class="fg-datebox-header">');
+    html.push('<button type="button" class="fg-datebox-control" data-action="prev-year">«</button>');
+    html.push('<button type="button" class="fg-datebox-control" data-action="prev-month">‹</button>');
+    html.push('<button type="button" class="fg-datebox-control fg-datebox-title fg-datebox-title-button" data-action="months">' + getMonthTitle(year, month) + '</button>');
+    html.push('<button type="button" class="fg-datebox-control" data-action="next-month">›</button>');
+    html.push('<button type="button" class="fg-datebox-control" data-action="next-year">»</button>');
+    html.push('</div>');
+    if (mode === 'months') {
+      this.renderDateboxMonthView(html, year, month);
+      this.renderDateboxFooter(html);
+      this.dateboxPanel.innerHTML = html.join('');
+      return;
+    }
+    html.push('<div class="fg-datebox-weekdays">');
+    for (i = 0; i < labels.length; i += 1) {
+      html.push('<span>' + labels[i] + '</span>');
+    }
+    html.push('</div>');
+    html.push('<div class="fg-datebox-days">');
+    for (i = 0; i < 42; i += 1) {
+      d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      iso = formatDateIso(d);
+      className = 'fg-datebox-day';
+      if (d.getMonth() !== month) {
+        className += ' fg-datebox-other-month';
+      }
+      if (d.getDay() === 0) {
+        className += ' fg-datebox-sunday';
+      } else if (d.getDay() === 6) {
+        className += ' fg-datebox-saturday';
+      }
+      if (iso === todayIso) {
+        className += ' fg-datebox-today';
+      }
+      if (iso === selectedIso) {
+        className += ' fg-datebox-selected';
+      }
+      html.push('<button type="button" class="' + className + '" data-date="' + iso + '">' + d.getDate() + '</button>');
+    }
+    html.push('</div>');
+    this.renderDateboxFooter(html);
+    this.dateboxPanel.innerHTML = html.join('');
+  };
+
+  FastGrid.prototype.renderDateboxMonthView = function(html, year, month) {
+    var labels = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+    var i;
+    var className;
+    html.push('<div class="fg-datebox-month-view">');
+    html.push('<div class="fg-datebox-year-row">');
+    html.push('<button type="button" class="fg-datebox-control fg-datebox-year-control" data-action="prev-year">«</button>');
+    html.push('<input class="fg-datebox-year-input" type="number" min="1" max="9999" value="' + year + '" aria-label="Year">');
+    html.push('<button type="button" class="fg-datebox-control fg-datebox-year-control" data-action="next-year">»</button>');
+    html.push('</div>');
+    html.push('<div class="fg-datebox-months">');
+    for (i = 0; i < labels.length; i += 1) {
+      className = 'fg-datebox-month';
+      if (i === month) {
+        className += ' fg-datebox-month-selected';
+      }
+      html.push('<button type="button" class="' + className + '" data-month="' + i + '">' + labels[i] + '</button>');
+    }
+    html.push('</div>');
+    html.push('</div>');
+  };
+
+  FastGrid.prototype.renderDateboxFooter = function(html) {
+    html.push('<div class="fg-datebox-footer">');
+    html.push('<button type="button" class="fg-datebox-control fg-datebox-footer-button" data-action="today">今天</button>');
+    html.push('<button type="button" class="fg-datebox-control fg-datebox-footer-button" data-action="close">關閉</button>');
+    html.push('</div>');
+  };
+
+  FastGrid.prototype.positionDateboxPanel = function(left, top, width) {
+    var panelWidth = Math.max(250, width);
+    var maxLeft = Math.max(0, this.root.clientWidth - panelWidth - 2);
+    var maxTop = Math.max(0, this.root.clientHeight - 282);
+    this.dateboxPanel.style.left = clamp(left, 0, maxLeft) + 'px';
+    this.dateboxPanel.style.top = clamp(top, 0, maxTop) + 'px';
+    this.dateboxPanel.style.width = panelWidth + 'px';
+  };
+
+  FastGrid.prototype.finishEditing = function(commit) {
+    var edit = this.editing;
+    var column;
+    var item;
+    var value;
+    var args;
+    if (!edit) {
+      return false;
+    }
+    column = this.visibleColumns[edit.col];
+    item = this.view[edit.row];
+    if (commit && item && column) {
+      value = this.getEditorValue(column);
+      value = parseValue(value, column.dataType);
+      args = {
+        row: edit.row,
+        col: edit.col,
+        column: column,
+        item: item,
+        value: value,
+        previousValue: edit.original
+      };
+      if (this.emit('cellEditEnding', args) === false) {
+        return false;
+      }
+      setByBinding(item, column.binding, args.value);
+      this.emit('cellEditEnded', args);
+    }
+    this.editing = null;
+    this.editorConfig = null;
+    this.dateboxState = null;
+    this.editor.style.display = 'none';
+    this.editorTrigger.style.display = 'none';
+    this.hideDateboxPanel();
+    this.applyView();
+    this.render();
+    this.root.focus();
+    return true;
+  };
+
+  FastGrid.prototype.getEditorValue = function(column) {
+    var config = getColumnEditorConfig(column);
+    if (column && column.mask) {
+      return getMaskDataValue(this.editor.value, column);
+    }
+    if (config.type === 'datebox') {
+      return getDateboxDataValue(this.editor.value, config, this.editing);
+    }
+    return this.editor.value;
+  };
+
+  FastGrid.prototype.toggleSort = function(colIndex) {
+    var column = this.visibleColumns[colIndex];
+    var direction = 1;
+    if (!column) {
+      return;
+    }
+    if (this.sortState && this.sortState.column === column) {
+      if (this.sortState.direction === 1) {
+        direction = -1;
+      } else if (this.sortState.direction === -1) {
+        direction = 0;
+      }
+    }
+    if (this.emit('sortingColumn', { column: column, direction: direction }) === false) {
+      return;
+    }
+    this.sortState = direction ? { column: column, direction: direction } : null;
+    this.applyView();
+    this.resetScroll();
+    this.render();
+    this.emit('sortedColumn', { column: column, direction: direction });
+  };
+
+  FastGrid.prototype.getSortGlyph = function(column) {
+    if (!this.sortState || this.sortState.column !== column) {
+      return '';
+    }
+    return this.sortState.direction === 1 ? '▲' : '▼';
+  };
+
+  FastGrid.prototype.startResize = function(event, colIndex) {
+    var column = this.visibleColumns[colIndex];
+    if (!column) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.target && event.target.setPointerCapture && event.pointerId != null) {
+      event.target.setPointerCapture(event.pointerId);
+    }
+    this.resizeState = {
+      column: column,
+      startX: event.clientX,
+      startWidth: column._width,
+      pointerId: event.pointerId
+    };
+    document.body.classList.add('fg-resizing-active');
+  };
+
+  FastGrid.prototype.handlePointerMove = function(event) {
+    var state = this.resizeState;
+    var width;
+    if (!state) {
+      return;
+    }
+    event.preventDefault();
+    width = Math.max(toNumber(state.column.minWidth, 48), state.startWidth + event.clientX - state.startX);
+    if (this.emit('resizingColumn', { column: state.column, width: width }) === false) {
+      return;
+    }
+    state.column._width = width;
+    state.column.width = width;
+    this.updateLayout();
+    this.render();
+  };
+
+  FastGrid.prototype.handlePointerUp = function() {
+    if (!this.resizeState) {
+      return;
+    }
+    this.emit('resizedColumn', { column: this.resizeState.column });
+    this.suppressClick = true;
+    this.resizeState = null;
+    document.body.classList.remove('fg-resizing-active');
+  };
+
+  FastGrid.prototype.getCellData = function(row, col) {
+    var item = this.view[row];
+    var column = this.visibleColumns[col];
+    return item && column ? getByBinding(item, column.binding) : undefined;
+  };
+
+  FastGrid.prototype.setCellData = function(row, col, value) {
+    var item = this.view[row];
+    var column = this.visibleColumns[col];
+    if (!item || !column) {
+      return false;
+    }
+    setByBinding(item, column.binding, parseValue(column.mask ? getMaskDataValue(value, column) : value, column.dataType));
+    this.applyView();
+    this.render();
+    return true;
+  };
+
+  FastGrid.prototype.getColumn = function(value) {
+    var i;
+    if (typeof value === 'number') {
+      return this.visibleColumns[value] || this.columns[value] || null;
+    }
+    for (i = 0; i < this.columns.length; i += 1) {
+      if (this.columns[i].binding === value || this.columns[i].header === value || this.columns[i].name === value) {
+        return this.columns[i];
+      }
+    }
+    return null;
+  };
+
+  FastGrid.prototype.getClipString = function() {
+    return this.getSelectedText();
+  };
+
+  FastGrid.prototype.setClipString = function(text) {
+    return this.setCellData(this.selection.row, this.selection.col, text);
+  };
+
+  FastGrid.prototype.selectAll = function() {
+    this.rowSelection = null;
+    this.selection = { row: 0, col: 0 };
+    this.emit('selectionChanged', { row: 0, col: 0, all: true });
+    this.render();
+  };
+
+  FastGrid.prototype.getCsv = function(visibleOnly) {
+    var columns = visibleOnly === false ? this.columns : this.visibleColumns;
+    var lines = [];
+    var i;
+    var r;
+    var row;
+    var values;
+    lines.push(columns.map(function(col) {
+      return csvEscape(col.header || col.binding);
+    }).join(','));
+    for (r = 0; r < this.view.length; r += 1) {
+      row = this.view[r];
+      values = [];
+      for (i = 0; i < columns.length; i += 1) {
+        values.push(csvEscape(getByBinding(row, columns[i].binding)));
+      }
+      lines.push(values.join(','));
+    }
+    return lines.join('\n');
+  };
+
+  FastGrid.prototype.exportCsv = function(filename, visibleOnly) {
+    var csv = this.getCsv(visibleOnly);
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    var url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename || 'fastgrid.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  FastGrid.prototype.getExcelBlob = function(visibleOnly) {
+    var columns = visibleOnly === false ? this.columns : this.visibleColumns;
+    var files = createXlsxFiles(columns, this.view, {
+      frozenColumns: visibleOnly === false ? 0 : this.frozenColumns,
+      grid: this,
+      formatCell: this.options.formatCell,
+      excelCellStyle: this.options.excelCellStyle
+    });
+    return new Blob([createZip(files)], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+  };
+
+  FastGrid.prototype.exportExcel = function(filename, visibleOnly) {
+    var self = this;
+    if (this.busy) {
+      return Promise.resolve(false);
+    }
+    this.setBusy(true, this.options.exportBusyText);
+    this.emit('excelExporting', { filename: filename || 'fastgrid.xlsx' });
+    return new Promise(function(resolve, reject) {
+      requestAnimationFrame(function() {
+        setTimeout(function() {
+          var blob;
+          var link;
+          var url;
+          try {
+            blob = self.getExcelBlob(visibleOnly);
+            link = document.createElement('a');
+            url = URL.createObjectURL(blob);
+            link.href = url;
+            link.download = filename || 'fastgrid.xlsx';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            self.emit('excelExported', { filename: link.download, blob: blob });
+            resolve(true);
+          } catch (error) {
+            self.emit('excelExportFailed', { filename: filename || 'fastgrid.xlsx', error: error });
+            reject(error);
+          } finally {
+            self.setBusy(false);
+          }
+        }, 0);
+      });
+    });
+  };
+
+  function mergeOptions(base, override) {
+    var result = {};
+    var key;
+    for (key in base) {
+      if (Object.prototype.hasOwnProperty.call(base, key)) {
+        result[key] = base[key];
+      }
+    }
+    for (key in override) {
+      if (Object.prototype.hasOwnProperty.call(override, key)) {
+        result[key] = override[key];
+      }
+    }
+    return result;
+  }
+
+  function normalizeEditorConfig(editor, column) {
+    var type;
+    var options;
+    if (editor == null || editor === true) {
+      type = getDefaultEditorType(column);
+      options = {};
+    } else if (typeof editor === 'string') {
+      type = editor;
+      options = {};
+    } else if (typeof editor === 'object') {
+      type = editor.type || getDefaultEditorType(column);
+      options = editor.options || {};
+    } else {
+      type = getDefaultEditorType(column);
+      options = {};
+    }
+    type = normalizeEditorType(type);
+    return {
+      type: type,
+      options: options
+    };
+  }
+
+  function getColumnEditorConfig(column) {
+    if (column && column.editor && column.editor.type) {
+      return column.editor;
+    }
+    return normalizeEditorConfig(null, column || {});
+  }
+
+  function getDefaultEditorType(column) {
+    if (column && column.dataType === 'number') {
+      return 'numberbox';
+    }
+    if (column && column.dataType === 'date') {
+      return 'datebox';
+    }
+    return 'textbox';
+  }
+
+  function normalizeEditorType(type) {
+    type = String(type || 'textbox').toLowerCase();
+    if (type === 'number' || type === 'numeric') {
+      return 'numberbox';
+    }
+    if (type === 'date' || type === 'calendar') {
+      return 'datebox';
+    }
+    if (type === 'numberbox' || type === 'datebox') {
+      return type;
+    }
+    return 'textbox';
+  }
+
+  function formatDateboxText(value, config) {
+    var date = parseDateValue(value);
+    var formatter = config && config.options ? config.options.formatter : null;
+    if (date && typeof formatter === 'function') {
+      return formatter(date);
+    }
+    if (date) {
+      return formatDateIso(date);
+    }
+    return value == null ? '' : String(value);
+  }
+
+  function formatDateboxEditorText(value, config, column) {
+    var date = parseDateValue(value);
+    var text = date ? formatDateboxText(date, config) : value;
+    if (column && column.mask) {
+      return formatMaskText(text, column);
+    }
+    return text == null ? '' : String(text);
+  }
+
+  function getDateboxDataValue(value, config, edit) {
+    var parser = config && config.options ? config.options.parser : null;
+    var parsed;
+    if (edit && edit.dateboxValue && value === formatDateboxText(edit.dateboxValue, config)) {
+      return edit.dateboxValue;
+    }
+    if (typeof parser === 'function') {
+      parsed = parser(value);
+      if (parsed instanceof Date && !isNaN(parsed.getTime())) {
+        return formatDateIso(parsed);
+      }
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+    parsed = parseDateValue(value);
+    return parsed ? formatDateIso(parsed) : value;
+  }
+
+  function parseDateboxEditorValue(value, config) {
+    var parser = config && config.options ? config.options.parser : null;
+    var parsed;
+    if (typeof parser === 'function') {
+      parsed = parser(value);
+      if (parsed instanceof Date && !isNaN(parsed.getTime())) {
+        return parsed;
+      }
+      return parseDateValue(parsed);
+    }
+    return parseDateValue(value);
+  }
+
+  function parseDateValue(value) {
+    var text;
+    var match;
+    var year;
+    var month;
+    var day;
+    var date;
+    if (value instanceof Date && !isNaN(value.getTime())) {
+      return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+    }
+    if (value == null || value === '') {
+      return null;
+    }
+    text = String(value).trim();
+    match = text.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if (!match) {
+      match = text.match(/^(\d{4})(\d{2})(\d{2})$/);
+    }
+    if (!match) {
+      return null;
+    }
+    year = Number(match[1]);
+    month = Number(match[2]) - 1;
+    day = Number(match[3]);
+    date = new Date(year, month, day);
+    if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
+      return null;
+    }
+    return date;
+  }
+
+  function formatDateIso(date) {
+    return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+  }
+
+  function getMonthTitle(year, month) {
+    return ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'][month] + ' ' + year;
+  }
+
+  function pad2(value) {
+    value = Number(value);
+    return value < 10 ? '0' + value : String(value);
+  }
+
+  function bind(context, fn) {
+    return function() {
+      return fn.apply(context, arguments);
+    };
+  }
+
+  function createWijmoEvent(grid, name) {
+    var handlers = [];
+    return {
+      addHandler: function(handler, self) {
+        if (typeof handler === 'function') {
+          handlers.push({ handler: handler, self: self || null });
+        }
+        return this;
+      },
+      removeHandler: function(handler, self) {
+        var i;
+        for (i = handlers.length - 1; i >= 0; i -= 1) {
+          if (handlers[i].handler === handler && (self == null || handlers[i].self === self)) {
+            handlers.splice(i, 1);
+          }
+        }
+        return this;
+      },
+      raise: function(sender, args) {
+        var i;
+        args = args || {};
+        for (i = 0; i < handlers.length; i += 1) {
+          if (handlers[i].handler.call(handlers[i].self || grid, sender || grid, args) === false) {
+            args.cancel = true;
+          }
+        }
+        return args.cancel !== true;
+      },
+      clearHandlers: function() {
+        handlers.length = 0;
+      }
+    };
+  }
+
+  function defineWijmoCompatibility(FastGridCtor) {
+    var eventNames = [
+      'autoGeneratedColumns',
+      'autoSizedColumn',
+      'autoSizedRow',
+      'autoSizingColumn',
+      'autoSizingRow',
+      'beginningEdit',
+      'bigCheckboxesChanged',
+      'cellEditEnding',
+      'cellEditEnded',
+      'columnGroupCollapsedChanged',
+      'columnGroupCollapsedChanging',
+      'copied',
+      'copiedCell',
+      'copying',
+      'copyingCell',
+      'deletedRow',
+      'deletingRow',
+      'draggedColumn',
+      'draggedRow',
+      'draggingColumn',
+      'draggingRow',
+      'formatItem',
+      'groupCollapsedChanged',
+      'groupCollapsedChanging',
+      'itemsSourceChanged',
+      'itemsSourceChanging',
+      'loadedRows',
+      'loadingRows',
+      'pasted',
+      'pastedCell',
+      'pasting',
+      'pastingCell',
+      'prepareCellForEdit',
+      'refreshed',
+      'refreshing',
+      'resizedColumn',
+      'resizedRow',
+      'resizingColumn',
+      'resizingRow',
+      'rowAdded',
+      'rowEditEnded',
+      'rowEditEnding',
+      'rowEditStarted',
+      'rowEditStarting',
+      'scrollPositionChanged',
+      'selectionChanged',
+      'selectionChanging',
+      'sortedColumn',
+      'sortingColumn',
+      'updatedLayout',
+      'updatedView',
+      'updatingLayout',
+      'updatingView'
+    ];
+    var i;
+    var name;
+
+    Object.defineProperties(FastGridCtor.prototype, {
+      itemsSource: {
+        get: function() {
+          return this.source;
+        },
+        set: function(value) {
+          this.setItemsSource(value || []);
+        }
+      },
+      collectionView: {
+        get: function() {
+          return this.view;
+        }
+      },
+      rows: {
+        get: function() {
+          return this.view;
+        }
+      },
+      frozenColumns: {
+        get: function() {
+          return this._frozenColumns || 0;
+        },
+        set: function(value) {
+          this.setFrozenColumns(value);
+        }
+      },
+      frozenRightColumns: {
+        get: function() {
+          return this._frozenRightColumns || 0;
+        },
+        set: function(value) {
+          this.setFrozenRightColumns(value);
+        }
+      },
+      showRowHeaders: {
+        get: function() {
+          return this.options.showRowHeaders !== false;
+        },
+        set: function(value) {
+          this.setShowRowHeaders(value);
+        }
+      },
+      showFooter: {
+        get: function() {
+          return this.options.showFooter === true;
+        },
+        set: function(value) {
+          this.setShowFooter(value);
+        }
+      },
+      editMode: {
+        get: function() {
+          return this.options.allowEditing !== false && this.options.editOnSelect === true;
+        },
+        set: function(value) {
+          this.setEditMode(value);
+        }
+      },
+      multiSelectRows: {
+        get: function() {
+          return this.options.multiSelectRows === true;
+        },
+        set: function(value) {
+          this.setMultiSelectRows(value);
+        }
+      },
+      selectedItems: {
+        get: function() {
+          var rows;
+          var item;
+          var i;
+          if (this.options.multiSelectRows === true) {
+            rows = [];
+            for (i = 0; i < this.view.length; i += 1) {
+              if (this.selectedRowMap[i]) {
+                rows.push(this.view[i]);
+              }
+            }
+            return rows;
+          }
+          item = this.view[this.selection.row];
+          return item ? [item] : [];
+        }
+      },
+      selectedRows: {
+        get: function() {
+          var row = this.rowSelection != null ? this.rowSelection : this.selection.row;
+          var item = this.view[row];
+          var rows;
+          var i;
+          if (this.options.multiSelectRows === true) {
+            rows = [];
+            for (i = 0; i < this.view.length; i += 1) {
+              if (this.selectedRowMap[i]) {
+                rows.push({ index: i, dataItem: this.view[i] });
+              }
+            }
+            return rows;
+          }
+          return item ? [{ index: row, dataItem: item }] : [];
+        }
+      },
+      selectedRanges: {
+        get: function() {
+          return [{
+            row: this.selection.row,
+            col: this.selection.col,
+            row2: this.selection.row,
+            col2: this.selection.col
+          }];
+        }
+      },
+      scrollPosition: {
+        get: function() {
+          return {
+            x: this.bodyScroll ? this.bodyScroll.scrollLeft : 0,
+            y: this.bodyScroll ? this.bodyScroll.scrollTop : 0
+          };
+        },
+        set: function(value) {
+          if (!this.bodyScroll || !value) {
+            return;
+          }
+          this.bodyScroll.scrollLeft = toNumber(value.x, this.bodyScroll.scrollLeft);
+          this.bodyScroll.scrollTop = toNumber(value.y, this.bodyScroll.scrollTop);
+          this.render();
+        }
+      },
+      scrollSize: {
+        get: function() {
+          return {
+            width: this.totalWidth,
+            height: this.view.length * this.options.rowHeight
+          };
+        }
+      },
+      viewRange: {
+        get: function() {
+          return {
+            row: this.rowRange.start,
+            col: this.columnRange.start,
+            row2: Math.max(this.rowRange.start, this.rowRange.end - 1),
+            col2: Math.max(this.columnRange.start, this.columnRange.end - 1)
+          };
+        }
+      },
+      activeCell: {
+        get: function() {
+          return this.root ? this.root.querySelector('.fg-cell.fg-selected') : null;
+        }
+      },
+      activeEditor: {
+        get: function() {
+          return this.editing ? this.editor : null;
+        }
+      },
+      isReadOnly: {
+        get: function() {
+          return this.options.allowEditing === false;
+        },
+        set: function(value) {
+          this.options.allowEditing = value === true ? false : true;
+          if (value === true) {
+            this.options.editOnSelect = false;
+            this.finishEditing(false);
+          }
+        }
+      },
+      itemFormatter: {
+        get: function() {
+          return this.options.itemFormatter;
+        },
+        set: function(value) {
+          this.options.itemFormatter = typeof value === 'function' ? value : null;
+          this.render();
+        }
+      },
+      autoClipboard: {
+        get: function() {
+          return this.options.autoClipboard;
+        },
+        set: function(value) {
+          this.options.autoClipboard = value !== false;
+        }
+      },
+      allowSorting: {
+        get: function() {
+          return this.options.allowSorting;
+        },
+        set: function(value) {
+          this.options.allowSorting = value !== false;
+        }
+      },
+      allowResizing: {
+        get: function() {
+          return this.options.allowResizing;
+        },
+        set: function(value) {
+          this.options.allowResizing = value !== false;
+          this.render();
+        }
+      },
+      allowDragging: {
+        get: function() {
+          return this.options.allowDragging;
+        },
+        set: function(value) {
+          this.options.allowDragging = value;
+        }
+      },
+      allowMerging: {
+        get: function() {
+          return this.options.allowMerging;
+        },
+        set: function(value) {
+          this.options.allowMerging = value;
+        }
+      },
+      allowPinning: {
+        get: function() {
+          return this.options.allowPinning;
+        },
+        set: function(value) {
+          this.options.allowPinning = value === true;
+        }
+      },
+      alternatingRows: {
+        get: function() {
+          return this.options.alternatingRows === true;
+        },
+        set: function(value) {
+          this.options.alternatingRows = value === true;
+          this.render();
+        }
+      },
+      alternatingRowBackground: {
+        get: function() {
+          return this.options.alternatingRowBackground;
+        },
+        set: function(value) {
+          this.options.alternatingRowBackground = value || '#fafafa';
+          this.applyThemeOptions();
+          this.render();
+        }
+      },
+      copyHeaders: {
+        get: function() {
+          return this.options.copyHeaders;
+        },
+        set: function(value) {
+          this.options.copyHeaders = value;
+        }
+      },
+      frozenRows: {
+        get: function() {
+          return toNumber(this.options.frozenRows, 0);
+        },
+        set: function(value) {
+          this.options.frozenRows = Math.max(0, toNumber(value, 0));
+        }
+      },
+      selectionMode: {
+        get: function() {
+          return this.options.selectionMode;
+        },
+        set: function(value) {
+          this.options.selectionMode = value || 'Cell';
+        }
+      }
+    });
+
+    for (i = 0; i < eventNames.length; i += 1) {
+      name = eventNames[i];
+      defineWijmoOnMethod(FastGridCtor, name);
+    }
+  }
+
+  function defineWijmoOnMethod(FastGridCtor, eventName) {
+    var methodName = 'on' + eventName.charAt(0).toUpperCase() + eventName.slice(1);
+    if (FastGridCtor.prototype[methodName]) {
+      return;
+    }
+    FastGridCtor.prototype[methodName] = function(args) {
+      return this.emit(eventName, args || {});
+    };
+  }
+
+  function toNumber(value, fallback) {
+    var number = Number(value);
+    return isNaN(number) ? fallback : number;
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function closest(target, className) {
+    while (target && target.nodeType === 1) {
+      if (hasClass(target, className)) {
+        return target;
+      }
+      target = target.parentNode;
+    }
+    return null;
+  }
+
+  function hasClass(element, className) {
+    return (' ' + element.className + ' ').indexOf(' ' + className + ' ') >= 0;
+  }
+
+  function normalizeTextAlign(value) {
+    value = String(value || '').toLowerCase();
+    if (value === 'right' || value === 'center') {
+      return value;
+    }
+    return 'left';
+  }
+
+  function normalizeJustifyContent(value) {
+    value = String(value || '').toLowerCase();
+    if (value === 'right') {
+      return 'flex-end';
+    }
+    if (value === 'center') {
+      return 'center';
+    }
+    return 'flex-start';
+  }
+
+  function findRowIndexByItem(rows, item) {
+    var i;
+    if (item == null) {
+      return -1;
+    }
+    for (i = 0; i < rows.length; i += 1) {
+      if (rows[i] === item) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  function rowMatchesSearch(item, columns, searchText) {
+    var i;
+    var value;
+    for (i = 0; i < columns.length; i += 1) {
+      if (columns[i].visible === false) {
+        continue;
+      }
+      value = getByBinding(item, columns[i].binding);
+      if (value != null && String(value).toLowerCase().indexOf(searchText) >= 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function compareValues(a, b, type) {
+    if (a == null && b == null) {
+      return 0;
+    }
+    if (a == null) {
+      return -1;
+    }
+    if (b == null) {
+      return 1;
+    }
+    if (type === 'number') {
+      return Number(a) - Number(b);
+    }
+    if (type === 'date') {
+      return new Date(a).getTime() - new Date(b).getTime();
+    }
+    if (type === 'boolean') {
+      return (a ? 1 : 0) - (b ? 1 : 0);
+    }
+    a = String(a).toLowerCase();
+    b = String(b).toLowerCase();
+    if (a < b) {
+      return -1;
+    }
+    if (a > b) {
+      return 1;
+    }
+    return 0;
+  }
+
+  function parseValue(value, type) {
+    var text;
+    if (type === 'number') {
+      if (value == null) {
+        return null;
+      }
+      text = stripNumberGroupSeparators(value).trim();
+      return text === '' ? null : Number(text);
+    }
+    if (type === 'boolean') {
+      return value === true || value === 'true' || value === '1' || value === 'yes' || value === 'Y';
+    }
+    return value;
+  }
+
+  function getMaskDataValue(value, column) {
+    var raw = extractMaskCharacters(value, column.mask);
+    if (isMaskValueIncludingLiterals(column)) {
+      return applyMask(raw, column.mask);
+    }
+    return raw;
+  }
+
+  function getMaskCopyText(value, column) {
+    if (isMaskValueIncludingLiterals(column)) {
+      return formatMaskText(value, column);
+    }
+    return extractMaskCharacters(value, column.mask);
+  }
+
+  function formatMaskText(value, column) {
+    var raw = extractMaskCharacters(value, column.mask);
+    return applyMask(raw, column.mask);
+  }
+
+  function isMaskValueIncludingLiterals(column) {
+    return !isMaskAutoUnmask(column);
+  }
+
+  function isMaskAutoUnmask(column) {
+    if (column.autoUnmask === true) {
+      return true;
+    }
+    if (column.autoUnmask === false) {
+      return false;
+    }
+    return column.maskValueIncludesLiterals === false ||
+      column.maskIncludesLiterals === false ||
+      column.maskLiteralsInValue === false;
+  }
+
+  function extractMaskCharacters(value, mask) {
+    var text = value == null ? '' : String(value);
+    var chars = [];
+    var tokenIndex = 0;
+    var tokens = getMaskTokens(mask);
+    var i;
+    var ch;
+    if (!mask || !tokens.length) {
+      return text;
+    }
+    for (i = 0; i < text.length && tokenIndex < tokens.length; i += 1) {
+      ch = text.charAt(i);
+      if (isMaskCharAllowed(ch, tokens[tokenIndex])) {
+        chars.push(ch);
+        tokenIndex += 1;
+      }
+    }
+    return chars.join('');
+  }
+
+  function applyMask(raw, mask) {
+    var value = raw == null ? '' : String(raw);
+    var output = '';
+    var rawIndex = 0;
+    var i;
+    var token;
+    var ch;
+    if (!mask) {
+      return value;
+    }
+    for (i = 0; i < mask.length; i += 1) {
+      token = getMaskToken(mask.charAt(i));
+      if (!token) {
+        if (rawIndex > 0) {
+          output += mask.charAt(i);
+        }
+        continue;
+      }
+      ch = findNextMaskChar(value, rawIndex, token);
+      if (!ch) {
+        break;
+      }
+      output += ch.value;
+      rawIndex = ch.nextIndex;
+    }
+    return output;
+  }
+
+  function findNextMaskChar(value, start, token) {
+    var i;
+    var ch;
+    for (i = start; i < value.length; i += 1) {
+      ch = value.charAt(i);
+      if (isMaskCharAllowed(ch, token)) {
+        return {
+          value: ch,
+          nextIndex: i + 1
+        };
+      }
+    }
+    return null;
+  }
+
+  function getMaskTokens(mask) {
+    var tokens = [];
+    var i;
+    var token;
+    for (i = 0; i < String(mask || '').length; i += 1) {
+      token = getMaskToken(mask.charAt(i));
+      if (token) {
+        tokens.push(token);
+      }
+    }
+    return tokens;
+  }
+
+  function getMaskToken(ch) {
+    if (ch === '9') {
+      return 'digit';
+    }
+    if (ch === 'A') {
+      return 'letter';
+    }
+    if (ch === '*') {
+      return 'alphanumeric';
+    }
+    return '';
+  }
+
+  function isMaskCharAllowed(ch, token) {
+    if (token === 'digit') {
+      return /[0-9]/.test(ch);
+    }
+    if (token === 'letter') {
+      return /[A-Za-z]/.test(ch);
+    }
+    if (token === 'alphanumeric') {
+      return /[0-9A-Za-z]/.test(ch);
+    }
+    return false;
+  }
+
+  function stripNumberGroupSeparators(value) {
+    return String(value).replace(/,/g, '');
+  }
+
+  function formatNumberEditorText(value) {
+    var text = stripNumberGroupSeparators(value).trim();
+    var sign = '';
+    var hasDecimal;
+    var parts;
+    var integer;
+    var decimal;
+    if (text === '') {
+      return '';
+    }
+    if (text === '-' || text === '+') {
+      return text;
+    }
+    if (!/^[+-]?\d*(?:\.\d*)?$/.test(text)) {
+      return String(value);
+    }
+    if (text.charAt(0) === '-' || text.charAt(0) === '+') {
+      sign = text.charAt(0);
+      text = text.slice(1);
+    }
+    hasDecimal = text.indexOf('.') >= 0;
+    parts = text.split('.');
+    integer = parts[0] || '0';
+    decimal = parts.length > 1 ? parts[1] : '';
+    integer = integer.replace(/^0+(?=\d)/, '');
+    integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return sign + integer + (hasDecimal ? '.' + decimal : '');
+  }
+
+  function getByBinding(item, binding) {
+    var parts;
+    var i;
+    var value = item;
+    if (!item || !binding) {
+      return undefined;
+    }
+    parts = String(binding).split('.');
+    for (i = 0; i < parts.length; i += 1) {
+      if (value == null) {
+        return undefined;
+      }
+      value = value[parts[i]];
+    }
+    return value;
+  }
+
+  function setByBinding(item, binding, value) {
+    var parts = String(binding).split('.');
+    var target = item;
+    var i;
+    for (i = 0; i < parts.length - 1; i += 1) {
+      if (!target[parts[i]]) {
+        target[parts[i]] = {};
+      }
+      target = target[parts[i]];
+    }
+    target[parts[parts.length - 1]] = value;
+  }
+
+  function findColumnByOffset(columns, start, end, offset) {
+    var low = start;
+    var high = end - 1;
+    var mid;
+    var col;
+    var result = start;
+    while (low <= high) {
+      mid = Math.floor((low + high) / 2);
+      col = columns[mid];
+      if (col._left + col._width <= offset) {
+        low = mid + 1;
+      } else {
+        result = mid;
+        high = mid - 1;
+      }
+    }
+    return result;
+  }
+
+  function csvEscape(value) {
+    var text = value == null ? '' : String(value);
+    if (text.indexOf('"') >= 0 || text.indexOf(',') >= 0 || text.indexOf('\n') >= 0) {
+      return '"' + text.replace(/"/g, '""') + '"';
+    }
+    return text;
+  }
+
+  function createXlsxFiles(columns, rows, options) {
+    var now = new Date().toISOString();
+    var registry = createExcelStyleRegistry();
+    var worksheet = createWorksheetXml(columns, rows, options || {}, registry);
+    return [
+      {
+        name: '[Content_Types].xml',
+        content: '<?xml version="1.0" encoding="UTF-8"?>' +
+          '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+          '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+          '<Default Extension="xml" ContentType="application/xml"/>' +
+          '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>' +
+          '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>' +
+          '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+          '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+          '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+          '</Types>'
+      },
+      {
+        name: '_rels/.rels',
+        content: '<?xml version="1.0" encoding="UTF-8"?>' +
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+          '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>' +
+          '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>' +
+          '</Relationships>'
+      },
+      {
+        name: 'docProps/app.xml',
+        content: '<?xml version="1.0" encoding="UTF-8"?>' +
+          '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">' +
+          '<Application>FastGrid</Application>' +
+          '</Properties>'
+      },
+      {
+        name: 'docProps/core.xml',
+        content: '<?xml version="1.0" encoding="UTF-8"?>' +
+          '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' +
+          '<dc:creator>FastGrid</dc:creator>' +
+          '<cp:lastModifiedBy>FastGrid</cp:lastModifiedBy>' +
+          '<dcterms:created xsi:type="dcterms:W3CDTF">' + now + '</dcterms:created>' +
+          '<dcterms:modified xsi:type="dcterms:W3CDTF">' + now + '</dcterms:modified>' +
+          '</cp:coreProperties>'
+      },
+      {
+        name: 'xl/workbook.xml',
+        content: '<?xml version="1.0" encoding="UTF-8"?>' +
+          '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+          '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>' +
+          '</workbook>'
+      },
+      {
+        name: 'xl/_rels/workbook.xml.rels',
+        content: '<?xml version="1.0" encoding="UTF-8"?>' +
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+          '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+          '</Relationships>'
+      },
+      {
+        name: 'xl/styles.xml',
+        content: createExcelStylesXml(registry)
+      },
+      {
+        name: 'xl/worksheets/sheet1.xml',
+        content: worksheet
+      }
+    ];
+  }
+
+  function createExcelStyleRegistry() {
+    var registry = {
+      fonts: [
+        { bold: false, color: null },
+        { bold: true, color: 'FF1F2937' }
+      ],
+      fills: [
+        null,
+        { gray125: true },
+        { color: 'FFF5F7FA' }
+      ],
+      xfs: [
+        { fontId: 0, fillId: 0, borderId: 0, align: '' },
+        { fontId: 1, fillId: 2, borderId: 1, align: 'center' },
+        { fontId: 0, fillId: 0, borderId: 1, align: '' },
+        { fontId: 0, fillId: 0, borderId: 1, align: 'right' },
+        { fontId: 0, fillId: 0, borderId: 1, align: 'center' }
+      ],
+      fontMap: { 'normal|': 0, 'bold|FF1F2937': 1 },
+      fillMap: { none: 0, gray125: 1, FFF5F7FA: 2 },
+      xfMap: {
+        '0|0|0|': 0,
+        '1|2|1|center': 1,
+        '0|0|1|': 2,
+        '0|0|1|right': 3,
+        '0|0|1|center': 4
+      }
+    };
+    return registry;
+  }
+
+  function createExcelStylesXml(registry) {
+    var xml = [];
+    var i;
+    xml.push('<?xml version="1.0" encoding="UTF-8"?>');
+    xml.push('<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">');
+    xml.push('<fonts count="' + registry.fonts.length + '">');
+    for (i = 0; i < registry.fonts.length; i += 1) {
+      xml.push(createExcelFontXml(registry.fonts[i]));
+    }
+    xml.push('</fonts>');
+    xml.push('<fills count="' + registry.fills.length + '">');
+    for (i = 0; i < registry.fills.length; i += 1) {
+      xml.push(createExcelFillXml(registry.fills[i]));
+    }
+    xml.push('</fills>');
+    xml.push('<borders count="2">');
+    xml.push('<border><left/><right/><top/><bottom/><diagonal/></border>');
+    xml.push('<border>');
+    xml.push('<left style="thin"><color rgb="FFD7DEE8"/></left>');
+    xml.push('<right style="thin"><color rgb="FFD7DEE8"/></right>');
+    xml.push('<top style="thin"><color rgb="FFD7DEE8"/></top>');
+    xml.push('<bottom style="thin"><color rgb="FFD7DEE8"/></bottom>');
+    xml.push('<diagonal/>');
+    xml.push('</border>');
+    xml.push('</borders>');
+    xml.push('<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>');
+    xml.push('<cellXfs count="' + registry.xfs.length + '">');
+    for (i = 0; i < registry.xfs.length; i += 1) {
+      xml.push(createExcelXfXml(registry.xfs[i]));
+    }
+    xml.push('</cellXfs>');
+    xml.push('<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>');
+    xml.push('</styleSheet>');
+    return xml.join('');
+  }
+
+  function createExcelFontXml(font) {
+    var xml = ['<font>'];
+    if (font.bold) {
+      xml.push('<b/>');
+    }
+    xml.push('<sz val="11"/>');
+    if (font.color) {
+      xml.push('<color rgb="' + font.color + '"/>');
+    }
+    xml.push('<name val="Arial"/>');
+    xml.push('</font>');
+    return xml.join('');
+  }
+
+  function createExcelFillXml(fill) {
+    if (!fill) {
+      return '<fill><patternFill patternType="none"/></fill>';
+    }
+    if (fill.gray125) {
+      return '<fill><patternFill patternType="gray125"/></fill>';
+    }
+    return '<fill><patternFill patternType="solid"><fgColor rgb="' + fill.color + '"/><bgColor indexed="64"/></patternFill></fill>';
+  }
+
+  function createExcelXfXml(xf) {
+    var xml = '<xf numFmtId="0" fontId="' + xf.fontId + '" fillId="' + xf.fillId + '" borderId="' + xf.borderId + '" xfId="0"';
+    if (xf.fontId) {
+      xml += ' applyFont="1"';
+    }
+    if (xf.fillId) {
+      xml += ' applyFill="1"';
+    }
+    if (xf.borderId) {
+      xml += ' applyBorder="1"';
+    }
+    if (xf.align) {
+      xml += ' applyAlignment="1"><alignment horizontal="' + xf.align + '" vertical="center"/></xf>';
+      return xml;
+    }
+    if (xf.borderId) {
+      xml += ' applyAlignment="1"><alignment vertical="center"/></xf>';
+      return xml;
+    }
+    return xml + '/>';
+  }
+
+  function registerExcelCellStyle(registry, style) {
+    var fontId = registerExcelFont(registry, style);
+    var fillId = registerExcelFill(registry, style);
+    var borderId = 1;
+    var align = style.align || '';
+    var key = fontId + '|' + fillId + '|' + borderId + '|' + align;
+    if (registry.xfMap[key] != null) {
+      return registry.xfMap[key];
+    }
+    registry.xfs.push({
+      fontId: fontId,
+      fillId: fillId,
+      borderId: borderId,
+      align: align
+    });
+    registry.xfMap[key] = registry.xfs.length - 1;
+    return registry.xfs.length - 1;
+  }
+
+  function registerExcelFont(registry, style) {
+    var color = style.color || null;
+    var bold = style.bold === true;
+    var key = (bold ? 'bold' : 'normal') + '|' + (color || '');
+    if (registry.fontMap[key] != null) {
+      return registry.fontMap[key];
+    }
+    registry.fonts.push({ bold: bold, color: color });
+    registry.fontMap[key] = registry.fonts.length - 1;
+    return registry.fonts.length - 1;
+  }
+
+  function registerExcelFill(registry, style) {
+    var color = style.backgroundColor || null;
+    if (!color) {
+      return 0;
+    }
+    if (registry.fillMap[color] != null) {
+      return registry.fillMap[color];
+    }
+    registry.fills.push({ color: color });
+    registry.fillMap[color] = registry.fills.length - 1;
+    return registry.fills.length - 1;
+  }
+
+  function createWorksheetXml(columns, rows, options, registry) {
+    var maxRow = rows.length + 1;
+    var maxCol = Math.max(columns.length, 1);
+    var xml = [];
+    var r;
+    var c;
+    var row;
+    var styleResolver = createExcelStyleResolver(options);
+    xml.push('<?xml version="1.0" encoding="UTF-8"?>');
+    xml.push('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">');
+    xml.push('<dimension ref="A1:' + getExcelColumnName(maxCol) + maxRow + '"/>');
+    xml.push(createSheetViewsXml(Math.min(toNumber(options.frozenColumns, 0), columns.length)));
+    xml.push(createColumnWidthXml(columns));
+    xml.push('<sheetData>');
+    xml.push('<row r="1" ht="22" customHeight="1">');
+    for (c = 0; c < columns.length; c += 1) {
+      xml.push(createExcelCell(1, c + 1, columns[c].header || columns[c].binding, 'string', 1));
+    }
+    xml.push('</row>');
+    for (r = 0; r < rows.length; r += 1) {
+      row = rows[r];
+      xml.push('<row r="' + (r + 2) + '">');
+      for (c = 0; c < columns.length; c += 1) {
+        xml.push(createExcelCell(
+          r + 2,
+          c + 1,
+          getByBinding(row, columns[c].binding),
+          columns[c].dataType,
+          getExcelCellStyle(columns[c], row, r, c, options, registry, styleResolver)
+        ));
+      }
+      xml.push('</row>');
+    }
+    if (styleResolver.dispose) {
+      styleResolver.dispose();
+    }
+    xml.push('</sheetData>');
+    xml.push('<autoFilter ref="A1:' + getExcelColumnName(maxCol) + maxRow + '"/>');
+    xml.push('</worksheet>');
+    return xml.join('');
+  }
+
+  function createSheetViewsXml(frozenColumns) {
+    var topLeftCell = getExcelColumnName(frozenColumns + 1) + '2';
+    var activePane = frozenColumns > 0 ? 'bottomRight' : 'bottomLeft';
+    var pane = '<pane ySplit="1"';
+    if (frozenColumns > 0) {
+      pane += ' xSplit="' + frozenColumns + '"';
+    }
+    pane += ' topLeftCell="' + topLeftCell + '" activePane="' + activePane + '" state="frozen"/>';
+    return '<sheetViews><sheetView workbookViewId="0">' + pane + '</sheetView></sheetViews>';
+  }
+
+  function createColumnWidthXml(columns) {
+    var xml = [];
+    var width;
+    var i;
+    if (!columns.length) {
+      return '';
+    }
+    xml.push('<cols>');
+    for (i = 0; i < columns.length; i += 1) {
+      width = Math.max(8, Math.min(80, Math.round(toNumber(columns[i]._width || columns[i].width, 120) / 7)));
+      xml.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + width + '" customWidth="1"/>');
+    }
+    xml.push('</cols>');
+    return xml.join('');
+  }
+
+  function getExcelCellStyle(column, item, rowIndex, colIndex, options, registry, styleResolver) {
+    var baseStyle = getExcelBaseCellStyle(column);
+    var extraStyle = styleResolver(item, column, rowIndex, colIndex);
+    if (extraStyle) {
+      if (!extraStyle.align) {
+        extraStyle.align = baseStyle.align;
+      }
+      return registerExcelCellStyle(registry, extraStyle);
+    }
+    if (baseStyle.id) {
+      return baseStyle.id;
+    }
+    return 2;
+  }
+
+  function getExcelBaseCellStyle(column) {
+    if (column.align === 'right' || column.dataType === 'number') {
+      return { id: 3, align: 'right' };
+    }
+    if (column.align === 'center' || column.dataType === 'boolean') {
+      return { id: 4, align: 'center' };
+    }
+    return { id: 2, align: '' };
+  }
+
+  function createExcelStyleResolver(options) {
+    var sampleCell = null;
+    var formatCell = options.formatCell;
+    var customStyle = options.excelCellStyle;
+    var grid = options.grid;
+    var resolver;
+    if (grid && grid.root && typeof document !== 'undefined' && typeof formatCell === 'function') {
+      sampleCell = document.createElement('div');
+      sampleCell.style.position = 'absolute';
+      sampleCell.style.visibility = 'hidden';
+      sampleCell.style.pointerEvents = 'none';
+      sampleCell.style.top = '-10000px';
+      sampleCell.style.left = '-10000px';
+      grid.root.appendChild(sampleCell);
+    }
+    resolver = function(item, column, rowIndex, colIndex) {
+      var value = getByBinding(item, column.binding);
+      var style = null;
+      var fromCell;
+      var override;
+      if (sampleCell) {
+        sampleCell.removeAttribute('style');
+        sampleCell.style.position = 'absolute';
+        sampleCell.style.visibility = 'hidden';
+        sampleCell.style.pointerEvents = 'none';
+        sampleCell.style.top = '-10000px';
+        sampleCell.style.left = '-10000px';
+        sampleCell.className = 'fg-cell' + (column.align ? ' fg-align-' + column.align : '');
+        sampleCell.removeAttribute('data-row');
+        sampleCell.removeAttribute('data-col');
+        sampleCell.textContent = value == null ? '' : String(value);
+        formatCell({
+          grid: grid,
+          cell: sampleCell,
+          item: item,
+          column: column,
+          value: value,
+          rowIndex: rowIndex,
+          colIndex: colIndex
+        });
+        fromCell = getExcelStyleFromComputedCell(sampleCell);
+        if (fromCell) {
+          style = fromCell;
+        }
+      }
+      if (typeof customStyle === 'function') {
+        override = customStyle({
+          grid: grid,
+          item: item,
+          column: column,
+          value: value,
+          rowIndex: rowIndex,
+          colIndex: colIndex,
+          style: style || {}
+        });
+        if (override) {
+          style = mergeExcelStyle(style || {}, normalizeExcelStyle(override));
+        }
+      }
+      return style;
+    };
+    if (sampleCell) {
+      resolver.dispose = function() {
+        if (sampleCell && sampleCell.parentNode) {
+          sampleCell.parentNode.removeChild(sampleCell);
+        }
+      };
+    }
+    return resolver;
+  }
+
+  function getExcelStyleFromComputedCell(cell) {
+    var computed = window.getComputedStyle(cell);
+    var style = {};
+    var color = cssColorToExcelColor(computed.color);
+    var backgroundColor = cssColorToExcelColor(computed.backgroundColor);
+    if (color && color !== 'FF1F2937' && color !== 'FF111827') {
+      style.color = color;
+    }
+    if (backgroundColor && backgroundColor !== 'FFFFFFFF') {
+      style.backgroundColor = backgroundColor;
+    }
+    if (Number(computed.fontWeight) >= 600 || computed.fontWeight === 'bold') {
+      style.bold = true;
+    }
+    if (computed.textAlign === 'right' || computed.justifyContent === 'flex-end') {
+      style.align = 'right';
+    } else if (computed.textAlign === 'center' || computed.justifyContent === 'center') {
+      style.align = 'center';
+    }
+    return Object.keys(style).length ? style : null;
+  }
+
+  function normalizeExcelStyle(style) {
+    return {
+      color: cssColorToExcelColor(style.color || style.textColor || ''),
+      backgroundColor: cssColorToExcelColor(style.backgroundColor || style.background || ''),
+      bold: style.bold === true || style.fontWeight === 'bold' || Number(style.fontWeight) >= 600,
+      align: normalizeExcelAlign(style.align || style.textAlign || '')
+    };
+  }
+
+  function mergeExcelStyle(base, override) {
+    var result = {};
+    var key;
+    for (key in base) {
+      if (Object.prototype.hasOwnProperty.call(base, key)) {
+        result[key] = base[key];
+      }
+    }
+    for (key in override) {
+      if (Object.prototype.hasOwnProperty.call(override, key) && override[key]) {
+        result[key] = override[key];
+      }
+    }
+    return result;
+  }
+
+  function normalizeExcelAlign(value) {
+    if (value === 'right' || value === 'center' || value === 'left') {
+      return value;
+    }
+    return '';
+  }
+
+  function cssColorToExcelColor(value) {
+    var match;
+    var hex;
+    if (!value || value === 'transparent' || value === 'rgba(0, 0, 0, 0)') {
+      return '';
+    }
+    if (value.charAt(0) === '#') {
+      hex = value.length === 4 ?
+        value.charAt(1) + value.charAt(1) + value.charAt(2) + value.charAt(2) + value.charAt(3) + value.charAt(3) :
+        value.slice(1, 7);
+      return 'FF' + hex.toUpperCase();
+    }
+    match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([0-9.]+))?\)/);
+    if (!match || match[4] === '0') {
+      return '';
+    }
+    return 'FF' + toHexByte(match[1]) + toHexByte(match[2]) + toHexByte(match[3]);
+  }
+
+  function toHexByte(value) {
+    var hex = Math.max(0, Math.min(255, Number(value))).toString(16).toUpperCase();
+    return hex.length === 1 ? '0' + hex : hex;
+  }
+
+  function createExcelCell(row, col, value, type, styleId) {
+    var ref = getExcelColumnName(col) + row;
+    var style = styleId ? ' s="' + styleId + '"' : '';
+    if (value == null) {
+      return '<c r="' + ref + '"' + style + ' t="inlineStr"><is><t></t></is></c>';
+    }
+    if (type === 'number' && typeof value !== 'boolean' && isFinite(Number(value))) {
+      return '<c r="' + ref + '"' + style + '><v>' + Number(value) + '</v></c>';
+    }
+    if (type === 'boolean') {
+      return '<c r="' + ref + '"' + style + ' t="b"><v>' + (parseValue(value, 'boolean') ? '1' : '0') + '</v></c>';
+    }
+    return '<c r="' + ref + '"' + style + ' t="inlineStr"><is><t' + getXmlSpaceAttribute(value) + '>' + xmlEscape(value) + '</t></is></c>';
+  }
+
+  function getExcelColumnName(index) {
+    var name = '';
+    var number = index;
+    while (number > 0) {
+      number -= 1;
+      name = String.fromCharCode(65 + (number % 26)) + name;
+      number = Math.floor(number / 26);
+    }
+    return name;
+  }
+
+  function getXmlSpaceAttribute(value) {
+    var text = String(value);
+    return /^\s|\s$|\s\s/.test(text) ? ' xml:space="preserve"' : '';
+  }
+
+  function xmlEscape(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
+  function createZip(files) {
+    var localParts = [];
+    var centralParts = [];
+    var offset = 0;
+    var i;
+    var file;
+    var data;
+    var nameBytes;
+    var crc;
+    var dateParts = getZipDateParts(new Date());
+    for (i = 0; i < files.length; i += 1) {
+      file = files[i];
+      data = stringToUtf8Bytes(file.content);
+      nameBytes = stringToUtf8Bytes(file.name);
+      crc = crc32(data);
+      localParts.push(createZipLocalHeader(nameBytes, data, crc, dateParts));
+      localParts.push(data);
+      centralParts.push(createZipCentralHeader(nameBytes, data, crc, offset, dateParts));
+      offset += localParts[localParts.length - 2].length + data.length;
+    }
+    return concatUint8Arrays(localParts.concat(centralParts, [
+      createZipEndRecord(centralParts, offset)
+    ]));
+  }
+
+  function createZipLocalHeader(nameBytes, data, crc, dateParts) {
+    var header = new Uint8Array(30 + nameBytes.length);
+    writeUint32(header, 0, 0x04034b50);
+    writeUint16(header, 4, 20);
+    writeUint16(header, 6, 2048);
+    writeUint16(header, 8, 0);
+    writeUint16(header, 10, dateParts.time);
+    writeUint16(header, 12, dateParts.date);
+    writeUint32(header, 14, crc);
+    writeUint32(header, 18, data.length);
+    writeUint32(header, 22, data.length);
+    writeUint16(header, 26, nameBytes.length);
+    writeUint16(header, 28, 0);
+    header.set(nameBytes, 30);
+    return header;
+  }
+
+  function createZipCentralHeader(nameBytes, data, crc, offset, dateParts) {
+    var header = new Uint8Array(46 + nameBytes.length);
+    writeUint32(header, 0, 0x02014b50);
+    writeUint16(header, 4, 20);
+    writeUint16(header, 6, 20);
+    writeUint16(header, 8, 2048);
+    writeUint16(header, 10, 0);
+    writeUint16(header, 12, dateParts.time);
+    writeUint16(header, 14, dateParts.date);
+    writeUint32(header, 16, crc);
+    writeUint32(header, 20, data.length);
+    writeUint32(header, 24, data.length);
+    writeUint16(header, 28, nameBytes.length);
+    writeUint16(header, 30, 0);
+    writeUint16(header, 32, 0);
+    writeUint16(header, 34, 0);
+    writeUint16(header, 36, 0);
+    writeUint32(header, 38, 0);
+    writeUint32(header, 42, offset);
+    header.set(nameBytes, 46);
+    return header;
+  }
+
+  function createZipEndRecord(centralParts, centralOffset) {
+    var size = 0;
+    var i;
+    var header = new Uint8Array(22);
+    for (i = 0; i < centralParts.length; i += 1) {
+      size += centralParts[i].length;
+    }
+    writeUint32(header, 0, 0x06054b50);
+    writeUint16(header, 8, centralParts.length);
+    writeUint16(header, 10, centralParts.length);
+    writeUint32(header, 12, size);
+    writeUint32(header, 16, centralOffset);
+    writeUint16(header, 20, 0);
+    return header;
+  }
+
+  function getZipDateParts(date) {
+    var year = Math.max(1980, date.getFullYear());
+    return {
+      time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
+      date: ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate()
+    };
+  }
+
+  function writeUint16(bytes, offset, value) {
+    bytes[offset] = value & 255;
+    bytes[offset + 1] = (value >>> 8) & 255;
+  }
+
+  function writeUint32(bytes, offset, value) {
+    bytes[offset] = value & 255;
+    bytes[offset + 1] = (value >>> 8) & 255;
+    bytes[offset + 2] = (value >>> 16) & 255;
+    bytes[offset + 3] = (value >>> 24) & 255;
+  }
+
+  function stringToUtf8Bytes(text) {
+    var encoded;
+    var bytes;
+    var i;
+    if (typeof TextEncoder !== 'undefined') {
+      return new TextEncoder().encode(text);
+    }
+    encoded = unescape(encodeURIComponent(text));
+    bytes = new Uint8Array(encoded.length);
+    for (i = 0; i < encoded.length; i += 1) {
+      bytes[i] = encoded.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  function concatUint8Arrays(parts) {
+    var total = 0;
+    var output;
+    var offset = 0;
+    var i;
+    for (i = 0; i < parts.length; i += 1) {
+      total += parts[i].length;
+    }
+    output = new Uint8Array(total);
+    for (i = 0; i < parts.length; i += 1) {
+      output.set(parts[i], offset);
+      offset += parts[i].length;
+    }
+    return output;
+  }
+
+  function crc32(bytes) {
+    var table = getCrcTable();
+    var crc = -1;
+    var i;
+    for (i = 0; i < bytes.length; i += 1) {
+      crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 255];
+    }
+    return (crc ^ -1) >>> 0;
+  }
+
+  function getCrcTable() {
+    var table = [];
+    var c;
+    var n;
+    var k;
+    if (getCrcTable.cache) {
+      return getCrcTable.cache;
+    }
+    for (n = 0; n < 256; n += 1) {
+      c = n;
+      for (k = 0; k < 8; k += 1) {
+        c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      }
+      table[n] = c >>> 0;
+    }
+    getCrcTable.cache = table;
+    return table;
+  }
+
+  defineWijmoCompatibility(FastGrid);
+
+  return FastGrid;
+}
+
+var FastGrid = createFastGridFactory();
+export { FastGrid };
+export default FastGrid;

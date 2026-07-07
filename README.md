@@ -4,6 +4,10 @@ FastGrid 是一個以效能為優先的 pure JavaScript data grid。核心目標
 
 目前 demo 使用 `20000 x 20` 測試資料，預設左側凍結 2 欄、右側凍結 1 欄。
 
+## 線上 Demo
+
+[https://jimmywon1028.github.io/fastgrid/demo/](https://jimmywon1028.github.io/fastgrid/demo/)
+
 ## 專案定位
 
 - 核心不依賴 Vue、React 或後端。
