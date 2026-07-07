@@ -5,30 +5,44 @@
   color: #172033;
 }
 
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
+  height: 100%;
   margin: 0;
+  overflow: hidden;
 }
 
 .page {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-height: 100vh;
-  padding: 16px;
+  box-sizing: border-box;
+  gap: 8px;
+  height: 100dvh;
+  min-height: 0;
+  padding: 12px;
+  overflow: hidden;
 }
 
 .toolbar {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 12px;
-  min-height: 64px;
-  padding: 10px 12px;
+  gap: 10px;
+  min-height: 0;
+  padding: 8px 10px;
   border: 1px solid #d8e0eb;
   background: #ffffff;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .brand {
-  min-width: 260px;
+  flex: 0 0 auto;
+  min-width: 220px;
   margin-right: auto;
 }
 
@@ -94,6 +108,7 @@ button {
 
 .stats {
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   gap: 8px;
   color: #475569;
@@ -107,15 +122,16 @@ button {
 }
 
 .grid-shell {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   border: 1px solid #d8e0eb;
   background: #ffffff;
+  overflow: hidden;
 }
 
 #grid {
-  height: calc(100vh - 150px);
-  min-height: 420px;
+  height: 100%;
+  min-height: 0;
 }
 
 .status-active {
