@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>FastGrid Smoke Test</title>
+  <link rel="stylesheet" href="../dist/fastgrid.css">
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+    }
+
+    #grid {
+      width: 900px;
+      height: 420px;
+    }
+
+    #result {
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="grid"></div>
+  <div id="largeGrid" style="width: 900px; height: 420px; margin-top: 20px;"></div>
+  <pre id="result">pending</pre>
+  <script src="../dist/fastgrid.min.js"></script>
+  <script>
+    (function() {
+      function pad(value) {
+        return value < 10 ? '0' + value : String(value);
+      }
+
+      function columns(count) {
+        var list = [
+          { binding: 'id', header: 'ID', width: 70, dataType: 'number', align: 'center' },
+          { binding: 'name', header: 'Name', width: 150 },
+          {
+            binding: 'amount',
+            header: 'Amount',
+            width: 120,
+            dataType: 'number',
+            align: 'right',
+            aggregate: 'sum',
+            editor: {
+              type: 'numberbox',
+              options: {
+                precision: 2
+              }
+            }
+          }
+        ];
+        var i;
+        for (i = 4; i <= count; i += 1) {
+          list.push({
+            binding: 'col' + pad(i),
+            header: 'Col ' + i,
+            width: 110,
+            dataType: i === 6 ? 'date' : 'string',
+            editor: i === 5 || i === 6 || i === 7 ? 'datebox' : null,
+            mask: i === 5 || i === 7 ? '9999/99/99' : '',
+            autoUnmask: i === 5
+          });
+        }
+        return list;
+      }
+
+      function rows(count) {
+        var list = [];
+        var row;
+        var r;
+        var c;
+        for (r = 1; r <= count; r += 1) {
+          row = { id: r, name: 'Row ' + r, amount: r * 10 };
+          for (c = 4; c <= 50; c += 1) {
+            row['col' + pad(c)] = c === 5 ? '202607' + pad((r % 28) + 1) :
+              c === 6 ? '2026-07-' + pad((r % 28) + 1) :
+              c === 7 ? '2026/07/' + pad((r % 28) + 1) :
+              'R' + r + 'C' + c;
+          }
+          list.push(row);
+        }
+        return list;
+      }
+
+      function finish(result) {
+        document.getElementById('result').textContent = JSON.stringify(result, null, 2);
+      }
+
+      window.addEventListener('load', function() {
+        var grid = new FastGrid('#grid', {
+          rowHeight: 30,
+          headerHeight: 34,
+          overscanRows: 4,
+          overscanColumns: 2,
+          frozenColumns: 2,
+          frozenRightColumns: 1,
+          showFooter: true,
+          footerHeight: 28,
+          columns: columns(50),
+          itemsSource: rows(5000),
+          alternatingRows: true,
+          alternatingRowBackground: '#fafafa',
+          formatCell: function(args) {
+            if (args.column.binding === 'amount' && Number(args.value) > 1000) {
+              args.cell.style.color = '#047857';
+              args.cell.style.backgroundColor = '#eef6ff';
+            }
+          }
+        });
+        var copiedText = '';
+        var scrollPositionBeforeSearch;
+        var wijmoEvents = {
+          beginningEdit: 0,
+          cellEditEnding: 0,
+          cellEditEnded: 0,
+          copied: 0,
+          copying: 0,
+          formatItem: 0,
+          selectionChanged: 0
+        };
+        grid.on('cellCopied', function(event) {
+          copiedText = event.text;
+        });
+        grid.beginningEdit.addHandler(function() {
+          wijmoEvents.beginningEdit += 1;
+        });
+        grid.cellEditEnding.addHandler(function() {
+          wijmoEvents.cellEditEnding += 1;
+        });
+        grid.cellEditEnded.addHandler(function() {
+          wijmoEvents.cellEditEnded += 1;
+        });
+        grid.copying.addHandler(function() {
+          wijmoEvents.copying += 1;
+        });
+        grid.copied.addHandler(function() {
+          wijmoEvents.copied += 1;
+        });
+        grid.formatItem.addHandler(function() {
+          wijmoEvents.formatItem += 1;
+        });
+        grid.selectionChanged.addHandler(function() {
+          wijmoEvents.selectionChanged += 1;
+        });
+        grid.itemFormatter = function(panel, row, col, cell) {
+          if (panel === grid.cells && row === 0 && col === 2) {
+            cell.setAttribute('data-item-formatter', '1');
+          }
+        };
+        var originalRows = grid.itemsSource;
+        var replacementRows = rows(12);
+        grid.itemsSource = replacementRows;
+        var itemsSourceSetterWorks = grid.itemsSource === replacementRows && grid.view.length === 12;
+        var itemsSourceGetterWorks = grid.itemsSource[0].name === 'Row 1' && grid.itemsSource.length === 12;
+        grid.itemsSource = originalRows;
+        var itemsSourceRestoreWorks = grid.itemsSource === originalRows && grid.view.length === 5000;
+        var footerCell = document.querySelector('.fg-footer-cell[data-col="2"]');
+        var footerVisibleWorks = grid.showFooter === true &&
+          grid.getFooterHeight() === 28 &&
+          window.getComputedStyle(document.querySelector('.fg-footer')).display === 'block' &&
+          document.querySelector('.fg-footer-row-header').textContent === 'Σ' &&
+          footerCell &&
+          footerCell.textContent === '125,025,000';
+        var footerAmountTextAlignWorks = footerCell &&
+          window.getComputedStyle(footerCell).textAlign === 'right' &&
+          window.getComputedStyle(footerCell).justifyContent === 'flex-end' &&
+          footerCell.querySelector('.fg-footer-label') &&
+          window.getComputedStyle(footerCell.querySelector('.fg-footer-label')).textAlign === 'right';
+        var amountBodyCell = document.querySelector('.fg-cell[data-col="2"]');
+        var footerLabel = footerCell ? footerCell.querySelector('.fg-footer-label') : null;
+        var footerAmountRightEdgeWorks = amountBodyCell && footerCell && footerLabel &&
+          Math.abs(footerLabel.getBoundingClientRect().right - (amountBodyCell.getBoundingClientRect().right - 10)) <= 1 &&
+          Math.abs(footerLabel.getBoundingClientRect().right - (footerCell.getBoundingClientRect().right - 10)) <= 1;
+        var sortSelectedItem = grid.view[9];
+        grid.selectRow(9, 1);
+        grid.toggleSort(2);
+        grid.toggleSort(2);
+        var sortSelectedRowWorks = grid.selectedRows.length === 1 &&
+          grid.selectedRows[0].dataItem === sortSelectedItem &&
+          grid.view[grid.rowSelection] === sortSelectedItem &&
+          grid.selection.row === grid.rowSelection;
+        grid.toggleSort(2);
+        grid.multiSelectRows = true;
+        var multiSortFirstItem = grid.view[2];
+        var multiSortSecondItem = grid.view[15];
+        grid.toggleRowSelection(2, 1);
+        grid.toggleRowSelection(15, 1);
+        grid.toggleSort(2);
+        grid.toggleSort(2);
+        var multiSortFirstIndex = grid.view.indexOf(multiSortFirstItem);
+        var multiSortSecondIndex = grid.view.indexOf(multiSortSecondItem);
+        var multiSortSelectedRowsWork = multiSortFirstIndex >= 0 &&
+          multiSortSecondIndex >= 0 &&
+          grid.selectedRowMap[multiSortFirstIndex] === true &&
+          grid.selectedRowMap[multiSortSecondIndex] === true &&
+          grid.selectedItems.indexOf(multiSortFirstItem) >= 0 &&
+          grid.selectedItems.indexOf(multiSortSecondItem) >= 0 &&
+          grid.selectedRows.length === 2;
+        grid.toggleSort(2);
+        grid.multiSelectRows = false;
+        var resizeHandle = document.querySelector('.fg-header-cell[data-col="1"] .fg-resize');
+        var resizeRect = resizeHandle ? resizeHandle.getBoundingClientRect() : null;
+        var resizeStartWidth = grid.visibleColumns[1]._width;
+        var resizeLineBackground = '';
+        if (resizeHandle && resizeRect) {
+          resizeHandle.dispatchEvent(createPointerLikeEvent('pointerdown', resizeRect.left + 6, 1));
+          resizeLineBackground = window.getComputedStyle(resizeHandle, '::after').backgroundColor;
+          document.dispatchEvent(createPointerLikeEvent('pointermove', resizeRect.left + 36, 1));
+          document.dispatchEvent(createPointerLikeEvent('pointerup', resizeRect.left + 36, 1));
+        }
+        var resizeEndWidth = grid.visibleColumns[1]._width;
+        var headerDividerResizeWorks = resizeStartWidth === 150 && resizeEndWidth === 180;
+        grid.showRowHeaders = false;
+        var rowHeadersHiddenWorks = grid.showRowHeaders === false &&
+          grid.getRowHeaderWidth() === 0 &&
+          window.getComputedStyle(document.querySelector('.fg-row-header-pane')).display === 'none' &&
+          document.querySelectorAll('.fg-row-header-cell').length === 0;
+        grid.showRowHeaders = true;
+        var rowHeadersShownWorks = grid.showRowHeaders === true &&
+          grid.getRowHeaderWidth() === 60 &&
+          window.getComputedStyle(document.querySelector('.fg-row-header-pane')).display === 'block' &&
+          document.querySelectorAll('.fg-row-header-cell').length > 0;
+        grid.multiSelectRows = true;
+        var multiSelectColumnVisibleWorks = grid.multiSelectRows === true &&
+          grid.getSelectionCheckboxWidth() === 44 &&
+          window.getComputedStyle(document.querySelector('.fg-selection-pane')).display === 'block' &&
+          document.querySelectorAll('.fg-selection-check').length > 0;
+        var rowChecks = document.querySelectorAll('.fg-selection-check');
+        if (rowChecks[0]) {
+          rowChecks[0].click();
+        }
+        rowChecks = document.querySelectorAll('.fg-selection-check');
+        if (rowChecks[1]) {
+          rowChecks[1].click();
+        }
+        var multiSelectRowsWorks = grid.selectedRows.length === 2 && grid.selectedItems.length === 2;
+        var multiClickCell = document.querySelector('.fg-cell');
+        var multiClickRow = multiClickCell ? Number(multiClickCell.getAttribute('data-row')) : -1;
+        if (multiClickCell && grid.selectedRowMap[multiClickRow]) {
+          multiClickCell.click();
+        }
+        var multiCellClickToggleOffWorks = multiClickRow >= 0 && grid.selectedRowMap[multiClickRow] !== true;
+        multiClickCell = document.querySelector('.fg-cell[data-row="' + multiClickRow + '"]');
+        if (multiClickCell) {
+          multiClickCell.click();
+        }
+        var multiCellClickToggleOnWorks = multiClickRow >= 0 && grid.selectedRowMap[multiClickRow] === true;
+        var multiRowHeader = document.querySelector('.fg-row-header-cell');
+        var multiRowHeaderRow = multiRowHeader ? Number(multiRowHeader.getAttribute('data-row')) : -1;
+        if (multiRowHeader && grid.selectedRowMap[multiRowHeaderRow]) {
+          multiRowHeader.click();
+        }
+        var multiRowClickToggleOffWorks = multiRowHeaderRow >= 0 && grid.selectedRowMap[multiRowHeaderRow] !== true;
+        var checkAll = document.querySelector('.fg-selection-check-all');
+        if (checkAll) {
+          checkAll.click();
+        }
+        var multiSelectAllWorks = grid.selectedRows.length === grid.view.length && grid.getSelectedRowCount() === grid.view.length;
+        checkAll = document.querySelector('.fg-selection-check-all');
+        if (checkAll) {
+          checkAll.click();
+        }
+        var multiSelectClearAllWorks = grid.selectedRows.length === 0 && grid.getSelectedRowCount() === 0;
+        grid.select(3, 1);
+        document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown',
+          bubbles: true
+        }));
+        var multiArrowDownDoesNotSelectRowWorks = grid.selection.row === 4 &&
+          grid.selection.col === 1 &&
+          grid.rowSelection === null &&
+          grid.selectedRows.length === 0 &&
+          grid.getSelectedRowCount() === 0;
+        document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowUp',
+          bubbles: true
+        }));
+        var multiArrowUpDoesNotSelectRowWorks = grid.selection.row === 3 &&
+          grid.selection.col === 1 &&
+          grid.rowSelection === null &&
+          grid.selectedRows.length === 0 &&
+          grid.getSelectedRowCount() === 0;
+        grid.multiSelectRows = false;
+        var multiSelectColumnHiddenWorks = grid.multiSelectRows === false &&
+          grid.getSelectionCheckboxWidth() === 0 &&
+          window.getComputedStyle(document.querySelector('.fg-selection-pane')).display === 'none';
+        var scroller = document.querySelector('.fg-body-scroll');
+        setTimeout(function() {
+          scroller.scrollTop = 6000;
+          scroller.scrollLeft = 700;
+          setTimeout(function() {
+            grid.render();
+            scrollPositionBeforeSearch = grid.scrollPosition;
+            var gutterLeaksBeforeSearch = countGutterLeaks();
+            var bottomGapBeforeSearch = measureBottomContentGap();
+            var measuredScrollbarHeight = measureScrollbarHeight();
+            var measuredFooterHeight = measureFooterHeight();
+            var alternatingRowCellsBeforeSearch = document.querySelectorAll('.fg-cell.fg-row-alt').length;
+            var alternatingRowHeaderCellsBeforeSearch = document.querySelectorAll('.fg-row-header-cell.fg-row-alt').length;
+            var evenRowCellsBeforeSearch = document.querySelectorAll('.fg-cell.fg-row-even').length;
+            var evenRowHeaderCellsBeforeSearch = document.querySelectorAll('.fg-row-header-cell.fg-row-even').length;
+            var alternatingRowCell = document.querySelector('.fg-cell.fg-row-even');
+            var alternatingRowBackground = alternatingRowCell ? window.getComputedStyle(alternatingRowCell).backgroundColor : '';
+            var alternatingRowVariable = document.querySelector('.fg-root').style.getPropertyValue('--fg-cell-alt-bg');
+            var sampleCell = document.querySelector('.fg-cell[data-col="1"]');
+            var sampleRowHeader = document.querySelector('.fg-row-header-cell');
+            var sampleHeader = document.querySelector('.fg-header-cell[data-col="1"]');
+            var sampleCellColor = sampleCell ? window.getComputedStyle(sampleCell).color : '';
+            var sampleRowHeaderColor = sampleRowHeader ? window.getComputedStyle(sampleRowHeader).color : '';
+            var sampleHeaderColor = sampleHeader ? window.getComputedStyle(sampleHeader).color : '';
+            var sampleRowHeaderBackground = sampleRowHeader ? window.getComputedStyle(sampleRowHeader).backgroundColor : '';
+            var sampleRowHeaderBackgroundImage = sampleRowHeader ? window.getComputedStyle(sampleRowHeader).backgroundImage : '';
+            var sampleHeaderBackground = sampleHeader ? window.getComputedStyle(sampleHeader).backgroundColor : '';
+            var sampleHeaderBackgroundImage = sampleHeader ? window.getComputedStyle(sampleHeader).backgroundImage : '';
+            var sampleRowHeaderFontWeight = sampleRowHeader ? window.getComputedStyle(sampleRowHeader).fontWeight : '';
+            var sampleHeaderFontWeight = sampleHeader ? window.getComputedStyle(sampleHeader).fontWeight : '';
+            if (alternatingRowCell) {
+              alternatingRowCell.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+            }
+            var hoveredEvenRowCells = document.querySelectorAll('.fg-cell.fg-row-even.fg-row-hovered');
+            var hoveredEvenRowBackground = hoveredEvenRowCells.length ? window.getComputedStyle(hoveredEvenRowCells[0]).backgroundColor : '';
+            var clickCell = document.querySelector('.fg-cell');
+            var clickCellRow = clickCell ? Number(clickCell.getAttribute('data-row')) : -1;
+            var clickCellCol = clickCell ? Number(clickCell.getAttribute('data-col')) : -1;
+            if (clickCell) {
+              clickCell.click();
+            }
+            var cellClickSelectsRowWorks = grid.rowSelection === clickCellRow && grid.selection.row === clickCellRow && grid.selection.col === clickCellCol;
+            clickCell = document.querySelector('.fg-cell[data-row="' + clickCellRow + '"][data-col="' + clickCellCol + '"]');
+            if (clickCell) {
+              clickCell.click();
+            }
+            var cellClickTogglesRowOffWorks = grid.rowSelection === null && grid.selection.row === clickCellRow && grid.selection.col === clickCellCol;
+            document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+              key: ' ',
+              code: 'Space',
+              bubbles: true
+            }));
+            var spaceSelectsRowWorks = grid.rowSelection === clickCellRow && grid.selection.row === clickCellRow && grid.selection.col === clickCellCol;
+            document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+              key: ' ',
+              code: 'Space',
+              bubbles: true
+            }));
+            var spaceTogglesRowOffWorks = grid.rowSelection === null && grid.selection.row === clickCellRow && grid.selection.col === clickCellCol;
+            grid.multiSelectRows = true;
+            document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+              key: ' ',
+              code: 'Space',
+              bubbles: true
+            }));
+            var multiSpaceSelectsRowWorks = grid.selectedRowMap[clickCellRow] === true;
+            document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+              key: ' ',
+              code: 'Space',
+              bubbles: true
+            }));
+            var multiSpaceTogglesRowOffWorks = grid.selectedRowMap[clickCellRow] !== true;
+            grid.multiSelectRows = false;
+            grid.select(clickCellRow, clickCellCol);
+            document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'ArrowDown',
+              bubbles: true
+            }));
+            var readOnlyArrowDownSelectsRowWorks = grid.rowSelection === Math.min(clickCellRow + 1, grid.view.length - 1) &&
+              grid.selection.row === grid.rowSelection &&
+              grid.selection.col === clickCellCol;
+            document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'ArrowRight',
+              bubbles: true
+            }));
+            var readOnlyArrowRightKeepsRowSelectedWorks = grid.rowSelection === Math.min(clickCellRow + 1, grid.view.length - 1) &&
+              grid.selection.row === grid.rowSelection &&
+              grid.selection.col === Math.min(clickCellCol + 1, grid.visibleColumns.length - 1);
+            document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'ArrowLeft',
+              bubbles: true
+            }));
+            var readOnlyArrowLeftKeepsRowSelectedWorks = grid.rowSelection === Math.min(clickCellRow + 1, grid.view.length - 1) &&
+              grid.selection.row === grid.rowSelection &&
+              grid.selection.col === clickCellCol;
+            grid.setEditMode(true);
+            var editModeAliasWorks = grid.editMode === true && grid.isReadOnly === false;
+            var editableClickCell = document.querySelector('.fg-cell[data-row="' + clickCellRow + '"][data-col="' + clickCellCol + '"]') ||
+              document.querySelector('.fg-cell');
+            var editableClickCol = editableClickCell ? Number(editableClickCell.getAttribute('data-col')) : -1;
+            if (editableClickCell) {
+              editableClickCell.click();
+            }
+            var editOnSelectWorks = grid.editing && grid.editing.col === editableClickCol && grid.activeEditor !== null;
+            var clickEditSelectsEditorTextWorks = grid.activeEditor &&
+              document.activeElement === grid.activeEditor &&
+              grid.activeEditor.selectionStart === 0 &&
+              grid.activeEditor.selectionEnd === grid.activeEditor.value.length;
+            grid.finishEditing(false);
+            grid.visibleColumns[1].readOnly = true;
+            var readOnlyClickCell = document.querySelector('.fg-cell[data-col="1"]');
+            if (readOnlyClickCell) {
+              readOnlyClickCell.click();
+            }
+            var readOnlyColumnClickDoesNotEdit = !grid.editing;
+            var readOnlyCellActiveIsUnique = document.querySelectorAll('.fg-cell.fg-selected').length === 1 &&
+              grid.activeCell &&
+              Number(grid.activeCell.getAttribute('data-col')) === 1;
+            var readOnlyClickRow = readOnlyClickCell ? Number(readOnlyClickCell.getAttribute('data-row')) : 0;
+            grid.select(readOnlyClickRow, 2);
+            grid.startEditing(readOnlyClickRow, 2);
+            grid.activeEditor.value = '654321';
+            readOnlyClickCell = document.querySelector('.fg-cell[data-row="' + readOnlyClickRow + '"][data-col="1"]');
+            if (readOnlyClickCell) {
+              readOnlyClickCell.click();
+            }
+            var readOnlyClickFinishesPreviousEditWorks = !grid.editing &&
+              grid.activeEditor === null &&
+              grid.getCellData(readOnlyClickRow, 2) === 654321 &&
+              grid.selection.row === readOnlyClickRow &&
+              grid.selection.col === 1 &&
+              document.querySelectorAll('.fg-cell.fg-selected').length === 1 &&
+              window.getComputedStyle(document.querySelector('.fg-editor')).display === 'none';
+            document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'ArrowDown',
+              bubbles: true
+            }));
+            var readOnlyCellArrowDownKeepsSameColumnWorks = grid.selection.row === Math.min(readOnlyClickRow + 1, grid.view.length - 1) &&
+              grid.selection.col === 1 &&
+              grid.rowSelection === grid.selection.row &&
+              !grid.editing;
+            document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'ArrowUp',
+              bubbles: true
+            }));
+            var readOnlyCellArrowUpKeepsSameColumnWorks = grid.selection.row === readOnlyClickRow &&
+              grid.selection.col === 1 &&
+              grid.rowSelection === readOnlyClickRow &&
+              !grid.editing;
+            grid.visibleColumns[3].readOnly = true;
+            grid.select(0, 2);
+            grid.startEditing(0, 2);
+            grid.activeEditor.value = '777';
+            grid.activeEditor.dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'Enter',
+              bubbles: true
+            }));
+            var enterMovesToNextEditableColumnWorks = grid.editing &&
+              grid.editing.row === 0 &&
+              grid.editing.col === 4 &&
+              grid.getCellData(0, 2) === 777;
+            grid.finishEditing(false);
+            grid.select(0, 2);
+            grid.startEditing(0, 2);
+            grid.activeEditor.dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'Tab',
+              bubbles: true
+            }));
+            var tabMovesToNextEditableColumnWorks = grid.editing &&
+              grid.editing.row === 0 &&
+              grid.editing.col === 4;
+            grid.finishEditing(false);
+            grid.select(0, 4);
+            grid.startEditing(0, 4);
+            grid.activeEditor.value = '999';
+            grid.activeEditor.dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'Enter',
+              shiftKey: true,
+              bubbles: true
+            }));
+            var shiftEnterMovesToPreviousEditableColumnWorks = grid.editing &&
+              grid.editing.row === 0 &&
+              grid.editing.col === 2 &&
+              grid.getCellData(0, 4) === '999' &&
+              document.querySelectorAll('.fg-cell.fg-selected').length === 1;
+            grid.finishEditing(false);
+            grid.select(0, 4);
+            grid.startEditing(0, 4);
+            grid.activeEditor.dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'Tab',
+              shiftKey: true,
+              bubbles: true
+            }));
+            var shiftTabMovesToPreviousEditableColumnWorks = grid.editing &&
+              grid.editing.row === 0 &&
+              grid.editing.col === 2 &&
+              document.querySelectorAll('.fg-cell.fg-selected').length === 1;
+            grid.finishEditing(false);
+            grid.select(0, 2);
+            grid.startEditing(0, 2);
+            grid.activeEditor.value = '888';
+            grid.activeEditor.dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'ArrowDown',
+              bubbles: true
+            }));
+            var editArrowDownMovesAndKeepsEditingWorks = grid.editing &&
+              grid.editing.row === 1 &&
+              grid.editing.col === 2 &&
+              grid.getCellData(0, 2) === 888;
+            grid.activeEditor.dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'ArrowUp',
+              bubbles: true
+            }));
+            var editArrowUpMovesAndKeepsEditingWorks = grid.editing &&
+              grid.editing.row === 0 &&
+              grid.editing.col === 2;
+            grid.finishEditing(false);
+            grid.multiSelectRows = true;
+            grid.selectedRowMap = {};
+            grid.select(0, 2);
+            grid.startEditing(0, 2);
+            grid.activeEditor.value = '321';
+            grid.activeEditor.dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'ArrowDown',
+              bubbles: true
+            }));
+            var multiEditArrowDownDoesNotSelectRowWorks = grid.editing &&
+              grid.editing.row === 1 &&
+              grid.editing.col === 2 &&
+              grid.getCellData(0, 2) === 321 &&
+              grid.selectedRowMap[0] === true &&
+              grid.selectedRowMap[1] !== true &&
+              grid.getSelectedRowCount() === 1;
+            grid.activeEditor.dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'ArrowUp',
+              bubbles: true
+            }));
+            var multiEditArrowUpDoesNotSelectRowWorks = grid.editing &&
+              grid.editing.row === 0 &&
+              grid.editing.col === 2 &&
+              grid.selectedRowMap[0] === true &&
+              grid.selectedRowMap[1] !== true &&
+              grid.getSelectedRowCount() === 1;
+            grid.finishEditing(false);
+            grid.multiSelectRows = false;
+            scroller.scrollTop = 0;
+            scroller.scrollLeft = 0;
+            grid.render();
+            grid.setCellData(0, 4, '20260707');
+            var maskDisplayCell = document.querySelector('.fg-cell[data-row="0"][data-col="4"]');
+            var maskDisplayWorks = maskDisplayCell && maskDisplayCell.textContent === '2026/07/07';
+            grid.select(0, 4);
+            var maskCopyRawWorks = grid.getClipString() === '20260707';
+            grid.startEditing(0, 4);
+            var maskEditorInitialWorks = grid.activeEditor && grid.activeEditor.value === '2026/07/07';
+            grid.activeEditor.value = '20260710';
+            grid.activeEditor.dispatchEvent(new Event('input', { bubbles: true }));
+            grid.activeEditor.setSelectionRange(0, grid.activeEditor.value.length);
+            var maskEditorCopiedText = '';
+            var maskEditorCopyEvent = new Event('copy', { bubbles: true, cancelable: true });
+            Object.defineProperty(maskEditorCopyEvent, 'clipboardData', {
+              value: {
+                setData: function(type, value) {
+                  if (type === 'text/plain') {
+                    maskEditorCopiedText = value;
+                  }
+                }
+              }
+            });
+            grid.activeEditor.dispatchEvent(maskEditorCopyEvent);
+            var maskEditorCopyRawWorks = maskEditorCopiedText === '20260710' &&
+              grid.copyBuffer === '20260710' &&
+              maskEditorCopyEvent.defaultPrevented === true;
+            grid.activeEditor.value = '20260808';
+            grid.activeEditor.dispatchEvent(new Event('input', { bubbles: true }));
+            var maskEditorFormatsInputWorks = grid.activeEditor.value === '2026/08/08';
+            grid.finishEditing(true);
+            maskDisplayCell = document.querySelector('.fg-cell[data-row="0"][data-col="4"]');
+            var maskCommitRawWorks = grid.getCellData(0, 4) === '20260808' &&
+              maskDisplayCell &&
+              maskDisplayCell.textContent === '2026/08/08' &&
+              grid.getClipString() === '20260808';
+            grid.startEditing(0, 4);
+            var textDateDateboxEditorWorks = grid.activeEditor &&
+              grid.activeEditor.getAttribute('data-editor-type') === 'datebox' &&
+              grid.activeEditor.value === '2026/08/08';
+            var textDateDateboxPanelHiddenOnStartWorks =
+              window.getComputedStyle(document.querySelector('.fg-datebox-panel')).display === 'none';
+            document.querySelector('.fg-editor-trigger').click();
+            var textDateDateboxPanelOpensOnButtonWorks =
+              window.getComputedStyle(document.querySelector('.fg-datebox-panel')).display === 'block' &&
+              document.querySelector('.fg-datebox-panel .fg-datebox-title').textContent === '八月 2026';
+            var textDateDateboxDay = document.querySelector('.fg-datebox-day[data-date="2026-08-18"]');
+            if (textDateDateboxDay) {
+              textDateDateboxDay.click();
+            }
+            var textDateDateboxKeepsMaskWorks = grid.activeEditor &&
+              grid.activeEditor.value === '2026/08/18';
+            grid.finishEditing(true);
+            var textDateDateboxCommitRawWorks = grid.getCellData(0, 4) === '20260818' &&
+              document.querySelector('.fg-cell[data-row="0"][data-col="4"]').textContent === '2026/08/18';
+            grid.setCellData(0, 6, '20260909');
+            var maskDefaultIncludesMaskWorks = grid.getCellData(0, 6) === '2026/09/09' &&
+              document.querySelector('.fg-cell[data-row="0"][data-col="6"]').textContent === '2026/09/09';
+            grid.select(0, 6);
+            var maskDefaultCopyIncludesMaskWorks = grid.getClipString() === '2026/09/09';
+            grid.startEditing(0, 6);
+            document.querySelector('.fg-editor-trigger').click();
+            var maskDefaultDay = document.querySelector('.fg-datebox-day[data-date="2026-09-18"]');
+            if (maskDefaultDay) {
+              maskDefaultDay.click();
+            }
+            grid.finishEditing(true);
+            var maskDefaultDateboxCommitIncludesMaskWorks = grid.getCellData(0, 6) === '2026/09/18' &&
+              document.querySelector('.fg-cell[data-row="0"][data-col="6"]').textContent === '2026/09/18';
+            scroller.scrollLeft = 80;
+            grid.render();
+            var partiallyHiddenCell = document.querySelector('.fg-cell[data-row="0"][data-col="2"]');
+            var clickScrollStart = scroller.scrollLeft;
+            if (partiallyHiddenCell) {
+              partiallyHiddenCell.click();
+            }
+            var clickedCellScrollsColumnIntoViewWorks = clickScrollStart > 0 &&
+              scroller.scrollLeft === 0 &&
+              grid.selection.row === 0 &&
+              grid.selection.col === 2 &&
+              document.querySelectorAll('.fg-cell.fg-selected').length === 1;
+            grid.finishEditing(false);
+            grid.select(0, 2);
+            grid.startEditing(0, 2);
+            grid.activeEditor.value = '0';
+            grid.finishEditing(true);
+            var numberZeroInputWorks = grid.getCellData(0, 2) === 0;
+            var zeroCell = document.querySelector('.fg-cell[data-row="0"][data-col="2"]');
+            var numberZeroDisplaysAsZeroWorks = zeroCell && zeroCell.textContent === '0';
+            grid.startEditing(0, 2);
+            grid.activeEditor.value = '   ';
+            grid.finishEditing(true);
+            var numberBlankInputWorks = grid.getCellData(0, 2) === null;
+            var blankCell = document.querySelector('.fg-cell[data-row="0"][data-col="2"]');
+            var numberBlankDisplaysEmptyWorks = blankCell && blankCell.textContent === '';
+            grid.setCellData(0, 2, 1103.2);
+            grid.startEditing(0, 2);
+            var numberEditorShowsThousandsWorks = grid.activeEditor &&
+              grid.activeEditor.value === '1,103.2';
+            var editingRowSelectedBackgroundWorks = grid.rowSelection === 0 &&
+              document.querySelectorAll('.fg-cell[data-row="0"].fg-row-selected').length > 0;
+            grid.activeEditor.value = '1103.2';
+            grid.activeEditor.dispatchEvent(new Event('input', { bubbles: true }));
+            var numberEditorLiveThousandsWorks = grid.activeEditor.value === '1,103.2';
+            grid.finishEditing(true);
+            var numberThousandsCommitWorks = grid.getCellData(0, 2) === 1103.2;
+            grid.setEditMode(false);
+            var readOnlyModeDisablesEditingWorks = grid.isReadOnly === true &&
+              grid.editMode === false &&
+              grid.startEditing(0, 2) === false &&
+              !grid.editing;
+            grid.isReadOnly = false;
+            grid.visibleColumns[1].readOnly = false;
+            grid.visibleColumns[3].readOnly = false;
+            grid.select(0, 1);
+            grid.startEditing(0, 1);
+            var textboxDefaultEditorWorks = grid.activeEditor &&
+              grid.activeEditor.getAttribute('data-editor-type') === 'textbox' &&
+              grid.activeEditor.className.indexOf('textbox-f') >= 0;
+            grid.finishEditing(false);
+            grid.select(0, 2);
+            grid.startEditing(0, 2);
+            var numberboxEditorConfigWorks = grid.activeEditor &&
+              grid.activeEditor.getAttribute('data-editor-type') === 'numberbox' &&
+              grid.activeEditor.className.indexOf('numberbox-f') >= 0;
+            grid.finishEditing(false);
+            grid.setCellData(0, 5, '2026-07-07');
+            grid.select(0, 5);
+            grid.startEditing(0, 5);
+            var dateboxPanel = document.querySelector('.fg-datebox-panel');
+            var dateboxEditorConfigWorks = grid.activeEditor &&
+              grid.activeEditor.getAttribute('data-editor-type') === 'datebox' &&
+              grid.activeEditor.className.indexOf('datebox-f') >= 0 &&
+              grid.activeEditor.value === '2026-07-07';
+            var dateboxTriggerUsesImageWorks =
+              window.getComputedStyle(document.querySelector('.fg-editor-trigger')).backgroundImage.indexOf('datebox_arrow.png') >= 0;
+            var dateboxPanelHiddenOnStartWorks = dateboxPanel &&
+              window.getComputedStyle(dateboxPanel).display === 'none';
+            document.querySelector('.fg-editor-trigger').click();
+            var dateboxPanelOpensWorks = dateboxPanel &&
+              window.getComputedStyle(dateboxPanel).display === 'block' &&
+              dateboxPanel.querySelector('.fg-datebox-title').textContent === '七月 2026';
+            dateboxPanel.querySelector('.fg-datebox-title-button').click();
+            var dateboxMonthViewOpensWorks = dateboxPanel.querySelector('.fg-datebox-month-view') &&
+              dateboxPanel.querySelector('.fg-datebox-year-input').value === '2026' &&
+              dateboxPanel.querySelectorAll('.fg-datebox-month').length === 12;
+            var dateboxYearInput = dateboxPanel.querySelector('.fg-datebox-year-input');
+            dateboxYearInput.value = '2028';
+            dateboxYearInput.dispatchEvent(new Event('change', { bubbles: true }));
+            var dateboxYearInputChangesWorks = dateboxPanel.querySelector('.fg-datebox-year-input').value === '2028' &&
+              dateboxPanel.querySelector('.fg-datebox-title').textContent === '七月 2028';
+            dateboxPanel.querySelector('.fg-datebox-month[data-month="6"]').click();
+            var dateboxMonthSelectReturnsCalendarWorks = dateboxPanel.querySelector('.fg-datebox-weekdays') &&
+              dateboxPanel.querySelector('.fg-datebox-title').textContent === '七月 2028';
+            scroller.scrollTop = 60;
+            grid.handleScroll();
+            var dateboxPanelClosesOnScrollWorks = dateboxPanel &&
+              window.getComputedStyle(dateboxPanel).display === 'none';
+            scroller.scrollTop = 0;
+            grid.handleScroll();
+            document.querySelector('.fg-editor-trigger').click();
+            var dateboxDay = dateboxPanel ? dateboxPanel.querySelector('.fg-datebox-day[data-date="2026-07-15"]') : null;
+            if (dateboxDay) {
+              dateboxDay.click();
+            }
+            var dateboxSelectUpdatesInputWorks = grid.activeEditor &&
+              grid.activeEditor.value === '2026-07-15' &&
+              window.getComputedStyle(dateboxPanel).display === 'none';
+            grid.finishEditing(true);
+            var dateboxSelectedCommitWorks = grid.getCellData(0, 5) === '2026-07-15';
+            grid.setSearch('Row 4999');
+            grid.select(0, 2);
+            grid.startEditing(0, 2);
+            var editorTextAlign = window.getComputedStyle(grid.activeEditor).textAlign;
+            var editorBackgroundColor = window.getComputedStyle(grid.activeEditor).backgroundColor;
+            grid.activeEditor.value = '123456';
+            grid.finishEditing(true);
+            document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'c',
+              ctrlKey: true,
+              bubbles: true
+            }));
+            var rowHeaderCell = document.querySelector('.fg-row-header-cell');
+            rowHeaderCell.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+            rowHeaderCell = document.querySelector('.fg-row-header-cell');
+            if (grid.rowSelection !== 0) {
+              rowHeaderCell.click();
+            }
+            var excelBlob = grid.getExcelBlob();
+            excelBlob.arrayBuffer().then(function(buffer) {
+              var largeExportScrollResult = runLargeExportScrollCheck();
+              var selectedRowHeader = document.querySelector('.fg-row-header-cell');
+              var selectedRowHeaderStyle = selectedRowHeader ? window.getComputedStyle(selectedRowHeader) : null;
+              var zipBytes = new Uint8Array(buffer);
+              var sheetXml = readStoredZipEntry(zipBytes, 'xl/worksheets/sheet1.xml');
+              var stylesXml = readStoredZipEntry(zipBytes, 'xl/styles.xml');
+              finish({
+                hasFastGrid: typeof window.FastGrid === 'function',
+                totalRowsAfterSearch: grid.view.length,
+                firstAmountAfterEdit: grid.getCellData(0, 2),
+                copiedText: copiedText,
+                clipString: grid.getClipString(),
+                itemsSourceAliasWorks: grid.itemsSource.length === 5000,
+                itemsSourceGetterWorks: itemsSourceGetterWorks,
+                itemsSourceSetterWorks: itemsSourceSetterWorks,
+                itemsSourceRestoreWorks: itemsSourceRestoreWorks,
+                footerVisibleWorks: footerVisibleWorks,
+                footerAmountTextAlignWorks: footerAmountTextAlignWorks,
+                footerAmountRightEdgeWorks: footerAmountRightEdgeWorks,
+                sortSelectedRowWorks: sortSelectedRowWorks,
+                multiSortSelectedRowsWork: multiSortSelectedRowsWork,
+                headerDividerResizeWorks: headerDividerResizeWorks,
+                resizeStartWidth: resizeStartWidth,
+                resizeEndWidth: resizeEndWidth,
+                resizeLineBackground: resizeLineBackground,
+                rowHeadersHiddenWorks: rowHeadersHiddenWorks,
+                rowHeadersShownWorks: rowHeadersShownWorks,
+                multiSelectColumnVisibleWorks: multiSelectColumnVisibleWorks,
+                multiSelectRowsWorks: multiSelectRowsWorks,
+                multiCellClickToggleOffWorks: multiCellClickToggleOffWorks,
+                multiCellClickToggleOnWorks: multiCellClickToggleOnWorks,
+                multiRowClickToggleOffWorks: multiRowClickToggleOffWorks,
+                multiSelectAllWorks: multiSelectAllWorks,
+                multiSelectClearAllWorks: multiSelectClearAllWorks,
+                multiArrowDownDoesNotSelectRowWorks: multiArrowDownDoesNotSelectRowWorks,
+                multiArrowUpDoesNotSelectRowWorks: multiArrowUpDoesNotSelectRowWorks,
+                multiSelectColumnHiddenWorks: multiSelectColumnHiddenWorks,
+                collectionViewAliasWorks: grid.collectionView === grid.view,
+                rowsAliasWorks: grid.rows === grid.view,
+                getColumnWorks: grid.getColumn('amount') === grid.visibleColumns[2],
+                isReadOnlyAliasWorks: grid.isReadOnly === false,
+                itemFormatterAliasWorks: document.querySelector('[data-item-formatter="1"]') !== null,
+                scrollPositionAliasWorks: scrollPositionBeforeSearch.x === 700 && scrollPositionBeforeSearch.y === 6000,
+                scrollSizeAliasWorks: grid.scrollSize.width > 0 && grid.scrollSize.height > 0,
+                viewRangeAliasWorks: grid.viewRange.row <= grid.viewRange.row2 && grid.viewRange.col <= grid.viewRange.col2,
+                activeCellAliasWorks: grid.activeCell !== null,
+                selectedItemsAliasWorks: grid.selectedItems.length === 1 && grid.selectedItems[0].amount === 123456,
+                selectedRowsAliasWorks: grid.selectedRows.length === 1 && grid.selectedRows[0].dataItem.amount === 123456,
+                selectedRangesAliasWorks: grid.selectedRanges.length === 1 && grid.selectedRanges[0].row === 0,
+                alternatingRowsAliasWorks: grid.alternatingRows === true,
+                frozenRightColumnsAliasWorks: grid.frozenRightColumns === 1,
+                alternatingRowCells: alternatingRowCellsBeforeSearch,
+                alternatingRowHeaderCells: alternatingRowHeaderCellsBeforeSearch,
+                evenRowCells: evenRowCellsBeforeSearch,
+                evenRowHeaderCells: evenRowHeaderCellsBeforeSearch,
+                alternatingRowBackground: alternatingRowBackground,
+                alternatingRowVariable: alternatingRowVariable,
+                sampleCellColor: sampleCellColor,
+                sampleRowHeaderColor: sampleRowHeaderColor,
+                sampleHeaderColor: sampleHeaderColor,
+                sampleRowHeaderBackground: sampleRowHeaderBackground,
+                sampleRowHeaderBackgroundImage: sampleRowHeaderBackgroundImage,
+                sampleHeaderBackground: sampleHeaderBackground,
+                sampleHeaderBackgroundImage: sampleHeaderBackgroundImage,
+                sampleRowHeaderFontWeight: sampleRowHeaderFontWeight,
+                sampleHeaderFontWeight: sampleHeaderFontWeight,
+                hoveredEvenRowCells: hoveredEvenRowCells.length,
+                hoveredEvenRowBackground: hoveredEvenRowBackground,
+                cellClickSelectsRowWorks: cellClickSelectsRowWorks,
+                cellClickTogglesRowOffWorks: cellClickTogglesRowOffWorks,
+                spaceSelectsRowWorks: spaceSelectsRowWorks,
+                spaceTogglesRowOffWorks: spaceTogglesRowOffWorks,
+                multiSpaceSelectsRowWorks: multiSpaceSelectsRowWorks,
+                multiSpaceTogglesRowOffWorks: multiSpaceTogglesRowOffWorks,
+                readOnlyArrowDownSelectsRowWorks: readOnlyArrowDownSelectsRowWorks,
+                readOnlyArrowRightKeepsRowSelectedWorks: readOnlyArrowRightKeepsRowSelectedWorks,
+                readOnlyArrowLeftKeepsRowSelectedWorks: readOnlyArrowLeftKeepsRowSelectedWorks,
+                editModeAliasWorks: editModeAliasWorks,
+                editOnSelectWorks: editOnSelectWorks,
+                clickEditSelectsEditorTextWorks: clickEditSelectsEditorTextWorks,
+                readOnlyColumnClickDoesNotEdit: readOnlyColumnClickDoesNotEdit,
+                readOnlyCellActiveIsUnique: readOnlyCellActiveIsUnique,
+                readOnlyClickFinishesPreviousEditWorks: readOnlyClickFinishesPreviousEditWorks,
+                readOnlyCellArrowDownKeepsSameColumnWorks: readOnlyCellArrowDownKeepsSameColumnWorks,
+                readOnlyCellArrowUpKeepsSameColumnWorks: readOnlyCellArrowUpKeepsSameColumnWorks,
+                enterMovesToNextEditableColumnWorks: enterMovesToNextEditableColumnWorks,
+                tabMovesToNextEditableColumnWorks: tabMovesToNextEditableColumnWorks,
+                shiftEnterMovesToPreviousEditableColumnWorks: shiftEnterMovesToPreviousEditableColumnWorks,
+                shiftTabMovesToPreviousEditableColumnWorks: shiftTabMovesToPreviousEditableColumnWorks,
+                editArrowDownMovesAndKeepsEditingWorks: editArrowDownMovesAndKeepsEditingWorks,
+                editArrowUpMovesAndKeepsEditingWorks: editArrowUpMovesAndKeepsEditingWorks,
+                multiEditArrowDownDoesNotSelectRowWorks: multiEditArrowDownDoesNotSelectRowWorks,
+                multiEditArrowUpDoesNotSelectRowWorks: multiEditArrowUpDoesNotSelectRowWorks,
+                maskDisplayWorks: maskDisplayWorks,
+                maskCopyRawWorks: maskCopyRawWorks,
+                maskEditorInitialWorks: maskEditorInitialWorks,
+                maskEditorCopyRawWorks: maskEditorCopyRawWorks,
+                maskEditorFormatsInputWorks: maskEditorFormatsInputWorks,
+                maskCommitRawWorks: maskCommitRawWorks,
+                textDateDateboxEditorWorks: textDateDateboxEditorWorks,
+                textDateDateboxPanelHiddenOnStartWorks: textDateDateboxPanelHiddenOnStartWorks,
+                textDateDateboxPanelOpensOnButtonWorks: textDateDateboxPanelOpensOnButtonWorks,
+                textDateDateboxKeepsMaskWorks: textDateDateboxKeepsMaskWorks,
+                textDateDateboxCommitRawWorks: textDateDateboxCommitRawWorks,
+                maskDefaultIncludesMaskWorks: maskDefaultIncludesMaskWorks,
+                maskDefaultCopyIncludesMaskWorks: maskDefaultCopyIncludesMaskWorks,
+                maskDefaultDateboxCommitIncludesMaskWorks: maskDefaultDateboxCommitIncludesMaskWorks,
+                clickedCellScrollsColumnIntoViewWorks: clickedCellScrollsColumnIntoViewWorks,
+                numberZeroInputWorks: numberZeroInputWorks,
+                numberZeroDisplaysAsZeroWorks: numberZeroDisplaysAsZeroWorks,
+                numberBlankInputWorks: numberBlankInputWorks,
+                numberBlankDisplaysEmptyWorks: numberBlankDisplaysEmptyWorks,
+                numberEditorShowsThousandsWorks: numberEditorShowsThousandsWorks,
+                numberEditorLiveThousandsWorks: numberEditorLiveThousandsWorks,
+                numberThousandsCommitWorks: numberThousandsCommitWorks,
+                textboxDefaultEditorWorks: textboxDefaultEditorWorks,
+                numberboxEditorConfigWorks: numberboxEditorConfigWorks,
+                dateboxEditorConfigWorks: dateboxEditorConfigWorks,
+                dateboxTriggerUsesImageWorks: dateboxTriggerUsesImageWorks,
+                dateboxPanelHiddenOnStartWorks: dateboxPanelHiddenOnStartWorks,
+                dateboxPanelOpensWorks: dateboxPanelOpensWorks,
+                dateboxMonthViewOpensWorks: dateboxMonthViewOpensWorks,
+                dateboxYearInputChangesWorks: dateboxYearInputChangesWorks,
+                dateboxMonthSelectReturnsCalendarWorks: dateboxMonthSelectReturnsCalendarWorks,
+                dateboxPanelClosesOnScrollWorks: dateboxPanelClosesOnScrollWorks,
+                dateboxSelectUpdatesInputWorks: dateboxSelectUpdatesInputWorks,
+                dateboxSelectedCommitWorks: dateboxSelectedCommitWorks,
+                editingRowSelectedBackgroundWorks: editingRowSelectedBackgroundWorks,
+                readOnlyModeDisablesEditingWorks: readOnlyModeDisablesEditingWorks,
+                cellClickRowSelection: clickCellRow,
+                cellClickSelectedCol: clickCellCol,
+                wijmoEvents: wijmoEvents,
+                excelSize: excelBlob.size,
+                excelType: excelBlob.type,
+                excelHasFrozenPane: sheetXml.indexOf('state="frozen"') >= 0 && sheetXml.indexOf('xSplit="2"') >= 0,
+                excelHasAutoFilter: sheetXml.indexOf('<autoFilter ref="A1:') >= 0,
+                excelHasStyledCells: /<c r="C2" s="\d+"/.test(sheetXml),
+                excelHasHeaderFill: stylesXml.indexOf('FFF5F7FA') >= 0,
+                excelHasGridBorder: stylesXml.indexOf('FFD7DEE8') >= 0,
+                excelHasCellColor: stylesXml.indexOf('FF047857') >= 0,
+                excelHasCellBackground: stylesXml.indexOf('FFEEF6FF') >= 0,
+                largeExportScrollKeepsScrollableCells: largeExportScrollResult.keepsScrollableCells,
+                largeFastScrollImmediateRenderWorks: largeExportScrollResult.immediateScrollRenderWorks,
+                largeFastScrollBufferedRowsWorks: largeExportScrollResult.fastScrollBufferedRowsWorks,
+                largeExportScrollCellCount: largeExportScrollResult.cellCount,
+                largeExportScrollColumnRange: largeExportScrollResult.columnRange,
+                largeExportScrollRowRange: largeExportScrollResult.rowRange,
+                busyOverlayWorks: largeExportScrollResult.busyOverlayWorks,
+                busyOverlayClearsWorks: largeExportScrollResult.busyOverlayClearsWorks,
+                rowSelection: grid.rowSelection,
+                rowHeaderTopText: document.querySelector('.fg-row-header-top').textContent,
+                rowHeaderWidth: window.getComputedStyle(document.querySelector('.fg-row-header-pane')).width,
+                firstRowHeaderText: document.querySelector('.fg-row-header-cell').textContent,
+                rowHeaderCells: document.querySelectorAll('.fg-row-header-cell').length,
+                rowSelectedCells: document.querySelectorAll('.fg-cell.fg-row-selected').length,
+                rowHoveredCells: document.querySelectorAll('.fg-cell.fg-row-hovered').length,
+                selectedRowHeaderBackground: selectedRowHeaderStyle ? selectedRowHeaderStyle.backgroundColor : '',
+                selectedRowHeaderBackgroundImage: selectedRowHeaderStyle ? selectedRowHeaderStyle.backgroundImage : '',
+                selectedRowHeaderColor: selectedRowHeaderStyle ? selectedRowHeaderStyle.color : '',
+                rowHeaderPaneBottom: window.getComputedStyle(document.querySelector('.fg-row-header-pane')).bottom,
+                frozenPaneBottom: window.getComputedStyle(document.querySelector('.fg-frozen-pane')).bottom,
+                frozenRightPaneBottom: window.getComputedStyle(document.querySelector('.fg-frozen-pane-right')).bottom,
+                measuredScrollbarHeight: measuredScrollbarHeight,
+                measuredFooterHeight: measuredFooterHeight,
+                gutterLeaksBeforeSearch: gutterLeaksBeforeSearch,
+                bottomGapBeforeSearch: bottomGapBeforeSearch,
+                idHeaderTextAlign: window.getComputedStyle(document.querySelector('.fg-header-cell[data-col="0"] .fg-header-label')).textAlign,
+                amountHeaderTextAlign: window.getComputedStyle(document.querySelector('.fg-header-cell[data-col="2"] .fg-header-label')).textAlign,
+                amountHeaderSortDisplay: window.getComputedStyle(document.querySelector('.fg-header-cell[data-col="2"] .fg-sort')).display,
+                editorTextAlign: editorTextAlign,
+                editorBackgroundColor: editorBackgroundColor,
+                gridFontSize: window.getComputedStyle(document.querySelector('.fg-root')).fontSize,
+                renderedCells: document.querySelectorAll('.fg-cell').length,
+                frozenCells: document.querySelectorAll('.fg-frozen-layer .fg-cell').length,
+                frozenRightCells: document.querySelectorAll('.fg-frozen-layer-right .fg-cell').length,
+                frozenRightHeaders: document.querySelectorAll('.fg-header-frozen-right .fg-header-cell').length,
+                footerCells: document.querySelectorAll('.fg-footer-cell').length,
+                footerHeight: document.querySelector('.fg-footer').style.height,
+                footerBottom: window.getComputedStyle(document.querySelector('.fg-footer')).bottom,
+                frozenWidth: document.querySelector('.fg-header-frozen').style.width,
+                frozenRightWidth: document.querySelector('.fg-header-frozen-right').style.width,
+                sizeHeight: document.querySelector('.fg-size-layer').style.height,
+                scrollLeft: scroller.scrollLeft,
+                scrollTop: scroller.scrollTop
+              });
+            });
+          }, 80);
+        }, 80);
+      });
+
+      function readStoredZipEntry(bytes, targetName) {
+        var decoder = new TextDecoder();
+        var offset = 0;
+        var nameLength;
+        var extraLength;
+        var compressedSize;
+        var name;
+        while (offset < bytes.length && readUint32(bytes, offset) === 0x04034b50) {
+          compressedSize = readUint32(bytes, offset + 18);
+          nameLength = readUint16(bytes, offset + 26);
+          extraLength = readUint16(bytes, offset + 28);
+          name = decoder.decode(bytes.slice(offset + 30, offset + 30 + nameLength));
+          offset += 30 + nameLength + extraLength;
+          if (name === targetName) {
+            return decoder.decode(bytes.slice(offset, offset + compressedSize));
+          }
+          offset += compressedSize;
+        }
+        return '';
+      }
+
+      function createPointerLikeEvent(type, clientX, pointerId) {
+        var options = {
+          bubbles: true,
+          cancelable: true,
+          clientX: clientX,
+          clientY: 0,
+          button: 0,
+          buttons: type === 'pointerup' ? 0 : 1,
+          pointerId: pointerId || 1
+        };
+        if (typeof PointerEvent === 'function') {
+          return new PointerEvent(type, options);
+        }
+        return new MouseEvent(type, options);
+      }
+
+      function countGutterLeaks() {
+        var gutterTop = getDataAreaBottom();
+        var nodes = document.querySelectorAll('.fg-cell, .fg-row-header-cell');
+        var leaks = 0;
+        var i;
+        var rect;
+        var x;
+        var y;
+        for (i = 0; i < nodes.length; i += 1) {
+          rect = nodes[i].getBoundingClientRect();
+          x = Math.min(Math.max(rect.left + 2, 1), window.innerWidth - 2);
+          y = Math.min(Math.max(gutterTop + 2, 1), window.innerHeight - 2);
+          if (rect.bottom > gutterTop + 1 && isTopElement(nodes[i], x, y)) {
+            leaks += 1;
+          }
+        }
+        return leaks;
+      }
+
+      function measureBottomContentGap() {
+        var gutterTop = getDataAreaBottom();
+        var nodes = document.querySelectorAll('.fg-cell, .fg-row-header-cell');
+        var maxBottom = 0;
+        var i;
+        var rect;
+        var x;
+        var y;
+        for (i = 0; i < nodes.length; i += 1) {
+          rect = nodes[i].getBoundingClientRect();
+          if (rect.top < gutterTop && rect.bottom > rect.top) {
+            x = Math.min(Math.max(rect.left + 2, 1), window.innerWidth - 2);
+            y = Math.min(Math.max(Math.min(rect.bottom - 1, gutterTop - 1), 1), window.innerHeight - 2);
+            if (isTopElement(nodes[i], x, y)) {
+              maxBottom = Math.max(maxBottom, Math.min(rect.bottom, gutterTop));
+            }
+          }
+        }
+        return Math.round(gutterTop - maxBottom);
+      }
+
+      function isTopElement(node, x, y) {
+        var top = document.elementFromPoint(x, y);
+        return top === node || (top && node.contains(top));
+      }
+
+      function measureScrollbarHeight() {
+        var scroller = document.querySelector('.fg-body-scroll');
+        return scroller.offsetHeight - scroller.clientHeight;
+      }
+
+      function measureFooterHeight() {
+        var footer = document.querySelector('.fg-footer');
+        return footer && window.getComputedStyle(footer).display !== 'none' ? footer.offsetHeight : 0;
+      }
+
+      function runLargeExportScrollCheck() {
+        var largeGrid = new FastGrid('#largeGrid', {
+          rowHeight: 32,
+          headerHeight: 36,
+          overscanRows: 8,
+          overscanColumns: 3,
+          frozenColumns: 2,
+          frozenRightColumns: 1,
+          showRowHeaders: false,
+          showFooter: true,
+          footerHeight: 28,
+          columns: columns(20),
+          itemsSource: rows(20000),
+          formatCell: function(args) {
+            if (args.column.binding === 'amount' && Number(args.value) > 1000) {
+              args.cell.style.color = '#047857';
+              args.cell.style.backgroundColor = '#eef6ff';
+            }
+          }
+        });
+        var blob = largeGrid.getExcelBlob();
+        var scroller = largeGrid.bodyScroll;
+        scroller.scrollTop = 810 * 32;
+        largeGrid.handleScroll();
+        var immediateScrollRenderWorks = largeGrid.rowRange.start <= 810 &&
+          largeGrid.rowRange.end > 810 &&
+          largeGrid.cellLayer.querySelectorAll('.fg-cell').length > 0;
+        var fastScrollBufferedRowsWorks = largeGrid.rowRange.end >= 870;
+        largeGrid.setBusy(true, 'Exporting...');
+        var busyOverlayWorks = largeGrid.busy === true &&
+          window.getComputedStyle(largeGrid.busyOverlay).display === 'flex' &&
+          largeGrid.busyText.textContent === 'Exporting...';
+        largeGrid.setBusy(false);
+        var busyOverlayClearsWorks = largeGrid.busy === false &&
+          window.getComputedStyle(largeGrid.busyOverlay).display === 'none';
+        var result = {
+          keepsScrollableCells: blob.size > 1000 && largeGrid.cellLayer.querySelectorAll('.fg-cell').length > 0,
+          immediateScrollRenderWorks: immediateScrollRenderWorks,
+          fastScrollBufferedRowsWorks: fastScrollBufferedRowsWorks,
+          cellCount: largeGrid.cellLayer.querySelectorAll('.fg-cell').length,
+          columnRange: largeGrid.columnRange.start + '-' + largeGrid.columnRange.end,
+          rowRange: largeGrid.rowRange.start + '-' + largeGrid.rowRange.end,
+          busyOverlayWorks: busyOverlayWorks,
+          busyOverlayClearsWorks: busyOverlayClearsWorks
+        };
+        largeGrid.dispose();
+        return result;
+      }
+
+      function getDataAreaBottom() {
+        var body = document.querySelector('.fg-body');
+        var bodyRect = body.getBoundingClientRect();
+        return bodyRect.bottom - measureScrollbarHeight() - measureFooterHeight();
+      }
+
+      function readUint16(bytes, offset) {
+        return bytes[offset] | (bytes[offset + 1] << 8);
+      }
+
+      function readUint32(bytes, offset) {
+        return (bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)) >>> 0;
+      }
+    }());
+  </script>
+</body>
+</html>

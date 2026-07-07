@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FastGrid Demo</title>
+  <link rel="stylesheet" href="../dist/fastgrid.css?v=20260707-datebox-icon">
+  <link rel="stylesheet" href="./style.css?v=20260707-datebox-icon">
+</head>
+<body>
+  <main class="page">
+    <section class="toolbar" aria-label="FastGrid controls">
+      <div class="brand">
+        <h1>FastGrid</h1>
+        <p>Pure JS performance-first grid · 2000 x 20</p>
+      </div>
+      <label class="field">
+        <span>搜尋</span>
+        <input id="searchInput" type="search" placeholder="輸入關鍵字">
+      </label>
+      <label class="field compact">
+        <span>凍結欄</span>
+        <input id="frozenInput" type="number" min="0" max="6" value="2">
+      </label>
+      <label class="field compact">
+        <span>右凍結欄</span>
+        <input id="frozenRightInput" type="number" min="0" max="6" value="1">
+      </label>
+      <label class="toggle">
+        <input id="rowHeadersInput" type="checkbox" checked>
+        <span>列號</span>
+      </label>
+      <label class="toggle">
+        <input id="multiSelectInput" type="checkbox">
+        <span>多選</span>
+      </label>
+      <label class="toggle">
+        <input id="editModeInput" type="checkbox" checked>
+        <span>編輯</span>
+      </label>
+      <button id="exportButton" type="button">匯出 CSV</button>
+      <button id="exportExcelButton" type="button">匯出 Excel</button>
+    </section>
+
+    <section class="stats" aria-label="FastGrid stats">
+      <span id="rowCount">Rows: -</span>
+      <span id="rowRange">Rows visible: -</span>
+      <span id="columnRange">Columns visible: -</span>
+      <span id="cellCount">Rendered cells: -</span>
+    </section>
+
+    <section class="grid-shell">
+      <div id="grid"></div>
+    </section>
+  </main>
+
+  <script src="../dist/fastgrid.min.js?v=20260707-datebox-icon"></script>
+  <script src="./demo.js?v=20260707-datebox-icon"></script>
+</body>
+</html>
