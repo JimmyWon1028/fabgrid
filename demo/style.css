@@ -65,13 +65,15 @@ body {
   font-size: 12px;
 }
 
-.field input {
+.field input,
+.field select {
   height: 34px;
   min-width: 220px;
   padding: 0 10px;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
   font: inherit;
+  background: #ffffff;
 }
 
 .toggle {
@@ -90,9 +92,19 @@ body {
   margin: 0;
 }
 
-.field.compact input {
+.field.compact input,
+.field.compact select {
   min-width: 80px;
   width: 80px;
+}
+
+.field.compact select {
+  width: 96px;
+}
+
+.theme-field select {
+  min-width: 136px;
+  width: 136px;
 }
 
 button {

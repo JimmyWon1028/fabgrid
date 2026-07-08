@@ -26,11 +26,15 @@ function createFastGridFactory() {
     allowDragging: 'None',
     allowMerging: 'None',
     allowPinning: false,
+    headerDisplayMode: 'header',
+    headerToggleKey: false,
     alternatingRows: false,
     alternatingRowBackground: '#fafafa',
     autoClipboard: true,
     copyHeaders: 'None',
-    exportBusyText: '匯出 Excel 中...',
+    locale: null,
+    messages: null,
+    exportBusyText: null,
     frozenRows: 0,
     syncScrollRender: true,
     itemFormatter: null,
@@ -38,6 +42,7 @@ function createFastGridFactory() {
     columns: [],
     itemsSource: []
   };
+  var FASTGRID_INTERNAL_LOCALES = {};
 
   function FastGrid(element, options) {
     this.host = typeof element === 'string' ? document.querySelector(element) : element;
@@ -46,6 +51,7 @@ function createFastGridFactory() {
     }
 
     this.options = mergeOptions(DEFAULT_OPTIONS, options || {});
+    this.setLocale(this.options.locale, this.options.messages, true);
     if (this.options.isReadOnly === true) {
       this.options.allowEditing = false;
     }
@@ -57,6 +63,7 @@ function createFastGridFactory() {
     this.filterPredicate = null;
     this.searchText = '';
     this.sortState = null;
+    this.headerDisplayMode = normalizeHeaderDisplayMode(this.options.headerDisplayMode);
     this.columnOffsets = [];
     this.totalWidth = 0;
     this._frozenColumns = 0;
@@ -82,6 +89,15 @@ function createFastGridFactory() {
     this.editing = null;
     this.editorConfig = null;
     this.dateboxState = null;
+    this.comboboxItems = [];
+    this.comboboxActiveIndex = -1;
+    this.invalidItems = [];
+    this._invalidItemMap = {};
+    this._validationErrorSeq = 0;
+    this._asyncValidationSeq = 0;
+    this._asyncValidationMap = {};
+    this._validationItems = [];
+    this._validationItemIds = [];
     this.busy = false;
     this.raf = 0;
     this.disposed = false;
@@ -103,11 +119,13 @@ function createFastGridFactory() {
     this._boundPointerDown = bind(this, this.handlePointerDown);
     this._boundPointerMove = bind(this, this.handlePointerMove);
     this._boundPointerUp = bind(this, this.handlePointerUp);
+    this._boundEditorBeforeInput = bind(this, this.handleEditorBeforeInput);
     this._boundEditorInput = bind(this, this.handleEditorInput);
     this._boundEditorCopy = bind(this, this.handleEditorCopy);
     this._boundEditorTriggerClick = bind(this, this.handleEditorTriggerClick);
     this._boundDateboxClick = bind(this, this.handleDateboxClick);
     this._boundDateboxChange = bind(this, this.handleDateboxChange);
+    this._boundComboboxMouseDown = bind(this, this.handleComboboxMouseDown);
     this._boundDocumentMouseDown = bind(this, this.handleDocumentMouseDown);
     this._boundBusyEvent = bind(this, this.blockBusyEvent);
     this._boundResize = bind(this, this.invalidate);
@@ -225,6 +243,24 @@ function createFastGridFactory() {
     }
   };
 
+  FastGrid.prototype.setLocale = function(locale, messages, silent) {
+    this.options.locale = normalizeLocaleName(locale || this.options.locale || getDefaultLocaleName());
+    this.options.messages = messages || this.options.messages || null;
+    this.locale = this.options.locale;
+    this.messages = createLocaleMessages(this.locale, this.options.messages);
+    if (!silent && this.root) {
+      this.applyLocaleToDom();
+      if (this.dateboxPanel && window.getComputedStyle(this.dateboxPanel).display !== 'none') {
+        this.renderDateboxPanel();
+      }
+      this.render();
+    }
+  };
+
+  FastGrid.prototype.getText = function(path, data) {
+    return formatLocaleText(getLocaleValue(this.messages, path), data);
+  };
+
   FastGrid.prototype.createDom = function() {
     var root = document.createElement('div');
     root.className = 'fg-root';
@@ -248,10 +284,12 @@ function createFastGridFactory() {
         '<div class="fg-selection-pane"><div class="fg-selection-layer"></div></div>' +
         '<div class="fg-frozen-pane"><div class="fg-frozen-layer"></div></div>' +
         '<div class="fg-frozen-pane-right"><div class="fg-frozen-layer-right"></div></div>' +
-        '<input class="fg-editor textbox-f" type="text" aria-label="Cell editor">' +
-        '<button class="fg-editor-trigger" type="button" aria-label="Open date picker"></button>' +
-        '<div class="fg-datebox-panel" role="dialog" aria-label="Date picker"></div>' +
-        '<div class="fg-empty">沒有資料</div>' +
+        '<input class="fg-editor textbox-f" type="text">' +
+        '<button class="fg-editor-trigger" type="button"></button>' +
+        '<div class="fg-datebox-panel" role="dialog"></div>' +
+        '<div class="fg-combobox-panel" role="listbox"></div>' +
+        '<div class="fg-invalid-tip" role="tooltip"></div>' +
+        '<div class="fg-empty"></div>' +
         '<div class="fg-busy-overlay" aria-live="polite"><div class="fg-busy-panel"><span class="fg-busy-spinner"></span><span class="fg-busy-text"></span></div></div>' +
       '</div>' +
       '<div class="fg-footer">' +
@@ -288,6 +326,8 @@ function createFastGridFactory() {
     this.editor = root.querySelector('.fg-editor');
     this.editorTrigger = root.querySelector('.fg-editor-trigger');
     this.dateboxPanel = root.querySelector('.fg-datebox-panel');
+    this.comboboxPanel = root.querySelector('.fg-combobox-panel');
+    this.invalidTip = root.querySelector('.fg-invalid-tip');
     this.footer = root.querySelector('.fg-footer');
     this.footerRowHeader = root.querySelector('.fg-footer-row-header');
     this.footerSelection = root.querySelector('.fg-footer-selection');
@@ -300,7 +340,32 @@ function createFastGridFactory() {
     this.busyText = root.querySelector('.fg-busy-text');
     this.header.style.height = this.options.headerHeight + 'px';
     this.body.style.top = this.options.headerHeight + 'px';
+    this.applyLocaleToDom();
     this.applyThemeOptions();
+  };
+
+  FastGrid.prototype.applyLocaleToDom = function() {
+    if (this.editor) {
+      this.editor.setAttribute('aria-label', this.getText('aria.cellEditor'));
+    }
+    if (this.editorTrigger) {
+      this.editorTrigger.setAttribute('aria-label', this.getEditorTriggerLabel());
+    }
+    if (this.dateboxPanel) {
+      this.dateboxPanel.setAttribute('aria-label', this.getText('aria.datePicker'));
+    }
+    if (this.comboboxPanel) {
+      this.comboboxPanel.setAttribute('aria-label', this.getText('aria.comboBoxOptions'));
+    }
+    if (this.empty) {
+      this.empty.textContent = this.getText('emptyText');
+    }
+  };
+
+  FastGrid.prototype.getEditorTriggerLabel = function() {
+    return this.editorConfig && this.editorConfig.type === 'combobox' ?
+      this.getText('aria.openComboBox') :
+      this.getText('aria.openDatePicker');
   };
 
   FastGrid.prototype.applyThemeOptions = function() {
@@ -324,9 +389,11 @@ function createFastGridFactory() {
     this.editorTrigger.addEventListener('click', this._boundEditorTriggerClick);
     this.dateboxPanel.addEventListener('click', this._boundDateboxClick);
     this.dateboxPanel.addEventListener('change', this._boundDateboxChange);
+    this.comboboxPanel.addEventListener('mousedown', this._boundComboboxMouseDown);
     document.addEventListener('mousedown', this._boundDocumentMouseDown);
     document.addEventListener('pointermove', this._boundPointerMove);
     document.addEventListener('pointerup', this._boundPointerUp);
+    this.editor.addEventListener('beforeinput', this._boundEditorBeforeInput);
     window.addEventListener('resize', this._boundResize);
   };
 
@@ -364,6 +431,7 @@ function createFastGridFactory() {
         footerFormatter: null,
         aggregate: null,
         editor: null,
+        thousandsSeparator: null,
         mask: '',
         autoUnmask: false,
         maskValueIncludesLiterals: null,
@@ -420,6 +488,24 @@ function createFastGridFactory() {
     }
     this.updateLayout();
     this.refresh();
+  };
+
+  FastGrid.prototype.setHeaderDisplayMode = function(mode) {
+    mode = normalizeHeaderDisplayMode(mode);
+    this.options.headerDisplayMode = mode;
+    this.headerDisplayMode = mode;
+    if (this.root) {
+      this.renderHeaders(this.columnRange);
+    }
+  };
+
+  FastGrid.prototype.toggleHeaderDisplayMode = function() {
+    this.setHeaderDisplayMode(this.headerDisplayMode === 'binding' ? 'header' : 'binding');
+    return this.headerDisplayMode;
+  };
+
+  FastGrid.prototype.getHeaderDisplayMode = function() {
+    return this.headerDisplayMode || 'header';
   };
 
   FastGrid.prototype.setFilter = function(predicate) {
@@ -481,9 +567,11 @@ function createFastGridFactory() {
     this.editorTrigger.removeEventListener('click', this._boundEditorTriggerClick);
     this.dateboxPanel.removeEventListener('click', this._boundDateboxClick);
     this.dateboxPanel.removeEventListener('change', this._boundDateboxChange);
+    this.comboboxPanel.removeEventListener('mousedown', this._boundComboboxMouseDown);
     document.removeEventListener('mousedown', this._boundDocumentMouseDown);
     document.removeEventListener('pointermove', this._boundPointerMove);
     document.removeEventListener('pointerup', this._boundPointerUp);
+    this.editor.removeEventListener('beforeinput', this._boundEditorBeforeInput);
     window.removeEventListener('resize', this._boundResize);
     this.host.innerHTML = '';
     this.events = {};
@@ -501,7 +589,7 @@ function createFastGridFactory() {
     }
     this.root.setAttribute('aria-busy', this.busy ? 'true' : 'false');
     if (this.busyText) {
-      this.busyText.textContent = text || this.options.exportBusyText || 'Working...';
+      this.busyText.textContent = text || this.options.exportBusyText || this.getText('workingText');
     }
     this.busyOverlay.style.display = this.busy ? 'flex' : 'none';
   };
@@ -545,6 +633,7 @@ function createFastGridFactory() {
     }
 
     this.view = rows;
+    this.refreshInvalidItemRows();
     this.restoreSelectionState(selectionState);
     this.clampSelection();
   };
@@ -607,8 +696,12 @@ function createFastGridFactory() {
   };
 
   FastGrid.prototype.handleScroll = function() {
+    this.hideInvalidTip();
     if (this.isDateboxPanelOpen()) {
       this.hideDateboxPanel();
+    }
+    if (this.isComboboxPanelOpen()) {
+      this.hideComboboxPanel();
     }
     this.updateScrollState();
     if (this.shouldRenderScrollImmediately()) {
@@ -619,6 +712,9 @@ function createFastGridFactory() {
       this.render();
     } else {
       this.scheduleRender();
+    }
+    if (this.editing) {
+      this.positionEditor();
     }
     this.emit('scrollPositionChanged', {
       scrollTop: this.bodyScroll.scrollTop,
@@ -1067,8 +1163,8 @@ function createFastGridFactory() {
       formatted = column.formatter(value, null, column);
       return formatted == null ? '' : String(formatted);
     }
-    if (typeof value === 'number') {
-      return value.toLocaleString('zh-TW', { maximumFractionDigits: 2 });
+    if (column && column.dataType === 'number') {
+      return formatNumberDisplayText(value, column);
     }
     return String(value);
   };
@@ -1104,7 +1200,7 @@ function createFastGridFactory() {
     checkbox = document.createElement('input');
     checkbox.className = 'fg-selection-checkbox fg-selection-check-all';
     checkbox.type = 'checkbox';
-    checkbox.setAttribute('aria-label', 'Select all rows');
+    checkbox.setAttribute('aria-label', this.getText('aria.selectAllRows'));
     checkbox.checked = this.view.length > 0 && this.getSelectedRowCount() === this.view.length;
     checkbox.indeterminate = this.getSelectedRowCount() > 0 && this.getSelectedRowCount() < this.view.length;
     this.selectionTop.appendChild(checkbox);
@@ -1143,7 +1239,7 @@ function createFastGridFactory() {
     checkbox.className = 'fg-selection-checkbox fg-selection-check';
     checkbox.type = 'checkbox';
     checkbox.checked = this.isRowSelected(rowIndex);
-    checkbox.setAttribute('aria-label', 'Select row ' + (rowIndex + 1));
+    checkbox.setAttribute('aria-label', this.getText('aria.selectRow', { rowNumber: rowIndex + 1 }));
     checkbox.setAttribute('data-row', rowIndex);
     cell.appendChild(checkbox);
     return cell;
@@ -1176,9 +1272,11 @@ function createFastGridFactory() {
 
   FastGrid.prototype.createHeaderCell = function(column, left, frozen) {
     var cell = document.createElement('div');
+    var title = document.createElement('span');
     var label = document.createElement('span');
     var sort = document.createElement('span');
     var resize = document.createElement('span');
+    var sortDirection = this.getSortDirection(column);
 
     cell.className = 'fg-header-cell';
     if (column.align) {
@@ -1189,18 +1287,30 @@ function createFastGridFactory() {
     cell.style.height = this.options.headerHeight + 'px';
     cell.setAttribute('data-col', column._viewIndex);
     cell.setAttribute('data-frozen', frozen ? '1' : '0');
+    title.className = 'fg-header-title';
     label.className = 'fg-header-label';
-    label.textContent = column.header || column.binding;
-    sort.className = 'fg-sort';
-    sort.textContent = this.getSortGlyph(column);
+    label.textContent = this.getHeaderCellText(column);
+    sort.className = 'fg-sort' + (sortDirection === 1 ? ' fg-sort-asc' : sortDirection === -1 ? ' fg-sort-desc' : ' fg-sort-none');
+    sort.setAttribute('aria-hidden', 'true');
     resize.className = 'fg-resize';
     resize.setAttribute('data-resize-col', column._viewIndex);
-    cell.appendChild(label);
-    cell.appendChild(sort);
+    title.appendChild(label);
+    title.appendChild(sort);
+    cell.appendChild(title);
     if (this.options.allowResizing) {
       cell.appendChild(resize);
     }
     return cell;
+  };
+
+  FastGrid.prototype.getHeaderCellText = function(column) {
+    if (!column) {
+      return '';
+    }
+    if (this.headerDisplayMode === 'binding') {
+      return column.binding == null ? '' : String(column.binding);
+    }
+    return column.header || column.binding || '';
   };
 
   FastGrid.prototype.renderBody = function(rowRange, colRange) {
@@ -1283,6 +1393,10 @@ function createFastGridFactory() {
     if (this.selection.row === rowIndex && this.selection.col === colIndex) {
       cell.className += ' fg-selected';
     }
+    if (this.getCellValidationError(row, column)) {
+      cell.className += ' fg-cell-invalid';
+      cell.setAttribute('aria-invalid', 'true');
+    }
     cell.style.left = left + 'px';
     cell.style.top = top + 'px';
     cell.style.width = column._width + 'px';
@@ -1301,8 +1415,15 @@ function createFastGridFactory() {
   FastGrid.prototype.renderCellContent = function(cell, item, column, value, rowIndex, colIndex) {
     var text = value == null ? '' : String(value);
     var args;
-    if (column.mask) {
-      text = formatMaskText(value, column);
+    if (getColumnEditorConfig(column).type === 'combobox') {
+      text = getComboboxTextByValue(value, getColumnEditorConfig(column));
+    }
+    if (column.dataType === 'number' && value != null && value !== '' &&
+      (shouldUseThousandsSeparator(column) || getNumberPrecision(column) != null)) {
+      text = formatNumberDisplayText(value, column);
+    }
+    if (getExplicitEditorMask(column)) {
+      text = formatMaskText(value, getMaskOptions(column, getExplicitEditorMask(column)));
     }
     if (typeof column.formatter === 'function') {
       text = column.formatter(value, item, column);
@@ -1459,6 +1580,7 @@ function createFastGridFactory() {
     } else if (cell) {
       nextRow = toNumber(cell.getAttribute('data-row'), null);
     }
+    this.updateInvalidTip(cell);
     if (this.hoverRow !== nextRow) {
       this.hoverRow = nextRow;
       this.render();
@@ -1466,10 +1588,69 @@ function createFastGridFactory() {
   };
 
   FastGrid.prototype.handleMouseLeave = function() {
+    this.hideInvalidTip();
     if (this.hoverRow !== null) {
       this.hoverRow = null;
       this.render();
     }
+  };
+
+  FastGrid.prototype.updateInvalidTip = function(cell) {
+    var rowIndex;
+    var colIndex;
+    var row;
+    var column;
+    var error;
+    if (!cell || !this.invalidTip || cell.className.indexOf('fg-cell-invalid') < 0) {
+      this.hideInvalidTip();
+      return;
+    }
+    rowIndex = toNumber(cell.getAttribute('data-row'), -1);
+    colIndex = toNumber(cell.getAttribute('data-col'), -1);
+    row = this.view[rowIndex];
+    column = this.visibleColumns[colIndex];
+    error = this.getCellValidationError(row, column);
+    if (!error) {
+      this.hideInvalidTip();
+      return;
+    }
+    this.showInvalidTip(cell, error.message || this.getText('validation.invalidValue'));
+  };
+
+  FastGrid.prototype.showInvalidTip = function(cell, message) {
+    var cellRect = cell.getBoundingClientRect();
+    var bodyRect = this.body.getBoundingClientRect();
+    var tip = this.invalidTip;
+    var left;
+    var top;
+    var maxLeft;
+    if (!tip) {
+      return;
+    }
+    tip.textContent = message;
+    tip.style.display = 'block';
+    left = cellRect.right - bodyRect.left + 8;
+    top = cellRect.top - bodyRect.top + Math.max(4, (cellRect.height - tip.offsetHeight) / 2);
+    maxLeft = this.body.clientWidth - tip.offsetWidth - 8;
+    if (left > maxLeft) {
+      left = cellRect.left - bodyRect.left - tip.offsetWidth - 8;
+    }
+    if (left < 8) {
+      left = Math.min(maxLeft, Math.max(8, cellRect.left - bodyRect.left));
+      top = cellRect.bottom - bodyRect.top + 6;
+    }
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  };
+
+  FastGrid.prototype.hideInvalidTip = function() {
+    if (this.invalidTip) {
+      this.invalidTip.style.display = 'none';
+    }
+  };
+
+  FastGrid.prototype.isHeaderToggleKey = function(event) {
+    return isHotKey(event, this.options.headerToggleKey);
   };
 
   FastGrid.prototype.handleKeyDown = function(event) {
@@ -1483,7 +1664,24 @@ function createFastGridFactory() {
       return;
     }
 
+    if (this.isHeaderToggleKey(event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.toggleHeaderDisplayMode();
+      return;
+    }
+
     if (this.editing) {
+      if (event.target === this.editor && this.handleMaskedEditorDelete(event)) {
+        return;
+      }
+      if (event.target === this.editor && this.handleComboboxKeyDown(event)) {
+        return;
+      }
+      if (event.target === this.editor && this.shouldBlockEditorKey(event)) {
+        event.preventDefault();
+        return;
+      }
       if (event.key === 'Enter' || event.key === 'Tab') {
         event.preventDefault();
         if (event.shiftKey) {
@@ -1516,7 +1714,7 @@ function createFastGridFactory() {
 
     if (event.key === ' ' || event.key === 'Spacebar' || event.code === 'Space') {
       event.preventDefault();
-      if (this.view.length) {
+      if (this.options.multiSelectRows === true && this.view.length) {
         this.toggleRowSelection(row, col);
         this.scrollIntoView(row, col);
       }
@@ -1794,8 +1992,12 @@ function createFastGridFactory() {
   FastGrid.prototype.getSelectedText = function() {
     var value = this.getCellData(this.selection.row, this.selection.col);
     var column = this.visibleColumns[this.selection.col];
-    if (column && column.mask) {
-      return getMaskCopyText(value, column);
+    var mask = getExplicitEditorMask(column);
+    if (mask) {
+      return getMaskCopyText(value, getMaskOptions(column, mask));
+    }
+    if (column && column.dataType === 'number') {
+      return getNumberCopyText(value);
     }
     return value == null ? '' : String(value);
   };
@@ -1891,6 +2093,9 @@ function createFastGridFactory() {
     this.editing = { row: row, col: col, original: value, editor: this.editorConfig };
     this.configureEditor(column);
     this.editor.value = this.getEditorText(value, column);
+    if (this.editorConfig.type === 'combobox') {
+      this.editing.comboboxValue = value;
+    }
     this.editor.style.textAlign = normalizeTextAlign(column.align);
     this.editor.style.display = 'block';
     this.render();
@@ -1905,59 +2110,189 @@ function createFastGridFactory() {
     var type = config.type;
     this.editorConfig = config;
     this.editor.className = 'fg-editor textbox-f fg-editor-' + type + ' ' + type + '-f';
+    this.editorTrigger.className = 'fg-editor-trigger fg-editor-trigger-' + type;
     this.editor.setAttribute('data-editor-type', type);
     this.editor.setAttribute('autocomplete', 'off');
     this.editor.type = 'text';
-    this.editor.inputMode = type === 'numberbox' ? 'decimal' : 'text';
-    this.editorTrigger.style.display = type === 'datebox' ? 'block' : 'none';
+    this.editor.inputMode = type === 'numberbox' ? 'decimal' : type === 'datebox' ? 'numeric' : 'text';
+    this.editorTrigger.setAttribute('aria-label', this.getEditorTriggerLabel());
+    this.editorTrigger.style.display = type === 'datebox' || type === 'combobox' ? 'block' : 'none';
     if (type !== 'datebox') {
       this.hideDateboxPanel();
+    }
+    if (type !== 'combobox') {
+      this.hideComboboxPanel();
     }
   };
 
   FastGrid.prototype.getEditorText = function(value, column) {
     var config = getColumnEditorConfig(column);
+    var mask = getExplicitEditorMask(column);
     if (value == null) {
       return '';
     }
-    if (column && column.mask) {
-      return formatMaskText(value, column);
+    if (mask) {
+      return formatMaskText(value, getMaskOptions(column, mask));
     }
     if (config.type === 'numberbox') {
-      return formatNumberEditorText(value);
+      return formatNumberEditorText(value, shouldUseThousandsSeparator(column), getNumberPrecision(column));
     }
     if (config.type === 'datebox') {
-      return formatDateboxText(value, config);
+      return formatDateboxEditorText(value, config, column);
+    }
+    if (config.type === 'combobox') {
+      return getComboboxTextByValue(value, config);
     }
     return String(value);
+  };
+
+  FastGrid.prototype.shouldBlockEditorKey = function(event) {
+    var edit = this.editing;
+    var column;
+    var config;
+    var key;
+    if (!edit || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) {
+      return false;
+    }
+    key = event.key || '';
+    if (key.length !== 1) {
+      return false;
+    }
+    column = this.visibleColumns[edit.col];
+    if (!column) {
+      return false;
+    }
+    config = getColumnEditorConfig(column);
+    if (config.type === 'datebox') {
+      return !isDigitKey(key);
+    }
+    if (config.type === 'numberbox') {
+      return !isNumberEditorTextAllowed(this.editor, key);
+    }
+    return false;
+  };
+
+  FastGrid.prototype.handleMaskedEditorDelete = function(event) {
+    var edit = this.editing;
+    var column;
+    var mask;
+    var raw;
+    var start;
+    var end;
+    var deleteStart;
+    var deleteEnd;
+    var nextRaw;
+    var nextText;
+    var nextCaret;
+    if (!edit || (event.key !== 'Backspace' && event.key !== 'Delete')) {
+      return false;
+    }
+    column = this.visibleColumns[edit.col];
+    mask = getEditorMask(column);
+    if (!column || !mask) {
+      return false;
+    }
+    event.preventDefault();
+    start = this.editor.selectionStart == null ? this.editor.value.length : this.editor.selectionStart;
+    end = this.editor.selectionEnd == null ? start : this.editor.selectionEnd;
+    raw = extractMaskCharacters(this.editor.value, mask);
+    deleteStart = countMaskCharactersBeforeCaret(this.editor.value, mask, start);
+    deleteEnd = countMaskCharactersBeforeCaret(this.editor.value, mask, end);
+    if (start === end) {
+      if (event.key === 'Backspace') {
+        if (deleteStart <= 0) {
+          return true;
+        }
+        deleteStart -= 1;
+      } else if (deleteStart >= raw.length) {
+        return true;
+      } else {
+        deleteEnd += 1;
+      }
+    }
+    nextRaw = raw.slice(0, deleteStart) + raw.slice(deleteEnd);
+    nextText = applyMask(nextRaw, mask);
+    nextCaret = getMaskCaretPosition(nextText, mask, deleteStart);
+    this.editor.value = nextText;
+    this.editor.setSelectionRange(nextCaret, nextCaret);
+    return true;
+  };
+
+  FastGrid.prototype.handleEditorBeforeInput = function(event) {
+    var edit = this.editing;
+    var column;
+    var config;
+    var text;
+    if (!edit || event.isComposing || event.data == null) {
+      return;
+    }
+    column = this.visibleColumns[edit.col];
+    if (!column) {
+      return;
+    }
+    config = getColumnEditorConfig(column);
+    text = String(event.data);
+    if (config.type === 'datebox' && /[^0-9]/.test(text)) {
+      event.preventDefault();
+      return;
+    }
+    if (config.type === 'numberbox' && !isNumberEditorTextAllowed(this.editor, text)) {
+      event.preventDefault();
+    }
   };
 
   FastGrid.prototype.handleEditorInput = function() {
     var edit = this.editing;
     var column;
+    var config;
     var formatted;
+    var mask;
     if (!edit) {
       return;
     }
     column = this.visibleColumns[edit.col];
-    if (column && column.mask) {
-      formatted = formatMaskText(this.editor.value, column);
+    config = column ? getColumnEditorConfig(column) : null;
+    mask = getEditorMask(column);
+    if (mask) {
+      formatted = formatMaskText(this.editor.value, { mask: mask });
       if (formatted !== this.editor.value) {
         this.editor.value = formatted;
         this.editor.setSelectionRange(formatted.length, formatted.length);
       }
-      return;
-    }
-    if (!column || getColumnEditorConfig(column).type !== 'numberbox') {
-      if (column && getColumnEditorConfig(column).type === 'datebox') {
+      if (config && config.type === 'datebox') {
         this.syncDateboxPanelToEditor();
       }
       return;
     }
-    formatted = formatNumberEditorText(this.editor.value);
-    if (formatted !== this.editor.value) {
-      this.editor.value = formatted;
-      this.editor.setSelectionRange(formatted.length, formatted.length);
+    if (!column || !config) {
+      return;
+    }
+    if (config.type === 'datebox') {
+      formatted = sanitizeDateEditorText(this.editor.value);
+      if (formatted !== this.editor.value) {
+        this.editor.value = formatted;
+        this.editor.setSelectionRange(formatted.length, formatted.length);
+      }
+      this.syncDateboxPanelToEditor();
+      return;
+    }
+    if (config.type === 'combobox') {
+      if (this.editing) {
+        this.editing.comboboxValue = null;
+      }
+      if (this.isComboboxPanelOpen()) {
+        this.renderComboboxPanel(false);
+        this.setComboboxActiveIndex(this.getComboboxInitialActiveIndex());
+        this.positionEditor();
+      }
+      return;
+    }
+    if (config.type === 'numberbox') {
+      formatted = formatNumberEditorText(sanitizeNumberEditorText(this.editor.value), shouldUseThousandsSeparator(column));
+      if (formatted !== this.editor.value) {
+        this.editor.value = formatted;
+        this.editor.setSelectionRange(formatted.length, formatted.length);
+      }
     }
   };
 
@@ -1973,7 +2308,29 @@ function createFastGridFactory() {
       return;
     }
     column = this.visibleColumns[edit.col];
-    if (!column || !column.mask) {
+    if (column && getColumnEditorConfig(column).type === 'numberbox') {
+      start = this.editor.selectionStart;
+      end = this.editor.selectionEnd;
+      if (start == null || end == null || start === end) {
+        return;
+      }
+      if (start > end) {
+        next = start;
+        start = end;
+        end = next;
+      }
+      text = getNumberCopyText(this.editor.value.slice(start, end));
+      clipboardData = event.clipboardData || window.clipboardData;
+      if (!clipboardData || !clipboardData.setData) {
+        return;
+      }
+      clipboardData.setData('text/plain', text);
+      this.copyBuffer = text;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (!column || !getExplicitEditorMask(column)) {
       return;
     }
     start = this.editor.selectionStart;
@@ -1986,7 +2343,7 @@ function createFastGridFactory() {
       start = end;
       end = next;
     }
-    text = getMaskCopyText(this.editor.value.slice(start, end), column);
+    text = getMaskCopyText(this.editor.value.slice(start, end), getMaskOptions(column, getExplicitEditorMask(column)));
     clipboardData = event.clipboardData || window.clipboardData;
     if (!clipboardData || !clipboardData.setData) {
       return;
@@ -2000,15 +2357,26 @@ function createFastGridFactory() {
   FastGrid.prototype.handleEditorTriggerClick = function(event) {
     event.preventDefault();
     event.stopPropagation();
-    if (!this.editing || !this.editorConfig || this.editorConfig.type !== 'datebox') {
+    if (!this.editing || !this.editorConfig) {
       return;
     }
-    if (this.dateboxPanel.style.display === 'block') {
-      this.hideDateboxPanel();
-    } else {
-      this.showDateboxPanel();
+    if (this.editorConfig.type === 'datebox') {
+      if (this.dateboxPanel.style.display === 'block') {
+        this.hideDateboxPanel();
+      } else {
+        this.showDateboxPanel();
+      }
+      this.editor.focus();
+      return;
     }
-    this.editor.focus();
+    if (this.editorConfig.type === 'combobox') {
+      if (this.comboboxPanel.style.display === 'block') {
+        this.hideComboboxPanel();
+      } else {
+        this.showComboboxPanel(true);
+      }
+      this.editor.focus();
+    }
   };
 
   FastGrid.prototype.handleDateboxClick = function(event) {
@@ -2095,13 +2463,56 @@ function createFastGridFactory() {
   };
 
   FastGrid.prototype.handleDocumentMouseDown = function(event) {
-    if (!this.editing || !this.dateboxPanel || this.dateboxPanel.style.display !== 'block') {
+    if (!this.editing) {
       return;
     }
-    if (event.target === this.editor || event.target === this.editorTrigger || closest(event.target, 'fg-datebox-panel')) {
-      return;
+    if (this.dateboxPanel && this.dateboxPanel.style.display === 'block') {
+      if (event.target === this.editor || event.target === this.editorTrigger || closest(event.target, 'fg-datebox-panel')) {
+        return;
+      }
+      this.hideDateboxPanel();
     }
-    this.hideDateboxPanel();
+    if (this.comboboxPanel && this.comboboxPanel.style.display === 'block') {
+      if (event.target === this.editor || event.target === this.editorTrigger || closest(event.target, 'fg-combobox-panel')) {
+        return;
+      }
+      this.hideComboboxPanel();
+    }
+  };
+
+  FastGrid.prototype.handleComboboxKeyDown = function(event) {
+    if (!this.editorConfig || this.editorConfig.type !== 'combobox') {
+      return false;
+    }
+    if (event.key === 'ArrowDown' && event.altKey) {
+      event.preventDefault();
+      this.showComboboxPanel(true);
+      return true;
+    }
+    if (!this.isComboboxPanelOpen()) {
+      return false;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.setComboboxActiveIndex(this.comboboxActiveIndex + 1);
+      return true;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.setComboboxActiveIndex(this.comboboxActiveIndex - 1);
+      return true;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.selectComboboxActiveOption();
+      return true;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.hideComboboxPanel();
+      return true;
+    }
+    return false;
   };
 
   FastGrid.prototype.shouldEditOnSelect = function(row, col) {
@@ -2221,29 +2632,62 @@ function createFastGridFactory() {
   FastGrid.prototype.positionEditor = function() {
     var edit = this.editing;
     var column;
+    var cell;
+    var cellRect;
+    var bodyRect;
     var left;
     var top;
+    var width;
+    var height;
+    var isScrollableEditor;
     if (!edit) {
       return;
     }
     column = this.visibleColumns[edit.col];
-    if (edit.col < this.frozenColumns) {
+    if (!column) {
+      return;
+    }
+    cell = this.root.querySelector('.fg-cell[data-row="' + edit.row + '"][data-col="' + edit.col + '"]');
+    if (cell) {
+      cellRect = cell.getBoundingClientRect();
+      bodyRect = this.body.getBoundingClientRect();
+      left = cellRect.left - bodyRect.left;
+      top = cellRect.top - bodyRect.top;
+      width = cellRect.width;
+      height = cellRect.height;
+    } else if (edit.col < this.frozenColumns) {
       left = this.getFixedLeftWidth() + column._left;
+      top = edit.row * this.options.rowHeight - this.bodyScroll.scrollTop;
+      width = column._width;
+      height = this.options.rowHeight;
     } else if (edit.col >= this.scrollableColumnEnd) {
       left = this.bodyScroll.clientWidth - this.frozenRightWidth + column._left - this.frozenRightStartLeft;
+      top = edit.row * this.options.rowHeight - this.bodyScroll.scrollTop;
+      width = column._width;
+      height = this.options.rowHeight;
     } else {
       left = this.getFixedLeftWidth() + column._left - this.bodyScroll.scrollLeft;
+      top = edit.row * this.options.rowHeight - this.bodyScroll.scrollTop;
+      width = column._width;
+      height = this.options.rowHeight;
     }
-    top = edit.row * this.options.rowHeight - this.bodyScroll.scrollTop;
     this.editor.style.left = left + 'px';
     this.editor.style.top = top + 'px';
-    this.editor.style.width = column._width + 'px';
-    this.editor.style.height = this.options.rowHeight + 'px';
-    if (this.editorConfig && this.editorConfig.type === 'datebox') {
-      this.editorTrigger.style.left = (left + column._width - 22) + 'px';
+    this.editor.style.width = width + 'px';
+    this.editor.style.height = height + 'px';
+    isScrollableEditor = edit.col >= this.frozenColumns && edit.col < this.scrollableColumnEnd;
+    this.editor.style.zIndex = isScrollableEditor ? '3' : '10';
+    this.editorTrigger.style.zIndex = isScrollableEditor ? '3' : '11';
+    if (this.editorConfig && (this.editorConfig.type === 'datebox' || this.editorConfig.type === 'combobox')) {
+      this.editorTrigger.style.left = (left + width - 22) + 'px';
       this.editorTrigger.style.top = top + 'px';
-      this.editorTrigger.style.height = this.options.rowHeight + 'px';
-      this.positionDateboxPanel(left, top + this.options.rowHeight, column._width);
+      this.editorTrigger.style.height = height + 'px';
+    }
+    if (this.editorConfig && this.editorConfig.type === 'datebox') {
+      this.positionDateboxPanel(left, top + height, width);
+    }
+    if (this.editorConfig && this.editorConfig.type === 'combobox') {
+      this.positionComboboxPanel(left, top + height, width);
     }
   };
 
@@ -2257,14 +2701,143 @@ function createFastGridFactory() {
     this.positionEditor();
   };
 
+  FastGrid.prototype.showComboboxPanel = function(showAll) {
+    if (!this.editing || !this.editorConfig || this.editorConfig.type !== 'combobox') {
+      return;
+    }
+    this.renderComboboxPanel(showAll === true);
+    this.comboboxPanel.style.display = 'block';
+    this.setComboboxActiveIndex(this.getComboboxInitialActiveIndex());
+    this.positionEditor();
+  };
+
   FastGrid.prototype.hideDateboxPanel = function() {
     if (this.dateboxPanel) {
       this.dateboxPanel.style.display = 'none';
     }
   };
 
+  FastGrid.prototype.hideComboboxPanel = function() {
+    if (this.comboboxPanel) {
+      this.comboboxPanel.style.display = 'none';
+    }
+    this.comboboxActiveIndex = -1;
+  };
+
   FastGrid.prototype.isDateboxPanelOpen = function() {
     return !!this.dateboxPanel && this.dateboxPanel.style.display === 'block';
+  };
+
+  FastGrid.prototype.isComboboxPanelOpen = function() {
+    return !!this.comboboxPanel && this.comboboxPanel.style.display === 'block';
+  };
+
+  FastGrid.prototype.renderComboboxPanel = function(showAll) {
+    var config = this.editorConfig || {};
+    var items = getComboboxData(config);
+    var query = showAll === true ? '' : String(this.editor.value || '').toLowerCase();
+    var fragment = document.createDocumentFragment();
+    var item;
+    var text;
+    var value;
+    var option;
+    var matched = 0;
+    var i;
+    this.comboboxItems = [];
+    this.comboboxActiveIndex = -1;
+    this.comboboxPanel.innerHTML = '';
+    for (i = 0; i < items.length; i += 1) {
+      item = items[i];
+      text = getComboboxItemText(item, config);
+      value = String(getComboboxItemValue(item, config));
+      if (query && text.toLowerCase().indexOf(query) < 0 && value.toLowerCase().indexOf(query) < 0) {
+        continue;
+      }
+      option = document.createElement('button');
+      option.type = 'button';
+      option.className = 'fg-combobox-option';
+      option.setAttribute('role', 'option');
+      option.setAttribute('data-index', this.comboboxItems.length);
+      renderComboboxOptionContent(option, text, value, config);
+      fragment.appendChild(option);
+      this.comboboxItems.push(item);
+      matched += 1;
+    }
+    if (!matched) {
+      option = document.createElement('div');
+      option.className = 'fg-combobox-empty';
+      option.textContent = '沒有符合項目';
+      fragment.appendChild(option);
+    }
+    this.comboboxPanel.appendChild(fragment);
+  };
+
+  FastGrid.prototype.handleComboboxMouseDown = function(event) {
+    var option = closest(event.target, 'fg-combobox-option');
+    var index;
+    if (!option || !this.editing || !this.editorConfig || this.editorConfig.type !== 'combobox') {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    index = toNumber(option.getAttribute('data-index'), -1);
+    this.selectComboboxOption(index);
+  };
+
+  FastGrid.prototype.getComboboxInitialActiveIndex = function() {
+    var text = this.editor ? String(this.editor.value || '') : '';
+    var i;
+    for (i = 0; i < this.comboboxItems.length; i += 1) {
+      if (getComboboxItemText(this.comboboxItems[i], this.editorConfig) === text ||
+        String(getComboboxItemValue(this.comboboxItems[i], this.editorConfig)) === text) {
+        return i;
+      }
+    }
+    return this.comboboxItems.length ? 0 : -1;
+  };
+
+  FastGrid.prototype.setComboboxActiveIndex = function(index) {
+    var options;
+    var i;
+    var option;
+    if (!this.comboboxItems.length) {
+      this.comboboxActiveIndex = -1;
+      return;
+    }
+    index = clamp(index, 0, this.comboboxItems.length - 1);
+    this.comboboxActiveIndex = index;
+    options = this.comboboxPanel.querySelectorAll('.fg-combobox-option');
+    for (i = 0; i < options.length; i += 1) {
+      option = options[i];
+      if (i === index) {
+        option.className = 'fg-combobox-option fg-combobox-active';
+        option.setAttribute('aria-selected', 'true');
+        if (option.scrollIntoView) {
+          option.scrollIntoView({ block: 'nearest' });
+        }
+      } else {
+        option.className = 'fg-combobox-option';
+        option.setAttribute('aria-selected', 'false');
+      }
+    }
+  };
+
+  FastGrid.prototype.selectComboboxActiveOption = function() {
+    if (this.comboboxActiveIndex < 0) {
+      return;
+    }
+    this.selectComboboxOption(this.comboboxActiveIndex);
+  };
+
+  FastGrid.prototype.selectComboboxOption = function(index) {
+    var item = this.comboboxItems[index];
+    if (item == null) {
+      return;
+    }
+    this.editing.comboboxValue = getComboboxItemValue(item, this.editorConfig);
+    this.editor.value = getComboboxItemText(item, this.editorConfig);
+    this.hideComboboxPanel();
+    this.editor.focus();
   };
 
   FastGrid.prototype.syncDateboxPanelToEditor = function() {
@@ -2318,7 +2891,7 @@ function createFastGridFactory() {
     var todayIso = formatDateIso(new Date());
     var first = new Date(year, month, 1);
     var start = new Date(year, month, 1 - first.getDay());
-    var labels = ['日', '一', '二', '三', '四', '五', '六'];
+    var labels = this.getWeekdayNames();
     var html = [];
     var i;
     var d;
@@ -2327,7 +2900,7 @@ function createFastGridFactory() {
     html.push('<div class="fg-datebox-header">');
     html.push('<button type="button" class="fg-datebox-control" data-action="prev-year">«</button>');
     html.push('<button type="button" class="fg-datebox-control" data-action="prev-month">‹</button>');
-    html.push('<button type="button" class="fg-datebox-control fg-datebox-title fg-datebox-title-button" data-action="months">' + getMonthTitle(year, month) + '</button>');
+    html.push('<button type="button" class="fg-datebox-control fg-datebox-title fg-datebox-title-button" data-action="months">' + this.getMonthTitle(year, month) + '</button>');
     html.push('<button type="button" class="fg-datebox-control" data-action="next-month">›</button>');
     html.push('<button type="button" class="fg-datebox-control" data-action="next-year">»</button>');
     html.push('</div>');
@@ -2339,7 +2912,7 @@ function createFastGridFactory() {
     }
     html.push('<div class="fg-datebox-weekdays">');
     for (i = 0; i < labels.length; i += 1) {
-      html.push('<span>' + labels[i] + '</span>');
+      html.push('<span>' + escapeHtml(labels[i]) + '</span>');
     }
     html.push('</div>');
     html.push('<div class="fg-datebox-days">');
@@ -2369,13 +2942,13 @@ function createFastGridFactory() {
   };
 
   FastGrid.prototype.renderDateboxMonthView = function(html, year, month) {
-    var labels = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+    var labels = this.getMonthNames();
     var i;
     var className;
     html.push('<div class="fg-datebox-month-view">');
     html.push('<div class="fg-datebox-year-row">');
     html.push('<button type="button" class="fg-datebox-control fg-datebox-year-control" data-action="prev-year">«</button>');
-    html.push('<input class="fg-datebox-year-input" type="number" min="1" max="9999" value="' + year + '" aria-label="Year">');
+    html.push('<input class="fg-datebox-year-input" type="number" min="1" max="9999" value="' + year + '" aria-label="' + escapeHtml(this.getText('aria.year')) + '">');
     html.push('<button type="button" class="fg-datebox-control fg-datebox-year-control" data-action="next-year">»</button>');
     html.push('</div>');
     html.push('<div class="fg-datebox-months">');
@@ -2384,7 +2957,7 @@ function createFastGridFactory() {
       if (i === month) {
         className += ' fg-datebox-month-selected';
       }
-      html.push('<button type="button" class="' + className + '" data-month="' + i + '">' + labels[i] + '</button>');
+      html.push('<button type="button" class="' + className + '" data-month="' + i + '">' + escapeHtml(labels[i]) + '</button>');
     }
     html.push('</div>');
     html.push('</div>');
@@ -2392,9 +2965,27 @@ function createFastGridFactory() {
 
   FastGrid.prototype.renderDateboxFooter = function(html) {
     html.push('<div class="fg-datebox-footer">');
-    html.push('<button type="button" class="fg-datebox-control fg-datebox-footer-button" data-action="today">今天</button>');
-    html.push('<button type="button" class="fg-datebox-control fg-datebox-footer-button" data-action="close">關閉</button>');
+    html.push('<button type="button" class="fg-datebox-control fg-datebox-footer-button" data-action="today">' + escapeHtml(this.getText('datebox.today')) + '</button>');
+    html.push('<button type="button" class="fg-datebox-control fg-datebox-footer-button" data-action="close">' + escapeHtml(this.getText('datebox.close')) + '</button>');
     html.push('</div>');
+  };
+
+  FastGrid.prototype.getMonthNames = function() {
+    var names = this.getText('datebox.months');
+    return names && names.length ? names : [];
+  };
+
+  FastGrid.prototype.getWeekdayNames = function() {
+    var names = this.getText('datebox.weekdays');
+    return names && names.length ? names : [];
+  };
+
+  FastGrid.prototype.getMonthTitle = function(year, month) {
+    var names = this.getMonthNames();
+    return escapeHtml(formatLocaleText(this.getText('datebox.monthTitle'), {
+      month: names[month] || String(month + 1),
+      year: year
+    }));
   };
 
   FastGrid.prototype.positionDateboxPanel = function(left, top, width) {
@@ -2406,11 +2997,37 @@ function createFastGridFactory() {
     this.dateboxPanel.style.width = panelWidth + 'px';
   };
 
+  FastGrid.prototype.positionComboboxPanel = function(left, top, width) {
+    var maxWidth = Math.max(120, this.root.clientWidth - 4);
+    var contentWidth = this.measureComboboxPanelWidth();
+    var panelWidth = Math.min(maxWidth, Math.max(120, width, contentWidth));
+    var maxLeft = Math.max(0, this.root.clientWidth - panelWidth - 2);
+    var maxTop = Math.max(0, this.root.clientHeight - 180);
+    this.comboboxPanel.style.left = clamp(left, 0, maxLeft) + 'px';
+    this.comboboxPanel.style.top = clamp(top, 0, maxTop) + 'px';
+    this.comboboxPanel.style.width = panelWidth + 'px';
+  };
+
+  FastGrid.prototype.measureComboboxPanelWidth = function() {
+    var previousWidth;
+    var width;
+    if (!this.comboboxPanel) {
+      return 0;
+    }
+    previousWidth = this.comboboxPanel.style.width;
+    this.comboboxPanel.style.width = 'auto';
+    width = Math.ceil(this.comboboxPanel.scrollWidth || this.comboboxPanel.offsetWidth || 0);
+    this.comboboxPanel.style.width = previousWidth;
+    return width + 2;
+  };
+
   FastGrid.prototype.finishEditing = function(commit) {
     var edit = this.editing;
     var column;
     var item;
     var value;
+    var validationValue;
+    var validationError;
     var args;
     if (!edit) {
       return false;
@@ -2419,40 +3036,308 @@ function createFastGridFactory() {
     item = this.view[edit.row];
     if (commit && item && column) {
       value = this.getEditorValue(column);
-      value = parseValue(value, column.dataType);
+      if (column.dataType === 'number') {
+        value = roundNumberValue(parseValue(value, column.dataType), column);
+        validationValue = value;
+      } else {
+        validationValue = value;
+        value = parseValue(value, column.dataType);
+      }
+      validationError = this.validateCellValue(item, column, validationValue, edit.row, edit.col);
       args = {
         row: edit.row,
         col: edit.col,
         column: column,
         item: item,
         value: value,
-        previousValue: edit.original
+        previousValue: edit.original,
+        validationError: validationError
       };
       if (this.emit('cellEditEnding', args) === false) {
         return false;
       }
       setByBinding(item, column.binding, args.value);
+      if (isPromiseLike(args.validationError)) {
+        this.setPendingCellValidation(item, column, args.validationError, args.value, edit.row, edit.col);
+      } else if (args.validationError) {
+        this.setCellValidationError(item, column, args.validationError, edit.row, edit.col);
+      } else {
+        this.clearCellValidationError(item, column);
+      }
       this.emit('cellEditEnded', args);
     }
     this.editing = null;
     this.editorConfig = null;
     this.dateboxState = null;
+    this.comboboxItems = [];
     this.editor.style.display = 'none';
     this.editorTrigger.style.display = 'none';
+    this.hideInvalidTip();
     this.hideDateboxPanel();
+    this.hideComboboxPanel();
     this.applyView();
     this.render();
     this.root.focus();
     return true;
   };
 
+  FastGrid.prototype.validateCellValue = function(item, column, value, rowIndex, colIndex) {
+    var self = this;
+    var config = getColumnEditorConfig(column);
+    var args;
+    var result;
+    if (!item || !column) {
+      return null;
+    }
+    if (typeof column.validate === 'function') {
+      args = {
+        grid: this,
+        item: item,
+        column: column,
+        value: value,
+        binding: column.binding,
+        rowIndex: rowIndex,
+        rowNumber: rowIndex >= 0 ? rowIndex + 1 : null,
+        colIndex: colIndex,
+        colNumber: colIndex >= 0 ? colIndex + 1 : null
+      };
+      result = column.validate(args);
+      if (isPromiseLike(result)) {
+        return result.then(function(nextResult) {
+          return normalizeValidationResult(nextResult, value, 'custom', self) || getDefaultValidationErrorForGrid(self, config, value);
+        });
+      }
+      result = normalizeValidationResult(result, value, 'custom', this);
+      if (result) {
+        return result;
+      }
+    }
+    return getDefaultValidationErrorForGrid(this, config, value);
+  };
+
+  FastGrid.prototype.setPendingCellValidation = function(item, column, promise, value, rowIndex, colIndex) {
+    var self = this;
+    var key = this.getValidationErrorKey(item, column);
+    var seq;
+    if (!key) {
+      return;
+    }
+    this._asyncValidationSeq += 1;
+    seq = this._asyncValidationSeq;
+    this._asyncValidationMap[key] = seq;
+    promise.then(function(result) {
+      if (self.disposed || self._asyncValidationMap[key] !== seq) {
+        return;
+      }
+      if (result) {
+        self.setCellValidationError(item, column, result, rowIndex, colIndex);
+      } else {
+        self.clearCellValidationError(item, column);
+      }
+      self.applyView();
+      self.render();
+    }).catch(function(error) {
+      if (self.disposed || self._asyncValidationMap[key] !== seq) {
+        return;
+      }
+      self.setCellValidationError(item, column, {
+        type: 'async',
+        message: error && error.message ? error.message : self.getText('validation.invalidValue'),
+        value: value
+      }, rowIndex, colIndex);
+      self.applyView();
+      self.render();
+    });
+  };
+
+  function getDefaultValidationErrorForGrid(grid, config, value) {
+    var options = config && config.options ? config.options : {};
+    var text;
+    var validDate;
+    var message;
+    if (!config) {
+      return null;
+    }
+    if (config.type === 'combobox' && options.limitToList === true) {
+      text = value == null ? '' : String(value).trim();
+      if (text === '' || isComboboxValueInList(value, config)) {
+        return null;
+      }
+      message = grid ? grid.getText('validation.comboboxLimitToList') : 'Please select a valid item';
+      return {
+        type: 'combobox',
+        message: options.limitToListMessage || message,
+        value: value
+      };
+    }
+    if (config.type !== 'datebox') {
+      return null;
+    }
+    text = value == null ? '' : String(value).trim();
+    if (text === '') {
+      return null;
+    }
+    validDate = parseDateValue(text);
+    if (validDate) {
+      return null;
+    }
+    return {
+      type: 'date',
+      message: grid ? grid.getText('validation.invalidDate') : 'Invalid date',
+      value: value
+    };
+  }
+
+  FastGrid.prototype.getValidationErrorKey = function(item, column) {
+    var id;
+    var nextId;
+    if (!item || !column) {
+      return '';
+    }
+    if (!item.__fgValidationId) {
+      this._validationErrorSeq += 1;
+      nextId = 'r' + this._validationErrorSeq;
+      try {
+        Object.defineProperty(item, '__fgValidationId', {
+          value: nextId,
+          enumerable: false
+        });
+      } catch (error) {
+        try {
+          item.__fgValidationId = nextId;
+        } catch (assignError) {
+          return this.getFallbackValidationId(item) + '::' + (column.binding || column.header || column._index);
+        }
+      }
+    }
+    id = item.__fgValidationId;
+    return id + '::' + (column.binding || column.header || column._index);
+  };
+
+  FastGrid.prototype.getFallbackValidationId = function(item) {
+    var i;
+    for (i = 0; i < this._validationItems.length; i += 1) {
+      if (this._validationItems[i] === item) {
+        return this._validationItemIds[i];
+      }
+    }
+    this._validationErrorSeq += 1;
+    this._validationItems.push(item);
+    this._validationItemIds.push('r' + this._validationErrorSeq);
+    return this._validationItemIds[this._validationItemIds.length - 1];
+  };
+
+  FastGrid.prototype.setCellValidationError = function(item, column, error, rowIndex, colIndex) {
+    var key = this.getValidationErrorKey(item, column);
+    var existingIndex;
+    var next;
+    if (!key) {
+      return;
+    }
+    delete this._asyncValidationMap[key];
+    rowIndex = toNumber(rowIndex, -1);
+    colIndex = toNumber(colIndex, column ? column._viewIndex : -1);
+    next = mergeOptions({
+      key: key,
+      item: item,
+      column: column,
+      binding: column.binding,
+      rowIndex: rowIndex,
+      rowNumber: rowIndex >= 0 ? rowIndex + 1 : null,
+      colIndex: colIndex,
+      colNumber: colIndex >= 0 ? colIndex + 1 : null,
+      message: this.getText('validation.invalidValue'),
+      value: null
+    }, error || {});
+    if (Object.prototype.hasOwnProperty.call(this._invalidItemMap, key)) {
+      existingIndex = this._invalidItemMap[key];
+      this.invalidItems[existingIndex] = next;
+      return;
+    }
+    this._invalidItemMap[key] = this.invalidItems.length;
+    this.invalidItems.push(next);
+  };
+
+  FastGrid.prototype.clearCellValidationError = function(item, column) {
+    var key = this.getValidationErrorKey(item, column);
+    var index;
+    var last;
+    if (key) {
+      delete this._asyncValidationMap[key];
+    }
+    if (key && Object.prototype.hasOwnProperty.call(this._invalidItemMap, key)) {
+      index = this._invalidItemMap[key];
+      last = this.invalidItems.pop();
+      delete this._invalidItemMap[key];
+      if (last && index < this.invalidItems.length) {
+        this.invalidItems[index] = last;
+        this._invalidItemMap[last.key] = index;
+      }
+    }
+  };
+
+  FastGrid.prototype.getCellValidationError = function(item, column) {
+    var key = this.getValidationErrorKey(item, column);
+    if (!key || !Object.prototype.hasOwnProperty.call(this._invalidItemMap, key)) {
+      return null;
+    }
+    return this.invalidItems[this._invalidItemMap[key]] || null;
+  };
+
+  FastGrid.prototype.refreshInvalidItemRows = function() {
+    var rowLookup = {};
+    var i;
+    var item;
+    var id;
+    var rowIndex;
+    var entry;
+    if (!this.invalidItems.length) {
+      return;
+    }
+    for (i = 0; i < this.view.length; i += 1) {
+      item = this.view[i];
+      id = this.getExistingValidationId(item);
+      if (id) {
+        rowLookup[id] = i;
+      }
+    }
+    for (i = 0; i < this.invalidItems.length; i += 1) {
+      entry = this.invalidItems[i];
+      rowIndex = Object.prototype.hasOwnProperty.call(rowLookup, getValidationRowId(entry.key)) ?
+        rowLookup[getValidationRowId(entry.key)] :
+        -1;
+      entry.rowIndex = rowIndex;
+      entry.rowNumber = rowIndex >= 0 ? rowIndex + 1 : null;
+    }
+  };
+
+  FastGrid.prototype.getExistingValidationId = function(item) {
+    var i;
+    if (!item) {
+      return '';
+    }
+    if (item.__fgValidationId) {
+      return item.__fgValidationId;
+    }
+    for (i = 0; i < this._validationItems.length; i += 1) {
+      if (this._validationItems[i] === item) {
+        return this._validationItemIds[i];
+      }
+    }
+    return '';
+  };
+
   FastGrid.prototype.getEditorValue = function(column) {
     var config = getColumnEditorConfig(column);
-    if (column && column.mask) {
-      return getMaskDataValue(this.editor.value, column);
+    var mask = getExplicitEditorMask(column);
+    if (mask) {
+      return getMaskDataValue(this.editor.value, getMaskOptions(column, mask));
     }
     if (config.type === 'datebox') {
       return getDateboxDataValue(this.editor.value, config, this.editing);
+    }
+    if (config.type === 'combobox') {
+      return getComboboxDataValue(this.editor.value, config, this.editing);
     }
     return this.editor.value;
   };
@@ -2481,10 +3366,18 @@ function createFastGridFactory() {
   };
 
   FastGrid.prototype.getSortGlyph = function(column) {
-    if (!this.sortState || this.sortState.column !== column) {
+    var direction = this.getSortDirection(column);
+    if (!direction) {
       return '';
     }
-    return this.sortState.direction === 1 ? '▲' : '▼';
+    return direction === 1 ? '▲' : '▼';
+  };
+
+  FastGrid.prototype.getSortDirection = function(column) {
+    if (!this.sortState || this.sortState.column !== column) {
+      return 0;
+    }
+    return this.sortState.direction;
   };
 
   FastGrid.prototype.startResize = function(event, colIndex) {
@@ -2545,7 +3438,9 @@ function createFastGridFactory() {
     if (!item || !column) {
       return false;
     }
-    setByBinding(item, column.binding, parseValue(column.mask ? getMaskDataValue(value, column) : value, column.dataType));
+    setByBinding(item, column.binding, parseValue(getExplicitEditorMask(column) ?
+      getMaskDataValue(value, getMaskOptions(column, getExplicitEditorMask(column))) :
+      value, column.dataType));
     this.applyView();
     this.render();
     return true;
@@ -2619,7 +3514,8 @@ function createFastGridFactory() {
       frozenColumns: visibleOnly === false ? 0 : this.frozenColumns,
       grid: this,
       formatCell: this.options.formatCell,
-      excelCellStyle: this.options.excelCellStyle
+      excelCellStyle: this.options.excelCellStyle,
+      includeFooter: this.getFooterHeight() > 0
     });
     return new Blob([createZip(files)], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -2631,7 +3527,7 @@ function createFastGridFactory() {
     if (this.busy) {
       return Promise.resolve(false);
     }
-    this.setBusy(true, this.options.exportBusyText);
+    this.setBusy(true, this.options.exportBusyText || this.getText('exportBusyText'));
     this.emit('excelExporting', { filename: filename || 'fastgrid.xlsx' });
     return new Promise(function(resolve, reject) {
       requestAnimationFrame(function() {
@@ -2678,6 +3574,174 @@ function createFastGridFactory() {
     return result;
   }
 
+  function getLocaleMap() {
+    return typeof FASTGRID_LOCALES !== 'undefined' ? FASTGRID_LOCALES : FASTGRID_INTERNAL_LOCALES;
+  }
+
+  function getDefaultLocaleName() {
+    return typeof FASTGRID_DEFAULT_LOCALE !== 'undefined' ? FASTGRID_DEFAULT_LOCALE : 'zh-TW';
+  }
+
+  function normalizeLocaleName(locale) {
+    var name = locale == null ? '' : String(locale);
+    var lower = name.toLowerCase();
+    var locales = getLocaleMap();
+    if (Object.prototype.hasOwnProperty.call(locales, name)) {
+      return name;
+    }
+    if (lower === 'zh' || lower === 'zh-tw' || lower === 'zh-hant' || lower === 'zh-hant-tw' || lower === 'tw') {
+      return 'zh-TW';
+    }
+    if (lower === 'zh-cn' || lower === 'zh-hans' || lower === 'zh-hans-cn' || lower === 'cn') {
+      return 'zh-CN';
+    }
+    if (lower === 'en' || lower.indexOf('en-') === 0) {
+      return 'en';
+    }
+    return Object.prototype.hasOwnProperty.call(locales, getDefaultLocaleName()) ? getDefaultLocaleName() : 'en';
+  }
+
+  function normalizeHeaderDisplayMode(mode) {
+    mode = mode == null ? 'header' : String(mode).toLowerCase();
+    if (mode === 'binding' || mode === 'field' || mode === 'name' || mode === 'binging') {
+      return 'binding';
+    }
+    return 'header';
+  }
+
+  function isHotKey(event, hotKey) {
+    var keys;
+    var i;
+    var text;
+    var parts;
+    var key = '';
+    var expected = {
+      alt: false,
+      ctrl: false,
+      meta: false,
+      shift: false
+    };
+    if (!hotKey || hotKey === 'none') {
+      return false;
+    }
+    if (typeof hotKey === 'function') {
+      return hotKey(event) === true;
+    }
+    if (Array.isArray(hotKey)) {
+      for (i = 0; i < hotKey.length; i += 1) {
+        if (isHotKey(event, hotKey[i])) {
+          return true;
+        }
+      }
+      return false;
+    }
+    text = String(hotKey).toLowerCase().replace(/\s+/g, '');
+    if (!text) {
+      return false;
+    }
+    parts = text.split('+');
+    for (i = 0; i < parts.length; i += 1) {
+      if (parts[i] === 'alt' || parts[i] === 'option') {
+        expected.alt = true;
+      } else if (parts[i] === 'ctrl' || parts[i] === 'control') {
+        expected.ctrl = true;
+      } else if (parts[i] === 'cmd' || parts[i] === 'command' || parts[i] === 'meta') {
+        expected.meta = true;
+      } else if (parts[i] === 'shift') {
+        expected.shift = true;
+      } else {
+        key = parts[i];
+      }
+    }
+    if (event.altKey !== expected.alt || event.ctrlKey !== expected.ctrl || event.metaKey !== expected.meta || event.shiftKey !== expected.shift) {
+      return false;
+    }
+    keys = [
+      String(event.key || '').toLowerCase(),
+      String(event.code || '').toLowerCase()
+    ];
+    return keys.indexOf(key) >= 0;
+  }
+
+  function createLocaleMessages(locale, overrides) {
+    var locales = getLocaleMap();
+    var baseName = normalizeLocaleName(locale);
+    var fallbackName = getDefaultLocaleName();
+    var messages = {};
+    if (locales.en) {
+      mergeLocaleMessages(messages, locales.en);
+    }
+    if (locales[fallbackName] && fallbackName !== 'en') {
+      mergeLocaleMessages(messages, locales[fallbackName]);
+    }
+    if (locales[baseName]) {
+      mergeLocaleMessages(messages, locales[baseName]);
+    }
+    if (overrides) {
+      mergeLocaleMessages(messages, overrides);
+    }
+    return messages;
+  }
+
+  function mergeLocaleMessages(target, source) {
+    var key;
+    var value;
+    if (!source) {
+      return target;
+    }
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        value = source[key];
+        if (isPlainObject(value)) {
+          target[key] = mergeLocaleMessages(isPlainObject(target[key]) ? target[key] : {}, value);
+        } else if (Array.isArray(value)) {
+          target[key] = value.slice();
+        } else {
+          target[key] = value;
+        }
+      }
+    }
+    return target;
+  }
+
+  function isPlainObject(value) {
+    return Object.prototype.toString.call(value) === '[object Object]';
+  }
+
+  function getLocaleValue(messages, path) {
+    var parts = String(path || '').split('.');
+    var value = messages;
+    var i;
+    for (i = 0; i < parts.length; i += 1) {
+      if (value == null) {
+        return '';
+      }
+      value = value[parts[i]];
+    }
+    return value == null ? '' : value;
+  }
+
+  function formatLocaleText(value, data) {
+    if (typeof value !== 'string') {
+      return value;
+    }
+    if (!data) {
+      return value;
+    }
+    return value.replace(/\{([^}]+)\}/g, function(match, key) {
+      return Object.prototype.hasOwnProperty.call(data, key) ? data[key] : match;
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function normalizeEditorConfig(editor, column) {
     var type;
     var options;
@@ -2689,7 +3753,7 @@ function createFastGridFactory() {
       options = {};
     } else if (typeof editor === 'object') {
       type = editor.type || getDefaultEditorType(column);
-      options = editor.options || {};
+      options = getEditorOptions(editor);
     } else {
       type = getDefaultEditorType(column);
       options = {};
@@ -2708,6 +3772,68 @@ function createFastGridFactory() {
     return normalizeEditorConfig(null, column || {});
   }
 
+  function getEditorOptions(editor) {
+    var result = {};
+    var direct = {};
+    var key;
+    for (key in editor) {
+      if (Object.prototype.hasOwnProperty.call(editor, key) && key !== 'type' && key !== 'options') {
+        direct[key] = editor[key];
+      }
+    }
+    result = mergeOptions(result, direct);
+    result = mergeOptions(result, editor.options || {});
+    return result;
+  }
+
+  function getEditorMask(column) {
+    var mask = getExplicitEditorMask(column);
+    var config;
+    if (!column) {
+      return '';
+    }
+    if (mask) {
+      return mask;
+    }
+    config = getColumnEditorConfig(column);
+    if (config.type === 'datebox') {
+      return '9999/99/99';
+    }
+    return '';
+  }
+
+  function getExplicitEditorMask(column) {
+    var config;
+    var options;
+    if (!column) {
+      return '';
+    }
+    if (column.mask) {
+      return column.mask;
+    }
+    config = getColumnEditorConfig(column);
+    options = config && config.options ? config.options : {};
+    return config && config.mask ? config.mask : options.mask || '';
+  }
+
+  function getMaskOptions(column, mask) {
+    var config = getColumnEditorConfig(column);
+    var options = config && config.options ? config.options : {};
+    return {
+      mask: mask || getExplicitEditorMask(column),
+      autoUnmask: column && column.autoUnmask != null ? column.autoUnmask : options.autoUnmask,
+      maskValueIncludesLiterals: column && column.maskValueIncludesLiterals != null ?
+        column.maskValueIncludesLiterals :
+        options.maskValueIncludesLiterals,
+      maskIncludesLiterals: column && column.maskIncludesLiterals != null ?
+        column.maskIncludesLiterals :
+        options.maskIncludesLiterals,
+      maskLiteralsInValue: column && column.maskLiteralsInValue != null ?
+        column.maskLiteralsInValue :
+        options.maskLiteralsInValue
+    };
+  }
+
   function getDefaultEditorType(column) {
     if (column && column.dataType === 'number') {
       return 'numberbox';
@@ -2718,6 +3844,63 @@ function createFastGridFactory() {
     return 'textbox';
   }
 
+  function shouldUseThousandsSeparator(column) {
+    var config = getColumnEditorConfig(column);
+    var options = config && config.options ? config.options : {};
+    if (column && column.thousandsSeparator != null) {
+      return column.thousandsSeparator === true;
+    }
+    if (column && column.useThousandsSeparator != null) {
+      return column.useThousandsSeparator === true;
+    }
+    if (column && column.showThousandsSeparator != null) {
+      return column.showThousandsSeparator === true;
+    }
+    if (options.thousandsSeparator != null) {
+      return options.thousandsSeparator === true;
+    }
+    if (options.useThousandsSeparator != null) {
+      return options.useThousandsSeparator === true;
+    }
+    if (options.showThousandsSeparator != null) {
+      return options.showThousandsSeparator === true;
+    }
+    return false;
+  }
+
+  function getNumberPrecision(column) {
+    var config = getColumnEditorConfig(column);
+    var options = config && config.options ? config.options : {};
+    var value = null;
+    if (column && column.precision != null) {
+      value = column.precision;
+    } else if (options.precision != null) {
+      value = options.precision;
+    }
+    if (value == null || value === false || value === '') {
+      return null;
+    }
+    value = Number(value);
+    if (!isFinite(value) || value < 0) {
+      return null;
+    }
+    return Math.floor(value);
+  }
+
+  function roundNumberValue(value, column) {
+    var precision = getNumberPrecision(column);
+    var factor;
+    if (value == null || precision == null || typeof value !== 'number' || !isFinite(value)) {
+      return value;
+    }
+    factor = Math.pow(10, precision);
+    return Math.round(value * factor) / factor;
+  }
+
+  function formatNumberDisplayText(value, column) {
+    return formatNumberEditorText(value, shouldUseThousandsSeparator(column), getNumberPrecision(column));
+  }
+
   function normalizeEditorType(type) {
     type = String(type || 'textbox').toLowerCase();
     if (type === 'number' || type === 'numeric') {
@@ -2726,10 +3909,129 @@ function createFastGridFactory() {
     if (type === 'date' || type === 'calendar') {
       return 'datebox';
     }
-    if (type === 'numberbox' || type === 'datebox') {
+    if (type === 'combo' || type === 'select' || type === 'dropdown') {
+      return 'combobox';
+    }
+    if (type === 'numberbox' || type === 'datebox' || type === 'combobox') {
       return type;
     }
     return 'textbox';
+  }
+
+  function getComboboxData(config) {
+    var options = config && config.options ? config.options : {};
+    return Array.isArray(options.data) ? options.data : [];
+  }
+
+  function getComboboxValueField(config) {
+    var options = config && config.options ? config.options : {};
+    return options.valueField || 'value';
+  }
+
+  function getComboboxTextField(config) {
+    var options = config && config.options ? config.options : {};
+    return options.textField || 'text';
+  }
+
+  function getComboboxItemValue(item, config) {
+    var field = getComboboxValueField(config);
+    var textField = getComboboxTextField(config);
+    var value;
+    if (item && typeof item === 'object') {
+      value = getByBinding(item, field);
+      if (value == null && textField !== field) {
+        value = getByBinding(item, textField);
+      }
+      return value == null ? '' : value;
+    }
+    return item == null ? '' : item;
+  }
+
+  function getComboboxItemText(item, config) {
+    var field = getComboboxTextField(config);
+    var valueField = getComboboxValueField(config);
+    var text;
+    if (item && typeof item === 'object') {
+      text = getByBinding(item, field);
+      if (text == null && valueField !== field) {
+        text = getByBinding(item, valueField);
+      }
+      return text == null ? '' : String(text);
+    }
+    return item == null ? '' : String(item);
+  }
+
+  function shouldShowComboboxValueInList(config) {
+    var options = config && config.options ? config.options : {};
+    return options.showValueInList === true || options.showValue === true || options.showCode === true;
+  }
+
+  function renderComboboxOptionContent(option, text, value, config) {
+    var textSpan;
+    var valueSpan;
+    option.textContent = '';
+    textSpan = document.createElement('span');
+    textSpan.className = 'fg-combobox-option-text';
+    textSpan.textContent = text;
+    option.appendChild(textSpan);
+    if (shouldShowComboboxValueInList(config) && value !== '' && value !== text) {
+      valueSpan = document.createElement('span');
+      valueSpan.className = 'fg-combobox-option-value';
+      valueSpan.textContent = '(' + value + ')';
+      option.appendChild(valueSpan);
+      option.setAttribute('aria-label', text + ' (' + value + ')');
+    }
+  }
+
+  function getComboboxTextByValue(value, config) {
+    var items = getComboboxData(config);
+    var item;
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      item = items[i];
+      if (String(getComboboxItemValue(item, config)) === String(value)) {
+        return getComboboxItemText(item, config);
+      }
+    }
+    return value == null ? '' : String(value);
+  }
+
+  function getComboboxValueByText(text, config) {
+    var items = getComboboxData(config);
+    var item;
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      item = items[i];
+      if (getComboboxItemText(item, config) === text) {
+        return getComboboxItemValue(item, config);
+      }
+    }
+    return text;
+  }
+
+  function isComboboxValueInList(value, config) {
+    var items = getComboboxData(config);
+    var text = value == null ? '' : String(value);
+    var item;
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      item = items[i];
+      if (String(getComboboxItemValue(item, config)) === text || getComboboxItemText(item, config) === text) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function getComboboxDataValue(text, config, edit) {
+    var selectedText;
+    if (edit && edit.comboboxValue != null) {
+      selectedText = getComboboxTextByValue(edit.comboboxValue, config);
+      if (selectedText === text) {
+        return edit.comboboxValue;
+      }
+    }
+    return getComboboxValueByText(text, config);
   }
 
   function formatDateboxText(value, config) {
@@ -2747,10 +4049,14 @@ function createFastGridFactory() {
   function formatDateboxEditorText(value, config, column) {
     var date = parseDateValue(value);
     var text = date ? formatDateboxText(date, config) : value;
-    if (column && column.mask) {
-      return formatMaskText(text, column);
+    var mask = getEditorMask(column);
+    if (mask) {
+      return formatMaskText(text, { mask: mask });
     }
-    return text == null ? '' : String(text);
+    if (date) {
+      return formatDateDigits(date);
+    }
+    return sanitizeDateEditorText(text);
   }
 
   function getDateboxDataValue(value, config, edit) {
@@ -2820,8 +4126,8 @@ function createFastGridFactory() {
     return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
   }
 
-  function getMonthTitle(year, month) {
-    return ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'][month] + ' ' + year;
+  function formatDateDigits(date) {
+    return date.getFullYear() + pad2(date.getMonth() + 1) + pad2(date.getDate());
   }
 
   function pad2(value) {
@@ -3318,12 +4624,17 @@ function createFastGridFactory() {
 
   function parseValue(value, type) {
     var text;
+    var number;
     if (type === 'number') {
       if (value == null) {
         return null;
       }
       text = stripNumberGroupSeparators(value).trim();
-      return text === '' ? null : Number(text);
+      if (text === '' || text === '-' || text === '.' || text === '-.') {
+        return null;
+      }
+      number = Number(text);
+      return isFinite(number) ? number : null;
     }
     if (type === 'boolean') {
       return value === true || value === 'true' || value === '1' || value === 'yes' || value === 'Y';
@@ -3339,6 +4650,44 @@ function createFastGridFactory() {
     return raw;
   }
 
+  function getValidationRowId(key) {
+    var index = String(key || '').indexOf('::');
+    return index >= 0 ? String(key).slice(0, index) : '';
+  }
+
+  function normalizeValidationResult(result, value, type, grid) {
+    var message = grid ? grid.getText('validation.invalidValue') : 'Invalid value';
+    if (result == null || result === false || result === '') {
+      return null;
+    }
+    if (typeof result === 'string') {
+      return {
+        type: type || 'custom',
+        message: result,
+        value: value
+      };
+    }
+    if (result === true) {
+      return {
+        type: type || 'custom',
+        message: message,
+        value: value
+      };
+    }
+    if (typeof result === 'object') {
+      return mergeOptions({
+        type: type || 'custom',
+        message: message,
+        value: value
+      }, result);
+    }
+    return null;
+  }
+
+  function isPromiseLike(value) {
+    return value && typeof value.then === 'function';
+  }
+
   function getMaskCopyText(value, column) {
     if (isMaskValueIncludingLiterals(column)) {
       return formatMaskText(value, column);
@@ -3349,6 +4698,31 @@ function createFastGridFactory() {
   function formatMaskText(value, column) {
     var raw = extractMaskCharacters(value, column.mask);
     return applyMask(raw, column.mask);
+  }
+
+  function countMaskCharactersBeforeCaret(value, mask, caret) {
+    return extractMaskCharacters(String(value == null ? '' : value).slice(0, caret), mask).length;
+  }
+
+  function getMaskCaretPosition(value, mask, rawIndex) {
+    var text = String(value == null ? '' : value);
+    var tokenIndex = 0;
+    var tokens = getMaskTokens(mask);
+    var i;
+    var ch;
+    if (rawIndex <= 0) {
+      return 0;
+    }
+    for (i = 0; i < text.length && tokenIndex < tokens.length; i += 1) {
+      ch = text.charAt(i);
+      if (isMaskCharAllowed(ch, tokens[tokenIndex])) {
+        tokenIndex += 1;
+        if (tokenIndex >= rawIndex) {
+          return i + 1;
+        }
+      }
+    }
+    return text.length;
   }
 
   function isMaskValueIncludingLiterals(column) {
@@ -3473,8 +4847,48 @@ function createFastGridFactory() {
     return String(value).replace(/,/g, '');
   }
 
-  function formatNumberEditorText(value) {
+  function isDigitKey(key) {
+    return /^[0-9]$/.test(key);
+  }
+
+  function isNumberEditorTextAllowed(editor, text) {
+    var start = editor.selectionStart == null ? editor.value.length : editor.selectionStart;
+    var end = editor.selectionEnd == null ? start : editor.selectionEnd;
+    var next = editor.value.slice(0, start) + text + editor.value.slice(end);
+    return stripNumberGroupSeparators(next).trim() === sanitizeNumberEditorText(next);
+  }
+
+  function sanitizeNumberEditorText(value) {
     var text = stripNumberGroupSeparators(value).trim();
+    var output = '';
+    var hasDecimal = false;
+    var i;
+    var ch;
+    for (i = 0; i < text.length; i += 1) {
+      ch = text.charAt(i);
+      if (isDigitKey(ch)) {
+        output += ch;
+      } else if (ch === '.' && !hasDecimal) {
+        output += ch;
+        hasDecimal = true;
+      } else if (ch === '-' && output === '') {
+        output = '-';
+      }
+    }
+    return output;
+  }
+
+  function sanitizeDateEditorText(value) {
+    return String(value == null ? '' : value).replace(/[^0-9]/g, '').slice(0, 8);
+  }
+
+  function getNumberCopyText(value) {
+    return stripNumberGroupSeparators(value == null ? '' : value).trim();
+  }
+
+  function formatNumberEditorText(value, useThousandsSeparator, precision) {
+    var text = stripNumberGroupSeparators(value).trim();
+    var number;
     var sign = '';
     var hasDecimal;
     var parts;
@@ -3483,13 +4897,19 @@ function createFastGridFactory() {
     if (text === '') {
       return '';
     }
-    if (text === '-' || text === '+') {
+    if (text === '-') {
       return text;
     }
-    if (!/^[+-]?\d*(?:\.\d*)?$/.test(text)) {
+    if (!/^-?\d*(?:\.\d*)?$/.test(text)) {
       return String(value);
     }
-    if (text.charAt(0) === '-' || text.charAt(0) === '+') {
+    if (precision != null) {
+      number = Number(text);
+      if (isFinite(number)) {
+        text = number.toFixed(precision);
+      }
+    }
+    if (text.charAt(0) === '-') {
       sign = text.charAt(0);
       text = text.slice(1);
     }
@@ -3498,7 +4918,9 @@ function createFastGridFactory() {
     integer = parts[0] || '0';
     decimal = parts.length > 1 ? parts[1] : '';
     integer = integer.replace(/^0+(?=\d)/, '');
-    integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    if (useThousandsSeparator === true) {
+      integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
     return sign + integer + (hasDecimal ? '.' + decimal : '');
   }
 
@@ -3641,20 +5063,23 @@ function createFastGridFactory() {
         { color: 'FFF5F7FA' }
       ],
       xfs: [
-        { fontId: 0, fillId: 0, borderId: 0, align: '' },
-        { fontId: 1, fillId: 2, borderId: 1, align: 'center' },
-        { fontId: 0, fillId: 0, borderId: 1, align: '' },
-        { fontId: 0, fillId: 0, borderId: 1, align: 'right' },
-        { fontId: 0, fillId: 0, borderId: 1, align: 'center' }
+        { fontId: 0, fillId: 0, borderId: 0, align: '', numFmtId: 0 },
+        { fontId: 1, fillId: 2, borderId: 1, align: 'center', numFmtId: 0 },
+        { fontId: 0, fillId: 0, borderId: 1, align: '', numFmtId: 0 },
+        { fontId: 0, fillId: 0, borderId: 1, align: 'right', numFmtId: 0 },
+        { fontId: 0, fillId: 0, borderId: 1, align: 'center', numFmtId: 0 }
       ],
+      numFmts: [],
       fontMap: { 'normal|': 0, 'bold|FF1F2937': 1 },
       fillMap: { none: 0, gray125: 1, FFF5F7FA: 2 },
+      numFmtMap: {},
+      nextNumFmtId: 164,
       xfMap: {
-        '0|0|0|': 0,
-        '1|2|1|center': 1,
-        '0|0|1|': 2,
-        '0|0|1|right': 3,
-        '0|0|1|center': 4
+        '0|0|0|0|': 0,
+        '1|2|1|center|0': 1,
+        '0|0|1||0': 2,
+        '0|0|1|right|0': 3,
+        '0|0|1|center|0': 4
       }
     };
     return registry;
@@ -3665,6 +5090,13 @@ function createFastGridFactory() {
     var i;
     xml.push('<?xml version="1.0" encoding="UTF-8"?>');
     xml.push('<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">');
+    if (registry.numFmts.length) {
+      xml.push('<numFmts count="' + registry.numFmts.length + '">');
+      for (i = 0; i < registry.numFmts.length; i += 1) {
+        xml.push('<numFmt numFmtId="' + registry.numFmts[i].id + '" formatCode="' + xmlEscape(registry.numFmts[i].code) + '"/>');
+      }
+      xml.push('</numFmts>');
+    }
     xml.push('<fonts count="' + registry.fonts.length + '">');
     for (i = 0; i < registry.fonts.length; i += 1) {
       xml.push(createExcelFontXml(registry.fonts[i]));
@@ -3721,7 +5153,11 @@ function createFastGridFactory() {
   }
 
   function createExcelXfXml(xf) {
-    var xml = '<xf numFmtId="0" fontId="' + xf.fontId + '" fillId="' + xf.fillId + '" borderId="' + xf.borderId + '" xfId="0"';
+    var numFmtId = xf.numFmtId || 0;
+    var xml = '<xf numFmtId="' + numFmtId + '" fontId="' + xf.fontId + '" fillId="' + xf.fillId + '" borderId="' + xf.borderId + '" xfId="0"';
+    if (numFmtId) {
+      xml += ' applyNumberFormat="1"';
+    }
     if (xf.fontId) {
       xml += ' applyFont="1"';
     }
@@ -3745,9 +5181,10 @@ function createFastGridFactory() {
   function registerExcelCellStyle(registry, style) {
     var fontId = registerExcelFont(registry, style);
     var fillId = registerExcelFill(registry, style);
+    var numFmtId = registerExcelNumberFormat(registry, style.numFmtCode || style.numberFormat || '');
     var borderId = 1;
     var align = style.align || '';
-    var key = fontId + '|' + fillId + '|' + borderId + '|' + align;
+    var key = fontId + '|' + fillId + '|' + borderId + '|' + align + '|' + numFmtId;
     if (registry.xfMap[key] != null) {
       return registry.xfMap[key];
     }
@@ -3755,7 +5192,8 @@ function createFastGridFactory() {
       fontId: fontId,
       fillId: fillId,
       borderId: borderId,
-      align: align
+      align: align,
+      numFmtId: numFmtId
     });
     registry.xfMap[key] = registry.xfs.length - 1;
     return registry.xfs.length - 1;
@@ -3786,8 +5224,27 @@ function createFastGridFactory() {
     return registry.fills.length - 1;
   }
 
+  function registerExcelNumberFormat(registry, code) {
+    code = code || '';
+    if (!code) {
+      return 0;
+    }
+    if (registry.numFmtMap[code] != null) {
+      return registry.numFmtMap[code];
+    }
+    registry.numFmts.push({
+      id: registry.nextNumFmtId,
+      code: code
+    });
+    registry.numFmtMap[code] = registry.nextNumFmtId;
+    registry.nextNumFmtId += 1;
+    return registry.numFmtMap[code];
+  }
+
   function createWorksheetXml(columns, rows, options, registry) {
-    var maxRow = rows.length + 1;
+    var includeFooter = options.includeFooter === true && options.grid;
+    var dataMaxRow = rows.length + 1;
+    var maxRow = dataMaxRow + (includeFooter ? 1 : 0);
     var maxCol = Math.max(columns.length, 1);
     var xml = [];
     var r;
@@ -3819,12 +5276,28 @@ function createFastGridFactory() {
       }
       xml.push('</row>');
     }
+    if (includeFooter) {
+      xml.push(createExcelFooterRowXml(rows.length + 2, columns, options.grid));
+    }
     if (styleResolver.dispose) {
       styleResolver.dispose();
     }
     xml.push('</sheetData>');
-    xml.push('<autoFilter ref="A1:' + getExcelColumnName(maxCol) + maxRow + '"/>');
+    xml.push('<autoFilter ref="A1:' + getExcelColumnName(maxCol) + dataMaxRow + '"/>');
     xml.push('</worksheet>');
+    return xml.join('');
+  }
+
+  function createExcelFooterRowXml(rowIndex, columns, grid) {
+    var xml = [];
+    var c;
+    var value;
+    xml.push('<row r="' + rowIndex + '">');
+    for (c = 0; c < columns.length; c += 1) {
+      value = grid.getFooterCellText(columns[c]);
+      xml.push(createExcelCell(rowIndex, c + 1, value, 'string', getExcelFooterCellStyle(columns[c])));
+    }
+    xml.push('</row>');
     return xml.join('');
   }
 
@@ -3862,7 +5335,13 @@ function createFastGridFactory() {
       if (!extraStyle.align) {
         extraStyle.align = baseStyle.align;
       }
+      if (!extraStyle.numFmtCode && !extraStyle.numberFormat && baseStyle.numFmtCode) {
+        extraStyle.numFmtCode = baseStyle.numFmtCode;
+      }
       return registerExcelCellStyle(registry, extraStyle);
+    }
+    if (baseStyle.numFmtCode) {
+      return registerExcelCellStyle(registry, baseStyle);
     }
     if (baseStyle.id) {
       return baseStyle.id;
@@ -3871,13 +5350,56 @@ function createFastGridFactory() {
   }
 
   function getExcelBaseCellStyle(column) {
+    var numberFormat;
     if (column.align === 'right' || column.dataType === 'number') {
+      numberFormat = getExcelNumberFormatCode(column);
+      if (numberFormat) {
+        return { align: 'right', numFmtCode: numberFormat };
+      }
       return { id: 3, align: 'right' };
     }
     if (column.align === 'center' || column.dataType === 'boolean') {
       return { id: 4, align: 'center' };
     }
     return { id: 2, align: '' };
+  }
+
+  function getExcelFooterCellStyle(column) {
+    if (column.align === 'right' || column.dataType === 'number') {
+      return 3;
+    }
+    if (column.align === 'center' || column.dataType === 'boolean') {
+      return 4;
+    }
+    return 2;
+  }
+
+  function getExcelNumberFormatCode(column) {
+    var precision;
+    var decimalPart = '';
+    var integerPart;
+    if (!column || column.dataType !== 'number') {
+      return '';
+    }
+    precision = getNumberPrecision(column);
+    integerPart = shouldUseThousandsSeparator(column) ? '#,##0' : '0';
+    if (precision != null) {
+      decimalPart = precision > 0 ? '.' + repeatString('0', precision) : '';
+    } else if (shouldUseThousandsSeparator(column)) {
+      decimalPart = '.############';
+    } else {
+      return '';
+    }
+    return integerPart + decimalPart;
+  }
+
+  function repeatString(text, count) {
+    var output = '';
+    while (count > 0) {
+      output += text;
+      count -= 1;
+    }
+    return output;
   }
 
   function createExcelStyleResolver(options) {
@@ -3978,7 +5500,8 @@ function createFastGridFactory() {
       color: cssColorToExcelColor(style.color || style.textColor || ''),
       backgroundColor: cssColorToExcelColor(style.backgroundColor || style.background || ''),
       bold: style.bold === true || style.fontWeight === 'bold' || Number(style.fontWeight) >= 600,
-      align: normalizeExcelAlign(style.align || style.textAlign || '')
+      align: normalizeExcelAlign(style.align || style.textAlign || ''),
+      numFmtCode: style.numFmtCode || style.numberFormat || ''
     };
   }
 
@@ -4232,8 +5755,23 @@ function createFastGridFactory() {
 
   defineWijmoCompatibility(FastGrid);
 
+  FastGrid.locales = getLocaleMap();
+  FastGrid.defaultLocale = getDefaultLocaleName();
+  FastGrid.addLocale = function(name, messages) {
+    if (name && messages) {
+      FastGrid.locales[String(name)] = messages;
+    }
+    return FastGrid;
+  };
+
   return FastGrid;
 }
 
 global.FastGrid = createFastGridFactory();
+if (global.FastGridLocales) {
+  Object.keys(global.FastGridLocales).forEach(function(name) {
+    global.FastGrid.addLocale(name, global.FastGridLocales[name]);
+  });
+}
+global.FastGridLocales = global.FastGrid.locales;
 }(typeof window !== "undefined" ? window : this));

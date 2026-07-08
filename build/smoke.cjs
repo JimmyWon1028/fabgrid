@@ -87,8 +87,11 @@ server.listen(port, '127.0.0.1', async function() {
       !result.itemsSourceSetterWorks ||
       !result.itemsSourceRestoreWorks ||
       !result.footerVisibleWorks ||
+      !result.footerDefaultNumberFormatWorks ||
       !result.footerAmountTextAlignWorks ||
       !result.footerAmountRightEdgeWorks ||
+      !result.headerToggleKeyWorks ||
+      !result.sortIconNearHeaderTextWorks ||
       !result.sortSelectedRowWorks ||
       !result.multiSortSelectedRowsWork ||
       !result.headerDividerResizeWorks ||
@@ -140,8 +143,8 @@ server.listen(port, '127.0.0.1', async function() {
       result.hoveredEvenRowBackground !== 'rgb(237, 246, 255)' ||
       !result.cellClickSelectsRowWorks ||
       !result.cellClickTogglesRowOffWorks ||
-      !result.spaceSelectsRowWorks ||
-      !result.spaceTogglesRowOffWorks ||
+      !result.singleSpaceDoesNotSelectRowWorks ||
+      !result.singleSpaceKeepsRowOffWorks ||
       !result.multiSpaceSelectsRowWorks ||
       !result.multiSpaceTogglesRowOffWorks ||
       !result.readOnlyArrowDownSelectsRowWorks ||
@@ -168,6 +171,7 @@ server.listen(port, '127.0.0.1', async function() {
       !result.maskEditorInitialWorks ||
       !result.maskEditorCopyRawWorks ||
       !result.maskEditorFormatsInputWorks ||
+      !result.maskBackspaceDeletesAcrossLiteralWorks ||
       !result.maskCommitRawWorks ||
       !result.textDateDateboxEditorWorks ||
       !result.textDateDateboxPanelHiddenOnStartWorks ||
@@ -177,17 +181,53 @@ server.listen(port, '127.0.0.1', async function() {
       !result.maskDefaultIncludesMaskWorks ||
       !result.maskDefaultCopyIncludesMaskWorks ||
       !result.maskDefaultDateboxCommitIncludesMaskWorks ||
+      !result.dashMaskDateDisplayWorks ||
+      !result.dashMaskDateCopyWorks ||
+      !result.dashMaskDateEditorWorks ||
+      !result.dashMaskDateInputWorks ||
+      !result.dashMaskDatePickerKeepsMaskWorks ||
+      !result.dashMaskDateCommitWorks ||
       !result.clickedCellScrollsColumnIntoViewWorks ||
       !result.numberZeroInputWorks ||
       !result.numberZeroDisplaysAsZeroWorks ||
       !result.numberBlankInputWorks ||
       !result.numberBlankDisplaysEmptyWorks ||
       !result.numberEditorShowsThousandsWorks ||
+      !result.scrollableEditorStaysBelowFrozenPaneWorks ||
       !result.numberEditorLiveThousandsWorks ||
       !result.numberThousandsCommitWorks ||
+      !result.numberCopyWithoutThousandsWorks ||
+      !result.numberEditorCopyWithoutThousandsWorks ||
+      !result.numberEditorNoThousandsWorks ||
+      !result.numberEditorLiveNoThousandsWorks ||
+      !result.numberEditorOnlyAllowsNumberKeysWorks ||
+      !result.numberNegativeCommitWorks ||
+      !result.customColumnValidateReceivesNumberWorks ||
+      !result.customColumnValidateWorks ||
+      !result.customColumnValidateClearsWorks ||
+      !result.asyncColumnValidateDoesNotBlockWorks ||
+      !result.asyncColumnValidateReceivesNumberWorks ||
+      !result.asyncColumnValidateWorks ||
+      !result.asyncColumnValidateClearsWorks ||
       !result.textboxDefaultEditorWorks ||
       !result.numberboxEditorConfigWorks ||
+      !result.comboboxEditorConfigWorks ||
+      !result.comboboxPanelOpensWorks ||
+      !result.comboboxSelectUpdatesInputWorks ||
+      !result.comboboxSelectCommitWorks ||
+      !result.comboboxTypedCommitWorks ||
+      !result.comboboxAltArrowDownOpensWorks ||
+      !result.comboboxArrowDownMovesActiveWorks ||
+      !result.comboboxKeyboardSelectWorks ||
+      !result.comboboxKeyboardCommitWorks ||
+      !result.comboboxLimitEditorInitialWorks ||
+      !result.comboboxValueInListWorks ||
+      !result.comboboxPanelWidthWorks ||
+      !result.comboboxLimitToListInvalidWorks ||
+      !result.comboboxLimitToListClearsWorks ||
       !result.dateboxEditorConfigWorks ||
+      !result.dateboxOnlyAllowsDigitKeysWorks ||
+      !result.dateboxBackspaceDeletesAcrossLiteralWorks ||
       !result.dateboxTriggerUsesImageWorks ||
       !result.dateboxPanelHiddenOnStartWorks ||
       !result.dateboxPanelOpensWorks ||
@@ -197,6 +237,20 @@ server.listen(port, '127.0.0.1', async function() {
       !result.dateboxPanelClosesOnScrollWorks ||
       !result.dateboxSelectUpdatesInputWorks ||
       !result.dateboxSelectedCommitWorks ||
+      !result.dateboxInvalidCommitMovesNextCellWorks ||
+      !result.dateboxInvalidCellMarkerWorks ||
+      !result.invalidTipWorks ||
+      !result.dateboxInvalidItemsPropertyWorks ||
+      !result.dateboxValidCommitClearsValidationWorks ||
+      !result.englishEmptyTextWorks ||
+      !result.englishEditorAriaWorks ||
+      !result.englishBusyTextWorks ||
+      !result.zhEmptyTextWorks ||
+      !result.localeStaticsWork ||
+      !result.zhCnLocaleNotLoadedWorks ||
+      !result.headerToggleDefaultDisabledWorks ||
+      !result.dateboxEditorAlignsSelectedCellWorks ||
+      !result.dateboxEditorHorizontalScrollAlignsSelectedCellWorks ||
       !result.editingRowSelectedBackgroundWorks ||
       !result.readOnlyModeDisablesEditingWorks ||
       result.cellClickRowSelection < 0 ||
@@ -213,6 +267,8 @@ server.listen(port, '127.0.0.1', async function() {
       result.excelType !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
       !result.excelHasFrozenPane ||
       !result.excelHasAutoFilter ||
+      !result.excelHasFooterRow ||
+      !result.excelAmountNumberFormatWorks ||
       !result.excelHasStyledCells ||
       !result.excelHasHeaderFill ||
       !result.excelHasGridBorder ||
@@ -258,6 +314,12 @@ server.listen(port, '127.0.0.1', async function() {
     }
     if (!fs.existsSync(path.join(root, 'dist', 'images', 'datebox_arrow.png'))) {
       throw new Error('Smoke assertions failed: dist/images/datebox_arrow.png was not found.');
+    }
+    if (!fs.existsSync(path.join(root, 'dist', 'locales', 'fastgrid-locale.zh-CN.js'))) {
+      throw new Error('Smoke assertions failed: dist/locales/fastgrid-locale.zh-CN.js was not found.');
+    }
+    if (!fs.existsSync(path.join(root, 'dist', 'locales', 'fastgrid-locale.zh-CN.min.js'))) {
+      throw new Error('Smoke assertions failed: dist/locales/fastgrid-locale.zh-CN.min.js was not found.');
     }
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {

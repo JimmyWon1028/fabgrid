@@ -6,6 +6,11 @@
 - 代碼註釋必須使用英文。
 - 代碼縮排一律使用兩個空白，不使用 tab。
 
+## Git 與 GitHub 工作規則
+
+- 可以依任務需要建立本地 commit，但不要主動推送到 GitHub。
+- 只有在使用者明確要求「上傳」、「推送」、「同步到 GitHub」或同等意思時，才執行 `git push` 或 GitHub 遠端操作。
+
 ## 產品方向
 
 FastGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 建置。

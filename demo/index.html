@@ -4,39 +4,50 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FastGrid Demo</title>
-  <link rel="stylesheet" href="../dist/fastgrid.css?v=20260707-datebox-icon">
-  <link rel="stylesheet" href="./style.css?v=20260707-datebox-icon">
+  <link rel="stylesheet" href="../dist/fastgrid.css?v=20260708-demo-locale">
+  <link rel="stylesheet" href="./style.css?v=20260708-demo-locale">
 </head>
 <body>
   <main class="page">
     <section class="toolbar" aria-label="FastGrid controls">
       <div class="brand">
         <h1>FastGrid</h1>
-        <p>Pure JS performance-first grid · 2000 x 20</p>
+        <p>Pure JS performance-first grid · <span id="datasetSummary">-</span></p>
       </div>
       <label class="field">
-        <span>搜尋</span>
+        <span id="searchLabel">搜尋</span>
         <input id="searchInput" type="search" placeholder="輸入關鍵字">
       </label>
       <label class="field compact">
-        <span>凍結欄</span>
+        <span id="languageLabel">語言</span>
+        <select id="languageInput">
+          <option value="zh-TW">繁體中文</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <label class="field compact theme-field">
+        <span id="themeLabel">主題</span>
+        <select id="themeInput"></select>
+      </label>
+      <label class="field compact">
+        <span id="frozenLabel">凍結欄</span>
         <input id="frozenInput" type="number" min="0" max="6" value="2">
       </label>
       <label class="field compact">
-        <span>右凍結欄</span>
+        <span id="frozenRightLabel">右凍結欄</span>
         <input id="frozenRightInput" type="number" min="0" max="6" value="1">
       </label>
       <label class="toggle">
         <input id="rowHeadersInput" type="checkbox" checked>
-        <span>列號</span>
+        <span id="rowHeadersLabel">列號</span>
       </label>
       <label class="toggle">
         <input id="multiSelectInput" type="checkbox">
-        <span>多選</span>
+        <span id="multiSelectLabel">多選</span>
       </label>
       <label class="toggle">
         <input id="editModeInput" type="checkbox" checked>
-        <span>編輯</span>
+        <span id="editModeLabel">編輯</span>
       </label>
       <button id="exportButton" type="button">匯出 CSV</button>
       <button id="exportExcelButton" type="button">匯出 Excel</button>
@@ -54,7 +65,9 @@
     </section>
   </main>
 
-  <script src="../dist/fastgrid.min.js?v=20260707-datebox-icon"></script>
-  <script src="./demo.js?v=20260707-datebox-icon"></script>
+  <script src="../dist/fastgrid.min.js?v=20260708-demo-split-locale"></script>
+  <script src="../dist/locales/fastgrid-locale.zh-TW.js?v=20260708-demo-split-locale"></script>
+  <script src="../dist/locales/fastgrid-locale.en.js?v=20260708-demo-split-locale"></script>
+  <script src="./demo.js?v=20260708-demo-split-locale"></script>
 </body>
 </html>
