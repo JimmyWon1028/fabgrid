@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./assets/fastgrid-logo.svg" alt="FastGrid logo" width="520">
+</p>
+
 # FastGrid
 
 FastGrid 是一個以效能為優先的 pure JavaScript data grid。核心目標是用簡單、可預測、可打包引用的方式，支援大量資料表的雙向 virtualization、凍結欄、選取、編輯、匯出與接近 Wijmo FlexGrid 的常用 API 形狀。
