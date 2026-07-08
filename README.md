@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/fastgrid-logo.svg" alt="FastGrid logo" width="520">
+  <img src="./assets/fastgrid-logo.png" alt="FastGrid logo" width="520">
 </p>
 
 # FastGrid
