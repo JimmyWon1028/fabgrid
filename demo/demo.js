@@ -454,6 +454,16 @@
         autoUnmask: true
       },
       {
+        binding: 'yearMonth',
+        header: '年月',
+        width: 110,
+        minWidth: 90,
+        dataType: 'string',
+        editor: 'yymmbox',
+        mask: '9999/99',
+        autoUnmask: true
+      },
+      {
         binding: 'date',
         header: '日期',
         width: 120,
@@ -501,6 +511,7 @@
         amount: Math.round((i * 137.89) % 950000),
         score: (i * 17) % 100,
         textDate: createTextDateValue(i),
+        yearMonth: createYearMonthValue(i),
         date: createDateValue(i)
       };
       for (c = 10; c <= columnCount; c += 1) {
@@ -519,6 +530,16 @@
       return '202606' + pad((index % 28) + 1);
     }
     return '202607' + pad((index % 28) + 1);
+  }
+
+  function createYearMonthValue(index) {
+    if (index % 9 === 0) {
+      return '2025' + pad((index % 12) + 1);
+    }
+    if (index % 5 === 0) {
+      return '202606';
+    }
+    return '202607';
   }
 
   function createDateValue(index) {

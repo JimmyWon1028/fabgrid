@@ -14,6 +14,7 @@
   --fg-row-header-text: gray;
   --fg-selected-bg: #e4f1fb;
   --fg-selected-border: #c37c58;
+  --fg-editor-border: #c37c58;
   background: #f2f5f7;
   color: #000;
 }
@@ -76,6 +77,11 @@
   background: #e4f1fb;
   color: #2779AA;
   outline-color: #c37c58;
+}
+
+.fg-root.fg-theme-cupertino .fg-cell.fg-row-selected.fg-selected {
+  background: var(--fg-row-hover-bg);
+  color: var(--fg-cell-text);
 }
 
 .fg-root.fg-theme-cupertino .fg-sort-asc {

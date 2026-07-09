@@ -14,6 +14,7 @@
   --fg-row-header-text: gray;
   --fg-selected-bg: #777;
   --fg-selected-border: #a85300;
+  --fg-editor-border: #a85300;
   background: #666;
   color: #fff;
 }
@@ -76,6 +77,11 @@
   background: #777;
   color: #fff;
   outline-color: #a85300;
+}
+
+.fg-root.fg-theme-black .fg-cell.fg-row-selected.fg-selected {
+  background: var(--fg-row-hover-bg);
+  color: var(--fg-cell-text);
 }
 
 .fg-root.fg-theme-black .fg-sort-asc {

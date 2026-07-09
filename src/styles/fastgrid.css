@@ -13,6 +13,7 @@
   --fg-row-header-text: gray;
   --fg-selected-bg: #dceeff;
   --fg-selected-border: #2b7fd3;
+  --fg-editor-border: #2563eb;
   --fg-scrollbar-size: 22px;
   --fg-scrollbar-gutter-size: 22px;
   --fg-shadow: rgba(15, 23, 42, 0.12);
@@ -221,7 +222,7 @@
   flex: 0 0 auto;
   display: flex;
   align-items: stretch;
-  padding: 0 0 1px;
+  padding: 0;
   border-top: 1px dotted var(--fg-border);
   background: #ffffff;
 }
@@ -232,19 +233,20 @@
   min-width: 0;
   margin: 0;
   padding: 0 8px;
-  border: 1px dotted var(--fg-border);
+  border: 1px solid var(--fg-border);
   border-radius: 0;
   background: #ffffff;
   color: #111827;
   font: inherit;
-  line-height: 1;
+  line-height: normal;
   outline: none;
 }
 
 .fg-header-search-input:focus {
-  border: 1px dotted #2563eb;
+  border-color: var(--fg-editor-border);
+  height: calc(100% - 1px);
   background: #befcff;
-  box-shadow: none;
+  outline: none;
 }
 
 .fg-header-search-icons {
@@ -511,6 +513,7 @@
   contain: strict;
   scrollbar-color: #bfc5cc #eef1f4;
   scrollbar-width: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .fg-body-scroll::-webkit-scrollbar {
@@ -641,6 +644,15 @@
   cursor: pointer;
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .fg-frozen-pane .fg-cell,
+  .fg-frozen-pane-right .fg-cell,
+  .fg-row-header-cell,
+  .fg-selection-cell {
+    pointer-events: none;
+  }
+}
+
 .fg-selection-cell {
   position: absolute;
   left: 0;
@@ -722,7 +734,8 @@
 
 .fg-selected {
   z-index: 3;
-  background: var(--fg-selected-bg);
+  background: var(--fg-row-hover-bg);
+  color: var(--fg-cell-text);
   outline: 1px solid var(--fg-selected-border);
   outline-offset: -1px;
 }
@@ -790,7 +803,13 @@
 }
 
 .fg-row-selected.fg-selected {
-  background: var(--fg-row-selected-bg);
+  background: var(--fg-row-hover-bg);
+  color: var(--fg-cell-text);
+}
+
+.fg-root .fg-cell.fg-row-selected.fg-selected {
+  background: var(--fg-row-hover-bg);
+  color: var(--fg-cell-text);
 }
 
 .fg-editor {
@@ -799,7 +818,7 @@
   display: none;
   margin: 0;
   padding: 0 8px;
-  border: 1px solid #2563eb;
+  border: 1px solid var(--fg-editor-border);
   border-radius: 0;
   background: #befcff;
   color: #111827;

@@ -113,6 +113,8 @@ export function createFastGridFactory() {
     this.raf = 0;
     this.disposed = false;
     this.resizeState = null;
+    this.fixedPaneTouchTap = null;
+    this.fixedPaneTouchClickUntil = 0;
     this.suppressClick = false;
     this.copyBuffer = '';
     this.headerSearchTimer = 0;
@@ -131,6 +133,9 @@ export function createFastGridFactory() {
     this._boundPointerDown = bind(this, this.handlePointerDown);
     this._boundPointerMove = bind(this, this.handlePointerMove);
     this._boundPointerUp = bind(this, this.handlePointerUp);
+    this._boundFixedPaneWheel = bind(this, this.handleFixedPaneWheel);
+    this._boundFixedPaneTouchStart = bind(this, this.handleFixedPaneTouchStart);
+    this._boundFixedPaneTouchEnd = bind(this, this.handleFixedPaneTouchEnd);
     this._boundEditorBeforeInput = bind(this, this.handleEditorBeforeInput);
     this._boundEditorInput = bind(this, this.handleEditorInput);
     this._boundEditorCopy = bind(this, this.handleEditorCopy);
@@ -407,6 +412,10 @@ export function createFastGridFactory() {
     this.root.addEventListener('mousemove', this._boundMouseMove);
     this.root.addEventListener('mouseleave', this._boundMouseLeave);
     this.root.addEventListener('pointerdown', this._boundPointerDown);
+    this.root.addEventListener('wheel', this._boundFixedPaneWheel, { passive: false });
+    this.root.addEventListener('touchstart', this._boundFixedPaneTouchStart, { passive: true });
+    this.root.addEventListener('touchend', this._boundFixedPaneTouchEnd, { passive: true });
+    this.root.addEventListener('touchcancel', this._boundFixedPaneTouchEnd, { passive: true });
     this.root.addEventListener('wheel', this._boundBusyEvent, { passive: false });
     this.root.addEventListener('touchmove', this._boundBusyEvent, { passive: false });
     this.editor.addEventListener('input', this._boundEditorInput);
@@ -746,6 +755,10 @@ export function createFastGridFactory() {
     this.root.removeEventListener('mousemove', this._boundMouseMove);
     this.root.removeEventListener('mouseleave', this._boundMouseLeave);
     this.root.removeEventListener('pointerdown', this._boundPointerDown);
+    this.root.removeEventListener('wheel', this._boundFixedPaneWheel);
+    this.root.removeEventListener('touchstart', this._boundFixedPaneTouchStart);
+    this.root.removeEventListener('touchend', this._boundFixedPaneTouchEnd);
+    this.root.removeEventListener('touchcancel', this._boundFixedPaneTouchEnd);
     this.root.removeEventListener('wheel', this._boundBusyEvent);
     this.root.removeEventListener('touchmove', this._boundBusyEvent);
     this.editor.removeEventListener('input', this._boundEditorInput);
@@ -794,6 +807,163 @@ export function createFastGridFactory() {
     }
     event.preventDefault();
     event.stopPropagation();
+  };
+
+  FastGrid.prototype.handleFixedPaneTouchStart = function(event) {
+    var touch;
+    var target;
+    this.fixedPaneTouchTap = null;
+    if (this.busy || !this.bodyScroll || event.touches.length !== 1) {
+      return;
+    }
+    touch = event.touches[0];
+    target = this.getFixedPaneTouchTarget(touch.clientX, touch.clientY);
+    if (!target) {
+      return;
+    }
+    this.fixedPaneTouchTap = {
+      x: touch.clientX,
+      y: touch.clientY,
+      row: target.row,
+      col: target.col,
+      area: target.area
+    };
+  };
+
+  FastGrid.prototype.handleFixedPaneTouchEnd = function(event) {
+    var state = this.fixedPaneTouchTap;
+    var touch;
+    var dx;
+    var dy;
+    if (!state || this.busy || event.type === 'touchcancel') {
+      this.fixedPaneTouchTap = null;
+      return;
+    }
+    touch = event.changedTouches && event.changedTouches[0];
+    this.fixedPaneTouchTap = null;
+    if (!touch) {
+      return;
+    }
+    dx = Math.abs(touch.clientX - state.x);
+    dy = Math.abs(touch.clientY - state.y);
+    if (dx > 8 || dy > 8) {
+      return;
+    }
+    this.selectFixedPaneTouchRow(state.row, state.col, state.area);
+  };
+
+  FastGrid.prototype.selectFixedPaneTouchRow = function(rowIndex, colIndex, area) {
+    if (rowIndex < 0 || rowIndex >= this.view.length) {
+      return;
+    }
+    if (this.editing && (this.editing.row !== rowIndex || this.editing.col !== colIndex)) {
+      if (this.finishEditing(true) === false) {
+        return;
+      }
+    }
+    if (area === 'selection' || area === 'rowHeader') {
+      this.toggleRowSelection(rowIndex, colIndex);
+    } else if (this.shouldEditOnSelect(rowIndex, colIndex)) {
+      this.selectRow(rowIndex, colIndex);
+    } else {
+      this.toggleRowSelection(rowIndex, colIndex);
+    }
+    this.scrollIntoView(rowIndex, colIndex);
+    this.fixedPaneTouchClickUntil = Date.now() + 700;
+    this.root.focus();
+  };
+
+  FastGrid.prototype.getFixedPaneTouchTarget = function(clientX, clientY) {
+    var bodyRect;
+    var rowIndex;
+    var target;
+    if (!this.bodyScroll || !this.view.length) {
+      return null;
+    }
+    bodyRect = this.bodyScroll.getBoundingClientRect();
+    if (clientY < bodyRect.top || clientY > bodyRect.bottom) {
+      return null;
+    }
+    rowIndex = Math.floor((this.bodyScroll.scrollTop + clientY - bodyRect.top) / this.options.rowHeight);
+    if (rowIndex < 0 || rowIndex >= this.view.length) {
+      return null;
+    }
+    target = this.getFixedPaneTouchColumn(clientX, clientY, this.frozenPane, 0, this.frozenColumns, 'left');
+    if (target) {
+      target.row = rowIndex;
+      return target;
+    }
+    target = this.getFixedPaneTouchColumn(clientX, clientY, this.frozenRightPane, this.scrollableColumnEnd, this.visibleColumns.length, 'right');
+    if (target) {
+      target.row = rowIndex;
+      return target;
+    }
+    if (isPointInElement(clientX, clientY, this.selectionPane)) {
+      return { row: rowIndex, col: this.selection.col, area: 'selection' };
+    }
+    if (isPointInElement(clientX, clientY, this.rowHeaderPane)) {
+      return { row: rowIndex, col: this.selection.col, area: 'rowHeader' };
+    }
+    return null;
+  };
+
+  FastGrid.prototype.getFixedPaneTouchColumn = function(clientX, clientY, pane, startCol, endCol, area) {
+    var rect;
+    var localX;
+    var i;
+    var column;
+    if (!pane || pane.style.display === 'none' || !isPointInElement(clientX, clientY, pane)) {
+      return null;
+    }
+    rect = pane.getBoundingClientRect();
+    if (clientX < rect.left || clientX > rect.right) {
+      return null;
+    }
+    localX = clientX - rect.left;
+    for (i = startCol; i < endCol; i += 1) {
+      column = this.visibleColumns[i];
+      if (!column) {
+        continue;
+      }
+      if (area === 'right') {
+        if (localX >= column._left - this.frozenRightStartLeft && localX < column._left - this.frozenRightStartLeft + column._width) {
+          return { col: i, area: area };
+        }
+      } else if (localX >= column._left && localX < column._left + column._width) {
+        return { col: i, area: area };
+      }
+    }
+    return null;
+  };
+
+  FastGrid.prototype.handleFixedPaneWheel = function(event) {
+    var maxScrollTop;
+    var maxScrollLeft;
+    var nextTop;
+    var nextLeft;
+    if (this.busy || !this.bodyScroll || !this.isFixedPaneScrollTarget(event.target)) {
+      return;
+    }
+    maxScrollTop = Math.max(0, this.bodyScroll.scrollHeight - this.bodyScroll.clientHeight);
+    maxScrollLeft = Math.max(0, this.bodyScroll.scrollWidth - this.bodyScroll.clientWidth);
+    nextTop = clamp(this.bodyScroll.scrollTop + event.deltaY, 0, maxScrollTop);
+    nextLeft = clamp(this.bodyScroll.scrollLeft + event.deltaX, 0, maxScrollLeft);
+    if (nextTop === this.bodyScroll.scrollTop && nextLeft === this.bodyScroll.scrollLeft) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.bodyScroll.scrollTop = nextTop;
+    this.bodyScroll.scrollLeft = nextLeft;
+  };
+
+  FastGrid.prototype.isFixedPaneScrollTarget = function(target) {
+    return !!(
+      closest(target, 'fg-frozen-pane') ||
+      closest(target, 'fg-frozen-pane-right') ||
+      closest(target, 'fg-row-header-pane') ||
+      closest(target, 'fg-selection-pane')
+    );
   };
 
   FastGrid.prototype.applyView = function() {
@@ -1566,7 +1736,7 @@ export function createFastGridFactory() {
       search.style.height = this.getSearchRowHeight() + 'px';
       input.className = 'fg-header-search-input';
       input.type = 'text';
-      input.inputMode = column.dataType === 'number' ? 'decimal' : searchEditorConfig.type === 'datebox' ? 'numeric' : 'search';
+      input.inputMode = column.dataType === 'number' ? 'decimal' : isDateLikeEditorType(searchEditorConfig.type) ? 'numeric' : 'search';
       input.value = this.getColumnSearchValue(column);
       input.style.textAlign = normalizeTextAlign(column.align);
       input.style.paddingRight = searchIcons.length ? (getIconConfigWidth(searchIcons, 22) + 8) + 'px' : '';
@@ -1972,6 +2142,13 @@ export function createFastGridFactory() {
       return;
     }
 
+    if (this.fixedPaneTouchClickUntil && Date.now() < this.fixedPaneTouchClickUntil) {
+      this.fixedPaneTouchClickUntil = 0;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
     if (filterMenuItem) {
       this.handleFilterMenuClick(event);
       return;
@@ -2080,7 +2257,7 @@ export function createFastGridFactory() {
     }
     config = getColumnEditorConfig(column);
     text = String(event.data);
-    if (config.type === 'datebox' && /[^0-9]/.test(text)) {
+    if (isDateLikeEditorType(config.type) && /[^0-9]/.test(text)) {
       event.preventDefault();
     }
   };
@@ -2112,7 +2289,7 @@ export function createFastGridFactory() {
         input.value = formatted;
         input.setSelectionRange(formatted.length, formatted.length);
       }
-    } else if (config.type === 'datebox') {
+    } else if (isDateLikeEditorType(config.type)) {
       formatted = sanitizeDateEditorText(input.value);
       if (formatted !== input.value) {
         input.value = formatted;
@@ -3067,7 +3244,7 @@ export function createFastGridFactory() {
   FastGrid.prototype.configureEditor = function(column) {
     var config = getColumnEditorConfig(column);
     var type = config.type;
-    var hasBuiltInEditorIcon = type === 'datebox' || type === 'combobox';
+    var hasBuiltInEditorIcon = isDateLikeEditorType(type) || type === 'combobox';
     var iconConfigs = hasBuiltInEditorIcon ? [] : getEditorIconConfigs(config);
     var hasEditorIcons = hasBuiltInEditorIcon || iconConfigs.length > 0;
     this.editorConfig = config;
@@ -3077,10 +3254,10 @@ export function createFastGridFactory() {
     this.editor.setAttribute('data-editor-type', type);
     this.editor.setAttribute('autocomplete', 'off');
     this.editor.type = 'text';
-    this.editor.inputMode = type === 'numberbox' ? 'decimal' : type === 'datebox' ? 'numeric' : 'text';
+    this.editor.inputMode = type === 'numberbox' ? 'decimal' : isDateLikeEditorType(type) ? 'numeric' : 'text';
     this.editor.style.paddingRight = hasEditorIcons ? (getEditorIconConfigWidth(iconConfigs, type) + 6) + 'px' : '';
     this.editorIconHost.style.display = hasEditorIcons ? 'flex' : 'none';
-    if (type !== 'datebox') {
+    if (!isDateLikeEditorType(type)) {
       this.hideDateboxPanel();
     }
     if (type !== 'combobox') {
@@ -3110,7 +3287,7 @@ export function createFastGridFactory() {
     } else {
       button = document.createElement('button');
       button.type = 'button';
-      button.className = trimText('fg-editor-trigger fg-editor-trigger-' + type + (type === 'datebox' ? ' icon-datebox' : ''));
+      button.className = trimText('fg-editor-trigger fg-editor-trigger-' + type + (isDateLikeEditorType(type) ? ' icon-datebox' : ''));
       button.setAttribute('aria-label', this.getEditorTriggerLabel());
       button.style.width = '22px';
       fragment.appendChild(button);
@@ -3133,6 +3310,9 @@ export function createFastGridFactory() {
     }
     if (config.type === 'datebox') {
       return formatDateboxEditorText(value, config, column);
+    }
+    if (config.type === 'yymmbox') {
+      return formatYymmboxEditorText(value, config, column);
     }
     if (config.type === 'combobox') {
       return getComboboxTextByValue(value, config);
@@ -3157,7 +3337,7 @@ export function createFastGridFactory() {
       return false;
     }
     config = getColumnEditorConfig(column);
-    if (config.type === 'datebox') {
+    if (isDateLikeEditorType(config.type)) {
       return !isDigitKey(key);
     }
     if (config.type === 'numberbox') {
@@ -3226,7 +3406,7 @@ export function createFastGridFactory() {
     }
     config = getColumnEditorConfig(column);
     text = String(event.data);
-    if (config.type === 'datebox' && /[^0-9]/.test(text)) {
+    if (isDateLikeEditorType(config.type) && /[^0-9]/.test(text)) {
       event.preventDefault();
       return;
     }
@@ -3253,7 +3433,7 @@ export function createFastGridFactory() {
         this.editor.value = formatted;
         this.editor.setSelectionRange(formatted.length, formatted.length);
       }
-      if (config && config.type === 'datebox') {
+      if (config && isDateLikeEditorType(config.type)) {
         this.syncDateboxPanelToEditor();
       }
       return;
@@ -3263,6 +3443,15 @@ export function createFastGridFactory() {
     }
     if (config.type === 'datebox') {
       formatted = sanitizeDateEditorText(this.editor.value);
+      if (formatted !== this.editor.value) {
+        this.editor.value = formatted;
+        this.editor.setSelectionRange(formatted.length, formatted.length);
+      }
+      this.syncDateboxPanelToEditor();
+      return;
+    }
+    if (config.type === 'yymmbox') {
+      formatted = sanitizeYymmboxEditorText(this.editor.value);
       if (formatted !== this.editor.value) {
         this.editor.value = formatted;
         this.editor.setSelectionRange(formatted.length, formatted.length);
@@ -3374,7 +3563,7 @@ export function createFastGridFactory() {
       }
       return;
     }
-    if (this.editorConfig.type === 'datebox') {
+    if (isDateLikeEditorType(this.editorConfig.type)) {
       if (this.dateboxPanel.style.display === 'block') {
         this.hideDateboxPanel();
       } else {
@@ -3423,13 +3612,17 @@ export function createFastGridFactory() {
     var action;
     var date;
     var month;
-    if (!target || !target.input || !target.config || target.config.type !== 'datebox') {
+    if (!target || !target.input || !target.config || !isDateLikeEditorType(target.config.type)) {
       return;
     }
     event.preventDefault();
     event.stopPropagation();
     if (monthButton) {
       month = toNumber(monthButton.getAttribute('data-month'), this.dateboxState ? this.dateboxState.month : 0);
+      if (target.config.type === 'yymmbox') {
+        this.applyDateboxTargetDate(new Date(this.dateboxState ? this.dateboxState.year : new Date().getFullYear(), clamp(month, 0, 11), 1));
+        return;
+      }
       this.dateboxState = {
         year: this.dateboxState ? this.dateboxState.year : new Date().getFullYear(),
         month: clamp(month, 0, 11),
@@ -3479,7 +3672,7 @@ export function createFastGridFactory() {
     var input = closest(event.target, 'fg-datebox-year-input');
     var target = this.dateboxTarget;
     var year;
-    if (!input || !target || !target.config || target.config.type !== 'datebox') {
+    if (!input || !target || !target.config || !isDateLikeEditorType(target.config.type)) {
       return;
     }
     year = clamp(toNumber(input.value, this.dateboxState ? this.dateboxState.year : new Date().getFullYear()), 1, 9999);
@@ -3732,12 +3925,12 @@ export function createFastGridFactory() {
     isScrollableEditor = edit.col >= this.frozenColumns && edit.col < this.scrollableColumnEnd;
     this.editor.style.zIndex = isScrollableEditor ? '3' : '10';
     this.editorIconHost.style.zIndex = isScrollableEditor ? '3' : '11';
-    if (this.editorConfig && (this.editorConfig.type === 'datebox' || this.editorConfig.type === 'combobox' || (this.editorIconConfigs && this.editorIconConfigs.length))) {
+    if (this.editorConfig && (isDateLikeEditorType(this.editorConfig.type) || this.editorConfig.type === 'combobox' || (this.editorIconConfigs && this.editorIconConfigs.length))) {
       this.editorIconHost.style.left = (left + width - this.getEditorIconHostWidth() - 2) + 'px';
       this.editorIconHost.style.top = top + 'px';
       this.editorIconHost.style.height = height + 'px';
     }
-    if (this.editorConfig && this.editorConfig.type === 'datebox') {
+    if (this.editorConfig && isDateLikeEditorType(this.editorConfig.type)) {
       this.positionDateboxPanel(left, top + height, width);
     }
     if (this.editorConfig && this.editorConfig.type === 'combobox') {
@@ -3746,7 +3939,7 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.showDateboxPanel = function() {
-    if (!this.editing || !this.editorConfig || this.editorConfig.type !== 'datebox') {
+    if (!this.editing || !this.editorConfig || !isDateLikeEditorType(this.editorConfig.type)) {
       return;
     }
     this.dateboxTarget = {
@@ -3763,7 +3956,7 @@ export function createFastGridFactory() {
 
   FastGrid.prototype.showHeaderSearchDateboxPanel = function(input, column) {
     var config = getColumnEditorConfig(column);
-    if (!input || !column || !config || config.type !== 'datebox') {
+    if (!input || !column || !config || !isDateLikeEditorType(config.type)) {
       return;
     }
     this.dateboxTarget = {
@@ -4028,7 +4221,9 @@ export function createFastGridFactory() {
       date = parseDateboxEditorValue(target.input.value, target.config);
     }
     if (!date && target && target.type === 'editor' && this.editing) {
-      date = parseDateValue(this.editing.dateboxValue || this.editing.original);
+      date = target.config.type === 'yymmbox' ?
+        parseYymmboxValue(this.editing.yymmboxValue || this.editing.original) :
+        parseDateValue(this.editing.dateboxValue || this.editing.original);
     }
     if (!date) {
       date = new Date();
@@ -4037,7 +4232,7 @@ export function createFastGridFactory() {
       year: date.getFullYear(),
       month: date.getMonth(),
       selected: date,
-      mode: 'calendar'
+      mode: target && target.config && target.config.type === 'yymmbox' ? 'months' : 'calendar'
     };
   };
 
@@ -4048,10 +4243,17 @@ export function createFastGridFactory() {
       return;
     }
     if (target.type === 'editor' && this.editing) {
-      this.editing.dateboxValue = formatDateIso(date);
-      target.input.value = formatDateboxEditorText(date, target.config, target.column);
+      if (target.config.type === 'yymmbox') {
+        this.editing.yymmboxValue = formatYymmboxDataText(date, target.column);
+        target.input.value = formatYymmboxEditorText(date, target.config, target.column);
+      } else {
+        this.editing.dateboxValue = formatDateIso(date);
+        target.input.value = formatDateboxEditorText(date, target.config, target.column);
+      }
     } else {
-      text = formatDateboxEditorText(date, target.config, target.column);
+      text = target.config.type === 'yymmbox' ?
+        formatYymmboxEditorText(date, target.config, target.column) :
+        formatDateboxEditorText(date, target.config, target.column);
       target.input.value = text;
       target.input.dispatchEvent(new Event('input', { bubbles: true }));
     }
@@ -4109,7 +4311,9 @@ export function createFastGridFactory() {
     html.push('</div>');
     if (mode === 'months') {
       this.renderDateboxMonthView(html, year, month);
-      this.renderDateboxFooter(html);
+      if (!this.dateboxTarget || !this.dateboxTarget.config || this.dateboxTarget.config.type !== 'yymmbox') {
+        this.renderDateboxFooter(html);
+      }
       this.dateboxPanel.innerHTML = html.join('');
       return;
     }
@@ -4550,6 +4754,9 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.getEditorValue = function(column) {
+    if (!column && this.editing) {
+      column = this.visibleColumns[this.editing.col];
+    }
     var config = getColumnEditorConfig(column);
     var mask = getExplicitEditorMask(column);
     if (mask) {
@@ -4557,6 +4764,9 @@ export function createFastGridFactory() {
     }
     if (config.type === 'datebox') {
       return getDateboxDataValue(this.editor.value, config, this.editing);
+    }
+    if (config.type === 'yymmbox') {
+      return getYymmboxDataValue(this.editor.value, config, this.editing, column);
     }
     if (config.type === 'combobox') {
       return getComboboxDataValue(this.editor.value, config, this.editing);
@@ -5046,7 +5256,7 @@ export function createFastGridFactory() {
       return normalizeIconConfigs(column.searchIcons);
     }
     config = getColumnEditorConfig(column);
-    if (config && config.type === 'datebox') {
+    if (config && isDateLikeEditorType(config.type)) {
       return [{ iconCls: 'icon-datebox', builtin: 'datebox' }];
     }
     if (config && config.type === 'combobox') {
@@ -5084,7 +5294,7 @@ export function createFastGridFactory() {
 
   function getEditorIconConfigWidth(icons, type) {
     if (!icons || !icons.length) {
-      return type === 'datebox' || type === 'combobox' ? 22 : 0;
+      return isDateLikeEditorType(type) || type === 'combobox' ? 22 : 0;
     }
     return getIconConfigWidth(icons, 22);
   }
@@ -5113,6 +5323,9 @@ export function createFastGridFactory() {
     config = getColumnEditorConfig(column);
     if (config.type === 'datebox') {
       return '9999/99/99';
+    }
+    if (config.type === 'yymmbox') {
+      return '9999/99';
     }
     return '';
   }
@@ -5224,10 +5437,13 @@ export function createFastGridFactory() {
     if (type === 'date' || type === 'calendar') {
       return 'datebox';
     }
+    if (type === 'yymm' || type === 'month' || type === 'monthbox' || type === 'yearmonth') {
+      return 'yymmbox';
+    }
     if (type === 'combo' || type === 'select' || type === 'dropdown') {
       return 'combobox';
     }
-    if (type === 'numberbox' || type === 'datebox' || type === 'combobox') {
+    if (type === 'numberbox' || type === 'datebox' || type === 'yymmbox' || type === 'combobox') {
       return type;
     }
     return 'textbox';
@@ -5374,6 +5590,16 @@ export function createFastGridFactory() {
     return sanitizeDateEditorText(text);
   }
 
+  function formatYymmboxEditorText(value, config, column) {
+    var date = parseYymmboxValue(value);
+    var text = date ? formatYymmboxDataText(date, column) : value;
+    var mask = getEditorMask(column);
+    if (mask) {
+      return formatMaskText(text, { mask: mask });
+    }
+    return sanitizeYymmboxEditorText(text);
+  }
+
   function getDateboxDataValue(value, config, edit) {
     var parser = config && config.options ? config.options.parser : null;
     var parsed;
@@ -5401,9 +5627,74 @@ export function createFastGridFactory() {
       if (parsed instanceof Date && !isNaN(parsed.getTime())) {
         return parsed;
       }
-      return parseDateValue(parsed);
+      return config && config.type === 'yymmbox' ? parseYymmboxValue(parsed) : parseDateValue(parsed);
     }
-    return parseDateValue(value);
+    return config && config.type === 'yymmbox' ? parseYymmboxValue(value) : parseDateValue(value);
+  }
+
+  function getYymmboxDataValue(value, config, edit, column) {
+    var parser = config && config.options ? config.options.parser : null;
+    var parsed;
+    var date;
+    if (edit && edit.yymmboxValue && value === formatYymmboxEditorText(edit.yymmboxValue, config, column)) {
+      return edit.yymmboxValue;
+    }
+    if (typeof parser === 'function') {
+      parsed = parser(value);
+      if (parsed instanceof Date && !isNaN(parsed.getTime())) {
+        return formatYymmboxDataText(parsed, column);
+      }
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+    date = parseYymmboxValue(value);
+    if (date) {
+      return formatYymmboxDataText(date, column);
+    }
+    return getMaskDataValue(value, getMaskOptions(column, getEditorMask(column)));
+  }
+
+  function parseYymmboxValue(value) {
+    var text;
+    var match;
+    var year;
+    var month;
+    if (value instanceof Date && !isNaN(value.getTime())) {
+      return new Date(value.getFullYear(), value.getMonth(), 1);
+    }
+    if (value == null || value === '') {
+      return null;
+    }
+    text = String(value).trim();
+    match = text.match(/^(\d{4})[-\/](\d{1,2})$/);
+    if (!match) {
+      match = text.match(/^(\d{4})(\d{2})$/);
+    }
+    if (!match) {
+      return null;
+    }
+    year = Number(match[1]);
+    month = Number(match[2]) - 1;
+    if (year < 1 || month < 0 || month > 11) {
+      return null;
+    }
+    return new Date(year, month, 1);
+  }
+
+  function formatYymmboxDataText(value, column) {
+    var date = parseYymmboxValue(value);
+    var mask;
+    var text;
+    if (!date) {
+      return value == null ? '' : String(value);
+    }
+    text = date.getFullYear() + pad2(date.getMonth() + 1);
+    mask = getEditorMask(column);
+    if (mask && !isMaskAutoUnmask(getMaskOptions(column, mask))) {
+      return applyMask(text, mask);
+    }
+    return text;
   }
 
   function parseDateValue(value) {
@@ -5443,6 +5734,10 @@ export function createFastGridFactory() {
 
   function formatDateDigits(date) {
     return date.getFullYear() + pad2(date.getMonth() + 1) + pad2(date.getDate());
+  }
+
+  function isDateLikeEditorType(type) {
+    return type === 'datebox' || type === 'yymmbox';
   }
 
   function pad2(value) {
@@ -5859,6 +6154,15 @@ export function createFastGridFactory() {
     return null;
   }
 
+  function isPointInElement(clientX, clientY, element) {
+    var rect;
+    if (!element) {
+      return false;
+    }
+    rect = element.getBoundingClientRect();
+    return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+  }
+
   function createFilterMenuItemHandler(grid, column, operator) {
     return function(event) {
       grid.selectFilterMenuOperator(column, operator, event);
@@ -5981,15 +6285,17 @@ export function createFastGridFactory() {
       return actual === expected;
     }
     dateConfig = getColumnEditorConfig(column);
-    if (dateConfig && dateConfig.type === 'datebox') {
+    if (dateConfig && isDateLikeEditorType(dateConfig.type)) {
       operator = operator || 'starts';
       sourceDate = parseDateboxEditorValue(value, dateConfig);
       targetDate = parseDateboxEditorValue(searchText, dateConfig);
       if (isComparisonSearchOperator(operator) && sourceDate && targetDate) {
-        sourceText = formatDateIso(sourceDate);
-        targetText = formatDateIso(targetDate);
+        sourceText = dateConfig.type === 'yymmbox' ? formatYymmboxDataText(sourceDate, column) : formatDateIso(sourceDate);
+        targetText = dateConfig.type === 'yymmbox' ? formatYymmboxDataText(targetDate, column) : formatDateIso(targetDate);
       } else {
-        sourceText = sourceDate ? formatDateboxEditorText(sourceDate, dateConfig, column).toLowerCase() : String(value).toLowerCase();
+        sourceText = sourceDate ?
+          (dateConfig.type === 'yymmbox' ? formatYymmboxEditorText(sourceDate, dateConfig, column) : formatDateboxEditorText(sourceDate, dateConfig, column)).toLowerCase() :
+          String(value).toLowerCase();
         targetText = String(searchText).toLowerCase();
       }
     } else if (dateConfig && dateConfig.type === 'combobox') {
@@ -6092,7 +6398,7 @@ export function createFastGridFactory() {
       return true;
     }
     config = getColumnEditorConfig(column);
-    return config && config.type === 'datebox';
+    return config && isDateLikeEditorType(config.type);
   }
 
   function normalizeColumnSearchOperator(operator) {
@@ -6452,6 +6758,10 @@ export function createFastGridFactory() {
 
   function sanitizeDateEditorText(value) {
     return String(value == null ? '' : value).replace(/[^0-9]/g, '').slice(0, 8);
+  }
+
+  function sanitizeYymmboxEditorText(value) {
+    return String(value == null ? '' : value).replace(/[^0-9]/g, '').slice(0, 6);
   }
 
   function getNumberCopyText(value) {
