@@ -229,11 +229,11 @@
 
 .fg-header-search-input {
   width: 100%;
-  height: 100%;
+  height: calc(100% - 1px);
   min-width: 0;
   margin: 0;
   padding: 0 8px;
-  border: 1px solid var(--fg-border);
+  border: 1px solid #d6e4f7;
   border-radius: 0;
   background: #ffffff;
   color: #111827;
@@ -244,7 +244,6 @@
 
 .fg-header-search-input:focus {
   border-color: var(--fg-editor-border);
-  height: calc(100% - 1px);
   background: #befcff;
   outline: none;
 }
