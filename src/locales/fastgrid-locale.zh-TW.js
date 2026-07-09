@@ -25,6 +25,21 @@
       selectRow: '選取第 {rowNumber} 列',
       year: '年份'
     },
+    filter: {
+      startsWith: '開頭比對({symbol})',
+      contains: '包含比對({symbol})',
+      endsWith: '結尾比對({symbol})',
+      notStartsWith: '隱藏開頭比對({symbol})',
+      notContains: '不包含比對({symbol})',
+      notEndsWith: '隱藏結尾比對({symbol})',
+      greaterThanOrEqual: '{symbol}',
+      greaterThan: '{symbol}',
+      lessThanOrEqual: '{symbol}',
+      lessThan: '{symbol}',
+      notEqual: '{symbol}',
+      equal: '{symbol}',
+      clear: '清除'
+    },
     datebox: {
       today: '今天',
       close: '關閉',

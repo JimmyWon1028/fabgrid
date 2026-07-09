@@ -3,7 +3,7 @@
   --fg-border: #ccc;
   --fg-border-strong: #cbc7bd;
   --fg-header-bg: #EFEFEF;
-  --fg-header-text: #1f1f1f;
+  --fg-header-text: gray;
   --fg-cell-bg: #eceadf;
   --fg-cell-alt-bg: #fafafa;
   --fg-cell-text: #1f1f1f;
@@ -11,7 +11,7 @@
   --fg-row-hover-bg: #654b24;
   --fg-row-selected-bg: #B83400;
   --fg-row-header-bg: #EFEFEF;
-  --fg-row-header-text: #1f1f1f;
+  --fg-row-header-text: gray;
   --fg-selected-bg: #654b24;
   --fg-selected-border: #80b103;
   background: #eceadf;
@@ -34,8 +34,8 @@
 .fg-root.fg-theme-pepper-grinder .fg-footer-selection,
 .fg-root.fg-theme-pepper-grinder .fg-footer-cell,
 .fg-root.fg-theme-pepper-grinder .fg-row-header-cell {
-  background-color: #EFEFEF;
-  color: #1f1f1f;
+  background-color: var(--fg-header-bg);
+  color: gray;
 }
 
 .fg-root.fg-theme-pepper-grinder .fg-body,

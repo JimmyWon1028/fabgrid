@@ -100,6 +100,7 @@ server.listen(port, '127.0.0.1', async function() {
       !isTransparentColor(result.resizeLineBackground) ||
       !result.rowHeadersHiddenWorks ||
       !result.rowHeadersShownWorks ||
+      !result.rowHeadersCellOnlyWorks ||
       !result.multiSelectColumnVisibleWorks ||
       !result.multiSelectRowsWorks ||
       !result.multiCellClickToggleOffWorks ||
@@ -142,9 +143,10 @@ server.listen(port, '127.0.0.1', async function() {
       result.hoveredEvenRowCells < 2 ||
       result.hoveredEvenRowBackground !== 'rgb(237, 246, 255)' ||
       !result.cellClickSelectsRowWorks ||
-      !result.cellClickTogglesRowOffWorks ||
-      !result.singleSpaceDoesNotSelectRowWorks ||
-      !result.singleSpaceKeepsRowOffWorks ||
+      !result.cellClickSelectedBackgroundWorks ||
+      !result.cellClickKeepsRowSelectedWorks ||
+      !result.singleSpaceKeepsSelectedRowWorks ||
+      !result.singleSpaceStillKeepsSelectedRowWorks ||
       !result.multiSpaceSelectsRowWorks ||
       !result.multiSpaceTogglesRowOffWorks ||
       !result.readOnlyArrowDownSelectsRowWorks ||
@@ -210,6 +212,8 @@ server.listen(port, '127.0.0.1', async function() {
       !result.asyncColumnValidateWorks ||
       !result.asyncColumnValidateClearsWorks ||
       !result.textboxDefaultEditorWorks ||
+      !result.customEditorButtonDisplaysWorks ||
+      !result.customEditorButtonCallbackWorks ||
       !result.numberboxEditorConfigWorks ||
       !result.comboboxEditorConfigWorks ||
       !result.comboboxPanelOpensWorks ||
@@ -229,6 +233,7 @@ server.listen(port, '127.0.0.1', async function() {
       !result.dateboxOnlyAllowsDigitKeysWorks ||
       !result.dateboxBackspaceDeletesAcrossLiteralWorks ||
       !result.dateboxTriggerUsesImageWorks ||
+      !result.dateboxCustomIconsIgnoredWorks ||
       !result.dateboxPanelHiddenOnStartWorks ||
       !result.dateboxPanelOpensWorks ||
       !result.dateboxMonthViewOpensWorks ||
@@ -281,7 +286,7 @@ server.listen(port, '127.0.0.1', async function() {
       !result.busyOverlayWorks ||
       !result.busyOverlayClearsWorks ||
       result.rowSelection !== 0 ||
-      result.rowHeaderTopText !== '' ||
+      result.rowHeaderTopText !== '1' ||
       result.rowHeaderWidth !== '60px' ||
       result.firstRowHeaderText !== '1' ||
       result.rowHeaderCells < 1 ||

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FastGrid Dev Demo</title>
+  <link rel="stylesheet" href="../src/styles/fastgrid.css?v=20260709-filter-editor-popup-close">
+  <link rel="stylesheet" href="../src/styles/my.icon.css?v=20260709-filter-editor-popup-close">
+  <link rel="stylesheet" href="./style.css?v=20260709-filter-editor-popup-close">
+</head>
+<body>
+  <main class="page">
+    <section class="toolbar" aria-label="FastGrid controls">
+      <div class="brand">
+        <h1>FastGrid</h1>
+        <p>Pure JS performance-first grid · <span id="datasetSummary">-</span></p>
+      </div>
+      <label class="field">
+        <span id="searchLabel">搜尋</span>
+        <input id="searchInput" type="search" placeholder="輸入關鍵字">
+      </label>
+      <label class="field compact">
+        <span id="languageLabel">語言</span>
+        <select id="languageInput">
+          <option value="zh-TW">繁體中文</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <label class="field compact theme-field">
+        <span id="themeLabel">主題</span>
+        <select id="themeInput"></select>
+      </label>
+      <label class="field compact">
+        <span id="frozenLabel">凍結欄</span>
+        <input id="frozenInput" type="number" min="0" max="6" value="2">
+      </label>
+      <label class="field compact">
+        <span id="frozenRightLabel">右凍結欄</span>
+        <input id="frozenRightInput" type="number" min="0" max="6" value="1">
+      </label>
+      <label class="field compact">
+        <span id="rowHeadersLabel">列號</span>
+        <select id="rowHeadersInput">
+          <option value="false">關閉</option>
+          <option value="true">顯示列號</option>
+          <option value="cell">只顯示 cell</option>
+        </select>
+      </label>
+      <label class="toggle">
+        <input id="searchRowInput" type="checkbox" checked>
+        <span id="searchRowLabel">搜尋列</span>
+      </label>
+      <label class="toggle">
+        <input id="multiSelectInput" type="checkbox">
+        <span id="multiSelectLabel">多選</span>
+      </label>
+      <label class="toggle">
+        <input id="editModeInput" type="checkbox" checked>
+        <span id="editModeLabel">編輯</span>
+      </label>
+      <button id="exportButton" type="button">匯出 CSV</button>
+      <button id="exportExcelButton" type="button">匯出 Excel</button>
+    </section>
+
+    <section class="stats" aria-label="FastGrid stats">
+      <span id="rowCount">Rows: -</span>
+      <span id="rowRange">Rows visible: -</span>
+      <span id="columnRange">Columns visible: -</span>
+      <span id="cellCount">Rendered cells: -</span>
+    </section>
+
+    <section class="grid-shell">
+      <div id="grid"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { createFastGridFactory } from '../src/fastgrid-core.js?v=20260709-filter-editor-popup-close';
+
+    window.FASTGRID_DEMO_THEME_ROOT = '../src/styles/themes';
+    window.FASTGRID_DEMO_THEME_VERSION = '20260709-filter-editor-popup-close';
+    window.FastGrid = createFastGridFactory();
+    await import('../src/locales/fastgrid-locale.zh-TW.js?v=20260709-filter-editor-popup-close');
+    await import('../src/locales/fastgrid-locale.en.js?v=20260709-filter-editor-popup-close');
+    await import('./demo.js?v=20260709-filter-editor-popup-close');
+  </script>
+</body>
+</html>

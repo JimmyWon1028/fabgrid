@@ -6,6 +6,7 @@ const distDir = path.join(root, 'dist');
 const localesDir = path.join(root, 'src', 'locales');
 const corePath = path.join(root, 'src', 'fastgrid-core.js');
 const cssPath = path.join(root, 'src', 'styles', 'fastgrid.css');
+const iconCssPath = path.join(root, 'src', 'styles', 'my.icon.css');
 const stylesDir = path.join(root, 'src', 'styles');
 const themeSourceDir = path.join(stylesDir, 'themes');
 const imagesDir = path.join(root, 'src', 'images');
@@ -279,6 +280,11 @@ write('fastgrid.js', global);
 write('fastgrid.min.js', banner('Global min') + minifyJs(global));
 write('fastgrid.css', css);
 write('fastgrid.min.css', minifyCss(css));
+if (fs.existsSync(iconCssPath)) {
+  const iconCss = fs.readFileSync(iconCssPath, 'utf8').replace(/\.\.\/images\//g, 'images/');
+  write('my.icon.css', iconCss);
+  write('my.icon.min.css', minifyCss(iconCss));
+}
 writeLocaleFiles();
 writeThemeFiles();
 if (fs.existsSync(imagesDir)) {

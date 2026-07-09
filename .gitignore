@@ -10,3 +10,5 @@ coverage/
 .nyc_output/
 *.tmp
 *.log
+src/resource/
+dist/resource/

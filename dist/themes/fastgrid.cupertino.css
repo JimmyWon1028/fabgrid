@@ -3,7 +3,7 @@
   --fg-border: #AED0EA;
   --fg-border-strong: #AED0EA;
   --fg-header-bg: #F5F5F5;
-  --fg-header-text: #000;
+  --fg-header-text: gray;
   --fg-cell-bg: #f2f5f7;
   --fg-cell-alt-bg: #fafafa;
   --fg-cell-text: #000;
@@ -11,7 +11,7 @@
   --fg-row-hover-bg: #e4f1fb;
   --fg-row-selected-bg: #3baae3;
   --fg-row-header-bg: #F5F5F5;
-  --fg-row-header-text: #000;
+  --fg-row-header-text: gray;
   --fg-selected-bg: #e4f1fb;
   --fg-selected-border: #c37c58;
   background: #f2f5f7;
@@ -34,8 +34,8 @@
 .fg-root.fg-theme-cupertino .fg-footer-selection,
 .fg-root.fg-theme-cupertino .fg-footer-cell,
 .fg-root.fg-theme-cupertino .fg-row-header-cell {
-  background-color: #F5F5F5;
-  color: #000;
+  background-color: var(--fg-header-bg);
+  color: gray;
 }
 
 .fg-root.fg-theme-cupertino .fg-body,

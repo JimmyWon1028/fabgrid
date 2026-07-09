@@ -4,7 +4,7 @@ export function createFastGridFactory() {
 
   var DEFAULT_OPTIONS = {
     rowHeight: 32,
-    headerHeight: 36,
+    headerHeight: 32,
     overscanRows: 8,
     fastScrollOverscanRows: 64,
     overscanColumns: 3,
@@ -14,7 +14,7 @@ export function createFastGridFactory() {
     rowHeaderHeader: '',
     showRowHeaders: true,
     showFooter: false,
-    footerHeight: 28,
+    footerHeight: 32,
     footerLabel: 'Σ',
     multiSelectRows: false,
     selectionCheckboxWidth: 44,
@@ -27,6 +27,9 @@ export function createFastGridFactory() {
     allowPinning: false,
     headerDisplayMode: 'header',
     headerToggleKey: false,
+    showSearchRow: false,
+    searchRowHeight: null,
+    searchDelay: 200,
     alternatingRows: false,
     alternatingRowBackground: '#fafafa',
     autoClipboard: true,
@@ -50,6 +53,7 @@ export function createFastGridFactory() {
     }
 
     this.options = mergeOptions(DEFAULT_OPTIONS, options || {});
+    this.options.showRowHeaders = normalizeRowHeaderMode(this.options.showRowHeaders);
     this.setLocale(this.options.locale, this.options.messages, true);
     if (this.options.isReadOnly === true) {
       this.options.allowEditing = false;
@@ -61,6 +65,9 @@ export function createFastGridFactory() {
     this.view = [];
     this.filterPredicate = null;
     this.searchText = '';
+    this.columnSearchValues = {};
+    this.columnSearchOperators = {};
+    this.hasColumnSearch = false;
     this.sortState = null;
     this.headerDisplayMode = normalizeHeaderDisplayMode(this.options.headerDisplayMode);
     this.columnOffsets = [];
@@ -87,9 +94,15 @@ export function createFastGridFactory() {
     this.hoverRow = null;
     this.editing = null;
     this.editorConfig = null;
+    this.editorIconConfigs = [];
     this.dateboxState = null;
+    this.dateboxTarget = null;
+    this.comboboxTarget = null;
+    this.headerSearchFocusRequest = null;
+    this.headerSearchFocusRaf = 0;
     this.comboboxItems = [];
     this.comboboxActiveIndex = -1;
+    this.filterMenuColumn = null;
     this.invalidItems = [];
     this._invalidItemMap = {};
     this._validationErrorSeq = 0;
@@ -103,6 +116,7 @@ export function createFastGridFactory() {
     this.resizeState = null;
     this.suppressClick = false;
     this.copyBuffer = '';
+    this.headerSearchTimer = 0;
     this.cells = { grid: this, cellType: 'Cell' };
     this.columnHeaders = { grid: this, cellType: 'ColumnHeader' };
     this.rowHeaders = { grid: this, cellType: 'RowHeader' };
@@ -121,10 +135,13 @@ export function createFastGridFactory() {
     this._boundEditorBeforeInput = bind(this, this.handleEditorBeforeInput);
     this._boundEditorInput = bind(this, this.handleEditorInput);
     this._boundEditorCopy = bind(this, this.handleEditorCopy);
+    this._boundHeaderSearchBeforeInput = bind(this, this.handleHeaderSearchBeforeInput);
+    this._boundHeaderSearchInput = bind(this, this.handleHeaderSearchInput);
     this._boundEditorTriggerClick = bind(this, this.handleEditorTriggerClick);
     this._boundDateboxClick = bind(this, this.handleDateboxClick);
     this._boundDateboxChange = bind(this, this.handleDateboxChange);
     this._boundComboboxMouseDown = bind(this, this.handleComboboxMouseDown);
+    this._boundFilterMenuClick = bind(this, this.handleFilterMenuClick);
     this._boundDocumentMouseDown = bind(this, this.handleDocumentMouseDown);
     this._boundBusyEvent = bind(this, this.blockBusyEvent);
     this._boundResize = bind(this, this.invalidate);
@@ -252,6 +269,9 @@ export function createFastGridFactory() {
       if (this.dateboxPanel && window.getComputedStyle(this.dateboxPanel).display !== 'none') {
         this.renderDateboxPanel();
       }
+      if (this.filterMenuColumn && this.isFilterMenuOpen()) {
+        this.renderFilterMenu(this.filterMenuColumn);
+      }
       this.render();
     }
   };
@@ -284,13 +304,14 @@ export function createFastGridFactory() {
         '<div class="fg-frozen-pane"><div class="fg-frozen-layer"></div></div>' +
         '<div class="fg-frozen-pane-right"><div class="fg-frozen-layer-right"></div></div>' +
         '<input class="fg-editor textbox-f" type="text">' +
-        '<button class="fg-editor-trigger" type="button"></button>' +
+        '<div class="fg-editor-icons"><button class="fg-editor-trigger" type="button"></button></div>' +
         '<div class="fg-datebox-panel" role="dialog"></div>' +
         '<div class="fg-combobox-panel" role="listbox"></div>' +
         '<div class="fg-invalid-tip" role="tooltip"></div>' +
         '<div class="fg-empty"></div>' +
         '<div class="fg-busy-overlay" aria-live="polite"><div class="fg-busy-panel"><span class="fg-busy-spinner"></span><span class="fg-busy-text"></span></div></div>' +
       '</div>' +
+      '<div class="fg-filter-menu" role="menu"></div>' +
       '<div class="fg-footer">' +
         '<div class="fg-footer-row-header"></div>' +
         '<div class="fg-footer-selection"></div>' +
@@ -323,9 +344,11 @@ export function createFastGridFactory() {
     this.frozenRightPane = root.querySelector('.fg-frozen-pane-right');
     this.frozenRightLayer = root.querySelector('.fg-frozen-layer-right');
     this.editor = root.querySelector('.fg-editor');
+    this.editorIconHost = root.querySelector('.fg-editor-icons');
     this.editorTrigger = root.querySelector('.fg-editor-trigger');
     this.dateboxPanel = root.querySelector('.fg-datebox-panel');
     this.comboboxPanel = root.querySelector('.fg-combobox-panel');
+    this.filterMenu = root.querySelector('.fg-filter-menu');
     this.invalidTip = root.querySelector('.fg-invalid-tip');
     this.footer = root.querySelector('.fg-footer');
     this.footerRowHeader = root.querySelector('.fg-footer-row-header');
@@ -337,8 +360,7 @@ export function createFastGridFactory() {
     this.empty = root.querySelector('.fg-empty');
     this.busyOverlay = root.querySelector('.fg-busy-overlay');
     this.busyText = root.querySelector('.fg-busy-text');
-    this.header.style.height = this.options.headerHeight + 'px';
-    this.body.style.top = this.options.headerHeight + 'px';
+    this.syncHeaderLayout();
     this.applyLocaleToDom();
     this.applyThemeOptions();
   };
@@ -362,6 +384,9 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.getEditorTriggerLabel = function() {
+    if (this.editorIconConfigs && this.editorIconConfigs.length) {
+      return this.editorIconConfigs[0].ariaLabel || this.editorIconConfigs[0].label || this.editorIconConfigs[0].title || this.getText('aria.cellEditor');
+    }
     return this.editorConfig && this.editorConfig.type === 'combobox' ?
       this.getText('aria.openComboBox') :
       this.getText('aria.openDatePicker');
@@ -376,6 +401,8 @@ export function createFastGridFactory() {
   FastGrid.prototype.bindDomEvents = function() {
     this.bodyScroll.addEventListener('scroll', this._boundScroll);
     this.root.addEventListener('click', this._boundClick);
+    this.root.addEventListener('pointerdown', this._boundFilterMenuClick, true);
+    this.root.addEventListener('mousedown', this._boundFilterMenuClick, true);
     this.root.addEventListener('dblclick', this._boundDblClick);
     this.root.addEventListener('keydown', this._boundKeyDown);
     this.root.addEventListener('mousemove', this._boundMouseMove);
@@ -385,10 +412,18 @@ export function createFastGridFactory() {
     this.root.addEventListener('touchmove', this._boundBusyEvent, { passive: false });
     this.editor.addEventListener('input', this._boundEditorInput);
     this.editor.addEventListener('copy', this._boundEditorCopy);
-    this.editorTrigger.addEventListener('click', this._boundEditorTriggerClick);
+    this.header.addEventListener('beforeinput', this._boundHeaderSearchBeforeInput);
+    this.header.addEventListener('input', this._boundHeaderSearchInput);
+    this.editorIconHost.addEventListener('click', this._boundEditorTriggerClick);
     this.dateboxPanel.addEventListener('click', this._boundDateboxClick);
     this.dateboxPanel.addEventListener('change', this._boundDateboxChange);
     this.comboboxPanel.addEventListener('mousedown', this._boundComboboxMouseDown);
+    this.filterMenu.addEventListener('pointerdown', this._boundFilterMenuClick, true);
+    this.filterMenu.addEventListener('mousedown', this._boundFilterMenuClick, true);
+    this.filterMenu.addEventListener('click', this._boundFilterMenuClick);
+    document.addEventListener('pointerdown', this._boundFilterMenuClick, true);
+    document.addEventListener('mousedown', this._boundFilterMenuClick, true);
+    document.addEventListener('click', this._boundFilterMenuClick, true);
     document.addEventListener('mousedown', this._boundDocumentMouseDown);
     document.addEventListener('pointermove', this._boundPointerMove);
     document.addEventListener('pointerup', this._boundPointerUp);
@@ -460,13 +495,24 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.setShowRowHeaders = function(value) {
-    this.options.showRowHeaders = value !== false;
+    this.options.showRowHeaders = normalizeRowHeaderMode(value);
     this.updateLayout();
     this.refresh();
   };
 
   FastGrid.prototype.setShowFooter = function(value) {
     this.options.showFooter = value === true;
+    this.refresh();
+  };
+
+  FastGrid.prototype.setShowSearchRow = function(value) {
+    this.options.showSearchRow = value === true;
+    if (!this.options.showSearchRow) {
+      this.cancelHeaderSearchTimer();
+      this.hideFilterMenu();
+    }
+    this.applyView();
+    this.resetScroll();
     this.refresh();
   };
 
@@ -484,6 +530,9 @@ export function createFastGridFactory() {
     this.options.multiSelectRows = value === true;
     if (!this.options.multiSelectRows) {
       this.selectedRowMap = {};
+      if (this.rowSelection == null && this.view.length) {
+        this.rowSelection = this.selection.row;
+      }
     }
     this.updateLayout();
     this.refresh();
@@ -517,8 +566,13 @@ export function createFastGridFactory() {
   FastGrid.prototype.clearFilter = function() {
     this.filterPredicate = null;
     this.searchText = '';
+    this.columnSearchValues = {};
+    this.columnSearchOperators = {};
+    this.cancelHeaderSearchTimer();
+    this.hideFilterMenu();
+    this.updateColumnSearchState();
     this.applyView();
-    this.resetScroll();
+    this.resetVerticalScroll();
     this.refresh();
   };
 
@@ -527,6 +581,106 @@ export function createFastGridFactory() {
     this.applyView();
     this.resetScroll();
     this.refresh();
+  };
+
+  FastGrid.prototype.setColumnSearch = function(column, value) {
+    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
+    var key;
+    if (!col) {
+      return;
+    }
+    this.cancelHeaderSearchTimer();
+    key = getColumnSearchKey(col);
+    value = String(value == null ? '' : value).trim();
+    if (value) {
+      this.columnSearchValues[key] = value;
+    } else {
+      delete this.columnSearchValues[key];
+    }
+    this.updateColumnSearchState();
+    this.applyView();
+    this.resetVerticalScroll();
+    this.refresh();
+  };
+
+  FastGrid.prototype.setColumnSearchOperator = function(column, operator) {
+    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
+    var key;
+    if (!col) {
+      return;
+    }
+    key = getColumnSearchKey(col);
+    operator = normalizeColumnSearchOperator(operator);
+    if (operator) {
+      this.columnSearchOperators[key] = operator;
+    } else {
+      delete this.columnSearchOperators[key];
+    }
+    this.hideFilterMenu();
+    this.applyView();
+    this.resetVerticalScroll();
+    this.refresh();
+  };
+
+  FastGrid.prototype.applyHeaderSearch = function(colIndex, selectionStart, selectionEnd) {
+    this.applyView();
+    this.resetVerticalScroll();
+    this.refresh();
+    this.focusHeaderSearchInput(colIndex, selectionStart, selectionEnd);
+  };
+
+  FastGrid.prototype.clearColumnSearch = function() {
+    this.columnSearchValues = {};
+    this.columnSearchOperators = {};
+    this.cancelHeaderSearchTimer();
+    this.updateColumnSearchState();
+    this.applyView();
+    this.resetScroll();
+    this.refresh();
+  };
+
+  FastGrid.prototype.clearSearchConditions = function(source) {
+    this.searchText = '';
+    this.columnSearchValues = {};
+    this.columnSearchOperators = {};
+    this.cancelHeaderSearchTimer();
+    this.hideFilterMenu();
+    this.updateColumnSearchState();
+    this.applyView();
+    this.resetVerticalScroll();
+    this.refresh();
+    this.emit('searchCleared', { source: source || 'api' });
+  };
+
+  FastGrid.prototype.cancelHeaderSearchTimer = function() {
+    if (this.headerSearchTimer) {
+      window.clearTimeout(this.headerSearchTimer);
+      this.headerSearchTimer = 0;
+    }
+  };
+
+  FastGrid.prototype.scheduleHeaderSearch = function(colIndex, selectionStart, selectionEnd) {
+    var self = this;
+    var delay = Math.max(0, toNumber(this.options.searchDelay, DEFAULT_OPTIONS.searchDelay));
+    this.cancelHeaderSearchTimer();
+    if (delay === 0) {
+      this.applyHeaderSearch(colIndex, selectionStart, selectionEnd);
+      return;
+    }
+    this.headerSearchTimer = window.setTimeout(function() {
+      var activeInput = self.getActiveHeaderSearchInput();
+      self.headerSearchTimer = 0;
+      if (activeInput) {
+        colIndex = toNumber(activeInput.getAttribute('data-col'), colIndex);
+        selectionStart = activeInput.selectionStart;
+        selectionEnd = activeInput.selectionEnd;
+        self.applyHeaderSearch(colIndex, selectionStart, selectionEnd);
+      } else {
+        self.applyView();
+        self.resetVerticalScroll();
+        self.refresh();
+      }
+    }, delay);
   };
 
   FastGrid.prototype.refresh = function() {
@@ -542,6 +696,33 @@ export function createFastGridFactory() {
     this.scheduleRender();
   };
 
+  FastGrid.prototype.getHeaderHeight = function() {
+    return toNumber(this.options.headerHeight, DEFAULT_OPTIONS.headerHeight) + this.getSearchRowHeight();
+  };
+
+  FastGrid.prototype.getHeaderTitleHeight = function() {
+    return toNumber(this.options.headerHeight, DEFAULT_OPTIONS.headerHeight);
+  };
+
+  FastGrid.prototype.getSearchRowHeight = function() {
+    var fallback = toNumber(this.options.rowHeight, DEFAULT_OPTIONS.rowHeight);
+    var height = this.options.searchRowHeight == null ? fallback : toNumber(this.options.searchRowHeight, fallback);
+    return this.options.showSearchRow === true ? Math.max(22, height) : 0;
+  };
+
+  FastGrid.prototype.syncHeaderLayout = function() {
+    var height = this.getHeaderHeight();
+    var titleHeight = this.getHeaderTitleHeight();
+    var searchHeight = this.getSearchRowHeight();
+    if (!this.header || !this.body) {
+      return;
+    }
+    this.root.style.setProperty('--fg-header-title-height', titleHeight + 'px');
+    this.root.style.setProperty('--fg-search-row-height', searchHeight + 'px');
+    this.header.style.height = height + 'px';
+    this.body.style.top = height + 'px';
+  };
+
   FastGrid.prototype.dispose = function() {
     var name;
     if (this.disposed) {
@@ -551,9 +732,16 @@ export function createFastGridFactory() {
     if (this.raf) {
       cancelAnimationFrame(this.raf);
     }
+    if (this.headerSearchFocusRaf) {
+      cancelAnimationFrame(this.headerSearchFocusRaf);
+      this.headerSearchFocusRaf = 0;
+    }
+    this.cancelHeaderSearchTimer();
     this.finishEditing(false);
     this.bodyScroll.removeEventListener('scroll', this._boundScroll);
     this.root.removeEventListener('click', this._boundClick);
+    this.root.removeEventListener('pointerdown', this._boundFilterMenuClick, true);
+    this.root.removeEventListener('mousedown', this._boundFilterMenuClick, true);
     this.root.removeEventListener('dblclick', this._boundDblClick);
     this.root.removeEventListener('keydown', this._boundKeyDown);
     this.root.removeEventListener('mousemove', this._boundMouseMove);
@@ -563,10 +751,18 @@ export function createFastGridFactory() {
     this.root.removeEventListener('touchmove', this._boundBusyEvent);
     this.editor.removeEventListener('input', this._boundEditorInput);
     this.editor.removeEventListener('copy', this._boundEditorCopy);
-    this.editorTrigger.removeEventListener('click', this._boundEditorTriggerClick);
+    this.header.removeEventListener('beforeinput', this._boundHeaderSearchBeforeInput);
+    this.header.removeEventListener('input', this._boundHeaderSearchInput);
+    this.editorIconHost.removeEventListener('click', this._boundEditorTriggerClick);
     this.dateboxPanel.removeEventListener('click', this._boundDateboxClick);
     this.dateboxPanel.removeEventListener('change', this._boundDateboxChange);
     this.comboboxPanel.removeEventListener('mousedown', this._boundComboboxMouseDown);
+    this.filterMenu.removeEventListener('pointerdown', this._boundFilterMenuClick, true);
+    this.filterMenu.removeEventListener('mousedown', this._boundFilterMenuClick, true);
+    this.filterMenu.removeEventListener('click', this._boundFilterMenuClick);
+    document.removeEventListener('pointerdown', this._boundFilterMenuClick, true);
+    document.removeEventListener('mousedown', this._boundFilterMenuClick, true);
+    document.removeEventListener('click', this._boundFilterMenuClick, true);
     document.removeEventListener('mousedown', this._boundDocumentMouseDown);
     document.removeEventListener('pointermove', this._boundPointerMove);
     document.removeEventListener('pointerup', this._boundPointerUp);
@@ -605,19 +801,21 @@ export function createFastGridFactory() {
     var rows = this.source.slice();
     var filterPredicate = this.filterPredicate;
     var searchText = this.searchText;
+    var columnSearchValues = this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchValues : null;
+    var columnSearchOperators = this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchOperators : null;
     var columns = this.columns;
     var sortState = this.sortState;
     var selectionState = this.captureSelectionState();
 
-    if (filterPredicate || searchText) {
+    if (filterPredicate || searchText || columnSearchValues) {
       rows = rows.filter(function(item, index) {
         if (filterPredicate && !filterPredicate(item, index)) {
           return false;
         }
         if (!searchText) {
-          return true;
+          return !columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators);
         }
-        return rowMatchesSearch(item, columns, searchText);
+        return rowMatchesSearch(item, columns, searchText) && (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators));
       });
     }
 
@@ -635,6 +833,7 @@ export function createFastGridFactory() {
     this.refreshInvalidItemRows();
     this.restoreSelectionState(selectionState);
     this.clampSelection();
+    this.syncEditingWithView();
   };
 
   FastGrid.prototype.updateLayout = function() {
@@ -683,6 +882,12 @@ export function createFastGridFactory() {
     }
   };
 
+  FastGrid.prototype.resetVerticalScroll = function() {
+    if (this.bodyScroll) {
+      this.bodyScroll.scrollTop = 0;
+    }
+  };
+
   FastGrid.prototype.scheduleRender = function() {
     var self = this;
     if (this.raf || this.disposed) {
@@ -696,6 +901,9 @@ export function createFastGridFactory() {
 
   FastGrid.prototype.handleScroll = function() {
     this.hideInvalidTip();
+    if (this.isFilterMenuOpen()) {
+      this.hideFilterMenu();
+    }
     if (this.isDateboxPanelOpen()) {
       this.hideDateboxPanel();
     }
@@ -748,7 +956,6 @@ export function createFastGridFactory() {
       return false;
     }
     metrics = this.getViewportMetrics();
-    metrics.contentHeight = Math.max(0, metrics.contentHeight - this.getFooterHeight());
     visibleRowStart = Math.floor(metrics.scrollTop / this.options.rowHeight);
     visibleRowEnd = Math.min(this.view.length, Math.ceil((metrics.scrollTop + metrics.contentHeight) / this.options.rowHeight));
     if (
@@ -789,12 +996,12 @@ export function createFastGridFactory() {
       return;
     }
     this.updateLayout();
+    this.syncHeaderLayout();
     footerHeight = this.getFooterHeight();
     this.body.style.bottom = '0px';
     metrics = this.getViewportMetrics();
     scrollbarGutterSize = this.getScrollbarGutterSize();
     verticalScrollbarGutterSize = this.getVerticalScrollbarGutterSize();
-    metrics.contentHeight = Math.max(0, metrics.contentHeight - footerHeight);
     this.root.style.setProperty('--fg-scrollbar-gutter-size', scrollbarGutterSize + 'px');
     rowHeaderWidth = this.getRowHeaderWidth();
     selectionCheckboxWidth = this.getSelectionCheckboxWidth();
@@ -812,16 +1019,17 @@ export function createFastGridFactory() {
     this.sizeLayer.style.width = Math.max(metrics.width, fixedLeftWidth + this.frozenWidth + this.scrollableWidth + this.frozenRightWidth) + 'px';
     this.sizeLayer.style.height = (totalHeight + footerHeight) + 'px';
     this.rowHeaderTop.style.width = rowHeaderWidth + 'px';
-    this.rowHeaderTop.style.height = this.options.headerHeight + 'px';
+    this.rowHeaderTop.style.height = this.getHeaderHeight() + 'px';
     this.rowHeaderTop.style.display = rowHeaderWidth > 0 ? 'flex' : 'none';
-    this.rowHeaderTop.textContent = rowHeaderWidth > 0 ? this.options.rowHeaderHeader : '';
+    this.renderTopLeftSearchCount(this.rowHeaderTop, this.shouldShowRowHeaderText() ? this.options.rowHeaderHeader : '', this.shouldShowRowHeaderText());
     this.rowHeaderPane.style.width = rowHeaderWidth + 'px';
     this.rowHeaderPane.style.bottom = (scrollbarGutterSize + footerHeight) + 'px';
     this.rowHeaderPane.style.display = rowHeaderWidth > 0 ? 'block' : 'none';
     this.selectionTop.style.left = rowHeaderWidth + 'px';
     this.selectionTop.style.width = selectionCheckboxWidth + 'px';
-    this.selectionTop.style.height = this.options.headerHeight + 'px';
+    this.selectionTop.style.height = this.getHeaderHeight() + 'px';
     this.selectionTop.style.display = selectionCheckboxWidth > 0 ? 'flex' : 'none';
+    this.renderTopLeftSearchCount(this.selectionTop, '', selectionCheckboxWidth > 0 && rowHeaderWidth <= 0);
     this.selectionPane.style.left = rowHeaderWidth + 'px';
     this.selectionPane.style.width = selectionCheckboxWidth + 'px';
     this.selectionPane.style.bottom = (scrollbarGutterSize + footerHeight) + 'px';
@@ -848,7 +1056,7 @@ export function createFastGridFactory() {
     this.footer.style.display = footerHeight > 0 ? 'block' : 'none';
     this.footerRowHeader.style.width = rowHeaderWidth + 'px';
     this.footerRowHeader.style.display = rowHeaderWidth > 0 ? 'flex' : 'none';
-    this.footerRowHeader.textContent = rowHeaderWidth > 0 ? this.options.footerLabel : '';
+    this.footerRowHeader.textContent = this.shouldShowRowHeaderText() ? this.options.footerLabel : '';
     this.footerSelection.style.left = rowHeaderWidth + 'px';
     this.footerSelection.style.width = selectionCheckboxWidth + 'px';
     this.footerSelection.style.display = selectionCheckboxWidth > 0 ? 'block' : 'none';
@@ -887,16 +1095,23 @@ export function createFastGridFactory() {
       renderedCells: renderedCells,
       totalRows: this.view.length
     });
+    this.restoreHeaderSearchFocus();
   };
 
   FastGrid.prototype.getViewportMetrics = function() {
     return {
       width: this.bodyScroll.clientWidth,
       height: this.bodyScroll.clientHeight,
-      contentHeight: this.bodyScroll.clientHeight,
+      contentHeight: this.getScrollableContentHeight(),
       scrollTop: this.bodyScroll.scrollTop,
       scrollLeft: this.bodyScroll.scrollLeft
     };
+  };
+
+  FastGrid.prototype.getScrollableContentHeight = function() {
+    var height = this.bodyScroll ? this.bodyScroll.clientHeight : 0;
+    height -= this.getFooterHeight();
+    return Math.max(0, height);
   };
 
   FastGrid.prototype.getRowRange = function(metrics) {
@@ -965,7 +1180,14 @@ export function createFastGridFactory() {
     if (this.options.showRowHeaders === false) {
       return 0;
     }
+    if (this.options.showRowHeaders === 'cell') {
+      return 18;
+    }
     return Math.max(0, toNumber(this.options.rowHeaderWidth, 72));
+  };
+
+  FastGrid.prototype.shouldShowRowHeaderText = function() {
+    return this.options.showRowHeaders !== false && this.options.showRowHeaders !== 'cell';
   };
 
   FastGrid.prototype.getSelectionCheckboxWidth = function() {
@@ -979,7 +1201,28 @@ export function createFastGridFactory() {
     if (this.options.showFooter !== true) {
       return 0;
     }
-    return Math.max(0, toNumber(this.options.footerHeight, 28));
+    return Math.max(0, toNumber(this.options.footerHeight, DEFAULT_OPTIONS.footerHeight));
+  };
+
+  FastGrid.prototype.renderTopLeftSearchCount = function(element, title, showCount) {
+    var label = element.querySelector('.fg-top-title');
+    var count = element.querySelector('.fg-search-count');
+    if (!label) {
+      label = document.createElement('span');
+      label.className = 'fg-top-title';
+      element.insertBefore(label, element.firstChild);
+    }
+    if (!count) {
+      count = document.createElement('span');
+      count.className = 'fg-search-count';
+      element.appendChild(count);
+    }
+    label.textContent = title || '';
+    count.textContent = showCount && this.hasActiveFilter() ? String(this.view.length) : '';
+  };
+
+  FastGrid.prototype.hasActiveFilter = function() {
+    return !!this.filterPredicate || !!this.searchText || (this.options.showSearchRow === true && this.hasColumnSearch);
   };
 
   FastGrid.prototype.getFixedLeftWidth = function() {
@@ -1015,6 +1258,13 @@ export function createFastGridFactory() {
     this.headerFrozen.appendChild(frozenFragment);
     this.headerFrozenRight.appendChild(frozenRightFragment);
     this.headerCanvas.appendChild(scrollFragment);
+  };
+
+  FastGrid.prototype.renderVisibleRows = function() {
+    this.renderRowHeaders(this.rowRange);
+    this.renderSelectionCheckboxes(this.rowRange);
+    this.renderBody(this.rowRange, this.columnRange);
+    this.renderSelection();
   };
 
   FastGrid.prototype.renderFooter = function(colRange) {
@@ -1265,7 +1515,7 @@ export function createFastGridFactory() {
     cell.style.width = this.getRowHeaderWidth() + 'px';
     cell.style.height = height + 'px';
     cell.setAttribute('data-row', rowIndex);
-    cell.textContent = String(rowIndex + 1);
+    cell.textContent = this.shouldShowRowHeaderText() ? String(rowIndex + 1) : '';
     return cell;
   };
 
@@ -1274,8 +1524,14 @@ export function createFastGridFactory() {
     var title = document.createElement('span');
     var label = document.createElement('span');
     var sort = document.createElement('span');
+    var filterIcon = document.createElement('span');
     var resize = document.createElement('span');
+    var search;
+    var input;
+    var searchIcons;
+    var searchEditorConfig;
     var sortDirection = this.getSortDirection(column);
+    var searchOperator = this.getColumnSearchOperator(column);
 
     cell.className = 'fg-header-cell';
     if (column.align) {
@@ -1283,10 +1539,11 @@ export function createFastGridFactory() {
     }
     cell.style.left = left + 'px';
     cell.style.width = column._width + 'px';
-    cell.style.height = this.options.headerHeight + 'px';
+    cell.style.height = this.getHeaderHeight() + 'px';
     cell.setAttribute('data-col', column._viewIndex);
     cell.setAttribute('data-frozen', frozen ? '1' : '0');
     title.className = 'fg-header-title';
+    title.style.height = this.getHeaderTitleHeight() + 'px';
     label.className = 'fg-header-label';
     label.textContent = this.getHeaderCellText(column);
     sort.className = 'fg-sort' + (sortDirection === 1 ? ' fg-sort-asc' : sortDirection === -1 ? ' fg-sort-desc' : ' fg-sort-none');
@@ -1296,10 +1553,250 @@ export function createFastGridFactory() {
     title.appendChild(label);
     title.appendChild(sort);
     cell.appendChild(title);
+    if (this.options.showSearchRow === true) {
+      searchEditorConfig = getColumnEditorConfig(column);
+      searchIcons = getColumnSearchIconConfigs(column);
+      filterIcon.className = 'fg-filter-icon' + (searchOperator ? ' fg-filter-icon-active' : '');
+      filterIcon.textContent = searchOperator ? getColumnSearchOperatorSymbol(searchOperator) : '';
+      filterIcon.setAttribute('data-col', column._viewIndex);
+      filterIcon.setAttribute('aria-hidden', 'true');
+      title.appendChild(filterIcon);
+      search = document.createElement('span');
+      input = document.createElement('input');
+      search.className = 'fg-header-search';
+      search.style.height = this.getSearchRowHeight() + 'px';
+      input.className = 'fg-header-search-input';
+      input.type = 'text';
+      input.inputMode = column.dataType === 'number' ? 'decimal' : searchEditorConfig.type === 'datebox' ? 'numeric' : 'search';
+      input.value = this.getColumnSearchValue(column);
+      input.style.textAlign = normalizeTextAlign(column.align);
+      input.style.paddingRight = searchIcons.length ? (getIconConfigWidth(searchIcons, 22) + 8) + 'px' : '';
+      input.setAttribute('data-col', column._viewIndex);
+      input.setAttribute('aria-label', this.getHeaderCellText(column));
+      input.setAttribute('autocomplete', 'off');
+      if (searchIcons.length) {
+        search.className += ' fg-header-search-with-icons';
+      }
+      search.appendChild(input);
+      this.renderHeaderSearchIcons(search, column, searchIcons);
+      cell.appendChild(search);
+    }
     if (this.options.allowResizing) {
       cell.appendChild(resize);
     }
     return cell;
+  };
+
+  FastGrid.prototype.renderHeaderSearchIcons = function(search, column, iconConfigs) {
+    var host;
+    var button;
+    var icon;
+    var i;
+    if (!iconConfigs || !iconConfigs.length) {
+      return;
+    }
+    host = document.createElement('span');
+    host.className = 'fg-header-search-icons';
+    for (i = 0; i < iconConfigs.length; i += 1) {
+      icon = iconConfigs[i];
+      button = document.createElement('button');
+      button.type = 'button';
+      button.className = trimText('fg-header-search-icon fg-editor-trigger-custom ' + normalizeClassName(icon.iconCls || icon.className || icon.iconClass || icon.icon || ''));
+      button.setAttribute('data-col', column._viewIndex);
+      button.setAttribute('data-icon-index', i);
+      button.setAttribute('aria-label', icon.ariaLabel || icon.label || icon.title || this.getHeaderCellText(column));
+      button.title = icon.title || '';
+      button.textContent = icon.text || '';
+      button.style.width = Math.max(18, toNumber(icon.width, 22)) + 'px';
+      host.appendChild(button);
+    }
+    search.appendChild(host);
+  };
+
+  FastGrid.prototype.getColumnSearchValue = function(column) {
+    var value = this.columnSearchValues[getColumnSearchKey(column)];
+    var mask = getEditorMask(column);
+    if (value == null) {
+      return '';
+    }
+    if (mask) {
+      return formatMaskText(value, { mask: mask });
+    }
+    return String(value);
+  };
+
+  FastGrid.prototype.getColumnSearchOperator = function(column) {
+    return normalizeColumnSearchOperator(this.columnSearchOperators[getColumnSearchKey(column)]);
+  };
+
+  FastGrid.prototype.showFilterMenu = function(colIndex, anchor) {
+    var column = this.visibleColumns[colIndex];
+    if (!column || !this.filterMenu) {
+      return;
+    }
+    this.filterMenuColumn = column;
+    this.renderFilterMenu(column);
+    this.filterMenu.style.display = 'block';
+    this.positionFilterMenu(anchor);
+  };
+
+  FastGrid.prototype.renderFilterMenu = function(column) {
+    var items = this.getColumnSearchOperatorItems(column);
+    var active = this.getColumnSearchOperator(column);
+    var colIndex = column ? column._viewIndex : -1;
+    var fragment = document.createDocumentFragment();
+    var item;
+    var icon;
+    var label;
+    var i;
+    var self = this;
+    var handler;
+    this.filterMenu.innerHTML = '';
+    for (i = 0; i < items.length; i += 1) {
+      item = document.createElement('div');
+      icon = document.createElement('span');
+      label = document.createElement('span');
+      item.className = 'fg-filter-menu-item' +
+        (items[i].operator ? '' : ' fg-filter-menu-clear') +
+        (items[i].operator && items[i].operator === active ? ' fg-filter-menu-item-active' : '');
+      item.setAttribute('role', 'menuitem');
+      item.setAttribute('data-col', colIndex);
+      item.setAttribute('data-operator', items[i].operator);
+      item.setAttribute('tabindex', '-1');
+      icon.className = 'fg-filter-menu-funnel';
+      icon.setAttribute('aria-hidden', 'true');
+      label.className = 'fg-filter-menu-label';
+      label.textContent = items[i].label;
+      item.appendChild(icon);
+      item.appendChild(label);
+      handler = createFilterMenuItemHandler(self, column, items[i].operator);
+      item.addEventListener('pointerdown', handler, true);
+      item.addEventListener('mousedown', handler, true);
+      item.addEventListener('mouseup', handler, true);
+      item.addEventListener('click', handler, true);
+      fragment.appendChild(item);
+    }
+    this.filterMenu.appendChild(fragment);
+  };
+
+  FastGrid.prototype.getColumnSearchOperatorItems = function(column) {
+    var definitions = getColumnSearchOperatorDefinitions(column);
+    var items = [];
+    var i;
+    var definition;
+    for (i = 0; i < definitions.length; i += 1) {
+      definition = definitions[i];
+      items.push({
+        operator: definition.operator,
+        symbol: definition.symbol,
+        label: this.getColumnSearchOperatorLabel(definition)
+      });
+    }
+    return items;
+  };
+
+  FastGrid.prototype.getColumnSearchOperatorLabel = function(definition) {
+    var label;
+    if (!definition.operator) {
+      return this.getText('filter.clear') || 'Clear';
+    }
+    label = this.getText(definition.labelKey, { symbol: definition.symbol });
+    return label || definition.symbol;
+  };
+
+  FastGrid.prototype.positionFilterMenu = function(anchor) {
+    var rootRect;
+    var anchorRect;
+    var menuWidth;
+    var menuHeight;
+    var left;
+    var top;
+    if (!this.filterMenu || !anchor || this.filterMenu.style.display !== 'block') {
+      return;
+    }
+    rootRect = this.root.getBoundingClientRect();
+    anchorRect = anchor.getBoundingClientRect();
+    menuWidth = this.filterMenu.offsetWidth;
+    menuHeight = this.filterMenu.offsetHeight;
+    left = anchorRect.left - rootRect.left - menuWidth + anchorRect.width + 4;
+    top = anchorRect.bottom - rootRect.top + 2;
+    left = Math.max(0, Math.min(left, rootRect.width - menuWidth - 2));
+    top = Math.max(0, Math.min(top, rootRect.height - menuHeight - 2));
+    this.filterMenu.style.left = left + 'px';
+    this.filterMenu.style.top = top + 'px';
+  };
+
+  FastGrid.prototype.hideFilterMenu = function() {
+    if (this.filterMenu) {
+      this.filterMenu.style.display = 'none';
+      this.filterMenu.innerHTML = '';
+    }
+    this.filterMenuColumn = null;
+  };
+
+  FastGrid.prototype.isFilterMenuOpen = function() {
+    return !!(this.filterMenu && this.filterMenu.style.display === 'block');
+  };
+
+  FastGrid.prototype.handleFilterMenuClick = function(event) {
+    var item = closest(event.target, 'fg-filter-menu-item') || this.getFilterMenuItemAtEvent(event);
+    var operator;
+    var colIndex;
+    var column;
+    if (!item) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    operator = item.getAttribute('data-operator') || '';
+    colIndex = toNumber(item.getAttribute('data-col'), -1);
+    column = this.visibleColumns[colIndex] || this.filterMenuColumn;
+    if (!column) {
+      this.hideFilterMenu();
+      return;
+    }
+    this.selectFilterMenuOperator(column, operator, event);
+  };
+
+  FastGrid.prototype.selectFilterMenuOperator = function(column, operator, event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    if (!column) {
+      this.hideFilterMenu();
+      return;
+    }
+    this.setColumnSearchOperator(column, operator);
+  };
+
+  FastGrid.prototype.getFilterMenuItemAtEvent = function(event) {
+    var x;
+    var y;
+    var element;
+    var items;
+    var rect;
+    var i;
+    if (!this.isFilterMenuOpen() || event.clientX == null || event.clientY == null) {
+      return null;
+    }
+    x = event.clientX;
+    y = event.clientY;
+    if (document.elementFromPoint) {
+      element = document.elementFromPoint(x, y);
+      element = closest(element, 'fg-filter-menu-item');
+      if (element) {
+        return element;
+      }
+    }
+    items = this.filterMenu.querySelectorAll('.fg-filter-menu-item');
+    for (i = 0; i < items.length; i += 1) {
+      rect = items[i].getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        return items[i];
+      }
+    }
+    return null;
   };
 
   FastGrid.prototype.getHeaderCellText = function(column) {
@@ -1456,6 +1953,10 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.handleClick = function(event) {
+    var filterMenuItem = closest(event.target, 'fg-filter-menu-item');
+    var searchIcon = closest(event.target, 'fg-header-search-icon');
+    var searchInput = closest(event.target, 'fg-header-search-input');
+    var filterIcon = closest(event.target, 'fg-filter-icon');
     var resize = closest(event.target, 'fg-resize');
     var selectAll = closest(event.target, 'fg-selection-check-all');
     var selectionCheck = closest(event.target, 'fg-selection-check');
@@ -1469,6 +1970,32 @@ export function createFastGridFactory() {
     if (this.busy) {
       event.preventDefault();
       event.stopPropagation();
+      return;
+    }
+
+    if (filterMenuItem) {
+      this.handleFilterMenuClick(event);
+      return;
+    }
+
+    if (searchIcon) {
+      this.handleHeaderSearchIconClick(event, searchIcon);
+      return;
+    }
+
+    if (searchInput) {
+      event.stopPropagation();
+      return;
+    }
+
+    if (filterIcon) {
+      event.preventDefault();
+      event.stopPropagation();
+      colIndex = toNumber((header || filterIcon).getAttribute('data-col'), -1);
+      if (colIndex < 0 && header) {
+        colIndex = toNumber(header.getAttribute('data-col'), -1);
+      }
+      this.showFilterMenu(colIndex, filterIcon);
       return;
     }
 
@@ -1538,6 +2065,397 @@ export function createFastGridFactory() {
     }
   };
 
+  FastGrid.prototype.handleHeaderSearchBeforeInput = function(event) {
+    var input = closest(event.target, 'fg-header-search-input');
+    var colIndex;
+    var column;
+    var config;
+    var text;
+    if (!input || event.isComposing || event.data == null) {
+      return;
+    }
+    colIndex = toNumber(input.getAttribute('data-col'), -1);
+    column = this.visibleColumns[colIndex];
+    if (!column) {
+      return;
+    }
+    config = getColumnEditorConfig(column);
+    text = String(event.data);
+    if (config.type === 'datebox' && /[^0-9]/.test(text)) {
+      event.preventDefault();
+    }
+  };
+
+  FastGrid.prototype.handleHeaderSearchInput = function(event) {
+    var input = closest(event.target, 'fg-header-search-input');
+    var colIndex;
+    var column;
+    var selectionStart;
+    var selectionEnd;
+    var config;
+    var mask;
+    var formatted;
+    var key;
+    var value;
+    if (!input) {
+      return;
+    }
+    colIndex = toNumber(input.getAttribute('data-col'), -1);
+    column = this.visibleColumns[colIndex];
+    if (!column) {
+      return;
+    }
+    config = getColumnEditorConfig(column);
+    mask = getEditorMask(column);
+    if (mask) {
+      formatted = formatMaskText(input.value, { mask: mask });
+      if (formatted !== input.value) {
+        input.value = formatted;
+        input.setSelectionRange(formatted.length, formatted.length);
+      }
+    } else if (config.type === 'datebox') {
+      formatted = sanitizeDateEditorText(input.value);
+      if (formatted !== input.value) {
+        input.value = formatted;
+        input.setSelectionRange(formatted.length, formatted.length);
+      }
+    }
+    if (this.dateboxTarget && this.dateboxTarget.type === 'search' && this.dateboxTarget.input === input) {
+      this.syncDateboxPanelToTarget(this.dateboxTarget);
+      if (this.isDateboxPanelOpen()) {
+        this.renderDateboxPanel();
+      }
+    }
+    if (this.comboboxTarget && this.comboboxTarget.type === 'search' && this.comboboxTarget.input === input && this.isComboboxPanelOpen()) {
+      this.renderComboboxPanel(false);
+      this.setComboboxActiveIndex(this.getComboboxInitialActiveIndex());
+      this.positionHeaderSearchComboboxPanel(input);
+    }
+    selectionStart = input.selectionStart;
+    selectionEnd = input.selectionEnd;
+    key = getColumnSearchKey(column);
+    value = String(input.value || '').trim();
+    if (value) {
+      this.columnSearchValues[key] = value;
+    } else {
+      delete this.columnSearchValues[key];
+    }
+    this.updateColumnSearchState();
+    this.scheduleHeaderSearch(colIndex, selectionStart, selectionEnd);
+  };
+
+  FastGrid.prototype.handleHeaderSearchIconClick = function(event, button) {
+    var colIndex = toNumber(button.getAttribute('data-col'), -1);
+    var column = this.visibleColumns[colIndex];
+    var icons;
+    var iconIndex;
+    var iconConfig;
+    var handler;
+    var input;
+    var result;
+    if (!column) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    icons = getColumnSearchIconConfigs(column);
+    iconIndex = toNumber(button.getAttribute('data-icon-index'), -1);
+    iconConfig = icons[iconIndex];
+    handler = iconConfig && (iconConfig.onClick || iconConfig.click || iconConfig.handler);
+    input = this.header.querySelector('.fg-header-search-input[data-col="' + colIndex + '"]');
+    if (iconConfig && iconConfig.builtin === 'datebox') {
+      this.showHeaderSearchDateboxPanel(input, column);
+      return;
+    }
+    if (iconConfig && iconConfig.builtin === 'combobox') {
+      this.showHeaderSearchComboboxPanel(input, column, true);
+      return;
+    }
+    if (typeof handler === 'function') {
+      result = handler.call(this, this.createHeaderSearchIconArgs(event, button, input, column, iconConfig, iconIndex));
+    }
+    if (result !== false && (!iconConfig || iconConfig.keepFocus !== false) && input) {
+      input.focus();
+    }
+  };
+
+  FastGrid.prototype.createHeaderSearchIconArgs = function(event, button, input, column, iconConfig, iconIndex) {
+    return {
+      grid: this,
+      column: column,
+      col: column ? column._viewIndex : -1,
+      input: input || null,
+      editor: input || null,
+      value: input ? input.value : '',
+      text: input ? input.value : '',
+      button: button,
+      icon: iconConfig || null,
+      iconIndex: iconIndex == null ? -1 : iconIndex,
+      icons: column ? getColumnSearchIconConfigs(column) : [],
+      event: event
+    };
+  };
+
+  FastGrid.prototype.handleHeaderSearchKeyDown = function(event, input) {
+    var colIndex;
+    var column;
+    var direction;
+    var nextCol;
+    if (this.handleMaskedHeaderSearchDelete(event, input)) {
+      return true;
+    }
+    if (this.handleHeaderSearchComboboxKeyDown(event, input)) {
+      return true;
+    }
+    if (event.key !== 'Enter' && event.key !== 'Tab') {
+      return false;
+    }
+    colIndex = toNumber(input.getAttribute('data-col'), -1);
+    if (colIndex < 0) {
+      return false;
+    }
+    column = this.visibleColumns[colIndex];
+    event.preventDefault();
+    event.stopPropagation();
+    this.normalizeHeaderSearchComboboxText(input, column);
+    direction = event.shiftKey ? -1 : 1;
+    nextCol = colIndex + direction;
+    this.cancelHeaderSearchTimer();
+    this.applyView();
+    this.resetVerticalScroll();
+    this.refresh();
+    if (nextCol < 0 || nextCol >= this.visibleColumns.length) {
+      this.focusHeaderSearchInput(colIndex);
+    } else {
+      this.moveHeaderSearchFocus(colIndex, direction);
+    }
+    return true;
+  };
+
+  FastGrid.prototype.normalizeHeaderSearchComboboxText = function(input, column) {
+    var config;
+    var value;
+    var text;
+    var key;
+    if (!input || !column) {
+      return;
+    }
+    config = getColumnEditorConfig(column);
+    if (!config || config.type !== 'combobox') {
+      return;
+    }
+    value = String(input.value || '').trim();
+    if (!value) {
+      return;
+    }
+    text = getComboboxTextByValue(value, config);
+    if (text !== input.value) {
+      input.value = text;
+      key = getColumnSearchKey(column);
+      this.columnSearchValues[key] = String(text).trim();
+      this.updateColumnSearchState();
+    }
+  };
+
+  FastGrid.prototype.handleHeaderSearchComboboxKeyDown = function(event, input) {
+    var colIndex;
+    var column;
+    if (!input) {
+      return false;
+    }
+    colIndex = toNumber(input.getAttribute('data-col'), -1);
+    column = this.visibleColumns[colIndex];
+    if (!column || getColumnEditorConfig(column).type !== 'combobox') {
+      return false;
+    }
+    if (event.key === 'ArrowDown' && event.altKey) {
+      event.preventDefault();
+      this.showHeaderSearchComboboxPanel(input, column, true);
+      return true;
+    }
+    if (!this.isComboboxPanelOpen() || !this.comboboxTarget || this.comboboxTarget.input !== input) {
+      return false;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.setComboboxActiveIndex(this.comboboxActiveIndex + 1);
+      return true;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.setComboboxActiveIndex(this.comboboxActiveIndex - 1);
+      return true;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.selectComboboxActiveOption();
+      return true;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.hideComboboxPanel();
+      input.focus();
+      return true;
+    }
+    return false;
+  };
+
+  FastGrid.prototype.handleMaskedHeaderSearchDelete = function(event, input) {
+    var colIndex;
+    var column;
+    var mask;
+    var raw;
+    var start;
+    var end;
+    var deleteStart;
+    var deleteEnd;
+    var nextRaw;
+    var nextText;
+    var nextCaret;
+    if (!input || (event.key !== 'Backspace' && event.key !== 'Delete')) {
+      return false;
+    }
+    colIndex = toNumber(input.getAttribute('data-col'), -1);
+    column = this.visibleColumns[colIndex];
+    mask = getEditorMask(column);
+    if (!column || !mask) {
+      return false;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    start = input.selectionStart == null ? input.value.length : input.selectionStart;
+    end = input.selectionEnd == null ? start : input.selectionEnd;
+    raw = extractMaskCharacters(input.value, mask);
+    deleteStart = countMaskCharactersBeforeCaret(input.value, mask, start);
+    deleteEnd = countMaskCharactersBeforeCaret(input.value, mask, end);
+    if (start === end) {
+      if (event.key === 'Backspace') {
+        if (deleteStart <= 0) {
+          return true;
+        }
+        deleteStart -= 1;
+      } else if (deleteStart >= raw.length) {
+        return true;
+      } else {
+        deleteEnd += 1;
+      }
+    }
+    nextRaw = raw.slice(0, deleteStart) + raw.slice(deleteEnd);
+    nextText = applyMask(nextRaw, mask);
+    nextCaret = getMaskCaretPosition(nextText, mask, deleteStart);
+    input.value = nextText;
+    input.setSelectionRange(nextCaret, nextCaret);
+    this.handleHeaderSearchInput({ target: input });
+    return true;
+  };
+
+  FastGrid.prototype.moveHeaderSearchFocus = function(colIndex, direction) {
+    var nextCol = colIndex + direction;
+    if (nextCol < 0 || nextCol >= this.visibleColumns.length) {
+      return;
+    }
+    this.scrollHeaderSearchColumnIntoView(nextCol, direction);
+    this.render();
+    this.requestHeaderSearchFocus(nextCol);
+  };
+
+  FastGrid.prototype.scrollHeaderSearchColumnIntoView = function(col, direction) {
+    var column = this.visibleColumns[col];
+    var viewportWidth;
+    var scrollLeft;
+    var columnLeft;
+    var columnRight;
+    var margin = 12;
+    if (!column || col < this.frozenColumns || col >= this.scrollableColumnEnd) {
+      return;
+    }
+    viewportWidth = Math.max(0, this.bodyScroll.clientWidth - this.getFixedLeftWidth() - this.frozenWidth - this.frozenRightWidth);
+    scrollLeft = this.bodyScroll.scrollLeft;
+    columnLeft = column._left - this.frozenWidth;
+    columnRight = columnLeft + column._width;
+    if (direction > 0 && columnRight + margin > scrollLeft + viewportWidth) {
+      this.bodyScroll.scrollLeft = Math.max(0, columnRight - viewportWidth + margin);
+    } else if (direction < 0 && columnLeft - margin < scrollLeft) {
+      this.bodyScroll.scrollLeft = Math.max(0, columnLeft - margin);
+    } else if (columnLeft < scrollLeft) {
+      this.bodyScroll.scrollLeft = Math.max(0, columnLeft);
+    } else if (columnRight > scrollLeft + viewportWidth) {
+      this.bodyScroll.scrollLeft = Math.max(0, columnRight - viewportWidth);
+    }
+  };
+
+  FastGrid.prototype.getActiveHeaderSearchInput = function() {
+    var active = document.activeElement;
+    if (!active || !this.header || !this.header.contains(active)) {
+      return null;
+    }
+    return closest(active, 'fg-header-search-input');
+  };
+
+  FastGrid.prototype.focusHeaderSearchInput = function(colIndex, selectionStart, selectionEnd) {
+    var input = this.header.querySelector('.fg-header-search-input[data-col="' + colIndex + '"]');
+    if (!input) {
+      return false;
+    }
+    input.focus();
+    if (selectionStart != null && input.setSelectionRange) {
+      input.setSelectionRange(selectionStart, selectionEnd == null ? selectionStart : selectionEnd);
+    }
+    return true;
+  };
+
+  FastGrid.prototype.focusHeaderSearchInputLater = function(colIndex, selectionStart, selectionEnd) {
+    this.requestHeaderSearchFocus(colIndex, selectionStart, selectionEnd);
+  };
+
+  FastGrid.prototype.requestHeaderSearchFocus = function(colIndex, selectionStart, selectionEnd) {
+    this.headerSearchFocusRequest = {
+      col: colIndex,
+      selectionStart: selectionStart,
+      selectionEnd: selectionEnd,
+      attempts: 4
+    };
+    this.restoreHeaderSearchFocus();
+    this.scheduleHeaderSearchFocusRestore();
+  };
+
+  FastGrid.prototype.scheduleHeaderSearchFocusRestore = function() {
+    var self = this;
+    if (this.headerSearchFocusRaf || !this.headerSearchFocusRequest || this.disposed) {
+      return;
+    }
+    this.headerSearchFocusRaf = window.requestAnimationFrame(function() {
+      self.headerSearchFocusRaf = 0;
+      self.restoreHeaderSearchFocus();
+      if (self.headerSearchFocusRequest) {
+        self.scheduleHeaderSearchFocusRestore();
+      }
+    });
+  };
+
+  FastGrid.prototype.restoreHeaderSearchFocus = function() {
+    var request = this.headerSearchFocusRequest;
+    if (!request) {
+      return;
+    }
+    this.focusHeaderSearchInput(request.col, request.selectionStart, request.selectionEnd);
+    request.attempts -= 1;
+    if (request.attempts <= 0) {
+      this.headerSearchFocusRequest = null;
+    }
+  };
+
+  FastGrid.prototype.updateColumnSearchState = function() {
+    var key;
+    this.hasColumnSearch = false;
+    for (key in this.columnSearchValues) {
+      if (Object.prototype.hasOwnProperty.call(this.columnSearchValues, key) && String(this.columnSearchValues[key] || '').trim()) {
+        this.hasColumnSearch = true;
+        return;
+      }
+    }
+  };
+
   FastGrid.prototype.handlePointerDown = function(event) {
     var resize = closest(event.target, 'fg-resize');
     if (this.busy) {
@@ -1561,10 +2479,29 @@ export function createFastGridFactory() {
       event.stopPropagation();
       return;
     }
+    if (this.handleTopLeftSearchDblClick(event)) {
+      return;
+    }
     if (!cell || !this.options.allowEditing) {
       return;
     }
     this.startEditing(toNumber(cell.getAttribute('data-row'), 0), toNumber(cell.getAttribute('data-col'), 0));
+  };
+
+  FastGrid.prototype.handleTopLeftSearchDblClick = function(event) {
+    var searchCount = closest(event.target, 'fg-search-count');
+    var topCell;
+    if (!searchCount || this.options.showSearchRow !== true) {
+      return false;
+    }
+    topCell = closest(event.target, 'fg-row-header-top') || closest(event.target, 'fg-selection-top');
+    if (topCell !== this.rowHeaderTop && topCell !== this.selectionTop) {
+      return false;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.clearSearchConditions('topLeftSearchCell');
+    return true;
   };
 
   FastGrid.prototype.handleMouseMove = function(event) {
@@ -1582,7 +2519,7 @@ export function createFastGridFactory() {
     this.updateInvalidTip(cell);
     if (this.hoverRow !== nextRow) {
       this.hoverRow = nextRow;
-      this.render();
+      this.renderVisibleRows();
     }
   };
 
@@ -1590,7 +2527,7 @@ export function createFastGridFactory() {
     this.hideInvalidTip();
     if (this.hoverRow !== null) {
       this.hoverRow = null;
-      this.render();
+      this.renderVisibleRows();
     }
   };
 
@@ -1656,10 +2593,15 @@ export function createFastGridFactory() {
     var row = this.selection.row;
     var col = this.selection.col;
     var targetName = event.target && event.target.tagName ? event.target.tagName.toUpperCase() : '';
+    var searchInput = closest(event.target, 'fg-header-search-input');
 
     if (this.busy) {
       event.preventDefault();
       event.stopPropagation();
+      return;
+    }
+
+    if (searchInput && this.handleHeaderSearchKeyDown(event, searchInput)) {
       return;
     }
 
@@ -1770,6 +2712,7 @@ export function createFastGridFactory() {
 
   FastGrid.prototype.moveVertical = function(row, col) {
     var next;
+    var direction = row > this.selection.row ? 1 : row < this.selection.row ? -1 : 0;
     row = clamp(row, 0, Math.max(0, this.view.length - 1));
     col = clamp(col, 0, Math.max(0, this.visibleColumns.length - 1));
     if (this.options.editOnSelect === true) {
@@ -1779,39 +2722,49 @@ export function createFastGridFactory() {
         } else {
           this.selectRow(row, col);
         }
-        this.scrollIntoView(row, col);
+        this.scrollIntoView(row, col, { directionY: direction });
         return;
       }
       next = this.findEditableCellInRow(row, col, 1);
       if (next) {
         this.select(next.row, next.col);
-        this.scrollIntoView(next.row, next.col);
+        this.scrollIntoView(next.row, next.col, { directionY: direction });
         this.startEditing(next.row, next.col, { selectRow: this.options.multiSelectRows !== true });
       }
       return;
     }
     if (this.options.multiSelectRows === true) {
       this.select(row, col);
-      this.scrollIntoView(row, col);
+      this.scrollIntoView(row, col, { directionY: direction });
       return;
     }
     this.selectRow(row, col);
-    this.scrollIntoView(row, col);
+    this.scrollIntoView(row, col, { directionY: direction });
   };
 
   FastGrid.prototype.select = function(row, col) {
+    var nextRowSelection;
+    var rowSelectionChanged;
     row = clamp(row, 0, Math.max(0, this.view.length - 1));
     col = clamp(col, 0, Math.max(0, this.visibleColumns.length - 1));
-    this.rowSelection = null;
-    if (this.selection.row === row && this.selection.col === col) {
+    nextRowSelection = this.options.multiSelectRows === true ? null : row;
+    rowSelectionChanged = this.rowSelection !== nextRowSelection;
+    if (this.selection.row === row && this.selection.col === col && !rowSelectionChanged) {
       this.render();
       return;
     }
     if (this.emit('selectionChanging', { row: row, col: col }) === false) {
       return;
     }
+    if (rowSelectionChanged && this.options.multiSelectRows !== true && this.emit('rowSelectionChanging', { row: nextRowSelection }) === false) {
+      return;
+    }
+    this.rowSelection = nextRowSelection;
     this.selection = { row: row, col: col };
     this.emit('selectionChanged', { row: row, col: col });
+    if (rowSelectionChanged && this.options.multiSelectRows !== true) {
+      this.emit('rowSelectionChanged', { row: nextRowSelection });
+    }
     this.render();
   };
 
@@ -1840,14 +2793,6 @@ export function createFastGridFactory() {
     col = col == null ? this.selection.col : col;
     col = clamp(col, 0, Math.max(0, this.visibleColumns.length - 1));
     if (this.options.multiSelectRows !== true) {
-      if (this.rowSelection === row) {
-        this.rowSelection = null;
-        this.selection = { row: row, col: col };
-        this.emit('selectionChanged', { row: row, col: col });
-        this.emit('rowSelectionChanged', { row: null });
-        this.render();
-        return;
-      }
       this.selectRow(row, col);
       return;
     }
@@ -2034,24 +2979,40 @@ export function createFastGridFactory() {
   FastGrid.prototype.clampSelection = function() {
     this.selection.row = clamp(this.selection.row, 0, Math.max(0, this.view.length - 1));
     this.selection.col = clamp(this.selection.col, 0, Math.max(0, this.visibleColumns ? this.visibleColumns.length - 1 : 0));
+    if (this.options.multiSelectRows !== true && this.rowSelection == null && this.view.length) {
+      this.rowSelection = this.selection.row;
+    }
     if (this.rowSelection != null && this.rowSelection >= this.view.length) {
       this.rowSelection = this.view.length ? this.view.length - 1 : null;
     }
   };
 
-  FastGrid.prototype.scrollIntoView = function(row, col) {
+  FastGrid.prototype.scrollIntoView = function(row, col, options) {
     var rowTop = row * this.options.rowHeight;
     var rowBottom = rowTop + this.options.rowHeight;
     var colObj = this.visibleColumns[col];
+    var contentHeight = this.getScrollableContentHeight();
+    var currentTop = this.bodyScroll.scrollTop;
+    var currentBottom = currentTop + contentHeight;
+    var lastFullRowTop = currentBottom - this.options.rowHeight;
+    var partialBottomHeight;
     var scrollableViewportWidth = Math.max(0, this.bodyScroll.clientWidth - this.getFixedLeftWidth() - this.frozenWidth - this.frozenRightWidth);
     var scrollLeft;
     if (!colObj) {
       return;
     }
-    if (rowTop < this.bodyScroll.scrollTop) {
+    options = options || {};
+    if (options.directionY > 0 && rowTop >= lastFullRowTop) {
+      this.bodyScroll.scrollTop = Math.max(0, rowBottom - contentHeight);
+    } else if (rowTop < currentTop) {
       this.bodyScroll.scrollTop = rowTop;
-    } else if (rowBottom > this.bodyScroll.scrollTop + this.bodyScroll.clientHeight) {
-      this.bodyScroll.scrollTop = rowBottom - this.bodyScroll.clientHeight;
+    } else if (rowBottom > currentBottom) {
+      this.bodyScroll.scrollTop = rowBottom - contentHeight;
+    } else if (options.directionY > 0 && contentHeight > this.options.rowHeight) {
+      partialBottomHeight = currentBottom - rowBottom;
+      if (partialBottomHeight > 0 && partialBottomHeight < this.options.rowHeight) {
+        this.bodyScroll.scrollTop = Math.max(0, rowBottom - contentHeight);
+      }
     }
     if (col >= this.frozenColumns && col < this.scrollableColumnEnd) {
       scrollLeft = this.bodyScroll.scrollLeft;
@@ -2089,7 +3050,7 @@ export function createFastGridFactory() {
     }
     this.selection = { row: row, col: col };
     this.editorConfig = getColumnEditorConfig(column);
-    this.editing = { row: row, col: col, original: value, editor: this.editorConfig };
+    this.editing = { row: row, col: col, item: item, original: value, editor: this.editorConfig };
     this.configureEditor(column);
     this.editor.value = this.getEditorText(value, column);
     if (this.editorConfig.type === 'combobox') {
@@ -2107,21 +3068,56 @@ export function createFastGridFactory() {
   FastGrid.prototype.configureEditor = function(column) {
     var config = getColumnEditorConfig(column);
     var type = config.type;
+    var hasBuiltInEditorIcon = type === 'datebox' || type === 'combobox';
+    var iconConfigs = hasBuiltInEditorIcon ? [] : getEditorIconConfigs(config);
+    var hasEditorIcons = hasBuiltInEditorIcon || iconConfigs.length > 0;
     this.editorConfig = config;
-    this.editor.className = 'fg-editor textbox-f fg-editor-' + type + ' ' + type + '-f';
-    this.editorTrigger.className = 'fg-editor-trigger fg-editor-trigger-' + type;
+    this.editorIconConfigs = iconConfigs;
+    this.renderEditorIcons(type, iconConfigs);
+    this.editor.className = 'fg-editor textbox-f fg-editor-' + type + ' ' + type + '-f' + (hasEditorIcons ? ' fg-editor-with-icons' : '');
     this.editor.setAttribute('data-editor-type', type);
     this.editor.setAttribute('autocomplete', 'off');
     this.editor.type = 'text';
     this.editor.inputMode = type === 'numberbox' ? 'decimal' : type === 'datebox' ? 'numeric' : 'text';
-    this.editorTrigger.setAttribute('aria-label', this.getEditorTriggerLabel());
-    this.editorTrigger.style.display = type === 'datebox' || type === 'combobox' ? 'block' : 'none';
+    this.editor.style.paddingRight = hasEditorIcons ? (getEditorIconConfigWidth(iconConfigs, type) + 6) + 'px' : '';
+    this.editorIconHost.style.display = hasEditorIcons ? 'flex' : 'none';
     if (type !== 'datebox') {
       this.hideDateboxPanel();
     }
     if (type !== 'combobox') {
       this.hideComboboxPanel();
     }
+  };
+
+  FastGrid.prototype.renderEditorIcons = function(type, iconConfigs) {
+    var fragment = document.createDocumentFragment();
+    var button;
+    var icon;
+    var i;
+    this.editorIconHost.innerHTML = '';
+    if (iconConfigs && iconConfigs.length) {
+      for (i = 0; i < iconConfigs.length; i += 1) {
+        icon = iconConfigs[i];
+        button = document.createElement('button');
+        button.type = 'button';
+        button.className = trimText('fg-editor-trigger fg-editor-trigger-custom ' + normalizeClassName(icon.iconCls || icon.className || icon.iconClass || icon.icon || ''));
+        button.setAttribute('data-icon-index', i);
+        button.setAttribute('aria-label', icon.ariaLabel || icon.label || icon.title || this.getText('aria.cellEditor'));
+        button.title = icon.title || '';
+        button.textContent = icon.text || '';
+        button.style.width = Math.max(18, toNumber(icon.width, 22)) + 'px';
+        fragment.appendChild(button);
+      }
+    } else {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.className = trimText('fg-editor-trigger fg-editor-trigger-' + type + (type === 'datebox' ? ' icon-datebox' : ''));
+      button.setAttribute('aria-label', this.getEditorTriggerLabel());
+      button.style.width = '22px';
+      fragment.appendChild(button);
+    }
+    this.editorIconHost.appendChild(fragment);
+    this.editorTrigger = this.editorIconHost.querySelector('.fg-editor-trigger');
   };
 
   FastGrid.prototype.getEditorText = function(value, column) {
@@ -2354,9 +3350,29 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.handleEditorTriggerClick = function(event) {
+    var button = closest(event.target, 'fg-editor-trigger');
+    var iconConfig;
+    var iconIndex;
+    var handler;
+    var result;
+    if (!button) {
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     if (!this.editing || !this.editorConfig) {
+      return;
+    }
+    iconIndex = button.hasAttribute('data-icon-index') ? toNumber(button.getAttribute('data-icon-index'), -1) : -1;
+    if (iconIndex >= 0) {
+      iconConfig = this.editorIconConfigs[iconIndex];
+      handler = iconConfig && (iconConfig.onClick || iconConfig.click || iconConfig.handler);
+      if (typeof handler === 'function') {
+        result = handler.call(this, this.createEditorButtonArgs(event, button, iconConfig, iconIndex));
+      }
+      if (result !== false && (!iconConfig || iconConfig.keepFocus !== false)) {
+        this.editor.focus();
+      }
       return;
     }
     if (this.editorConfig.type === 'datebox') {
@@ -2378,14 +3394,37 @@ export function createFastGridFactory() {
     }
   };
 
+  FastGrid.prototype.createEditorButtonArgs = function(event, button, iconConfig, iconIndex) {
+    var edit = this.editing || {};
+    var column = this.visibleColumns[edit.col] || null;
+    var item = this.view[edit.row] || null;
+    return {
+      grid: this,
+      row: edit.row,
+      col: edit.col,
+      column: column,
+      item: item,
+      value: this.getEditorValue(),
+      text: this.editor ? this.editor.value : '',
+      original: edit.original,
+      editor: this.editor,
+      button: button || this.editorTrigger,
+      icon: iconConfig || null,
+      iconIndex: iconIndex == null ? -1 : iconIndex,
+      icons: this.editorIconConfigs || [],
+      event: event
+    };
+  };
+
   FastGrid.prototype.handleDateboxClick = function(event) {
     var day = closest(event.target, 'fg-datebox-day');
     var monthButton = closest(event.target, 'fg-datebox-month');
     var control = closest(event.target, 'fg-datebox-control');
+    var target = this.dateboxTarget;
     var action;
     var date;
     var month;
-    if (!this.editing || !this.editorConfig || this.editorConfig.type !== 'datebox') {
+    if (!target || !target.input || !target.config || target.config.type !== 'datebox') {
       return;
     }
     event.preventDefault();
@@ -2404,10 +3443,7 @@ export function createFastGridFactory() {
     if (day && !hasClass(day, 'fg-datebox-disabled')) {
       date = parseDateValue(day.getAttribute('data-date'));
       if (date) {
-        this.editing.dateboxValue = formatDateIso(date);
-        this.editor.value = formatDateboxEditorText(date, this.editorConfig, this.visibleColumns[this.editing.col]);
-        this.hideDateboxPanel();
-        this.editor.focus();
+        this.applyDateboxTargetDate(date);
       }
       return;
     }
@@ -2422,13 +3458,11 @@ export function createFastGridFactory() {
     }
     if (action === 'close') {
       this.hideDateboxPanel();
-      this.editor.focus();
+      target.input.focus();
       return;
     }
     if (action === 'today') {
       date = new Date();
-      this.editing.dateboxValue = formatDateIso(date);
-      this.editor.value = formatDateboxEditorText(date, this.editorConfig, this.visibleColumns[this.editing.col]);
       this.dateboxState = {
         year: date.getFullYear(),
         month: date.getMonth(),
@@ -2436,8 +3470,7 @@ export function createFastGridFactory() {
         mode: 'calendar'
       };
       this.renderDateboxPanel();
-      this.hideDateboxPanel();
-      this.editor.focus();
+      this.applyDateboxTargetDate(date);
       return;
     }
     this.moveDateboxMonth(action);
@@ -2445,8 +3478,9 @@ export function createFastGridFactory() {
 
   FastGrid.prototype.handleDateboxChange = function(event) {
     var input = closest(event.target, 'fg-datebox-year-input');
+    var target = this.dateboxTarget;
     var year;
-    if (!input || !this.editing || !this.editorConfig || this.editorConfig.type !== 'datebox') {
+    if (!input || !target || !target.config || target.config.type !== 'datebox') {
       return;
     }
     year = clamp(toNumber(input.value, this.dateboxState ? this.dateboxState.year : new Date().getFullYear()), 1, 9999);
@@ -2462,20 +3496,42 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.handleDocumentMouseDown = function(event) {
-    if (!this.editing) {
+    if (closest(event.target, 'fg-filter-menu-item') || this.getFilterMenuItemAtEvent(event)) {
+      this.handleFilterMenuClick(event);
       return;
     }
+    if (this.filterMenu && this.filterMenu.style.display === 'block') {
+      if (closest(event.target, 'fg-filter-menu') || closest(event.target, 'fg-filter-icon')) {
+        return;
+      }
+      this.hideFilterMenu();
+    }
     if (this.dateboxPanel && this.dateboxPanel.style.display === 'block') {
-      if (event.target === this.editor || event.target === this.editorTrigger || closest(event.target, 'fg-datebox-panel')) {
+      if (
+        (this.dateboxTarget && event.target === this.dateboxTarget.input) ||
+        event.target === this.editor ||
+        closest(event.target, 'fg-editor-icons') ||
+        closest(event.target, 'fg-header-search-icons') ||
+        closest(event.target, 'fg-datebox-panel')
+      ) {
         return;
       }
       this.hideDateboxPanel();
     }
     if (this.comboboxPanel && this.comboboxPanel.style.display === 'block') {
-      if (event.target === this.editor || event.target === this.editorTrigger || closest(event.target, 'fg-combobox-panel')) {
+      if (
+        (this.comboboxTarget && event.target === this.comboboxTarget.input) ||
+        event.target === this.editor ||
+        closest(event.target, 'fg-editor-icons') ||
+        closest(event.target, 'fg-header-search-icons') ||
+        closest(event.target, 'fg-combobox-panel')
+      ) {
         return;
       }
       this.hideComboboxPanel();
+    }
+    if (!this.editing) {
+      return;
     }
   };
 
@@ -2575,7 +3631,7 @@ export function createFastGridFactory() {
     }
     if (next) {
       this.select(next.row, next.col);
-      this.scrollIntoView(next.row, next.col);
+      this.scrollIntoView(next.row, next.col, { directionY: direction });
       this.startEditing(next.row, next.col, { selectRow: this.options.multiSelectRows !== true });
     }
     return true;
@@ -2676,11 +3732,11 @@ export function createFastGridFactory() {
     this.editor.style.height = height + 'px';
     isScrollableEditor = edit.col >= this.frozenColumns && edit.col < this.scrollableColumnEnd;
     this.editor.style.zIndex = isScrollableEditor ? '3' : '10';
-    this.editorTrigger.style.zIndex = isScrollableEditor ? '3' : '11';
-    if (this.editorConfig && (this.editorConfig.type === 'datebox' || this.editorConfig.type === 'combobox')) {
-      this.editorTrigger.style.left = (left + width - 22) + 'px';
-      this.editorTrigger.style.top = top + 'px';
-      this.editorTrigger.style.height = height + 'px';
+    this.editorIconHost.style.zIndex = isScrollableEditor ? '3' : '11';
+    if (this.editorConfig && (this.editorConfig.type === 'datebox' || this.editorConfig.type === 'combobox' || (this.editorIconConfigs && this.editorIconConfigs.length))) {
+      this.editorIconHost.style.left = (left + width - this.getEditorIconHostWidth() - 2) + 'px';
+      this.editorIconHost.style.top = top + 'px';
+      this.editorIconHost.style.height = height + 'px';
     }
     if (this.editorConfig && this.editorConfig.type === 'datebox') {
       this.positionDateboxPanel(left, top + height, width);
@@ -2694,37 +3750,127 @@ export function createFastGridFactory() {
     if (!this.editing || !this.editorConfig || this.editorConfig.type !== 'datebox') {
       return;
     }
+    this.dateboxTarget = {
+      type: 'editor',
+      input: this.editor,
+      column: this.visibleColumns[this.editing.col],
+      config: this.editorConfig
+    };
     this.syncDateboxPanelToEditor();
     this.renderDateboxPanel();
     this.dateboxPanel.style.display = 'block';
     this.positionEditor();
   };
 
+  FastGrid.prototype.showHeaderSearchDateboxPanel = function(input, column) {
+    var config = getColumnEditorConfig(column);
+    if (!input || !column || !config || config.type !== 'datebox') {
+      return;
+    }
+    this.dateboxTarget = {
+      type: 'search',
+      input: input,
+      column: column,
+      config: config
+    };
+    this.hideComboboxPanel();
+    this.syncDateboxPanelToTarget(this.dateboxTarget);
+    this.renderDateboxPanel();
+    this.dateboxPanel.style.display = 'block';
+    this.positionHeaderSearchDateboxPanel(input);
+    input.focus();
+  };
+
   FastGrid.prototype.showComboboxPanel = function(showAll) {
     if (!this.editing || !this.editorConfig || this.editorConfig.type !== 'combobox') {
       return;
     }
+    this.comboboxTarget = {
+      type: 'editor',
+      input: this.editor,
+      column: this.visibleColumns[this.editing.col],
+      config: this.editorConfig
+    };
+    this.hideDateboxPanel();
     this.renderComboboxPanel(showAll === true);
     this.comboboxPanel.style.display = 'block';
     this.setComboboxActiveIndex(this.getComboboxInitialActiveIndex());
     this.positionEditor();
   };
 
+  FastGrid.prototype.showHeaderSearchComboboxPanel = function(input, column, showAll) {
+    var config = getColumnEditorConfig(column);
+    if (!input || !column || !config || config.type !== 'combobox') {
+      return;
+    }
+    this.comboboxTarget = {
+      type: 'search',
+      input: input,
+      column: column,
+      config: config
+    };
+    this.hideDateboxPanel();
+    this.renderComboboxPanel(showAll === true);
+    this.comboboxPanel.style.display = 'block';
+    this.setComboboxActiveIndex(this.getComboboxInitialActiveIndex());
+    this.positionHeaderSearchComboboxPanel(input);
+    input.focus();
+  };
+
   FastGrid.prototype.hideDateboxPanel = function() {
     if (this.dateboxPanel) {
       this.dateboxPanel.style.display = 'none';
     }
+    this.dateboxTarget = null;
   };
 
   FastGrid.prototype.hideComboboxPanel = function() {
     if (this.comboboxPanel) {
       this.comboboxPanel.style.display = 'none';
     }
+    this.comboboxTarget = null;
     this.comboboxActiveIndex = -1;
+  };
+
+  FastGrid.prototype.getEditorIconHostWidth = function() {
+    if (!this.editorIconHost || this.editorIconHost.style.display === 'none') {
+      return 0;
+    }
+    return Math.max(18, Math.ceil(this.editorIconHost.offsetWidth || 0));
   };
 
   FastGrid.prototype.isDateboxPanelOpen = function() {
     return !!this.dateboxPanel && this.dateboxPanel.style.display === 'block';
+  };
+
+  FastGrid.prototype.positionHeaderSearchDateboxPanel = function(input) {
+    var inputRect;
+    var bodyRect;
+    var left;
+    var top;
+    if (!input || !this.body) {
+      return;
+    }
+    inputRect = input.getBoundingClientRect();
+    bodyRect = this.body.getBoundingClientRect();
+    left = inputRect.left - bodyRect.left;
+    top = inputRect.bottom - bodyRect.top;
+    this.positionDateboxPanel(left, top, inputRect.width);
+  };
+
+  FastGrid.prototype.positionHeaderSearchComboboxPanel = function(input) {
+    var inputRect;
+    var bodyRect;
+    var left;
+    var top;
+    if (!input || !this.body) {
+      return;
+    }
+    inputRect = input.getBoundingClientRect();
+    bodyRect = this.body.getBoundingClientRect();
+    left = inputRect.left - bodyRect.left;
+    top = inputRect.bottom - bodyRect.top;
+    this.positionComboboxPanel(left, top, inputRect.width);
   };
 
   FastGrid.prototype.isComboboxPanelOpen = function() {
@@ -2732,9 +3878,15 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.renderComboboxPanel = function(showAll) {
-    var config = this.editorConfig || {};
+    var target = this.comboboxTarget || {
+      type: 'editor',
+      input: this.editor,
+      column: this.editing ? this.visibleColumns[this.editing.col] : null,
+      config: this.editorConfig
+    };
+    var config = target && target.config ? target.config : {};
     var items = getComboboxData(config);
-    var query = showAll === true ? '' : String(this.editor.value || '').toLowerCase();
+    var query = showAll === true || !target || !target.input ? '' : String(target.input.value || '').toLowerCase();
     var fragment = document.createDocumentFragment();
     var item;
     var text;
@@ -2774,7 +3926,7 @@ export function createFastGridFactory() {
   FastGrid.prototype.handleComboboxMouseDown = function(event) {
     var option = closest(event.target, 'fg-combobox-option');
     var index;
-    if (!option || !this.editing || !this.editorConfig || this.editorConfig.type !== 'combobox') {
+    if (!option || !this.comboboxTarget || !this.comboboxTarget.config || this.comboboxTarget.config.type !== 'combobox') {
       return;
     }
     event.preventDefault();
@@ -2784,11 +3936,18 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.getComboboxInitialActiveIndex = function() {
-    var text = this.editor ? String(this.editor.value || '') : '';
+    var target = this.comboboxTarget || {
+      type: 'editor',
+      input: this.editor,
+      column: this.editing ? this.visibleColumns[this.editing.col] : null,
+      config: this.editorConfig
+    };
+    var config = target && target.config ? target.config : {};
+    var text = target && target.input ? String(target.input.value || '') : '';
     var i;
     for (i = 0; i < this.comboboxItems.length; i += 1) {
-      if (getComboboxItemText(this.comboboxItems[i], this.editorConfig) === text ||
-        String(getComboboxItemValue(this.comboboxItems[i], this.editorConfig)) === text) {
+      if (getComboboxItemText(this.comboboxItems[i], config) === text ||
+        String(getComboboxItemValue(this.comboboxItems[i], config)) === text) {
         return i;
       }
     }
@@ -2830,18 +3989,46 @@ export function createFastGridFactory() {
 
   FastGrid.prototype.selectComboboxOption = function(index) {
     var item = this.comboboxItems[index];
+    var target = this.comboboxTarget || {
+      type: 'editor',
+      input: this.editor,
+      column: this.editing ? this.visibleColumns[this.editing.col] : null,
+      config: this.editorConfig
+    };
+    var config = target && target.config ? target.config : {};
     if (item == null) {
       return;
     }
-    this.editing.comboboxValue = getComboboxItemValue(item, this.editorConfig);
-    this.editor.value = getComboboxItemText(item, this.editorConfig);
+    if (target.type === 'editor' && this.editing) {
+      this.editing.comboboxValue = getComboboxItemValue(item, config);
+      target.input.value = getComboboxItemText(item, config);
+    } else if (target.input) {
+      target.input.value = getComboboxItemText(item, config);
+      target.input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
     this.hideComboboxPanel();
-    this.editor.focus();
+    if (target.input) {
+      target.input.focus();
+    }
   };
 
   FastGrid.prototype.syncDateboxPanelToEditor = function() {
-    var date = parseDateboxEditorValue(this.editor.value, this.editorConfig);
-    if (!date && this.editing) {
+    this.syncDateboxPanelToTarget(this.dateboxTarget || {
+      type: 'editor',
+      input: this.editor,
+      column: this.editing ? this.visibleColumns[this.editing.col] : null,
+      config: this.editorConfig
+    });
+  };
+
+  FastGrid.prototype.syncDateboxPanelToTarget = function(target) {
+    var date;
+    if (!target || !target.input || !target.config) {
+      date = null;
+    } else {
+      date = parseDateboxEditorValue(target.input.value, target.config);
+    }
+    if (!date && target && target.type === 'editor' && this.editing) {
       date = parseDateValue(this.editing.dateboxValue || this.editing.original);
     }
     if (!date) {
@@ -2853,6 +4040,24 @@ export function createFastGridFactory() {
       selected: date,
       mode: 'calendar'
     };
+  };
+
+  FastGrid.prototype.applyDateboxTargetDate = function(date) {
+    var target = this.dateboxTarget;
+    var text;
+    if (!target || !target.input || !target.config) {
+      return;
+    }
+    if (target.type === 'editor' && this.editing) {
+      this.editing.dateboxValue = formatDateIso(date);
+      target.input.value = formatDateboxEditorText(date, target.config, target.column);
+    } else {
+      text = formatDateboxEditorText(date, target.config, target.column);
+      target.input.value = text;
+      target.input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    this.hideDateboxPanel();
+    target.input.focus();
   };
 
   FastGrid.prototype.moveDateboxMonth = function(action) {
@@ -3020,6 +4225,33 @@ export function createFastGridFactory() {
     return width + 2;
   };
 
+  FastGrid.prototype.clearEditingState = function() {
+    this.editing = null;
+    this.editorConfig = null;
+    this.editorIconConfigs = [];
+    this.dateboxState = null;
+    this.comboboxItems = [];
+    if (this.editor) {
+      this.editor.style.display = 'none';
+    }
+    if (this.editorIconHost) {
+      this.editorIconHost.style.display = 'none';
+    }
+    this.hideInvalidTip();
+    this.hideDateboxPanel();
+    this.hideComboboxPanel();
+  };
+
+  FastGrid.prototype.syncEditingWithView = function() {
+    var edit = this.editing;
+    if (!edit) {
+      return;
+    }
+    if (edit.row < 0 || edit.row >= this.view.length || (edit.item && this.view[edit.row] !== edit.item)) {
+      this.clearEditingState();
+    }
+  };
+
   FastGrid.prototype.finishEditing = function(commit) {
     var edit = this.editing;
     var column;
@@ -3065,15 +4297,7 @@ export function createFastGridFactory() {
       }
       this.emit('cellEditEnded', args);
     }
-    this.editing = null;
-    this.editorConfig = null;
-    this.dateboxState = null;
-    this.comboboxItems = [];
-    this.editor.style.display = 'none';
-    this.editorTrigger.style.display = 'none';
-    this.hideInvalidTip();
-    this.hideDateboxPanel();
-    this.hideComboboxPanel();
+    this.clearEditingState();
     this.applyView();
     this.render();
     this.root.focus();
@@ -3608,6 +4832,21 @@ export function createFastGridFactory() {
     return 'header';
   }
 
+  function normalizeRowHeaderMode(value) {
+    var mode;
+    if (value === false || value == null) {
+      return false;
+    }
+    mode = String(value).toLowerCase();
+    if (mode === 'false' || mode === 'none' || mode === 'off' || mode === 'hidden') {
+      return false;
+    }
+    if (mode === 'cell' || mode === 'cells' || mode === 'blank') {
+      return 'cell';
+    }
+    return true;
+  }
+
   function isHotKey(event, hotKey) {
     var keys;
     var i;
@@ -3741,6 +4980,14 @@ export function createFastGridFactory() {
       .replace(/'/g, '&#39;');
   }
 
+  function trimText(value) {
+    return String(value == null ? '' : value).replace(/^\s+|\s+$/g, '');
+  }
+
+  function normalizeClassName(value) {
+    return trimText(value).replace(/\./g, ' ');
+  }
+
   function normalizeEditorConfig(editor, column) {
     var type;
     var options;
@@ -3765,8 +5012,8 @@ export function createFastGridFactory() {
   }
 
   function getColumnEditorConfig(column) {
-    if (column && column.editor && column.editor.type) {
-      return column.editor;
+    if (column && column.editor) {
+      return normalizeEditorConfig(column.editor, column);
     }
     return normalizeEditorConfig(null, column || {});
   }
@@ -3783,6 +5030,76 @@ export function createFastGridFactory() {
     result = mergeOptions(result, direct);
     result = mergeOptions(result, editor.options || {});
     return result;
+  }
+
+  function getEditorIconConfigs(config) {
+    var options = config && config.options ? config.options : {};
+    return normalizeIconConfigs(config && config.icons ? config.icons : options.icons);
+  }
+
+  function getColumnSearchIconConfigs(column) {
+    var search = column && column.search && typeof column.search === 'object' ? column.search : null;
+    var config;
+    if (search && Object.prototype.hasOwnProperty.call(search, 'icons')) {
+      return normalizeIconConfigs(search.icons);
+    }
+    if (column && Object.prototype.hasOwnProperty.call(column, 'searchIcons')) {
+      return normalizeIconConfigs(column.searchIcons);
+    }
+    config = getColumnEditorConfig(column);
+    if (config && config.type === 'datebox') {
+      return [{ iconCls: 'icon-datebox', builtin: 'datebox' }];
+    }
+    if (config && config.type === 'combobox') {
+      return [{ iconCls: 'fg-editor-trigger-combobox', builtin: 'combobox' }];
+    }
+    return [];
+  }
+
+  function normalizeIconConfigs(icons) {
+    var result = [];
+    var i;
+    var icon;
+    if (!icons) {
+      return result;
+    }
+    if (!Array.isArray(icons)) {
+      icons = [icons];
+    }
+    for (i = 0; i < icons.length; i += 1) {
+      icon = icons[i];
+      if (icon === false || icon == null) {
+        continue;
+      }
+      if (typeof icon === 'function') {
+        icon = { onClick: icon };
+      } else if (typeof icon === 'string') {
+        icon = { iconCls: icon };
+      }
+      if (typeof icon === 'object') {
+        result.push(icon);
+      }
+    }
+    return result;
+  }
+
+  function getEditorIconConfigWidth(icons, type) {
+    if (!icons || !icons.length) {
+      return type === 'datebox' || type === 'combobox' ? 22 : 0;
+    }
+    return getIconConfigWidth(icons, 22);
+  }
+
+  function getIconConfigWidth(icons, fallback) {
+    var width = 0;
+    var i;
+    if (!icons || !icons.length) {
+      return 0;
+    }
+    for (i = 0; i < icons.length; i += 1) {
+      width += Math.max(18, toNumber(icons[i].width, fallback));
+    }
+    return width;
   }
 
   function getEditorMask(column) {
@@ -4270,7 +5587,7 @@ export function createFastGridFactory() {
       },
       showRowHeaders: {
         get: function() {
-          return this.options.showRowHeaders !== false;
+          return this.options.showRowHeaders;
         },
         set: function(value) {
           this.setShowRowHeaders(value);
@@ -4531,6 +5848,9 @@ export function createFastGridFactory() {
   }
 
   function closest(target, className) {
+    if (target && target.nodeType !== 1) {
+      target = target.parentNode;
+    }
     while (target && target.nodeType === 1) {
       if (hasClass(target, className)) {
         return target;
@@ -4538,6 +5858,12 @@ export function createFastGridFactory() {
       target = target.parentNode;
     }
     return null;
+  }
+
+  function createFilterMenuItemHandler(grid, column, operator) {
+    return function(event) {
+      grid.selectFilterMenuOperator(column, operator, event);
+    };
   }
 
   function hasClass(element, className) {
@@ -4589,6 +5915,254 @@ export function createFastGridFactory() {
       }
     }
     return false;
+  }
+
+  function rowMatchesColumnSearch(item, columns, searchValues, searchOperators) {
+    var i;
+    var column;
+    var text;
+    var key;
+    var operator;
+    for (i = 0; i < columns.length; i += 1) {
+      column = columns[i];
+      if (column.visible === false) {
+        continue;
+      }
+      key = getColumnSearchKey(column);
+      text = searchValues[key];
+      if (!text) {
+        continue;
+      }
+      operator = searchOperators ? searchOperators[key] : '';
+      if (!columnValueMatchesSearch(getByBinding(item, column.binding), column, text, operator)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function columnValueMatchesSearch(value, column, searchText, operator) {
+    var expected;
+    var actual;
+    var dateConfig;
+    var sourceDate;
+    var targetDate;
+    var sourceText;
+    var alternateSourceText;
+    var targetText;
+    if (searchText == null || String(searchText).trim() === '') {
+      return true;
+    }
+    if (value == null) {
+      return false;
+    }
+    operator = normalizeColumnSearchOperator(operator);
+    if (column.dataType === 'number') {
+      expected = parseValue(searchText, 'number');
+      actual = parseValue(value, 'number');
+      if (expected == null || actual == null) {
+        return false;
+      }
+      operator = operator || 'eq';
+      if (operator === 'gte') {
+        return actual >= expected;
+      }
+      if (operator === 'gt') {
+        return actual > expected;
+      }
+      if (operator === 'lte') {
+        return actual <= expected;
+      }
+      if (operator === 'lt') {
+        return actual < expected;
+      }
+      if (operator === 'ne') {
+        return actual !== expected;
+      }
+      return actual === expected;
+    }
+    dateConfig = getColumnEditorConfig(column);
+    if (dateConfig && dateConfig.type === 'datebox') {
+      operator = operator || 'starts';
+      sourceDate = parseDateboxEditorValue(value, dateConfig);
+      targetDate = parseDateboxEditorValue(searchText, dateConfig);
+      if (isComparisonSearchOperator(operator) && sourceDate && targetDate) {
+        sourceText = formatDateIso(sourceDate);
+        targetText = formatDateIso(targetDate);
+      } else {
+        sourceText = sourceDate ? formatDateboxEditorText(sourceDate, dateConfig, column).toLowerCase() : String(value).toLowerCase();
+        targetText = String(searchText).toLowerCase();
+      }
+    } else if (dateConfig && dateConfig.type === 'combobox') {
+      sourceText = getComboboxTextByValue(value, dateConfig).toLowerCase();
+      alternateSourceText = String(value).toLowerCase();
+      targetText = String(searchText).toLowerCase();
+      operator = operator || 'starts';
+    } else {
+      sourceText = String(value).toLowerCase();
+      targetText = String(searchText).toLowerCase();
+      operator = operator || 'starts';
+    }
+    if (alternateSourceText != null && alternateSourceText !== sourceText && searchTextMatchesOperator(alternateSourceText, targetText, operator)) {
+      return true;
+    }
+    return searchTextMatchesOperator(sourceText, targetText, operator);
+  }
+
+  function searchTextMatchesOperator(sourceText, targetText, operator) {
+    if (operator === 'contains') {
+      return sourceText.indexOf(targetText) >= 0;
+    }
+    if (operator === 'ends') {
+      return sourceText.lastIndexOf(targetText) === sourceText.length - targetText.length;
+    }
+    if (operator === 'not-starts') {
+      return sourceText.indexOf(targetText) !== 0;
+    }
+    if (operator === 'not-contains') {
+      return sourceText.indexOf(targetText) < 0;
+    }
+    if (operator === 'not-ends') {
+      return sourceText.lastIndexOf(targetText) !== sourceText.length - targetText.length;
+    }
+    if (operator === 'gte') {
+      return sourceText >= targetText;
+    }
+    if (operator === 'gt') {
+      return sourceText > targetText;
+    }
+    if (operator === 'lte') {
+      return sourceText <= targetText;
+    }
+    if (operator === 'lt') {
+      return sourceText < targetText;
+    }
+    if (operator === 'ne') {
+      return sourceText !== targetText;
+    }
+    if (operator === 'eq') {
+      return sourceText === targetText;
+    }
+    return sourceText.indexOf(targetText) === 0;
+  }
+
+  function isComparisonSearchOperator(operator) {
+    return operator === 'gte' ||
+      operator === 'gt' ||
+      operator === 'lte' ||
+      operator === 'lt' ||
+      operator === 'ne' ||
+      operator === 'eq';
+  }
+
+  function getColumnSearchOperatorDefinitions(column) {
+    if (isColumnSearchComparable(column)) {
+      return [
+        { operator: 'gte', symbol: '≥', labelKey: 'filter.greaterThanOrEqual' },
+        { operator: 'gt', symbol: '>', labelKey: 'filter.greaterThan' },
+        { operator: 'lte', symbol: '≤', labelKey: 'filter.lessThanOrEqual' },
+        { operator: 'lt', symbol: '<', labelKey: 'filter.lessThan' },
+        { operator: 'ne', symbol: '≠', labelKey: 'filter.notEqual' },
+        { operator: 'eq', symbol: '=', labelKey: 'filter.equal' },
+        { operator: '', symbol: '', labelKey: 'filter.clear' }
+      ];
+    }
+    return [
+      { operator: 'starts', symbol: '^', labelKey: 'filter.startsWith' },
+      { operator: 'contains', symbol: '∋', labelKey: 'filter.contains' },
+      { operator: 'ends', symbol: '$', labelKey: 'filter.endsWith' },
+      { operator: 'not-starts', symbol: '!^', labelKey: 'filter.notStartsWith' },
+      { operator: 'not-contains', symbol: '!∋', labelKey: 'filter.notContains' },
+      { operator: 'not-ends', symbol: '!$', labelKey: 'filter.notEndsWith' },
+      { operator: 'gte', symbol: '≥', labelKey: 'filter.greaterThanOrEqual' },
+      { operator: 'gt', symbol: '>', labelKey: 'filter.greaterThan' },
+      { operator: 'lte', symbol: '≤', labelKey: 'filter.lessThanOrEqual' },
+      { operator: 'lt', symbol: '<', labelKey: 'filter.lessThan' },
+      { operator: 'ne', symbol: '≠', labelKey: 'filter.notEqual' },
+      { operator: 'eq', symbol: '=', labelKey: 'filter.equal' },
+      { operator: '', symbol: '', labelKey: 'filter.clear' }
+    ];
+  }
+
+  function isColumnSearchComparable(column) {
+    var config;
+    if (!column) {
+      return false;
+    }
+    if (column.dataType === 'number') {
+      return true;
+    }
+    config = getColumnEditorConfig(column);
+    return config && config.type === 'datebox';
+  }
+
+  function normalizeColumnSearchOperator(operator) {
+    operator = String(operator || '').toLowerCase();
+    if (
+      operator === 'starts' ||
+      operator === 'contains' ||
+      operator === 'ends' ||
+      operator === 'not-starts' ||
+      operator === 'not-contains' ||
+      operator === 'not-ends' ||
+      operator === 'gte' ||
+      operator === 'gt' ||
+      operator === 'lte' ||
+      operator === 'lt' ||
+      operator === 'ne' ||
+      operator === 'eq'
+    ) {
+      return operator;
+    }
+    return '';
+  }
+
+  function getColumnSearchOperatorSymbol(operator) {
+    operator = normalizeColumnSearchOperator(operator);
+    if (operator === 'starts') {
+      return '^';
+    }
+    if (operator === 'contains') {
+      return '∋';
+    }
+    if (operator === 'ends') {
+      return '$';
+    }
+    if (operator === 'not-starts') {
+      return '!^';
+    }
+    if (operator === 'not-contains') {
+      return '!∋';
+    }
+    if (operator === 'not-ends') {
+      return '!$';
+    }
+    if (operator === 'gte') {
+      return '≥';
+    }
+    if (operator === 'gt') {
+      return '>';
+    }
+    if (operator === 'lte') {
+      return '≤';
+    }
+    if (operator === 'lt') {
+      return '<';
+    }
+    if (operator === 'ne') {
+      return '≠';
+    }
+    if (operator === 'eq') {
+      return '=';
+    }
+    return '';
+  }
+
+  function getColumnSearchKey(column) {
+    if (!column) {
+      return '';
+    }
+    return column.binding != null && column.binding !== '' ? 'binding:' + column.binding : 'index:' + column._index;
   }
 
   function compareValues(a, b, type) {

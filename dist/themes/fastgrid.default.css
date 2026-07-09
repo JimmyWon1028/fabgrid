@@ -3,7 +3,7 @@
   --fg-border: #ccc;
   --fg-border-strong: #ddd;
   --fg-header-bg: #efefef;
-  --fg-header-text: #000;
+  --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
   --fg-cell-alt-bg: #fafafa;
   --fg-cell-text: #000;
@@ -11,7 +11,7 @@
   --fg-row-hover-bg: #eaf2ff;
   --fg-row-selected-bg: #fde48d;
   --fg-row-header-bg: #efefef;
-  --fg-row-header-text: #000;
+  --fg-row-header-text: gray;
   --fg-selected-bg: #eaf2ff;
   --fg-selected-border: #5375ee;
   background: #ffffff;
@@ -34,8 +34,8 @@
 .fg-root.fg-theme-default .fg-footer-selection,
 .fg-root.fg-theme-default .fg-footer-cell,
 .fg-root.fg-theme-default .fg-row-header-cell {
-  background-color: #efefef;
-  color: #000;
+  background-color: var(--fg-header-bg);
+  color: gray;
 }
 
 .fg-root.fg-theme-default .fg-body,

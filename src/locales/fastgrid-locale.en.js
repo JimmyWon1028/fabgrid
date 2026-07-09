@@ -25,6 +25,21 @@
       selectRow: 'Select row {rowNumber}',
       year: 'Year'
     },
+    filter: {
+      startsWith: 'Starts with ({symbol})',
+      contains: 'Contains ({symbol})',
+      endsWith: 'Ends with ({symbol})',
+      notStartsWith: 'Does not start with ({symbol})',
+      notContains: 'Does not contain ({symbol})',
+      notEndsWith: 'Does not end with ({symbol})',
+      greaterThanOrEqual: '{symbol}',
+      greaterThan: '{symbol}',
+      lessThanOrEqual: '{symbol}',
+      lessThan: '{symbol}',
+      notEqual: '{symbol}',
+      equal: '{symbol}',
+      clear: 'Clear'
+    },
     datebox: {
       today: 'Today',
       close: 'Close',

@@ -1,8 +1,8 @@
 (function() {
   'use strict';
 
-  var DEMO_ROW_COUNT = 1000;
-  var DEMO_COLUMN_COUNT = 30;
+  var DEMO_ROW_COUNT = 2000;
+  var DEMO_COLUMN_COUNT = 20;
   var DEMO_SETTINGS_KEY = 'fastgrid.demo.settings.v1';
   var DEFAULT_DEMO_SETTINGS = {
     locale: 'zh-TW',
@@ -11,6 +11,7 @@
     frozenColumns: 2,
     frozenRightColumns: 1,
     showRowHeaders: false,
+    showSearchRow: true,
     multiSelectRows: false,
     editMode: true
   };
@@ -23,6 +24,7 @@
       frozen: 'Frozen',
       frozenRight: 'Right frozen',
       rowHeaders: 'Row no.',
+      searchRow: 'Search row',
       multiSelect: 'Multi select',
       editMode: 'Edit',
       exportCsv: 'Export CSV',
@@ -37,6 +39,8 @@
         region: 'Region',
         status: 'Status',
         category: 'Category',
+        refCode: 'Reference',
+        popupCode: 'Popup lookup',
         amount: 'Amount (sync)',
         score: 'Score (async)',
         textDate: 'Text date',
@@ -52,6 +56,7 @@
       frozen: '凍結欄',
       frozenRight: '右凍結欄',
       rowHeaders: '列號',
+      searchRow: '搜尋列',
       multiSelect: '多選',
       editMode: '編輯',
       exportCsv: '匯出 CSV',
@@ -66,6 +71,8 @@
         region: '區域',
         status: '狀態',
         category: '分類',
+        refCode: '參照',
+        popupCode: 'Popup 參照',
         amount: '金額(同步)',
         score: '分數(非同步)',
         textDate: '文字日期',
@@ -108,6 +115,7 @@
     frozen: document.getElementById('frozenInput'),
     frozenRight: document.getElementById('frozenRightInput'),
     rowHeaders: document.getElementById('rowHeadersInput'),
+    searchRow: document.getElementById('searchRowInput'),
     multiSelect: document.getElementById('multiSelectInput'),
     editMode: document.getElementById('editModeInput')
   };
@@ -118,12 +126,17 @@
     frozen: document.getElementById('frozenLabel'),
     frozenRight: document.getElementById('frozenRightLabel'),
     rowHeaders: document.getElementById('rowHeadersLabel'),
+    searchRow: document.getElementById('searchRowLabel'),
     multiSelect: document.getElementById('multiSelectLabel'),
     editMode: document.getElementById('editModeLabel'),
     exportCsv: document.getElementById('exportButton'),
     exportExcel: document.getElementById('exportExcelButton')
   };
   var toolbarControls = document.querySelectorAll('.toolbar input, .toolbar select, .toolbar button');
+  var lookupPopup = null;
+  var lookupGrid = null;
+  var lookupEditorArgs = null;
+  var lookupLastClick = null;
 
   loadDemoThemeStyles();
   populateThemeOptions();
@@ -136,15 +149,17 @@
 
   var grid = new FastGrid('#grid', {
     rowHeight: 32,
-    headerHeight: 36,
+    headerHeight: 32,
+    searchDelay: 200,
     overscanRows: 14,
     overscanColumns: 3,
     frozenColumns: demoSettings.frozenColumns,
     frozenRightColumns: demoSettings.frozenRightColumns,
     locale: demoSettings.locale,
     showRowHeaders: demoSettings.showRowHeaders,
+    showSearchRow: demoSettings.showSearchRow,
     showFooter: true,
-    footerHeight: 28,
+    footerHeight: 32,
     multiSelectRows: demoSettings.multiSelectRows,
     itemsSource: rows,
     columns: columns,
@@ -157,7 +172,14 @@
     headerToggleKey: 'F4', //'Ctrl+F4'
     formatCell: function(args) {
       if (args.column.binding === 'status') {
-        args.cell.className += args.value === 'Active' ? ' status-active' : ' status-paused';
+        if (args.value === 'Active' || args.value === '啟用') {
+          args.cell.className += ' status-active';
+          args.cell.style.color = '#047857';
+        } else {
+          args.cell.className += ' status-paused';
+          args.cell.style.color = '#9a3412';
+        }
+        args.cell.style.fontWeight = '600';
       }
     }
   });
@@ -177,6 +199,11 @@
   });
 
   grid.on('viewportChanged', updateViewportStats);
+
+  grid.on('searchCleared', function() {
+    controls.search.value = '';
+    saveCurrentDemoSettings();
+  });
 
   grid.on('excelExporting', function() {
     setToolbarBusy(true);
@@ -227,7 +254,14 @@
   });
 
   controls.rowHeaders.addEventListener('change', function(event) {
-    grid.setShowRowHeaders(event.target.checked);
+    grid.setShowRowHeaders(normalizeRowHeaderSetting(event.target.value, DEFAULT_DEMO_SETTINGS.showRowHeaders));
+    saveCurrentDemoSettings();
+  });
+
+  controls.searchRow.addEventListener('change', function(event) {
+    if (grid.setShowSearchRow) {
+      grid.setShowSearchRow(event.target.checked);
+    }
     saveCurrentDemoSettings();
   });
 
@@ -299,6 +333,55 @@
           data: [
             { id: '1', descr: '買賣' },
             { id: '2', descr: '加工' }
+          ]
+        }
+      },
+      {
+        binding: 'refCode',
+        header: '參照',
+        width: 130,
+        minWidth: 100,
+        dataType: 'string',
+        editor: {
+          type: 'textbox',
+          icons: [
+            {
+              iconCls: 'icon-refwin',
+              title: '選擇參照',
+              ariaLabel: '選擇參照',
+              onClick: function(args) {
+                args.editor.value = 'REF-' + pad(args.row + 1);
+                args.editor.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            }
+          ]
+        }
+      },
+      {
+        binding: 'popupCode',
+        header: 'Popup 參照',
+        width: 150,
+        minWidth: 120,
+        dataType: 'string',
+        search: {
+          icons: [
+            {
+              iconCls: 'icon-refwin',
+              title: '開啟參考查詢',
+              ariaLabel: '開啟參考查詢',
+              onClick: showLookupPopup
+            }
+          ]
+        },
+        editor: {
+          type: 'textbox',
+          icons: [
+            {
+              iconCls: 'icon-refwin',
+              title: '開啟參考查詢',
+              ariaLabel: '開啟參考查詢',
+              onClick: showLookupPopup
+            }
           ]
         }
       },
@@ -399,21 +482,26 @@
     var regions = ['台北', '新竹', '台中', '台南', '高雄'];
     var statuses = ['Active', 'Paused'];
     var categories = ['1', '2'];
+    var lookupRows = createLookupRows();
     var rows = [];
     var row;
+    var lookupRow;
     var i;
     var c;
     for (i = 1; i <= count; i += 1) {
+      lookupRow = lookupRows[Math.floor(Math.random() * lookupRows.length)];
       row = {
         id: i,
         name: 'Customer ' + i,
         region: regions[i % regions.length],
         status: statuses[i % statuses.length],
         category: categories[i % categories.length],
+        refCode: 'REF-' + pad(i),
+        popupCode: lookupRow ? lookupRow.code : '',
         amount: Math.round((i * 137.89) % 950000),
         score: (i * 17) % 100,
-        textDate: '202607' + pad((i % 28) + 1),
-        date: '2026-07-' + pad((i % 28) + 1)
+        textDate: createTextDateValue(i),
+        date: createDateValue(i)
       };
       for (c = 10; c <= columnCount; c += 1) {
         row['col' + pad(c)] = c % 4 === 0 ? (i * c) % 10000 : 'R' + i + '-C' + c;
@@ -423,8 +511,277 @@
     return rows;
   }
 
+  function createTextDateValue(index) {
+    if (index % 9 === 0) {
+      return '2025' + pad((index % 12) + 1) + pad((index % 28) + 1);
+    }
+    if (index % 5 === 0) {
+      return '202606' + pad((index % 28) + 1);
+    }
+    return '202607' + pad((index % 28) + 1);
+  }
+
+  function createDateValue(index) {
+    if (index % 9 === 0) {
+      return '2025-' + pad((index % 12) + 1) + '-' + pad((index % 28) + 1);
+    }
+    if (index % 5 === 0) {
+      return '2026-06-' + pad((index % 28) + 1);
+    }
+    return '2026-07-' + pad((index % 28) + 1);
+  }
+
   function pad(value) {
     return value < 10 ? '0' + value : String(value);
+  }
+
+  function showLookupPopup(args) {
+    lookupEditorArgs = args;
+    ensureLookupPopup();
+    lookupPopup.overlay.style.display = 'flex';
+    if (!lookupGrid) {
+      lookupGrid = new FastGrid(lookupPopup.gridHost, {
+        rowHeight: 32,
+        headerHeight: 32,
+        overscanRows: 4,
+        overscanColumns: 1,
+        showRowHeaders: true,
+        rowHeaderWidth: 42,
+        allowSorting: true,
+        allowEditing: false,
+        editOnSelect: false,
+        itemsSource: createLookupRows(),
+        columns: [
+          { binding: 'code', header: '代號', width: 96, minWidth: 70, dataType: 'string' },
+          { binding: 'orderNo', header: '單號', width: 128, minWidth: 100, dataType: 'string' },
+          { binding: 'customer', header: '客戶', width: 90, minWidth: 80, dataType: 'string' },
+          { binding: 'name', header: '名稱', width: 100, minWidth: 80, dataType: 'string' },
+          { binding: 'qty', header: '合約數量', width: 96, minWidth: 80, align: 'right', dataType: 'number' },
+          { binding: 'available', header: '可用餘量', width: 96, minWidth: 80, align: 'right', dataType: 'number' },
+          { binding: 'price', header: '單價', width: 84, minWidth: 70, align: 'right', dataType: 'number' },
+          { binding: 'status', header: '狀態', width: 96, minWidth: 80, dataType: 'string' }
+        ],
+        alternatingRows: true,
+        alternatingRowBackground: '#fafafa',
+        formatCell: function(cellArgs) {
+          if (cellArgs.column.binding === 'status' && cellArgs.value !== '買單') {
+            cellArgs.cell.style.color = '#1d4ed8';
+            cellArgs.cell.style.fontWeight = '600';
+          }
+        }
+      });
+      lookupGrid.select(0, 0);
+      lookupPopup.gridHost.addEventListener('click', handleLookupGridClick, true);
+      lookupPopup.gridHost.addEventListener('dblclick', handleLookupGridDblClick, true);
+    } else {
+      lookupGrid.invalidate();
+      lookupGrid.select(Math.max(0, lookupGrid.selection.row), 0);
+    }
+    lookupPopup.title.textContent = '參考查詢（客戶合約訂單）';
+    lookupPopup.count.textContent = '顯示1到' + lookupGrid.view.length + ',共' + lookupGrid.view.length + '記錄';
+    window.setTimeout(function() {
+      lookupGrid.invalidate();
+      lookupGrid.root.focus();
+    }, 0);
+  }
+
+  function ensureLookupPopup() {
+    var overlay;
+    var windowEl;
+    var header;
+    var title;
+    var controls;
+    var closeButton;
+    var gridHost;
+    var pager;
+    var count;
+    var footer;
+    var clearButton;
+    var cancelButton;
+    var okButton;
+    if (lookupPopup) {
+      return;
+    }
+    overlay = document.createElement('div');
+    overlay.className = 'lookup-popup-overlay';
+    overlay.setAttribute('role', 'presentation');
+
+    windowEl = document.createElement('section');
+    windowEl.className = 'lookup-popup-window';
+    windowEl.setAttribute('role', 'dialog');
+    windowEl.setAttribute('aria-modal', 'true');
+
+    header = document.createElement('div');
+    header.className = 'lookup-popup-header';
+
+    title = document.createElement('h2');
+    title.className = 'lookup-popup-title';
+
+    controls = document.createElement('div');
+    controls.className = 'lookup-popup-controls';
+
+    closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'lookup-popup-icon-button icon-close';
+    closeButton.title = '關閉';
+    closeButton.setAttribute('aria-label', '關閉');
+    controls.appendChild(closeButton);
+    header.appendChild(title);
+    header.appendChild(controls);
+
+    gridHost = document.createElement('div');
+    gridHost.className = 'lookup-popup-grid';
+
+    pager = document.createElement('div');
+    pager.className = 'lookup-popup-pager';
+    pager.innerHTML = '<span>|‹</span><span>‹</span><strong>第 1 共1頁</strong><span>›</span><span>›|</span><span>↻</span>';
+
+    count = document.createElement('span');
+    count.className = 'lookup-popup-count';
+    pager.appendChild(count);
+
+    footer = document.createElement('div');
+    footer.className = 'lookup-popup-footer';
+
+    clearButton = document.createElement('button');
+    clearButton.type = 'button';
+    clearButton.className = 'lookup-popup-button icon-clear';
+    clearButton.textContent = '清篩選';
+
+    cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'lookup-popup-button icon-remove';
+    cancelButton.textContent = '取消';
+
+    okButton = document.createElement('button');
+    okButton.type = 'button';
+    okButton.className = 'lookup-popup-button icon-check';
+    okButton.textContent = '確定';
+
+    footer.appendChild(clearButton);
+    footer.appendChild(cancelButton);
+    footer.appendChild(okButton);
+    windowEl.appendChild(header);
+    windowEl.appendChild(gridHost);
+    windowEl.appendChild(pager);
+    windowEl.appendChild(footer);
+    overlay.appendChild(windowEl);
+    document.body.appendChild(overlay);
+
+    lookupPopup = {
+      overlay: overlay,
+      title: title,
+      gridHost: gridHost,
+      count: count
+    };
+
+    closeButton.addEventListener('click', closeLookupPopup);
+    cancelButton.addEventListener('click', closeLookupPopup);
+    okButton.addEventListener('click', function() {
+      applyLookupPopupValue();
+    });
+    clearButton.addEventListener('click', function() {
+      if (lookupGrid) {
+        lookupGrid.clearFilter();
+        lookupGrid.setSearch('');
+      }
+    });
+    overlay.addEventListener('mousedown', function(event) {
+      if (event.target === overlay) {
+        closeLookupPopup();
+      }
+    });
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape' && lookupPopup && lookupPopup.overlay.style.display === 'flex') {
+        closeLookupPopup();
+      }
+    });
+  }
+
+  function createLookupRows() {
+    return [
+      { code: '2W001', orderNo: 'SE260701003', customer: 'EG00', name: '高陞旺', qty: 4000, available: 4000, price: 454.2, status: '買單' },
+      { code: 'WU001', orderNo: 'SE260701002', customer: 'CU00', name: '和碩', qty: 8000, available: 3097.8, price: 454.2, status: '買單' },
+      { code: 'CU004', orderNo: 'SE260701001', customer: '2R00', name: '大晉', qty: 3000, available: 2092.6, price: 429.9, status: '買單' },
+      { code: 'BV001', orderNo: 'SE260526001', customer: 'CU00', name: '和碩', qty: 3658.9, available: 0, price: 450.4, status: '使用' },
+      { code: 'RM001', orderNo: 'SE260501001', customer: '2R00', name: '大晉', qty: 3000, available: -1250, price: 408.8, status: '使用,結案' },
+      { code: 'RW001', orderNo: 'SE151117001', customer: 'C500', name: '宏展', qty: 20000, available: 20000, price: 177, status: '買單' },
+      { code: 'JL001', orderNo: 'SE150714001', customer: 'C500', name: '宏展', qty: 72446.4, available: 72446.4, price: 183, status: '買單' },
+      { code: 'JP001', orderNo: 'SE150216001', customer: 'C500', name: '宏展', qty: 3000, available: 3000, price: 200, status: '使用,結案' }
+    ];
+  }
+
+  function applyLookupPopupValue(rowIndex) {
+    var value;
+    if (!lookupGrid || !lookupEditorArgs || !lookupEditorArgs.editor) {
+      closeLookupPopup();
+      return;
+    }
+    rowIndex = rowIndex == null ? Math.max(0, lookupGrid.selection ? lookupGrid.selection.row : 0) : rowIndex;
+    value = lookupGrid.getCellData(rowIndex, 0);
+    lookupEditorArgs.editor.value = value == null ? '' : String(value);
+    lookupEditorArgs.editor.dispatchEvent(new Event('input', { bubbles: true }));
+    lookupEditorArgs.editor.focus();
+    closeLookupPopup();
+  }
+
+  function handleLookupGridDblClick(event) {
+    var rowIndex = getLookupEventRowIndex(event);
+    if (rowIndex == null) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    lookupGrid.select(rowIndex, 0);
+    applyLookupPopupValue(rowIndex);
+  }
+
+  function handleLookupGridClick(event) {
+    var rowIndex = getLookupEventRowIndex(event);
+    var now;
+    var isDoubleClick;
+    if (rowIndex == null) {
+      return;
+    }
+    now = Date.now();
+    isDoubleClick = event.detail >= 2 ||
+      (lookupLastClick && lookupLastClick.row === rowIndex && now - lookupLastClick.time < 450);
+    lookupGrid.select(rowIndex, 0);
+    if (isDoubleClick) {
+      event.preventDefault();
+      event.stopPropagation();
+      applyLookupPopupValue(rowIndex);
+      lookupLastClick = null;
+      return;
+    }
+    lookupLastClick = {
+      row: rowIndex,
+      time: now
+    };
+  }
+
+  function getLookupEventRowIndex(event) {
+    var cell = event.target && event.target.closest ? event.target.closest('.fg-cell') : null;
+    var rowHeader = event.target && event.target.closest ? event.target.closest('.fg-row-header-cell') : null;
+    var selectionCell = event.target && event.target.closest ? event.target.closest('.fg-selection-cell') : null;
+    var rowTarget = cell || rowHeader || selectionCell;
+    var rowIndex;
+    if (!rowTarget || !lookupGrid || !lookupGrid.root.contains(rowTarget)) {
+      return null;
+    }
+    rowIndex = Number(rowTarget.getAttribute('data-row'));
+    if (!isFinite(rowIndex)) {
+      return null;
+    }
+    return rowIndex;
+  }
+
+  function closeLookupPopup() {
+    if (lookupPopup) {
+      lookupPopup.overlay.style.display = 'none';
+    }
+    lookupEditorArgs = null;
+    lookupLastClick = null;
   }
 
   function setToolbarBusy(value) {
@@ -453,7 +810,8 @@
       searchText: controls.search.value,
       frozenColumns: controls.frozen.value,
       frozenRightColumns: controls.frozenRight.value,
-      showRowHeaders: controls.rowHeaders.checked,
+      showRowHeaders: controls.rowHeaders.value,
+      showSearchRow: controls.searchRow.checked,
       multiSelectRows: controls.multiSelect.checked,
       editMode: controls.editMode.checked
     });
@@ -475,7 +833,8 @@
     controls.search.value = settings.searchText;
     controls.frozen.value = settings.frozenColumns;
     controls.frozenRight.value = settings.frozenRightColumns;
-    controls.rowHeaders.checked = settings.showRowHeaders;
+    controls.rowHeaders.value = settings.showRowHeaders === true ? 'true' : settings.showRowHeaders === 'cell' ? 'cell' : 'false';
+    controls.searchRow.checked = settings.showSearchRow;
     controls.multiSelect.checked = settings.multiSelectRows;
     controls.editMode.checked = settings.editMode;
   }
@@ -488,7 +847,8 @@
       searchText: settings.searchText == null ? DEFAULT_DEMO_SETTINGS.searchText : String(settings.searchText),
       frozenColumns: normalizeNumberSetting(settings.frozenColumns, DEFAULT_DEMO_SETTINGS.frozenColumns, 0, 6),
       frozenRightColumns: normalizeNumberSetting(settings.frozenRightColumns, DEFAULT_DEMO_SETTINGS.frozenRightColumns, 0, 6),
-      showRowHeaders: normalizeBooleanSetting(settings.showRowHeaders, DEFAULT_DEMO_SETTINGS.showRowHeaders),
+      showRowHeaders: normalizeRowHeaderSetting(settings.showRowHeaders, DEFAULT_DEMO_SETTINGS.showRowHeaders),
+      showSearchRow: normalizeBooleanSetting(settings.showSearchRow, DEFAULT_DEMO_SETTINGS.showSearchRow),
       multiSelectRows: normalizeBooleanSetting(settings.multiSelectRows, DEFAULT_DEMO_SETTINGS.multiSelectRows),
       editMode: normalizeBooleanSetting(settings.editMode, DEFAULT_DEMO_SETTINGS.editMode)
     };
@@ -506,6 +866,24 @@
   function normalizeBooleanSetting(value, defaultValue) {
     if (value === true || value === false) {
       return value;
+    }
+    return defaultValue;
+  }
+
+  function normalizeRowHeaderSetting(value, defaultValue) {
+    var text;
+    if (value === true || value === false || value === 'cell') {
+      return value;
+    }
+    text = value == null ? '' : String(value).toLowerCase();
+    if (text === 'true' || text === 'number' || text === 'row-number') {
+      return true;
+    }
+    if (text === 'cell' || text === 'blank') {
+      return 'cell';
+    }
+    if (text === 'false' || text === 'none' || text === 'off') {
+      return false;
     }
     return defaultValue;
   }
@@ -541,7 +919,8 @@
   }
 
   function loadDemoThemeStyles() {
-    var version = '20260708-demo-themes';
+    var themeRoot = window.FASTGRID_DEMO_THEME_ROOT || '../dist/themes';
+    var version = window.FASTGRID_DEMO_THEME_VERSION || '20260708-demo-themes';
     var theme;
     var link;
     var i;
@@ -549,7 +928,7 @@
       theme = DEMO_THEMES[i].value;
       link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = '../dist/themes/fastgrid.' + theme + '.css?v=' + version;
+      link.href = themeRoot + '/fastgrid.' + theme + '.css?v=' + version;
       document.head.appendChild(link);
     }
   }
@@ -593,6 +972,7 @@
     labels.frozen.textContent = getDemoText('frozen');
     labels.frozenRight.textContent = getDemoText('frozenRight');
     labels.rowHeaders.textContent = getDemoText('rowHeaders');
+    labels.searchRow.textContent = getDemoText('searchRow');
     labels.multiSelect.textContent = getDemoText('multiSelect');
     labels.editMode.textContent = getDemoText('editMode');
     labels.exportCsv.textContent = getDemoText('exportCsv');

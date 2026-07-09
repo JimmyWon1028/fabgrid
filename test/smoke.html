@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>FastGrid Smoke Test</title>
   <link rel="stylesheet" href="../dist/fastgrid.css">
+  <link rel="stylesheet" href="../dist/my.icon.css">
   <style>
     html,
     body {
@@ -92,7 +93,45 @@
                 { id: '1', descr: '買賣' },
                 { id: '2', descr: '加工' }
               ]
-            } : i === 5 || i === 6 || i === 7 || i === 8 ? 'datebox' : null,
+            } : i === 10 ? {
+              type: 'textbox',
+              icons: [
+                {
+                  iconCls: 'icon-add',
+                  title: 'Add'
+                },
+                {
+                  iconCls: 'icon-remove',
+                  title: 'Remove',
+                  onClick: function(args) {
+                    window.smokeCustomEditorButtonArgs = {
+                      row: args.row,
+                      col: args.col,
+                      value: args.value,
+                      text: args.text,
+                      original: args.original,
+                      itemName: args.item ? args.item.name : '',
+                      iconIndex: args.iconIndex,
+                      iconCount: args.icons.length,
+                      editorIsActive: args.editor === args.grid.activeEditor,
+                      buttonHasIcon: args.button && args.button.className.indexOf('icon-remove') >= 0
+                    };
+                    args.editor.value = 'BTN-' + args.row;
+                    args.editor.dispatchEvent(new Event('input', { bubbles: true }));
+                  }
+                }
+              ]
+            } : i === 6 ? {
+              type: 'datebox',
+              icons: [
+                {
+                  iconCls: 'icon-remove',
+                  onClick: function() {
+                    window.smokeDateboxCustomIconClicked = true;
+                  }
+                }
+              ]
+            } : i === 5 || i === 7 || i === 8 ? 'datebox' : null,
             mask: i === 5 || i === 7 ? '9999/99/99' : i === 8 ? '9999-99-99' : '',
             autoUnmask: i === 5
           });
@@ -310,6 +349,13 @@
           grid.getRowHeaderWidth() === 60 &&
           window.getComputedStyle(document.querySelector('.fg-row-header-pane')).display === 'block' &&
           document.querySelectorAll('.fg-row-header-cell').length > 0;
+        grid.showRowHeaders = 'cell';
+        var rowHeadersCellOnlyWorks = grid.showRowHeaders === 'cell' &&
+          grid.getRowHeaderWidth() === 18 &&
+          window.getComputedStyle(document.querySelector('.fg-row-header-pane')).display === 'block' &&
+          document.querySelectorAll('.fg-row-header-cell').length > 0 &&
+          document.querySelector('.fg-row-header-cell').textContent === '';
+        grid.showRowHeaders = true;
         grid.multiSelectRows = true;
         var multiSelectColumnVisibleWorks = grid.multiSelectRows === true &&
           grid.getSelectionCheckboxWidth() === 44 &&
@@ -416,18 +462,19 @@
               clickCell.click();
             }
             var cellClickSelectsRowWorks = grid.rowSelection === clickCellRow && grid.selection.row === clickCellRow && grid.selection.col === clickCellCol;
+            var cellClickSelectedBackgroundWorks = document.querySelectorAll('.fg-cell[data-row="' + clickCellRow + '"].fg-row-selected').length > 0;
             clickCell = document.querySelector('.fg-cell[data-row="' + clickCellRow + '"][data-col="' + clickCellCol + '"]');
             if (clickCell) {
               clickCell.click();
             }
-            var cellClickTogglesRowOffWorks = grid.rowSelection === null && grid.selection.row === clickCellRow && grid.selection.col === clickCellCol;
+            var cellClickKeepsRowSelectedWorks = grid.rowSelection === clickCellRow && grid.selection.row === clickCellRow && grid.selection.col === clickCellCol;
             document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
               key: ' ',
               code: 'Space',
               bubbles: true,
               cancelable: true
             }));
-            var singleSpaceDoesNotSelectRowWorks = grid.rowSelection === null &&
+            var singleSpaceKeepsSelectedRowWorks = grid.rowSelection === clickCellRow &&
               grid.selection.row === clickCellRow &&
               grid.selection.col === clickCellCol;
             document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
@@ -436,7 +483,7 @@
               bubbles: true,
               cancelable: true
             }));
-            var singleSpaceKeepsRowOffWorks = grid.rowSelection === null &&
+            var singleSpaceStillKeepsSelectedRowWorks = grid.rowSelection === clickCellRow &&
               grid.selection.row === clickCellRow &&
               grid.selection.col === clickCellCol;
             grid.multiSelectRows = true;
@@ -895,6 +942,39 @@
               grid.activeEditor.getAttribute('data-editor-type') === 'textbox' &&
               grid.activeEditor.className.indexOf('textbox-f') >= 0;
             grid.finishEditing(false);
+            grid.scrollIntoView(0, 9);
+            grid.startEditing(0, 9);
+            var customEditorButtons = document.querySelectorAll('.fg-editor-trigger');
+            var customEditorButton = customEditorButtons[1];
+            var customEditorButtonDisplaysWorks = grid.activeEditor &&
+              customEditorButton &&
+              customEditorButtons.length === 2 &&
+              window.getComputedStyle(document.querySelector('.fg-editor-icons')).display === 'flex' &&
+              customEditorButton.className.indexOf('fg-editor-trigger-custom') >= 0 &&
+              customEditorButtons[0].className.indexOf('icon-add') >= 0 &&
+              customEditorButtons[1].className.indexOf('icon-remove') >= 0 &&
+              window.getComputedStyle(customEditorButtons[0]).backgroundImage.indexOf('edit_add.png') >= 0 &&
+              window.getComputedStyle(customEditorButtons[1]).backgroundImage.indexOf('edit_remove_r.png') >= 0 &&
+              grid.activeEditor.className.indexOf('fg-editor-with-icons') >= 0 &&
+              parseInt(window.getComputedStyle(grid.activeEditor).paddingRight, 10) >= 48;
+            if (customEditorButton) {
+              customEditorButton.click();
+            }
+            var customButtonArgs = window.smokeCustomEditorButtonArgs || {};
+            var customEditorButtonCallbackWorks = customButtonArgs.row === 0 &&
+              customButtonArgs.col === 9 &&
+              customButtonArgs.value === 'R1C10' &&
+              customButtonArgs.text === 'R1C10' &&
+              customButtonArgs.original === 'R1C10' &&
+              customButtonArgs.itemName === 'Row 1' &&
+              customButtonArgs.iconIndex === 1 &&
+              customButtonArgs.iconCount === 2 &&
+              customButtonArgs.editorIsActive === true &&
+              customButtonArgs.buttonHasIcon === true &&
+              grid.activeEditor &&
+              grid.activeEditor.value === 'BTN-0' &&
+              document.activeElement === grid.activeEditor;
+            grid.finishEditing(false);
             grid.select(0, 2);
             grid.startEditing(0, 2);
             var numberboxEditorConfigWorks = grid.activeEditor &&
@@ -1032,7 +1112,14 @@
             grid.activeEditor.value = '2026/07/07';
             grid.activeEditor.dispatchEvent(new Event('input', { bubbles: true }));
             var dateboxTriggerUsesImageWorks =
+              document.querySelector('.fg-editor-trigger').className.indexOf('icon-datebox') >= 0 &&
               window.getComputedStyle(document.querySelector('.fg-editor-trigger')).backgroundImage.indexOf('datebox_arrow.png') >= 0;
+            var dateboxCustomIconsIgnoredWorks =
+              document.querySelectorAll('.fg-editor-trigger').length === 1 &&
+              document.querySelector('.fg-editor-trigger').className.indexOf('fg-editor-trigger-datebox') >= 0 &&
+              document.querySelector('.fg-editor-trigger').className.indexOf('icon-datebox') >= 0 &&
+              document.querySelector('.fg-editor-trigger').className.indexOf('icon-remove') < 0 &&
+              window.smokeDateboxCustomIconClicked !== true;
             var dateboxPanelHiddenOnStartWorks = dateboxPanel &&
               window.getComputedStyle(dateboxPanel).display === 'none';
             var dateboxEditorCell = document.querySelector('.fg-cell[data-row="0"][data-col="5"]');
@@ -1281,6 +1368,7 @@
                 resizeLineBackground: resizeLineBackground,
                 rowHeadersHiddenWorks: rowHeadersHiddenWorks,
                 rowHeadersShownWorks: rowHeadersShownWorks,
+                rowHeadersCellOnlyWorks: rowHeadersCellOnlyWorks,
                 multiSelectColumnVisibleWorks: multiSelectColumnVisibleWorks,
                 multiSelectRowsWorks: multiSelectRowsWorks,
                 multiCellClickToggleOffWorks: multiCellClickToggleOffWorks,
@@ -1323,9 +1411,10 @@
                 hoveredEvenRowCells: hoveredEvenRowCells.length,
                 hoveredEvenRowBackground: hoveredEvenRowBackground,
                 cellClickSelectsRowWorks: cellClickSelectsRowWorks,
-                cellClickTogglesRowOffWorks: cellClickTogglesRowOffWorks,
-                singleSpaceDoesNotSelectRowWorks: singleSpaceDoesNotSelectRowWorks,
-                singleSpaceKeepsRowOffWorks: singleSpaceKeepsRowOffWorks,
+                cellClickSelectedBackgroundWorks: cellClickSelectedBackgroundWorks,
+                cellClickKeepsRowSelectedWorks: cellClickKeepsRowSelectedWorks,
+                singleSpaceKeepsSelectedRowWorks: singleSpaceKeepsSelectedRowWorks,
+                singleSpaceStillKeepsSelectedRowWorks: singleSpaceStillKeepsSelectedRowWorks,
                 multiSpaceSelectsRowWorks: multiSpaceSelectsRowWorks,
                 multiSpaceTogglesRowOffWorks: multiSpaceTogglesRowOffWorks,
                 readOnlyArrowDownSelectsRowWorks: readOnlyArrowDownSelectsRowWorks,
@@ -1391,6 +1480,8 @@
                 asyncColumnValidateWorks: asyncColumnValidateWorks,
                 asyncColumnValidateClearsWorks: asyncColumnValidateClearsWorks,
                 textboxDefaultEditorWorks: textboxDefaultEditorWorks,
+                customEditorButtonDisplaysWorks: customEditorButtonDisplaysWorks,
+                customEditorButtonCallbackWorks: customEditorButtonCallbackWorks,
                 numberboxEditorConfigWorks: numberboxEditorConfigWorks,
                 comboboxEditorConfigWorks: comboboxEditorConfigWorks,
                 comboboxPanelOpensWorks: comboboxPanelOpensWorks,
@@ -1410,6 +1501,7 @@
                 dateboxOnlyAllowsDigitKeysWorks: dateboxOnlyAllowsDigitKeysWorks,
                 dateboxBackspaceDeletesAcrossLiteralWorks: dateboxBackspaceDeletesAcrossLiteralWorks,
                 dateboxTriggerUsesImageWorks: dateboxTriggerUsesImageWorks,
+                dateboxCustomIconsIgnoredWorks: dateboxCustomIconsIgnoredWorks,
                 dateboxPanelHiddenOnStartWorks: dateboxPanelHiddenOnStartWorks,
                 dateboxPanelOpensWorks: dateboxPanelOpensWorks,
                 dateboxMonthViewOpensWorks: dateboxMonthViewOpensWorks,

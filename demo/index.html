@@ -4,8 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FastGrid Demo</title>
-  <link rel="stylesheet" href="../dist/fastgrid.css?v=20260708-demo-locale">
-  <link rel="stylesheet" href="./style.css?v=20260708-demo-locale">
+  <link rel="stylesheet" href="../dist/fastgrid.css?v=20260709-filter-menu-click7">
+  <link rel="stylesheet" href="../dist/my.icon.css?v=20260709-filter-menu-click7">
+  <link rel="stylesheet" href="./style.css?v=20260709-editor-icon-position">
 </head>
 <body>
   <main class="page">
@@ -37,9 +38,17 @@
         <span id="frozenRightLabel">右凍結欄</span>
         <input id="frozenRightInput" type="number" min="0" max="6" value="1">
       </label>
-      <label class="toggle">
-        <input id="rowHeadersInput" type="checkbox" checked>
+      <label class="field compact">
         <span id="rowHeadersLabel">列號</span>
+        <select id="rowHeadersInput">
+          <option value="false">關閉</option>
+          <option value="true">顯示列號</option>
+          <option value="cell">只顯示 cell</option>
+        </select>
+      </label>
+      <label class="toggle">
+        <input id="searchRowInput" type="checkbox" checked>
+        <span id="searchRowLabel">搜尋列</span>
       </label>
       <label class="toggle">
         <input id="multiSelectInput" type="checkbox">
@@ -65,9 +74,9 @@
     </section>
   </main>
 
-  <script src="../dist/fastgrid.min.js?v=20260708-demo-split-locale"></script>
+  <script src="../dist/fastgrid.min.js?v=20260709-filter-menu-click7"></script>
   <script src="../dist/locales/fastgrid-locale.zh-TW.js?v=20260708-demo-split-locale"></script>
   <script src="../dist/locales/fastgrid-locale.en.js?v=20260708-demo-split-locale"></script>
-  <script src="./demo.js?v=20260708-demo-split-locale"></script>
+  <script src="./demo.js?v=20260709-filter-menu-click7"></script>
 </body>
 </html>

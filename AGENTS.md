@@ -11,6 +11,17 @@
 - 可以依任務需要建立本地 commit，但不要主動推送到 GitHub。
 - 只有在使用者明確要求「上傳」、「推送」、「同步到 GitHub」或同等意思時，才執行 `git push` 或 GitHub 遠端操作。
 
+## 開發工作流程
+
+- 日常修改不要每次都編譯到 `dist`。
+- 除非使用者明確要求「編譯」、「build」、「重建 dist」、「產生 dist」或同等意思，否則不要主動執行會更新 `dist` 的指令，例如 `npm run build` 或 `npm run smoke`。
+- 修改確認完成後，預設啟動開發伺服器，提供本機網址讓使用者自行測試。
+- 若任務需要驗證但使用者沒有要求編譯，優先使用不會改寫 `dist` 的檢查方式；如果現有驗證只能透過 build/smoke 完成，先回報限制並等待使用者指示。
+- icon 定義要一致使用 `my.icon.css` 的 icon class，例如 `icon-datebox`、`icon-refwin`；不要在核心 CSS 直接硬編圖檔路徑。
+- 開發測試優先使用 source-mode demo，例如 `demo/dev.html` 直接引用 `src/fastgrid-core.js` 與 `src/styles/*`；修改 source 後要同步更新 query version，避免瀏覽器快取造成誤判。
+- 新增任何核心 UI 文字時，必須同步補齊 `en`、`zh-TW`、`zh-CN` locale key；demo-only 文字若會隨語言切換，也要放進 demo locale pack，不要寫死單一語言。
+- popup menu 樣式要維持一致：左側 icon 欄、icon 後分隔線、緊湊列高與清楚 hover/active 狀態；後續新增 popup menu 時沿用目前 filter menu 的視覺規則。
+
 ## 產品方向
 
 FastGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 建置。
