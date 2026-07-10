@@ -4,8 +4,8 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const distDir = path.join(root, 'dist');
 const localesDir = path.join(root, 'src', 'locales');
-const corePath = path.join(root, 'src', 'fastgrid-core.js');
-const cssPath = path.join(root, 'src', 'styles', 'fastgrid.css');
+const corePath = path.join(root, 'src', 'fabgrid-core.js');
+const cssPath = path.join(root, 'src', 'styles', 'fabgrid.css');
 const iconCssPath = path.join(root, 'src', 'styles', 'my.icon.css');
 const stylesDir = path.join(root, 'src', 'styles');
 const themeSourceDir = path.join(stylesDir, 'themes');
@@ -18,11 +18,11 @@ function ensureDir(dir) {
 }
 
 function banner(name) {
-  return '/*! FastGrid ' + name + ' | performance-first data grid */\n';
+  return '/*! FabGrid ' + name + ' | performance-first data grid */\n';
 }
 
 function stripExport(source) {
-  return source.replace(/export function createFastGridFactory/, 'function createFastGridFactory');
+  return source.replace(/export function createFabGridFactory/, 'function createFabGridFactory');
 }
 
 function minifyJs(source) {
@@ -135,7 +135,7 @@ function readWijmoTheme(file) {
   };
 }
 
-function writeFastGridTheme(outputDir, suffix, theme) {
+function writeFabGridTheme(outputDir, suffix, theme) {
   const className = '.fg-root.fg-theme-' + suffix;
   const content = [
     banner('theme ' + suffix).trimEnd(),
@@ -238,8 +238,8 @@ function writeFastGridTheme(outputDir, suffix, theme) {
     ''
   ].join('\n');
 
-  fs.writeFileSync(path.join(outputDir, 'fastgrid.' + suffix + '.css'), content, 'utf8');
-  fs.writeFileSync(path.join(outputDir, 'fastgrid.' + suffix + '.min.css'), banner('theme ' + suffix + ' min') + minifyCss(content), 'utf8');
+  fs.writeFileSync(path.join(outputDir, 'fabgrid.' + suffix + '.css'), content, 'utf8');
+  fs.writeFileSync(path.join(outputDir, 'fabgrid.' + suffix + '.min.css'), banner('theme ' + suffix + ' min') + minifyCss(content), 'utf8');
 }
 
 function writeSourceThemeFiles(outputDir) {
@@ -247,7 +247,7 @@ function writeSourceThemeFiles(outputDir) {
   let source;
   let outputName;
   for (const entry of entries) {
-    if (!entry.isFile() || !/^fastgrid\.[^.]+(?:-[^.]+)*\.css$/.test(entry.name) || /\.min\.css$/.test(entry.name)) {
+    if (!entry.isFile() || !/^fabgrid\.[^.]+(?:-[^.]+)*\.css$/.test(entry.name) || /\.min\.css$/.test(entry.name)) {
       continue;
     }
     source = fs.readFileSync(path.join(themeSourceDir, entry.name), 'utf8');
@@ -267,7 +267,7 @@ function writeThemeFiles() {
     if (!suffix) {
       continue;
     }
-    writeFastGridTheme(outputDir, suffix, readWijmoTheme(entry.name));
+    writeFabGridTheme(outputDir, suffix, readWijmoTheme(entry.name));
   }
 }
 
@@ -277,15 +277,15 @@ const source = fs.readFileSync(corePath, 'utf8');
 const core = stripExport(source);
 const css = fs.readFileSync(cssPath, 'utf8');
 
-const esm = banner('ESM') + source + '\nvar FastGrid = createFastGridFactory();\nvar FastGridLocales = FastGrid.locales;\nexport { FastGrid, FastGridLocales };\nexport default FastGrid;\n';
-const global = banner('Global') + '(function(global) {\n' + core + '\nglobal.FastGrid = createFastGridFactory();\nif (global.FastGridLocales) {\n  Object.keys(global.FastGridLocales).forEach(function(name) {\n    global.FastGrid.addLocale(name, global.FastGridLocales[name]);\n  });\n}\nglobal.FastGridLocales = global.FastGrid.locales;\n}(typeof window !== "undefined" ? window : this));\n';
+const esm = banner('ESM') + source + '\nvar FabGrid = createFabGridFactory();\nvar FabGridLocales = FabGrid.locales;\nexport { FabGrid, FabGridLocales };\nexport default FabGrid;\n';
+const global = banner('Global') + '(function(global) {\n' + core + '\nglobal.FabGrid = createFabGridFactory();\nif (global.FabGridLocales) {\n  Object.keys(global.FabGridLocales).forEach(function(name) {\n    global.FabGrid.addLocale(name, global.FabGridLocales[name]);\n  });\n}\nglobal.FabGridLocales = global.FabGrid.locales;\n}(typeof window !== "undefined" ? window : this));\n';
 
-write('fastgrid.esm.js', esm);
-write('fastgrid.esm.min.js', banner('ESM min') + minifyJs(esm));
-write('fastgrid.js', global);
-write('fastgrid.min.js', banner('Global min') + minifyJs(global));
-write('fastgrid.css', css);
-write('fastgrid.min.css', minifyCss(css));
+write('fabgrid.esm.js', esm);
+write('fabgrid.esm.min.js', banner('ESM min') + minifyJs(esm));
+write('fabgrid.js', global);
+write('fabgrid.min.js', banner('Global min') + minifyJs(global));
+write('fabgrid.css', css);
+write('fabgrid.min.css', minifyCss(css));
 if (fs.existsSync(iconCssPath)) {
   const iconCss = fs.readFileSync(iconCssPath, 'utf8').replace(/\.\.\/images\//g, 'images/');
   write('my.icon.css', iconCss);
@@ -297,4 +297,4 @@ if (fs.existsSync(imagesDir)) {
   copyDir(imagesDir, path.join(distDir, 'images'));
 }
 
-console.log('Built FastGrid dist files.');
+console.log('Built FabGrid dist files.');

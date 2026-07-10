@@ -2,8 +2,8 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <title>FastGrid Smoke Test</title>
-  <link rel="stylesheet" href="../dist/fastgrid.css">
+  <title>FabGrid Smoke Test</title>
+  <link rel="stylesheet" href="../dist/fabgrid.css">
   <link rel="stylesheet" href="../dist/my.icon.css">
   <style>
     html,
@@ -26,9 +26,9 @@
   <div id="grid"></div>
   <div id="largeGrid" style="width: 900px; height: 420px; margin-top: 20px;"></div>
   <pre id="result">pending</pre>
-  <script src="../dist/fastgrid.min.js"></script>
-  <script src="../dist/locales/fastgrid-locale.zh-TW.js"></script>
-  <script src="../dist/locales/fastgrid-locale.en.js"></script>
+  <script src="../dist/fabgrid.min.js"></script>
+  <script src="../dist/locales/fabgrid-locale.zh-TW.js"></script>
+  <script src="../dist/locales/fabgrid-locale.en.js"></script>
   <script>
     (function() {
       window.addEventListener('error', function(event) {
@@ -165,7 +165,7 @@
       }
 
       window.addEventListener('load', function() {
-        var grid = new FastGrid('#grid', {
+        var grid = new FabGrid('#grid', {
           rowHeight: 30,
           headerHeight: 34,
           overscanRows: 4,
@@ -1277,7 +1277,7 @@
               invalidDateCell.className.indexOf('fg-cell-invalid') < 0;
             var yearMonthValidationHost = document.createElement('div');
             document.body.appendChild(yearMonthValidationHost);
-            var yearMonthValidationGrid = new FastGrid(yearMonthValidationHost, {
+            var yearMonthValidationGrid = new FabGrid(yearMonthValidationHost, {
               locale: 'zh-TW',
               rowHeight: 32,
               headerHeight: 32,
@@ -1339,7 +1339,7 @@
             });
             var localeHost = document.createElement('div');
             document.body.appendChild(localeHost);
-            var localeGrid = new FastGrid(localeHost, {
+            var localeGrid = new FabGrid(localeHost, {
               locale: 'en',
               itemsSource: [],
               columns: [
@@ -1353,17 +1353,17 @@
             localeGrid.setBusy(false);
             localeGrid.setLocale('zh-TW');
             var zhEmptyTextWorks = localeHost.querySelector('.fg-empty').textContent === '沒有資料';
-            var localeStaticsWork = window.FastGrid.locales &&
-              window.FastGrid.locales.en &&
-              window.FastGrid.locales['zh-TW'] &&
-              window.FastGridLocales === window.FastGrid.locales;
-            var zhCnLocaleNotLoadedWorks = !window.FastGrid.locales['zh-CN'] &&
-              !window.FastGridLocales['zh-CN'];
+            var localeStaticsWork = window.FabGrid.locales &&
+              window.FabGrid.locales.en &&
+              window.FabGrid.locales['zh-TW'] &&
+              window.FabGridLocales === window.FabGrid.locales;
+            var zhCnLocaleNotLoadedWorks = !window.FabGrid.locales['zh-CN'] &&
+              !window.FabGridLocales['zh-CN'];
             localeGrid.dispose();
             document.body.removeChild(localeHost);
             var defaultHotKeyHost = document.createElement('div');
             document.body.appendChild(defaultHotKeyHost);
-            var defaultHotKeyGrid = new FastGrid(defaultHotKeyHost, {
+            var defaultHotKeyGrid = new FabGrid(defaultHotKeyHost, {
               itemsSource: [{ id: 1 }],
               columns: [{ binding: 'id', header: 'ID' }]
             });
@@ -1451,7 +1451,7 @@
               var sheetXml = readStoredZipEntry(zipBytes, 'xl/worksheets/sheet1.xml');
               var stylesXml = readStoredZipEntry(zipBytes, 'xl/styles.xml');
               finish({
-                hasFastGrid: typeof window.FastGrid === 'function',
+                hasFabGrid: typeof window.FabGrid === 'function',
                 totalRowsAfterSearch: grid.view.length,
                 firstAmountAfterEdit: grid.getCellData(0, 2),
                 copiedText: copiedText,
@@ -1803,7 +1803,7 @@
       }
 
       function runLargeExportScrollCheck() {
-        var largeGrid = new FastGrid('#largeGrid', {
+        var largeGrid = new FabGrid('#largeGrid', {
           rowHeight: 32,
           headerHeight: 36,
           overscanRows: 8,

@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FastGrid Dev Demo</title>
-  <link rel="stylesheet" href="../src/styles/fastgrid.css?v=20260710-column-chooser-column-flow-v1">
+  <title>FabGrid Dev Demo</title>
+  <link rel="stylesheet" href="../src/styles/fabgrid.css?v=20260711-fabgrid-rename-v1">
   <link rel="stylesheet" href="../src/styles/my.icon.css?v=20260710-fixed-pane-scroll-sync-v1">
   <link rel="stylesheet" href="./style.css?v=20260710-fixed-pane-scroll-sync-v1">
 </head>
 <body>
   <main class="page">
-    <section class="toolbar" aria-label="FastGrid controls">
+    <section class="toolbar" aria-label="FabGrid controls">
       <div class="brand">
-        <h1>FastGrid</h1>
+        <h1>FabGrid</h1>
         <p>Pure JS performance-first grid · <span id="datasetSummary">-</span></p>
       </div>
       <label class="field search-field">
@@ -71,7 +71,7 @@
       <button id="exportExcelButton" class="toolbar-icon-button icon-excel" type="button" aria-label="匯出 Excel" title="匯出 Excel"></button>
     </section>
 
-    <section class="stats" aria-label="FastGrid stats">
+    <section class="stats" aria-label="FabGrid stats">
       <span id="rowCount">Rows: -</span>
       <span id="rowRange">Rows visible: -</span>
       <span id="columnRange">Columns visible: -</span>
@@ -84,14 +84,14 @@
   </main>
 
   <script type="module">
-    import { createFastGridFactory } from '../src/fastgrid-core.js?v=20260710-excel-frozen-columns-v1';
+    import { createFabGridFactory } from '../src/fabgrid-core.js?v=20260711-fabgrid-rename-v1';
 
-    window.FASTGRID_DEMO_THEME_ROOT = '../src/styles/themes';
-    window.FASTGRID_DEMO_THEME_VERSION = '20260710-fixed-pane-scroll-sync-v1';
-    window.FastGrid = createFastGridFactory();
-    await import('../src/locales/fastgrid-locale.zh-TW.js?v=20260710-column-chooser-v1');
-    await import('../src/locales/fastgrid-locale.en.js?v=20260710-column-chooser-v1');
-    await import('./demo.js?v=20260710-column-chooser-v1');
+    window.FABGRID_DEMO_THEME_ROOT = '../src/styles/themes';
+    window.FABGRID_DEMO_THEME_VERSION = '20260711-fabgrid-rename-v1';
+    window.FabGrid = createFabGridFactory();
+    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260711-fabgrid-rename-v1');
+    await import('../src/locales/fabgrid-locale.en.js?v=20260711-fabgrid-rename-v1');
+    await import('./demo.js?v=20260711-fabgrid-rename-v1');
   </script>
 </body>
 </html>

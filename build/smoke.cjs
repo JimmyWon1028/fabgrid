@@ -77,7 +77,7 @@ server.listen(port, '127.0.0.1', async function() {
     const dom = await runChrome();
     const result = extractResult(dom);
     if (
-      !result.hasFastGrid ||
+      !result.hasFabGrid ||
       result.totalRowsAfterSearch !== 1 ||
       result.firstAmountAfterEdit !== 123456 ||
       result.copiedText !== '123456' ||
@@ -329,11 +329,11 @@ server.listen(port, '127.0.0.1', async function() {
     if (!fs.existsSync(path.join(root, 'dist', 'images', 'datebox_arrow.png'))) {
       throw new Error('Smoke assertions failed: dist/images/datebox_arrow.png was not found.');
     }
-    if (!fs.existsSync(path.join(root, 'dist', 'locales', 'fastgrid-locale.zh-CN.js'))) {
-      throw new Error('Smoke assertions failed: dist/locales/fastgrid-locale.zh-CN.js was not found.');
+    if (!fs.existsSync(path.join(root, 'dist', 'locales', 'fabgrid-locale.zh-CN.js'))) {
+      throw new Error('Smoke assertions failed: dist/locales/fabgrid-locale.zh-CN.js was not found.');
     }
-    if (!fs.existsSync(path.join(root, 'dist', 'locales', 'fastgrid-locale.zh-CN.min.js'))) {
-      throw new Error('Smoke assertions failed: dist/locales/fastgrid-locale.zh-CN.min.js was not found.');
+    if (!fs.existsSync(path.join(root, 'dist', 'locales', 'fabgrid-locale.zh-CN.min.js'))) {
+      throw new Error('Smoke assertions failed: dist/locales/fabgrid-locale.zh-CN.min.js was not found.');
     }
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {

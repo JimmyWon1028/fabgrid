@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Build FastGrid
+      - name: Build FabGrid
         run: npm run build
 
       - name: Prepare Pages artifact
@@ -35,7 +35,7 @@ jobs:
           mkdir -p .pages
           cp -R demo .pages/demo
           cp -R dist .pages/dist
-          printf '%s\n' '<!doctype html>' '<html lang="zh-Hant">' '<head>' '  <meta charset="utf-8">' '  <meta name="viewport" content="width=device-width, initial-scale=1">' '  <meta http-equiv="refresh" content="0; url=./demo/">' '  <title>FastGrid Demo</title>' '</head>' '<body>' '  <p><a href="./demo/">Open FastGrid Demo</a></p>' '</body>' '</html>' > .pages/index.html
+          printf '%s\n' '<!doctype html>' '<html lang="zh-Hant">' '<head>' '  <meta charset="utf-8">' '  <meta name="viewport" content="width=device-width, initial-scale=1">' '  <meta http-equiv="refresh" content="0; url=./demo/">' '  <title>FabGrid Demo</title>' '</head>' '<body>' '  <p><a href="./demo/">Open FabGrid Demo</a></p>' '</body>' '</html>' > .pages/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

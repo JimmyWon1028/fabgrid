@@ -4,8 +4,8 @@
   var DEMO_ROW_COUNT = 2000;
   var DEMO_COLUMN_COUNT = 22;
   var DEMO_ROW_HEADER_WIDTH = 50;
-  var DEMO_SETTINGS_KEY = 'fastgrid.demo.settings.v3.rowGroupMode';
-  var DEMO_LEGACY_SETTINGS_KEY = 'fastgrid.demo.settings.v2.rowGroups';
+  var DEMO_SETTINGS_KEY = 'fabgrid.demo.settings.v3.rowGroupMode';
+  var DEMO_LEGACY_SETTINGS_KEY = 'fabgrid.demo.settings.v2.rowGroups';
   var DEFAULT_DEMO_SETTINGS = {
     locale: 'zh-TW',
     theme: 'default',
@@ -197,7 +197,7 @@
   applyDemoLocale(demoSettings.locale);
   applyColumnHeaderLocale(columns, demoSettings.locale);
 
-  var grid = new FastGrid('#grid', {
+  var grid = new FabGrid('#grid', {
     rowHeight: 32,
     headerHeight: 32,
     searchDelay: 200,
@@ -346,18 +346,18 @@
   });
 
   document.getElementById('exportButton').addEventListener('click', function() {
-    grid.exportCsv('fastgrid-demo.csv');
+    grid.exportCsv('fabgrid-demo.csv');
   });
 
   document.getElementById('exportExcelButton').addEventListener('click', function() {
-    grid.exportExcel('fastgrid-demo.xlsx').catch(function(error) {
+    grid.exportExcel('fabgrid-demo.xlsx').catch(function(error) {
       window.setTimeout(function() {
         throw error;
       }, 0);
     });
   });
 
-  window.fastGridDemo = {
+  window.fabGridDemo = {
     grid: grid,
     rows: rows,
     columns: columns,
@@ -682,7 +682,7 @@
     ensureLookupPopup();
     lookupPopup.overlay.style.display = 'flex';
     if (!lookupGrid) {
-      lookupGrid = new FastGrid(lookupPopup.gridHost, {
+      lookupGrid = new FabGrid(lookupPopup.gridHost, {
         rowHeight: 32,
         headerHeight: 32,
         overscanRows: 4,
@@ -1083,8 +1083,8 @@
   }
 
   function loadDemoThemeStyles() {
-    var themeRoot = window.FASTGRID_DEMO_THEME_ROOT || '../dist/themes';
-    var version = window.FASTGRID_DEMO_THEME_VERSION || '20260708-demo-themes';
+    var themeRoot = window.FABGRID_DEMO_THEME_ROOT || '../dist/themes';
+    var version = window.FABGRID_DEMO_THEME_VERSION || '20260708-demo-themes';
     var theme;
     var link;
     var i;
@@ -1092,7 +1092,7 @@
       theme = DEMO_THEMES[i].value;
       link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = themeRoot + '/fastgrid.' + theme + '.css?v=' + version;
+      link.href = themeRoot + '/fabgrid.' + theme + '.css?v=' + version;
       document.head.appendChild(link);
     }
   }

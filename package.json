@@ -1,11 +1,11 @@
 {
-  "name": "fastgrid",
+  "name": "fabgrid",
   "version": "0.1.0",
   "private": true,
-  "description": "Performance-first pure JavaScript data grid.",
+  "description": "Fabulous performance-first pure JavaScript data grid.",
   "type": "module",
-  "main": "dist/fastgrid.js",
-  "module": "dist/fastgrid.esm.js",
+  "main": "dist/fabgrid.js",
+  "module": "dist/fabgrid.esm.js",
   "scripts": {
     "build": "node build/build.cjs",
     "smoke": "npm run build && node build/smoke.cjs",

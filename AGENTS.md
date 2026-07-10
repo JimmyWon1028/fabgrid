@@ -1,4 +1,4 @@
-# FastGrid 專案筆記
+# FabGrid 專案筆記
 
 ## 語言與風格
 
@@ -18,7 +18,7 @@
 - 修改確認完成後，預設啟動開發伺服器，提供本機網址讓使用者自行測試。
 - 若任務需要驗證但使用者沒有要求編譯，優先使用不會改寫 `dist` 的檢查方式；如果現有驗證只能透過 build/smoke 完成，先回報限制並等待使用者指示。
 - icon 定義要一致使用 `my.icon.css` 的 icon class，例如 `icon-datebox`、`icon-refwin`；不要在核心 CSS 直接硬編圖檔路徑。
-- 開發測試優先使用 source-mode demo，例如 `demo/dev.html` 直接引用 `src/fastgrid-core.js` 與 `src/styles/*`；修改 source 後要同步更新 query version，避免瀏覽器快取造成誤判。
+- 開發測試優先使用 source-mode demo，例如 `demo/dev.html` 直接引用 `src/fabgrid-core.js` 與 `src/styles/*`；修改 source 後要同步更新 query version，避免瀏覽器快取造成誤判。
 - 新增任何核心 UI 文字時，必須同步補齊 `en`、`zh-TW`、`zh-CN` locale key；demo-only 文字若會隨語言切換，也要放進 demo locale pack，不要寫死單一語言。
 - popup menu 樣式要維持一致：左側 icon 欄、icon 後分隔線、緊湊列高與清楚 hover/active 狀態；後續新增 popup menu 時沿用目前 filter menu 的視覺規則。
 - 工作進度記錄放在 `worklogs/YYYY-MM-DD.md`，固定使用 `## 完成進度` 標題；功能契約改動時，同步更新 README 與本文件。
@@ -27,7 +27,7 @@
 
 ## 產品方向
 
-FastGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 建置。
+FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 建置。
 
 目標不是複製 Wijmo FlexGrid 的所有功能。第一版應該先提供一般資料表常見且實用的能力，同時保持渲染引擎快速、簡單、可擴充。
 
@@ -45,7 +45,7 @@ FastGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript
 - core package 不依賴 Vue。
 - core 必須能打包成可在其他專案引用的 library 檔案。
 - V1 至少要輸出 ES6 module 版本與 ES5 browser global 版本。
-- `dist/fastgrid.min.js` 必須是可用 `<script>` 直接引用的 ES5 相容壓縮版本。
+- `dist/fabgrid.min.js` 必須是可用 `<script>` 直接引用的 ES5 相容壓縮版本。
 - core 穩定之後，可以再加入 Vue wrapper。
 - Vue wrapper 只負責把 props、events、lifecycle 對應到 pure JS core。
 - 在大資料量情境下，Vue 不應該接管每個 cell 的渲染。
@@ -53,28 +53,28 @@ FastGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript
 建議套件方向：
 
 ```txt
-fastgrid-core
-fastgrid-vue
+fabgrid-core
+fabgrid-vue
 ```
 
 建議輸出檔案：
 
 ```txt
 dist/
-  fastgrid.esm.js
-  fastgrid.esm.min.js
-  fastgrid.js
-  fastgrid.min.js
-  fastgrid.css
+  fabgrid.esm.js
+  fabgrid.esm.min.js
+  fabgrid.js
+  fabgrid.min.js
+  fabgrid.css
 ```
 
-`fastgrid.min.js` 必須是 ES5 相容的 browser global build，能在其他專案中直接引用：
+`fabgrid.min.js` 必須是 ES5 相容的 browser global build，能在其他專案中直接引用：
 
 ```html
-<link rel="stylesheet" href="./fastgrid.css">
-<script src="./fastgrid.min.js"></script>
+<link rel="stylesheet" href="./fabgrid.css">
+<script src="./fabgrid.min.js"></script>
 <script>
-  const grid = new FastGrid('#grid', {
+  const grid = new FabGrid('#grid', {
     itemsSource: rows,
     columns
   });
@@ -84,13 +84,13 @@ dist/
 同時保留 ES6 module 匯出，方便現代 bundler 或 `<script type="module">` 使用：
 
 ```js
-import { FastGrid } from './fastgrid.esm.js';
+import { FabGrid } from './fabgrid.esm.js';
 ```
 
 建議核心 API 形式：
 
 ```js
-const grid = new FastGrid('#grid', {
+const grid = new FabGrid('#grid', {
   rowHeight: 32,
   headerHeight: 36,
   overscanRows: 8,
@@ -106,7 +106,7 @@ const grid = new FastGrid('#grid', {
 
 ## 效能要求
 
-FastGrid 從一開始就必須以雙向 virtualization 為核心設計。
+FabGrid 從一開始就必須以雙向 virtualization 為核心設計。
 
 - 縱向捲動只渲染可視 rows 加上 buffer rows。
 - 橫向捲動只渲染可視 columns 加上 buffer columns。
@@ -145,7 +145,7 @@ FastGrid 從一開始就必須以雙向 virtualization 為核心設計。
 - 在前端本地產生 mock data。
 - 使用 2000 rows x 20 columns。
 - 使用 pure JS、CSS、HTML。
-- Demo 應該引用打包後的 `dist/fastgrid.min.js` 與 `dist/fastgrid.css`，用來驗證其他專案的引用方式。
+- Demo 應該引用打包後的 `dist/fabgrid.min.js` 與 `dist/fabgrid.css`，用來驗證其他專案的引用方式。
 - 除非有很強的理由，否則避免第三方依賴。
 
 Demo 應該顯示有助於觀察效能的 runtime stats：
@@ -265,7 +265,7 @@ Demo 應該顯示有助於觀察效能的 runtime stats：
 ```txt
 src/
   core/
-    FastGrid.js
+    FabGrid.js
     Column.js
     EventEmitter.js
   data/
@@ -287,7 +287,7 @@ src/
     Resizing.js
     ExportCsv.js
   styles/
-    fastgrid.css
+    fabgrid.css
 ```
 
 建議打包相關檔案：
@@ -297,25 +297,25 @@ package.json
 build/
   build.js
 dist/
-  fastgrid.esm.js
-  fastgrid.esm.min.js
-  fastgrid.js
-  fastgrid.min.js
-  fastgrid.css
+  fabgrid.esm.js
+  fabgrid.esm.min.js
+  fabgrid.js
+  fabgrid.min.js
+  fabgrid.css
 ```
 
 打包需求：
 
 - Source code 使用 ES6 modules 維護。
-- `dist/fastgrid.esm.js` 保留 ES6 module 可讀版本。
-- `dist/fastgrid.esm.min.js` 提供 ES6 module 壓縮版本。
-- `dist/fastgrid.js` 提供 ES5 browser global 可讀版本。
-- `dist/fastgrid.min.js` 提供 ES5 browser global 壓縮版本。
-- Browser global 名稱使用 `FastGrid`。
-- ES module 使用 named export：`export { FastGrid }`。
+- `dist/fabgrid.esm.js` 保留 ES6 module 可讀版本。
+- `dist/fabgrid.esm.min.js` 提供 ES6 module 壓縮版本。
+- `dist/fabgrid.js` 提供 ES5 browser global 可讀版本。
+- `dist/fabgrid.min.js` 提供 ES5 browser global 壓縮版本。
+- Browser global 名稱使用 `FabGrid`。
+- ES module 使用 named export：`export { FabGrid }`。
 - ES5 browser global build 應避免使用 `class`、arrow function、`const`、`let`、template literal 等 ES6+ 語法。
 - 若使用 build tool，必須把 library code transpile 到 ES5 browser global build。
-- CSS 產物為 `dist/fastgrid.css`。
+- CSS 產物為 `dist/fabgrid.css`。
 - 不要把 demo-only code 打包進 library。
 - Build script 必須可重複執行。
 
@@ -383,7 +383,7 @@ Vue wrapper 應該在 pure JS core 穩定之後再加入。
 預期使用方式：
 
 ```vue
-<FastGrid
+<FabGrid
   :items-source="rows"
   :columns="columns"
   :allow-sorting="true"
@@ -415,7 +415,7 @@ V1 符合以下條件時可視為成功：
 - Editing 能正確把值寫回 source data。
 - Column resizing 能正確更新 layout。
 - `frozenColumns` 能固定左側指定數量 columns，且不破壞雙向 virtualization。
-- 能產生 `dist/fastgrid.esm.js`，並可用 ES6 `import { FastGrid }` 引用。
-- 能產生 ES5 相容的 `dist/fastgrid.min.js`，並可用 `<script src="...">` 在其他專案中引用。
+- 能產生 `dist/fabgrid.esm.js`，並可用 ES6 `import { FabGrid }` 引用。
+- 能產生 ES5 相容的 `dist/fabgrid.min.js`，並可用 `<script src="...">` 在其他專案中引用。
 - Demo 頁面使用打包後的 dist 檔案運作。
 - `dispose()` 會移除 listeners，且不留下明顯的殘留行為。
