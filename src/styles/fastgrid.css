@@ -42,7 +42,7 @@
   top: 0;
   right: 0;
   left: 0;
-  z-index: 5;
+  z-index: 2;
   overflow: hidden;
   border-bottom: 1px solid var(--fg-border-strong);
   background: var(--fg-header-bg);
@@ -65,8 +65,8 @@
   overflow: hidden;
   padding-bottom: var(--fg-search-row-height, 0px);
   border-right: 1px dotted var(--fg-border);
-  background-color: #efefef;
-  background-image: linear-gradient(rgba(255, 255, 255, 20%), rgb(0 0 0 / 6%));
+  background-color: var(--fg-row-header-bg);
+  background-image: none;
   color: var(--fg-row-header-text);
   font-size: 14px;
   font-weight: normal;
@@ -95,6 +95,11 @@
   background-color: #efefef;
   background-image: linear-gradient(rgba(255, 255, 255, 20%), rgb(0 0 0 / 6%));
   content: "";
+}
+
+.fg-row-header-top::before {
+  background-color: var(--fg-row-header-bg);
+  background-image: none;
 }
 
 .fg-row-header-top::after,
@@ -174,6 +179,49 @@
   cursor: default;
 }
 
+.fg-root.fg-column-dragging .fg-header-cell {
+  cursor: grabbing;
+}
+
+.fg-column-drag-preview {
+  position: fixed !important;
+  z-index: 30;
+  overflow: hidden;
+  border: 1px solid #93c5fd;
+  background: #dbeafe;
+  box-shadow: 0 5px 12px rgb(15 23 42 / 28%);
+  opacity: 0.88;
+  pointer-events: none;
+}
+
+.fg-column-drag-preview .fg-header-title {
+  width: 100%;
+}
+
+.fg-column-drag-preview .fg-resize {
+  display: none;
+}
+
+.fg-column-drag-preview.fg-column-drag-returning {
+  opacity: 0.2;
+  transform: scale(0.97);
+  transition:
+    left 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    top 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms ease-out,
+    transform 220ms ease-out;
+}
+
+.fg-column-drop-indicator {
+  position: absolute;
+  z-index: 29;
+  display: none;
+  width: 4px;
+  margin-left: -2px;
+  background: rgb(96 165 250 / 55%);
+  pointer-events: none;
+}
+
 .fg-header-title {
   position: relative;
   flex: 0 0 auto;
@@ -189,7 +237,7 @@
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   text-align: left;
 }
 
@@ -426,8 +474,8 @@
   overflow: hidden;
   padding: 0 6px;
   border-right: 1px dotted var(--fg-border);
-  background-color: #efefef;
-  background-image: linear-gradient(rgba(255, 255, 255, 20%), rgb(0 0 0 / 6%));
+  background-color: var(--fg-row-header-bg);
+  background-image: none;
   color: var(--fg-row-header-text);
   font-size: 14px;
   font-weight: normal;
@@ -540,6 +588,44 @@
   background: #eef1f4;
 }
 
+.fg-scrollbar-v {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: var(--fg-scrollbar-gutter-size);
+  z-index: 14;
+  display: none;
+  width: var(--fg-scrollbar-size);
+  background: #eef1f4;
+  touch-action: none;
+  user-select: none;
+}
+
+.fg-scrollbar-v-track {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #d8dde3;
+  border-radius: 11px;
+  background: #eef1f4;
+}
+
+.fg-scrollbar-v-thumb {
+  position: absolute;
+  top: 0;
+  right: 4px;
+  left: 4px;
+  min-height: 24px;
+  border-radius: 11px;
+  background: #aeb6bf;
+  cursor: default;
+  will-change: transform;
+}
+
+.fg-scrollbar-v:hover .fg-scrollbar-v-thumb,
+.fg-root.fg-scrollbar-v-dragging .fg-scrollbar-v-thumb {
+  background: #8f98a3;
+}
+
 .fg-size-layer {
   position: absolute;
   top: 0;
@@ -568,7 +654,7 @@
   z-index: 7;
   overflow: hidden;
   border-right: 1px dotted var(--fg-border);
-  background: linear-gradient(90deg, #f3f3f3, #e6e6e6);
+  background: var(--fg-row-header-bg);
   box-shadow: 2px 0 4px rgba(15, 23, 42, 0.08);
 }
 
@@ -632,8 +718,8 @@
   padding: 0 8px;
   border-right: 1px dotted var(--fg-border);
   border-bottom: 1px dotted var(--fg-border);
-  background-color: #efefef;
-  background-image: linear-gradient(rgba(255, 255, 255, 20%), rgb(0 0 0 / 6%));
+  background-color: var(--fg-row-header-bg);
+  background-image: none;
   color: var(--fg-row-header-text);
   font-weight: normal;
   line-height: 1;
@@ -683,8 +769,8 @@
 
 .fg-row-header-cell.fg-row-even,
 .fg-row-header-cell.fg-row-alt {
-  background-color: #efefef;
-  background-image: linear-gradient(rgba(255, 255, 255, 20%), rgb(0 0 0 / 6%));
+  background-color: var(--fg-row-header-bg);
+  background-image: none;
 }
 
 .fg-cell.fg-row-hovered {
@@ -702,8 +788,8 @@
 .fg-row-header-cell.fg-row-hovered,
 .fg-row-header-cell.fg-row-selected,
 .fg-row-header-cell.fg-row-selected:hover {
-  background-color: #efefef;
-  background-image: linear-gradient(rgba(255, 255, 255, 20%), rgb(0 0 0 / 6%));
+  background-color: var(--fg-row-header-bg);
+  background-image: none;
   color: var(--fg-row-header-text);
 }
 
@@ -719,6 +805,70 @@
 .fg-selection-cell.fg-row-selected,
 .fg-cell.fg-row-selected:hover {
   background: var(--fg-row-selected-bg);
+}
+
+.fg-root .fg-cell.fg-row-group-cell,
+.fg-root .fg-cell.fg-row-group-cell:hover,
+.fg-root .fg-cell.fg-row-group-cell.fg-row-hovered,
+.fg-root .fg-cell.fg-row-group-cell.fg-row-hovered:hover {
+  z-index: 5;
+  gap: 8px;
+  border-top: 1px solid #d6d6d6;
+  border-bottom: 1px solid #d6d6d6;
+  background-color: #e1e1e1;
+  background-image: none;
+  color: #111827;
+  font-weight: normal;
+  cursor: pointer;
+}
+
+.fg-row-group-expander {
+  margin-left: var(--fg-row-group-indent, 0px);
+  width: 14px;
+  color: #6b7280;
+  text-align: center;
+}
+
+.fg-row-group-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 700;
+}
+
+.fg-row-group-summary {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 10px;
+  color: #111827;
+  font-weight: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.fg-root .fg-cell.fg-row-group-footer-cell,
+.fg-root .fg-cell.fg-row-group-footer-cell:hover,
+.fg-root .fg-cell.fg-row-group-footer-cell.fg-row-hovered,
+.fg-root .fg-cell.fg-row-group-footer-cell.fg-row-selected,
+.fg-root .fg-cell.fg-row-group-footer-cell.fg-selected,
+.fg-row-header-cell.fg-row-group-footer-cell,
+.fg-row-header-cell.fg-row-group-footer-cell.fg-row-hovered,
+.fg-row-header-cell.fg-row-group-footer-cell.fg-row-selected,
+.fg-selection-cell.fg-row-group-footer-cell,
+.fg-selection-cell.fg-row-group-footer-cell.fg-row-hovered,
+.fg-selection-cell.fg-row-group-footer-cell.fg-row-selected {
+  background-color: #efefef;
+  background-image: none;
+  color: #707070;
+  font-weight: normal;
+}
+
+.fg-root .fg-cell.fg-row-group-footer-cell {
+  border-bottom: 1px dotted var(--fg-border);
+  pointer-events: none;
 }
 
 .fg-align-right {

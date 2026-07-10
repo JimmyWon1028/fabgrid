@@ -23,6 +23,7 @@ FastGrid 是一個以效能為優先的 pure JavaScript data grid。核心目標
 ## 目前功能
 
 - `itemsSource` array 資料綁定。
+- `observeItemsSource: true` 可讓透過 `grid.itemsSource` 直接修改資料列屬性時自動刷新；預設關閉以避免 Proxy 帶來的額外成本。
 - `columns` 欄位定義，支援 `binding`、`header`、`width`、`minWidth`、`align`、`dataType`、`formatter`、`footerFormatter`、`validate`、`mask`、`maskValueIncludesLiterals`、`autoUnmask`、`readOnly`、`aggregate`。
 - 欄位標題可用熱鍵在 `header` 與 `binding` 顯示之間切換，`headerToggleKey` 預設為 `false`，可自行設成 `F4`。
 - 雙向 virtualization。
@@ -59,6 +60,7 @@ FastGrid 是一個以效能為優先的 pure JavaScript data grid。核心目標
 - 欄位層級 `validate(args)`，支援同步與 Promise 非同步驗證。
 - 驗證錯誤會標示 cell、顯示 tooltip，並記錄於 `grid.invalidItems`。
 - Header 點擊排序。
+- 欄位拖曳重排：設定 `allowDragging: 'Columns'`，可在左凍結、可捲動與右凍結區內各自調整欄位順序。
 - 全域搜尋。
 - 搜尋列：`showSearchRow` 可開關，每欄可輸入條件，文字欄預設開頭比對，數字欄預設等於比對。
 - 搜尋列可設定輸入 delay，預設 `searchDelay: 200` ms。

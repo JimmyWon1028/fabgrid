@@ -3,15 +3,18 @@
 
   var DEMO_ROW_COUNT = 2000;
   var DEMO_COLUMN_COUNT = 20;
-  var DEMO_SETTINGS_KEY = 'fastgrid.demo.settings.v1';
+  var DEMO_ROW_HEADER_WIDTH = 50;
+  var DEMO_SETTINGS_KEY = 'fastgrid.demo.settings.v3.rowGroupMode';
+  var DEMO_LEGACY_SETTINGS_KEY = 'fastgrid.demo.settings.v2.rowGroups';
   var DEFAULT_DEMO_SETTINGS = {
     locale: 'zh-TW',
     theme: 'default',
     searchText: '',
-    frozenColumns: 2,
-    frozenRightColumns: 1,
+    frozenColumns: 0,
+    frozenRightColumns: 0,
     showRowHeaders: false,
     showSearchRow: true,
+    rowGroupMode: 'order',
     multiSelectRows: false,
     editMode: true
   };
@@ -25,6 +28,13 @@
       frozenRight: 'Right frozen',
       rowHeaders: 'Row no.',
       searchRow: 'Search row',
+      groupRows: 'Group',
+      groupNone: 'No group',
+      groupOrder: 'Order No.',
+      groupVendor: 'Vendor + Order No.',
+      groupVendorOrder: 'Vendor > Order No.',
+      groupHeader: 'Group: {key} ({count} items)',
+      groupVendorOrderHeader: 'Group: {vendor} + {order} ({count} items)',
       multiSelect: 'Multi select',
       editMode: 'Edit',
       exportCsv: 'Export CSV',
@@ -34,14 +44,14 @@
       columnsVisible: 'Columns visible',
       renderedCells: 'Rendered cells',
       columnHeaders: {
-        id: 'ID',
-        name: 'Customer Name',
-        region: 'Region',
-        status: 'Status',
-        category: 'Category',
-        refCode: 'Reference',
-        popupCode: 'Popup lookup',
-        amount: 'Amount (sync)',
+        id: 'Vendor',
+        name: 'Short Name',
+        region: 'Area',
+        status: 'Currency',
+        category: 'Item',
+        refCode: 'Order No.',
+        popupCode: 'Description',
+        amount: 'Payable',
         score: 'Score (async)',
         textDate: 'Text date',
         date: 'Date',
@@ -57,6 +67,13 @@
       frozenRight: '右凍結欄',
       rowHeaders: '列號',
       searchRow: '搜尋列',
+      groupRows: '群組',
+      groupNone: '沒有群組',
+      groupOrder: '訂單編號',
+      groupVendor: '主要廠商 + 訂單編號',
+      groupVendorOrder: '主要廠商 > 訂單編號',
+      groupHeader: '群組: {key} ({count} 項目)',
+      groupVendorOrderHeader: '群組: {vendor} + {order} ({count} 項目)',
       multiSelect: '多選',
       editMode: '編輯',
       exportCsv: '匯出 CSV',
@@ -66,14 +83,14 @@
       columnsVisible: '可視欄',
       renderedCells: '已渲染儲存格',
       columnHeaders: {
-        id: 'ID',
-        name: '客戶名稱',
-        region: '區域',
-        status: '狀態',
-        category: '分類',
-        refCode: '參照',
-        popupCode: 'Popup 參照',
-        amount: '金額(同步)',
+        id: '主要廠商',
+        name: '簡稱',
+        region: '地區',
+        status: '幣別',
+        category: '項目',
+        refCode: '訂單編號',
+        popupCode: '敘述',
+        amount: '應付金額',
         score: '分數(非同步)',
         textDate: '文字日期',
         date: '日期',
@@ -99,6 +116,30 @@
     { value: 'dark-hive', label: 'Dark Hive' },
     { value: 'black', label: 'Black' }
   ];
+  var DEMO_ROW_GROUPS = {
+    order: [
+      {
+        binding: 'refCode',
+        header: formatDemoRowGroupHeader
+      }
+    ],
+    vendor: [
+      {
+        binding: ['id', 'refCode'],
+        header: formatDemoVendorOrderRowGroupHeader
+      }
+    ],
+    'vendor-order': [
+      {
+        binding: 'id',
+        header: formatDemoRowGroupHeader
+      },
+      {
+        binding: 'refCode',
+        header: formatDemoRowGroupHeader
+      }
+    ]
+  };
   var rows = createRows(DEMO_ROW_COUNT, DEMO_COLUMN_COUNT);
   var columns = createColumns(DEMO_COLUMN_COUNT);
   var stats = {
@@ -116,6 +157,7 @@
     frozenRight: document.getElementById('frozenRightInput'),
     rowHeaders: document.getElementById('rowHeadersInput'),
     searchRow: document.getElementById('searchRowInput'),
+    groupRows: document.getElementById('groupRowsInput'),
     multiSelect: document.getElementById('multiSelectInput'),
     editMode: document.getElementById('editModeInput')
   };
@@ -127,6 +169,7 @@
     frozenRight: document.getElementById('frozenRightLabel'),
     rowHeaders: document.getElementById('rowHeadersLabel'),
     searchRow: document.getElementById('searchRowLabel'),
+    groupRows: document.getElementById('groupRowsLabel'),
     multiSelect: document.getElementById('multiSelectLabel'),
     editMode: document.getElementById('editModeLabel'),
     exportCsv: document.getElementById('exportButton'),
@@ -157,13 +200,17 @@
     frozenRightColumns: demoSettings.frozenRightColumns,
     locale: demoSettings.locale,
     showRowHeaders: demoSettings.showRowHeaders,
+    rowHeaderWidth: DEMO_ROW_HEADER_WIDTH,
+    observeItemsSource: true,
     showSearchRow: demoSettings.showSearchRow,
     showFooter: true,
     footerHeight: 32,
     multiSelectRows: demoSettings.multiSelectRows,
     itemsSource: rows,
     columns: columns,
+    rowGroups: getDemoRowGroups(demoSettings.rowGroupMode),
     allowSorting: true,
+    allowDragging: 'Columns',
     allowEditing: demoSettings.editMode,
     editOnSelect: demoSettings.editMode,
     allowResizing: true,
@@ -227,6 +274,7 @@
     grid.setLocale(locale);
     applyDemoLocale(locale);
     applyGridColumnHeaderLocale(grid, locale);
+    refreshDemoRowGroups();
     saveCurrentDemoSettings();
     updateViewportStats({
       totalRows: grid.view.length,
@@ -265,6 +313,19 @@
     saveCurrentDemoSettings();
   });
 
+  controls.groupRows.addEventListener('change', function(event) {
+    grid.setRowGroups(getDemoRowGroups(event.target.value));
+    saveCurrentDemoSettings();
+    updateViewportStats({
+      totalRows: grid.view.length,
+      rowStart: grid.rowRange.start,
+      rowEnd: grid.rowRange.end,
+      columnStart: grid.columnRange.start,
+      columnEnd: grid.columnRange.end,
+      renderedCells: grid.root.querySelectorAll('.fg-cell').length
+    });
+  });
+
   controls.multiSelect.addEventListener('change', function(event) {
     grid.setMultiSelectRows(event.target.checked);
     saveCurrentDemoSettings();
@@ -296,49 +357,11 @@
 
   function createColumns(count) {
     var columns = [
-      { binding: 'id', header: 'ID', width: 72, minWidth: 56, align: 'center', dataType: 'number', readOnly: true },
-      { binding: 'name', header: '客戶名稱', width: 160, minWidth: 100, dataType: 'string', editor: 'textbox' },
-      { binding: 'region', header: '區域', width: 110, minWidth: 80, dataType: 'string', readOnly: true },
-      {
-        binding: 'status',
-        header: '狀態',
-        width: 120,
-        minWidth: 90,
-        dataType: 'string',
-        editor: {
-          type: 'combobox',
-          valueField: 'id',
-          textField: 'descr',
-          showValueInList: false,
-          data: [
-            { id: 'Active', descr: '啟用' },
-            { id: 'Paused', descr: '暫停' },
-            { id: 'Pending', descr: '待確認' }
-          ]
-        }
-      },
-      {
-        binding: 'category',
-        header: '分類',
-        width: 110,
-        minWidth: 90,
-        dataType: 'string',
-        editor: {
-          type: 'combobox',
-          valueField: 'id',
-          textField: 'descr',
-          limitToList: true,
-          showValueInList: true,
-          limitToListMessage: '分類必須是買賣或加工',
-          data: [
-            { id: '1', descr: '買賣' },
-            { id: '2', descr: '加工' }
-          ]
-        }
-      },
+      { binding: 'id', header: '主要廠商', width: 88, minWidth: 72, align: 'center', dataType: 'string', readOnly: true },
+      { binding: 'name', header: '簡稱', width: 108, minWidth: 88, dataType: 'string', readOnly: true },
       {
         binding: 'refCode',
-        header: '參照',
+        header: '訂單編號',
         width: 130,
         minWidth: 100,
         dataType: 'string',
@@ -350,7 +373,7 @@
               title: '選擇參照',
               ariaLabel: '選擇參照',
               onClick: function(args) {
-                args.editor.value = 'REF-' + pad(args.row + 1);
+                args.editor.value = 'BO' + pad(args.row + 1) + '001';
                 args.editor.dispatchEvent(new Event('input', { bubbles: true }));
               }
             }
@@ -358,9 +381,62 @@
         }
       },
       {
+        binding: 'date',
+        header: '單據日期',
+        width: 104,
+        minWidth: 92,
+        dataType: 'date',
+        editor: 'datebox',
+        mask: '9999-99-99'
+      },
+      {
+        binding: 'status',
+        header: '幣別',
+        width: 62,
+        minWidth: 56,
+        align: 'center',
+        dataType: 'string',
+        readOnly: true
+      },
+      {
+        binding: 'category',
+        header: '項目',
+        width: 64,
+        minWidth: 56,
+        align: 'center',
+        dataType: 'string',
+        readOnly: true
+      },
+      {
+        binding: 'amount',
+        header: '應付金額',
+        width: 140,
+        minWidth: 90,
+        align: 'right',
+        color: 'blue',
+        dataType: 'number',
+        aggregate: 'sum',
+        thousandsSeparator: true,
+        precision: 2,
+        editor: {
+          type: 'numberbox'
+        },
+        validate: function(args) {
+          var value = args.value;
+          if (value != null && (!isFinite(value) || value < 0 || value > 1000000)) {
+            return {
+              type: 'range',
+              message: '金額必須介於 0 到 1,000,000',
+              value: args.value
+            };
+          }
+          return null;
+        }
+      },
+      {
         binding: 'popupCode',
-        header: 'Popup 參照',
-        width: 150,
+        header: '敘述',
+        width: 240,
         minWidth: 120,
         dataType: 'string',
         search: {
@@ -383,31 +459,6 @@
               onClick: showLookupPopup
             }
           ]
-        }
-      },
-      {
-        binding: 'amount',
-        header: '金額(同步)',
-        width: 120,
-        minWidth: 90,
-        align: 'right',
-        dataType: 'number',
-        aggregate: 'sum',
-        thousandsSeparator: true,
-        precision: 2,
-        editor: {
-          type: 'numberbox'
-        },
-        validate: function(args) {
-          var value = args.value;
-          if (value != null && (!isFinite(value) || value < 0 || value > 1000000)) {
-            return {
-              type: 'range',
-              message: '金額必須介於 0 到 1,000,000',
-              value: args.value
-            };
-          }
-          return null;
         }
       },
       {
@@ -462,15 +513,6 @@
         editor: 'yymmbox',
         mask: '9999/99',
         autoUnmask: true
-      },
-      {
-        binding: 'date',
-        header: '日期',
-        width: 120,
-        minWidth: 100,
-        dataType: 'date',
-        editor: 'datebox',
-        mask: '9999-99-99'
       }
     ];
     var i;
@@ -489,37 +531,64 @@
   }
 
   function createRows(count, columnCount) {
-    var regions = ['台北', '新竹', '台中', '台南', '高雄'];
-    var statuses = ['Active', 'Paused'];
-    var categories = ['1', '2'];
-    var lookupRows = createLookupRows();
+    var vendors = [
+      { code: '408042', name: '全得' },
+      { code: '724001', name: '凱士' },
+      { code: '114021', name: '凱銳' },
+      { code: '307018', name: '翔曜' },
+      { code: '520033', name: '瑞禾' }
+    ];
+    var descriptions = [
+      '第一期工程款20%(未稅金額)',
+      '第二期工程款60%(未稅金額)',
+      '第三期工程款20%(未稅金額)',
+      '工程款30%訂金',
+      '工程款30%中款'
+    ];
     var rows = [];
     var row;
-    var lookupRow;
+    var vendor;
+    var groupIndex;
+    var lineInGroup;
+    var groupSize;
+    var orderNo;
     var i;
     var c;
     for (i = 1; i <= count; i += 1) {
-      lookupRow = lookupRows[Math.floor(Math.random() * lookupRows.length)];
+      groupIndex = Math.floor((i - 1) / 3);
+      lineInGroup = (i - 1) % 3;
+      groupSize = groupIndex % 5 === 0 ? 1 : 3;
+      vendor = vendors[groupIndex % vendors.length];
+      orderNo = 'BO' + (2025000000 + groupIndex * 1005 + 27);
       row = {
-        id: i,
-        name: 'Customer ' + i,
-        region: regions[i % regions.length],
-        status: statuses[i % statuses.length],
-        category: categories[i % categories.length],
-        refCode: 'REF-' + pad(i),
-        popupCode: lookupRow ? lookupRow.code : '',
-        amount: Math.round((i * 137.89) % 950000),
+        id: vendor.code,
+        name: vendor.name,
+        region: '',
+        status: 'NTD',
+        category: pad((lineInGroup + 1) * 10),
+        refCode: orderNo,
+        popupCode: descriptions[(groupIndex + lineInGroup) % descriptions.length],
+        amount: groupSize === 1 ? 6700 : Math.round(((groupIndex + 3) * 374398.33) / groupSize),
         score: (i * 17) % 100,
         textDate: createTextDateValue(i),
         yearMonth: createYearMonthValue(i),
-        date: createDateValue(i)
+        date: createOrderDateValue(groupIndex)
       };
       for (c = 10; c <= columnCount; c += 1) {
         row['col' + pad(c)] = c % 4 === 0 ? (i * c) % 10000 : 'R' + i + '-C' + c;
       }
       rows.push(row);
+      if (groupSize === 1) {
+        i += 2;
+      }
     }
     return rows;
+  }
+
+  function createOrderDateValue(index) {
+    var day = (index % 26) + 1;
+    var month = index % 3 === 0 ? 4 : 5;
+    return '2026-' + pad(month) + '-' + pad(day);
   }
 
   function createTextDateValue(index) {
@@ -817,6 +886,9 @@
     var raw;
     try {
       raw = window.localStorage ? window.localStorage.getItem(DEMO_SETTINGS_KEY) : '';
+      if (!raw && window.localStorage) {
+        raw = window.localStorage.getItem(DEMO_LEGACY_SETTINGS_KEY);
+      }
       settings = raw ? JSON.parse(raw) : null;
     } catch (error) {
       settings = null;
@@ -833,6 +905,7 @@
       frozenRightColumns: controls.frozenRight.value,
       showRowHeaders: controls.rowHeaders.value,
       showSearchRow: controls.searchRow.checked,
+      rowGroupMode: controls.groupRows.value,
       multiSelectRows: controls.multiSelect.checked,
       editMode: controls.editMode.checked
     });
@@ -856,6 +929,7 @@
     controls.frozenRight.value = settings.frozenRightColumns;
     controls.rowHeaders.value = settings.showRowHeaders === true ? 'true' : settings.showRowHeaders === 'cell' ? 'cell' : 'false';
     controls.searchRow.checked = settings.showSearchRow;
+    controls.groupRows.value = settings.rowGroupMode;
     controls.multiSelect.checked = settings.multiSelectRows;
     controls.editMode.checked = settings.editMode;
   }
@@ -870,6 +944,7 @@
       frozenRightColumns: normalizeNumberSetting(settings.frozenRightColumns, DEFAULT_DEMO_SETTINGS.frozenRightColumns, 0, 6),
       showRowHeaders: normalizeRowHeaderSetting(settings.showRowHeaders, DEFAULT_DEMO_SETTINGS.showRowHeaders),
       showSearchRow: normalizeBooleanSetting(settings.showSearchRow, DEFAULT_DEMO_SETTINGS.showSearchRow),
+      rowGroupMode: normalizeRowGroupModeSetting(settings.rowGroupMode, settings.showRowGroups, DEFAULT_DEMO_SETTINGS.rowGroupMode),
       multiSelectRows: normalizeBooleanSetting(settings.multiSelectRows, DEFAULT_DEMO_SETTINGS.multiSelectRows),
       editMode: normalizeBooleanSetting(settings.editMode, DEFAULT_DEMO_SETTINGS.editMode)
     };
@@ -887,6 +962,20 @@
   function normalizeBooleanSetting(value, defaultValue) {
     if (value === true || value === false) {
       return value;
+    }
+    return defaultValue;
+  }
+
+  function normalizeRowGroupModeSetting(value, legacyValue, defaultValue) {
+    var text = value == null ? '' : String(value).toLowerCase();
+    if (text === 'none' || text === 'order' || text === 'vendor' || text === 'vendor-order') {
+      return text;
+    }
+    if (legacyValue === false) {
+      return 'none';
+    }
+    if (legacyValue === true) {
+      return 'order';
     }
     return defaultValue;
   }
@@ -983,6 +1072,47 @@
     });
   }
 
+  function formatDemoRowGroupHeader(args) {
+    return formatDemoText(getDemoText('groupHeader'), {
+      key: args.key,
+      count: args.count
+    });
+  }
+
+  function formatDemoVendorOrderRowGroupHeader(args) {
+    return formatDemoText(getDemoText('groupVendorOrderHeader'), {
+      vendor: args.item.id,
+      order: args.item.refCode,
+      count: args.count
+    });
+  }
+
+  function getDemoRowGroups(mode) {
+    mode = normalizeRowGroupModeSetting(mode, null, DEFAULT_DEMO_SETTINGS.rowGroupMode);
+    return DEMO_ROW_GROUPS[mode] ? DEMO_ROW_GROUPS[mode].slice() : [];
+  }
+
+  function refreshDemoRowGroups() {
+    grid.setRowGroups(getDemoRowGroups(controls.groupRows.value));
+  }
+
+  function updateGroupRowsOptions() {
+    var labelsByValue = {
+      none: getDemoText('groupNone'),
+      order: getDemoText('groupOrder'),
+      vendor: getDemoText('groupVendor'),
+      'vendor-order': getDemoText('groupVendorOrder')
+    };
+    var i;
+    var option;
+    for (i = 0; i < controls.groupRows.options.length; i += 1) {
+      option = controls.groupRows.options[i];
+      if (Object.prototype.hasOwnProperty.call(labelsByValue, option.value)) {
+        option.textContent = labelsByValue[option.value];
+      }
+    }
+  }
+
   function applyDemoLocale(locale) {
     locale = normalizeLocaleSetting(locale, DEFAULT_DEMO_SETTINGS.locale);
     controls.language.value = locale;
@@ -994,10 +1124,14 @@
     labels.frozenRight.textContent = getDemoText('frozenRight');
     labels.rowHeaders.textContent = getDemoText('rowHeaders');
     labels.searchRow.textContent = getDemoText('searchRow');
+    labels.groupRows.textContent = getDemoText('groupRows');
+    updateGroupRowsOptions();
     labels.multiSelect.textContent = getDemoText('multiSelect');
     labels.editMode.textContent = getDemoText('editMode');
-    labels.exportCsv.textContent = getDemoText('exportCsv');
-    labels.exportExcel.textContent = getDemoText('exportExcel');
+    labels.exportCsv.setAttribute('aria-label', getDemoText('exportCsv'));
+    labels.exportCsv.setAttribute('title', getDemoText('exportCsv'));
+    labels.exportExcel.setAttribute('aria-label', getDemoText('exportExcel'));
+    labels.exportExcel.setAttribute('title', getDemoText('exportExcel'));
     controls.search.setAttribute('placeholder', getDemoText('searchPlaceholder'));
   }
 

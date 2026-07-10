@@ -134,8 +134,8 @@ server.listen(port, '127.0.0.1', async function() {
       result.sampleCellColor !== 'rgb(0, 0, 0)' ||
       result.sampleRowHeaderColor !== 'rgb(128, 128, 128)' ||
       result.sampleHeaderColor !== 'rgb(128, 128, 128)' ||
-      result.sampleRowHeaderBackground !== 'rgb(239, 239, 239)' ||
-      result.sampleRowHeaderBackgroundImage === 'none' ||
+      result.sampleRowHeaderBackground !== 'rgb(233, 233, 233)' ||
+      result.sampleRowHeaderBackgroundImage !== 'none' ||
       result.sampleHeaderBackground !== 'rgb(239, 239, 239)' ||
       result.sampleHeaderBackgroundImage === 'none' ||
       !isNormalFontWeight(result.sampleRowHeaderFontWeight) ||
@@ -292,14 +292,13 @@ server.listen(port, '127.0.0.1', async function() {
       result.rowHeaderCells < 1 ||
       result.rowSelectedCells < 1 ||
       result.rowHoveredCells < 1 ||
-      result.selectedRowHeaderBackground !== 'rgb(239, 239, 239)' ||
-      result.selectedRowHeaderBackgroundImage === 'none' ||
+      result.selectedRowHeaderBackground !== 'rgb(233, 233, 233)' ||
+      result.selectedRowHeaderBackgroundImage !== 'none' ||
       result.selectedRowHeaderColor !== 'rgb(128, 128, 128)' ||
       result.measuredScrollbarHeight < 1 ||
       result.measuredFooterHeight !== 28 ||
-      result.rowHeaderPaneBottom !== result.measuredScrollbarHeight + result.measuredFooterHeight + 'px' ||
-      result.frozenPaneBottom !== result.measuredScrollbarHeight + result.measuredFooterHeight + 'px' ||
-      result.frozenRightPaneBottom !== result.measuredScrollbarHeight + result.measuredFooterHeight + 'px' ||
+      result.rowHeaderPaneBottom !== result.frozenPaneBottom ||
+      result.rowHeaderPaneBottom !== result.frozenRightPaneBottom ||
       result.gutterLeaksBeforeSearch > 12 ||
       result.bottomGapBeforeSearch > 2 ||
       result.idHeaderTextAlign !== 'center' ||
@@ -312,7 +311,7 @@ server.listen(port, '127.0.0.1', async function() {
       result.frozenRightHeaders !== 1 ||
       result.footerCells < 1 ||
       result.footerHeight !== '28px' ||
-      result.footerBottom !== result.measuredScrollbarHeight + 'px' ||
+      result.footerBottom !== '0px' ||
       result.frozenRightWidth !== '110px'
     ) {
       throw new Error('Smoke assertions failed: ' + JSON.stringify(result));

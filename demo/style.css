@@ -76,6 +76,11 @@ body {
   background: #ffffff;
 }
 
+.search-field input {
+  width: 110px;
+  min-width: 110px;
+}
+
 .toggle {
   display: inline-flex;
   align-items: center;
@@ -102,6 +107,12 @@ body {
   width: 96px;
 }
 
+.field.compact.narrow-number-field input {
+  width: 40px;
+  min-width: 40px;
+  padding: 0 6px;
+}
+
 .theme-field select {
   min-width: 136px;
   width: 136px;
@@ -112,10 +123,20 @@ body {
   padding: 0 12px;
   border: 1px solid #1d4ed8;
   border-radius: 4px;
-  background: #2563eb;
+  background-color: #2563eb;
   color: #ffffff;
   font: inherit;
   cursor: pointer;
+}
+
+.toolbar .toolbar-icon-button {
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
+  background-position: center center;
+  background-repeat: no-repeat;
+  font-size: 0;
+  line-height: 0;
 }
 
 .stats {

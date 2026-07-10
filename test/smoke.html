@@ -237,7 +237,7 @@
         var footerVisibleWorks = grid.showFooter === true &&
           grid.getFooterHeight() === 28 &&
           window.getComputedStyle(document.querySelector('.fg-footer')).display === 'block' &&
-          document.querySelector('.fg-footer-row-header').textContent === 'Σ' &&
+          document.querySelector('.fg-footer-row-header').textContent === '' &&
           footerCell &&
           footerCell.textContent === '125,025,000.00';
         var idFooterCell = document.querySelector('.fg-footer-cell[data-col="0"]');

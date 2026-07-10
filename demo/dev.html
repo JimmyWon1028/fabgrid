@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FastGrid Dev Demo</title>
-  <link rel="stylesheet" href="../src/styles/fastgrid.css?v=20260709-search-input-soft-border">
-  <link rel="stylesheet" href="../src/styles/my.icon.css?v=20260709-search-input-soft-border">
-  <link rel="stylesheet" href="./style.css?v=20260709-search-input-soft-border">
+  <link rel="stylesheet" href="../src/styles/fastgrid.css?v=20260710-column-drag-return-v1">
+  <link rel="stylesheet" href="../src/styles/my.icon.css?v=20260710-column-drag-return-v1">
+  <link rel="stylesheet" href="./style.css?v=20260710-column-drag-return-v1">
 </head>
 <body>
   <main class="page">
@@ -15,7 +15,7 @@
         <h1>FastGrid</h1>
         <p>Pure JS performance-first grid · <span id="datasetSummary">-</span></p>
       </div>
-      <label class="field">
+      <label class="field search-field">
         <span id="searchLabel">搜尋</span>
         <input id="searchInput" type="search" placeholder="輸入關鍵字">
       </label>
@@ -30,11 +30,11 @@
         <span id="themeLabel">主題</span>
         <select id="themeInput"></select>
       </label>
-      <label class="field compact">
+      <label class="field compact narrow-number-field">
         <span id="frozenLabel">凍結欄</span>
         <input id="frozenInput" type="number" min="0" max="6" value="2">
       </label>
-      <label class="field compact">
+      <label class="field compact narrow-number-field">
         <span id="frozenRightLabel">右凍結欄</span>
         <input id="frozenRightInput" type="number" min="0" max="6" value="1">
       </label>
@@ -44,6 +44,15 @@
           <option value="false">關閉</option>
           <option value="true">顯示列號</option>
           <option value="cell">只顯示 cell</option>
+        </select>
+      </label>
+      <label class="field compact">
+        <span id="groupRowsLabel">群組</span>
+        <select id="groupRowsInput">
+          <option value="none">沒有群組</option>
+          <option value="order">訂單編號</option>
+          <option value="vendor">主要廠商 + 訂單編號</option>
+          <option value="vendor-order">主要廠商 > 訂單編號</option>
         </select>
       </label>
       <label class="toggle">
@@ -58,8 +67,8 @@
         <input id="editModeInput" type="checkbox" checked>
         <span id="editModeLabel">編輯</span>
       </label>
-      <button id="exportButton" type="button">匯出 CSV</button>
-      <button id="exportExcelButton" type="button">匯出 Excel</button>
+      <button id="exportButton" class="toolbar-icon-button icon-export" type="button" aria-label="匯出 CSV" title="匯出 CSV"></button>
+      <button id="exportExcelButton" class="toolbar-icon-button icon-excel" type="button" aria-label="匯出 Excel" title="匯出 Excel"></button>
     </section>
 
     <section class="stats" aria-label="FastGrid stats">
@@ -75,14 +84,14 @@
   </main>
 
   <script type="module">
-    import { createFastGridFactory } from '../src/fastgrid-core.js?v=20260709-search-input-soft-border';
+    import { createFastGridFactory } from '../src/fastgrid-core.js?v=20260710-column-drag-return-v1';
 
     window.FASTGRID_DEMO_THEME_ROOT = '../src/styles/themes';
-    window.FASTGRID_DEMO_THEME_VERSION = '20260709-search-input-soft-border';
+    window.FASTGRID_DEMO_THEME_VERSION = '20260710-column-drag-return-v1';
     window.FastGrid = createFastGridFactory();
-    await import('../src/locales/fastgrid-locale.zh-TW.js?v=20260709-search-input-soft-border');
-    await import('../src/locales/fastgrid-locale.en.js?v=20260709-search-input-soft-border');
-    await import('./demo.js?v=20260709-search-input-soft-border');
+    await import('../src/locales/fastgrid-locale.zh-TW.js?v=20260710-column-drag-return-v1');
+    await import('../src/locales/fastgrid-locale.en.js?v=20260710-column-drag-return-v1');
+    await import('./demo.js?v=20260710-column-drag-return-v1');
   </script>
 </body>
 </html>
