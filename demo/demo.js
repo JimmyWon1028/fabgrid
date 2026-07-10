@@ -313,18 +313,20 @@
     saveCurrentDemoSettings();
   });
 
-  controls.groupRows.addEventListener('change', function(event) {
-    grid.setRowGroups(getDemoRowGroups(event.target.value));
-    saveCurrentDemoSettings();
-    updateViewportStats({
-      totalRows: grid.view.length,
-      rowStart: grid.rowRange.start,
-      rowEnd: grid.rowRange.end,
-      columnStart: grid.columnRange.start,
-      columnEnd: grid.columnRange.end,
-      renderedCells: grid.root.querySelectorAll('.fg-cell').length
+  if (controls.groupRows) {
+    controls.groupRows.addEventListener('change', function(event) {
+      grid.setRowGroups(getDemoRowGroups(event.target.value));
+      saveCurrentDemoSettings();
+      updateViewportStats({
+        totalRows: grid.view.length,
+        rowStart: grid.rowRange.start,
+        rowEnd: grid.rowRange.end,
+        columnStart: grid.columnRange.start,
+        columnEnd: grid.columnRange.end,
+        renderedCells: grid.root.querySelectorAll('.fg-cell').length
+      });
     });
-  });
+  }
 
   controls.multiSelect.addEventListener('change', function(event) {
     grid.setMultiSelectRows(event.target.checked);
@@ -905,7 +907,7 @@
       frozenRightColumns: controls.frozenRight.value,
       showRowHeaders: controls.rowHeaders.value,
       showSearchRow: controls.searchRow.checked,
-      rowGroupMode: controls.groupRows.value,
+      rowGroupMode: controls.groupRows ? controls.groupRows.value : DEFAULT_DEMO_SETTINGS.rowGroupMode,
       multiSelectRows: controls.multiSelect.checked,
       editMode: controls.editMode.checked
     });
@@ -929,7 +931,9 @@
     controls.frozenRight.value = settings.frozenRightColumns;
     controls.rowHeaders.value = settings.showRowHeaders === true ? 'true' : settings.showRowHeaders === 'cell' ? 'cell' : 'false';
     controls.searchRow.checked = settings.showSearchRow;
-    controls.groupRows.value = settings.rowGroupMode;
+    if (controls.groupRows) {
+      controls.groupRows.value = settings.rowGroupMode;
+    }
     controls.multiSelect.checked = settings.multiSelectRows;
     controls.editMode.checked = settings.editMode;
   }
@@ -1093,7 +1097,9 @@
   }
 
   function refreshDemoRowGroups() {
-    grid.setRowGroups(getDemoRowGroups(controls.groupRows.value));
+    if (controls.groupRows) {
+      grid.setRowGroups(getDemoRowGroups(controls.groupRows.value));
+    }
   }
 
   function updateGroupRowsOptions() {
@@ -1105,6 +1111,9 @@
     };
     var i;
     var option;
+    if (!controls.groupRows) {
+      return;
+    }
     for (i = 0; i < controls.groupRows.options.length; i += 1) {
       option = controls.groupRows.options[i];
       if (Object.prototype.hasOwnProperty.call(labelsByValue, option.value)) {
@@ -1124,7 +1133,9 @@
     labels.frozenRight.textContent = getDemoText('frozenRight');
     labels.rowHeaders.textContent = getDemoText('rowHeaders');
     labels.searchRow.textContent = getDemoText('searchRow');
-    labels.groupRows.textContent = getDemoText('groupRows');
+    if (labels.groupRows) {
+      labels.groupRows.textContent = getDemoText('groupRows');
+    }
     updateGroupRowsOptions();
     labels.multiSelect.textContent = getDemoText('multiSelect');
     labels.editMode.textContent = getDemoText('editMode');
