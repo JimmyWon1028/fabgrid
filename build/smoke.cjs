@@ -252,6 +252,10 @@ server.listen(port, '127.0.0.1', async function() {
       !result.invalidTipWorks ||
       !result.dateboxInvalidItemsPropertyWorks ||
       !result.dateboxValidCommitClearsValidationWorks ||
+      !result.yearMonthInvalidValidationWorks ||
+      !result.yearMonthValidCommitClearsValidationWorks ||
+      !result.validateRowInvalidWorks ||
+      !result.validateRowValidWorks ||
       !result.englishEmptyTextWorks ||
       !result.englishEditorAriaWorks ||
       !result.englishBusyTextWorks ||

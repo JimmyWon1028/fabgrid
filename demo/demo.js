@@ -2,7 +2,7 @@
   'use strict';
 
   var DEMO_ROW_COUNT = 2000;
-  var DEMO_COLUMN_COUNT = 20;
+  var DEMO_COLUMN_COUNT = 22;
   var DEMO_ROW_HEADER_WIDTH = 50;
   var DEMO_SETTINGS_KEY = 'fastgrid.demo.settings.v3.rowGroupMode';
   var DEMO_LEGACY_SETTINGS_KEY = 'fastgrid.demo.settings.v2.rowGroups';
@@ -12,7 +12,7 @@
     searchText: '',
     frozenColumns: 0,
     frozenRightColumns: 0,
-    showRowHeaders: false,
+    showRowHeaders: true,
     showSearchRow: true,
     rowGroupMode: 'order',
     multiSelectRows: false,
@@ -39,6 +39,7 @@
       editMode: 'Edit',
       exportCsv: 'Export CSV',
       exportExcel: 'Export Excel',
+      popupGridTitle: 'Popup Grid example: customer contract orders',
       rows: 'Rows',
       rowsVisible: 'Rows visible',
       columnsVisible: 'Columns visible',
@@ -47,10 +48,12 @@
         id: 'Vendor',
         name: 'Short Name',
         region: 'Area',
-        status: 'Currency',
+        crncy: 'Currency',
         category: 'Item',
         refCode: 'Order No.',
-        popupCode: 'Description',
+        cusno: 'Customer',
+        stus: 'Status',
+        rem: 'Summary',
         amount: 'Payable',
         score: 'Score (async)',
         textDate: 'Text date',
@@ -78,6 +81,7 @@
       editMode: '編輯',
       exportCsv: '匯出 CSV',
       exportExcel: '匯出 Excel',
+      popupGridTitle: 'Popup Grid 範例：客戶合約訂單',
       rows: '列數',
       rowsVisible: '可視列',
       columnsVisible: '可視欄',
@@ -86,10 +90,12 @@
         id: '主要廠商',
         name: '簡稱',
         region: '地區',
-        status: '幣別',
+        crncy: '幣別',
         category: '項目',
         refCode: '訂單編號',
-        popupCode: '敘述',
+        cusno: '客戶',
+        stus: '狀態',
+        rem: '摘要',
         amount: '應付金額',
         score: '分數(非同步)',
         textDate: '文字日期',
@@ -116,6 +122,7 @@
     { value: 'dark-hive', label: 'Dark Hive' },
     { value: 'black', label: 'Black' }
   ];
+  var DEMO_WORKFLOW_VALUES = ['draft', 'pending', 'approved', 'closed'];
   var DEMO_ROW_GROUPS = {
     order: [
       {
@@ -218,7 +225,7 @@
     alternatingRowBackground: '#fafafa',
     headerToggleKey: 'F4', //'Ctrl+F4'
     formatCell: function(args) {
-      if (args.column.binding === 'status') {
+      if (args.column.binding === 'crncy') {
         if (args.value === 'Active' || args.value === '啟用') {
           args.cell.className += ' status-active';
           args.cell.style.color = '#047857';
@@ -392,7 +399,7 @@
         mask: '9999-99-99'
       },
       {
-        binding: 'status',
+        binding: 'crncy',
         header: '幣別',
         width: 62,
         minWidth: 56,
@@ -408,6 +415,49 @@
         align: 'center',
         dataType: 'string',
         readOnly: true
+      },
+      {
+        binding: 'cusno',
+        header: '客戶',
+        width: 132,
+        minWidth: 110,
+        dataType: 'string',
+        search: {
+          icons: [
+            {
+              iconCls: 'icon-refwin',
+              title: '開啟 Popup Grid',
+              ariaLabel: '開啟 Popup Grid',
+              onClick: showLookupPopup
+            }
+          ]
+        },
+        editor: {
+          type: 'textbox',
+          icons: [
+            {
+              iconCls: 'icon-refwin',
+              title: '開啟 Popup Grid',
+              ariaLabel: '開啟 Popup Grid',
+              onClick: showLookupPopup
+            }
+          ]
+        }
+      },
+      {
+        binding: 'stus',
+        header: '狀態',
+        width: 120,
+        minWidth: 100,
+        dataType: 'string',
+        editor: {
+          type: 'combobox',
+          valueField: 'value',
+          textField: 'text',
+          limitToList: true,
+          showValueInList: true,
+          data: getWorkflowComboboxData('zh-TW')
+        }
       },
       {
         binding: 'amount',
@@ -436,32 +486,11 @@
         }
       },
       {
-        binding: 'popupCode',
-        header: '敘述',
+        binding: 'rem',
+        header: '摘要',
         width: 240,
         minWidth: 120,
-        dataType: 'string',
-        search: {
-          icons: [
-            {
-              iconCls: 'icon-refwin',
-              title: '開啟參考查詢',
-              ariaLabel: '開啟參考查詢',
-              onClick: showLookupPopup
-            }
-          ]
-        },
-        editor: {
-          type: 'textbox',
-          icons: [
-            {
-              iconCls: 'icon-refwin',
-              title: '開啟參考查詢',
-              ariaLabel: '開啟參考查詢',
-              onClick: showLookupPopup
-            }
-          ]
-        }
+        dataType: 'string'
       },
       {
         binding: 'score',
@@ -517,7 +546,25 @@
         autoUnmask: true
       }
     ];
+    var displayOrder = {
+      id: 0,
+      name: 1,
+      refCode: 2,
+      category: 3,
+      date: 4,
+      crncy: 5,
+      cusno: 6,
+      stus: 7,
+      textDate: 8,
+      yearMonth: 9,
+      amount: 10,
+      score: 11,
+      rem: 12
+    };
     var i;
+    columns.sort(function(a, b) {
+      return displayOrder[a.binding] - displayOrder[b.binding];
+    });
     for (i = columns.length + 1; i <= count; i += 1) {
       columns.push({
         binding: 'col' + pad(i),
@@ -547,6 +594,7 @@
       '工程款30%訂金',
       '工程款30%中款'
     ];
+    var lookupCodes = ['2W001', 'WU001', 'CU004', 'BV001', 'RM001', 'RW001', 'JL001', 'JP001'];
     var rows = [];
     var row;
     var vendor;
@@ -566,10 +614,12 @@
         id: vendor.code,
         name: vendor.name,
         region: '',
-        status: 'NTD',
+        crncy: 'NTD',
         category: pad((lineInGroup + 1) * 10),
         refCode: orderNo,
-        popupCode: descriptions[(groupIndex + lineInGroup) % descriptions.length],
+        cusno: lookupCodes[(groupIndex + lineInGroup) % lookupCodes.length],
+        stus: DEMO_WORKFLOW_VALUES[(groupIndex + lineInGroup) % DEMO_WORKFLOW_VALUES.length],
+        rem: descriptions[(groupIndex + lineInGroup) % descriptions.length],
         amount: groupSize === 1 ? 6700 : Math.round(((groupIndex + 3) * 374398.33) / groupSize),
         score: (i * 17) % 100,
         textDate: createTextDateValue(i),
@@ -669,7 +719,7 @@
       lookupGrid.invalidate();
       lookupGrid.select(Math.max(0, lookupGrid.selection.row), 0);
     }
-    lookupPopup.title.textContent = '參考查詢（客戶合約訂單）';
+    lookupPopup.title.textContent = getDemoText('popupGridTitle');
     lookupPopup.count.textContent = '顯示1到' + lookupGrid.view.length + ',共' + lookupGrid.view.length + '記錄';
     window.setTimeout(function() {
       lookupGrid.invalidate();
@@ -1070,6 +1120,18 @@
     return DEMO_LOCALES[locale] || DEMO_LOCALES[DEFAULT_DEMO_SETTINGS.locale];
   }
 
+  function getWorkflowComboboxData(locale) {
+    var labels = locale === 'en' ?
+      ['Draft', 'Pending', 'Approved', 'Closed'] :
+      ['草稿', '待審核', '已核准', '已結案'];
+    var items = [];
+    var i;
+    for (i = 0; i < DEMO_WORKFLOW_VALUES.length; i += 1) {
+      items.push({ value: DEMO_WORKFLOW_VALUES[i], text: labels[i] });
+    }
+    return items;
+  }
+
   function formatDemoText(text, data) {
     return String(text == null ? '' : text).replace(/\{([^}]+)\}/g, function(match, key) {
       return data && Object.prototype.hasOwnProperty.call(data, key) ? data[key] : match;
@@ -1159,6 +1221,7 @@
   function applyDemoLocale(locale) {
     locale = normalizeLocaleSetting(locale, DEFAULT_DEMO_SETTINGS.locale);
     controls.language.value = locale;
+    applyWorkflowComboboxData(columns, locale);
     document.documentElement.lang = locale === 'en' ? 'en' : 'zh-Hant';
     labels.search.textContent = getDemoText('search');
     labels.language.textContent = getDemoText('language');
@@ -1183,8 +1246,31 @@
   function applyGridColumnHeaderLocale(targetGrid, locale) {
     applyColumnHeaderLocale(columns, locale);
     applyColumnHeaderLocale(targetGrid.columns, locale);
+    applyWorkflowComboboxData(targetGrid.columns, locale);
     if (targetGrid.root) {
-      targetGrid.renderHeaders(targetGrid.columnRange);
+      targetGrid.render();
+    }
+  }
+
+  function applyWorkflowComboboxData(targetColumns, locale) {
+    var data = getWorkflowComboboxData(normalizeLocaleSetting(locale, DEFAULT_DEMO_SETTINGS.locale));
+    var column;
+    var editor;
+    var i;
+    if (!targetColumns) {
+      return;
+    }
+    for (i = 0; i < targetColumns.length; i += 1) {
+      column = targetColumns[i];
+      if (!column || column.binding !== 'stus') {
+        continue;
+      }
+      editor = column.editor;
+      if (editor && editor.options) {
+        editor.options.data = data;
+      } else if (editor) {
+        editor.data = data;
+      }
     }
   }
 

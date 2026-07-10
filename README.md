@@ -12,6 +12,11 @@ FastGrid 是一個以效能為優先的 pure JavaScript data grid。核心目標
 
 [https://jimmywon1028.github.io/fastgrid/demo/](https://jimmywon1028.github.io/fastgrid/demo/)
 
+## 工作進度
+
+- [2026-07-10 工作紀錄](./worklogs/2026-07-10.md)
+- 舊紀錄位於 [worklogs](./worklogs/)。
+
 ## 專案定位
 
 - 核心不依賴 Vue、React 或後端。
@@ -33,7 +38,9 @@ FastGrid 是一個以效能為優先的 pure JavaScript data grid。核心目標
 - 左側列號欄，預設寬度 `60px`。
 - 列號欄開關：`showRowHeaders`。
 - Footer 聚合列：`showFooter`，欄位可設定 `aggregate`。
+- 群組列：`rowGroups` 支援 1 到 3 階群組、展開／收合、群組列選取與 aggregate 顯示。
 - 多選列 checkbox 欄：`multiSelectRows`。
+- 左上角欄位選擇器可顯示／隱藏欄位，隱藏欄位不會出現在 grid，但保留在資料與 Excel 匯出中。
 - 欄位標題與內容對齊一致，數字欄可靠右，ID 可置中。
 - 單一 cell 選取。
 - 點選列號可選取整列。
@@ -70,6 +77,8 @@ FastGrid 是一個以效能為優先的 pure JavaScript data grid。核心目標
 - 欄寬拖曳調整。
 - CSV 匯出。
 - Excel 匯出，包含欄寬、凍結窗格、filter、footer、number format、grid border、header/cell 背景與文字顏色。
+- Excel 預設匯出全部欄位；grid 中隱藏的欄位會保留資料並在 Excel 工作表隱藏。
+- Excel 匯出會沿用目前 `view`；群組啟用時保留 group row、收合狀態與 aggregate 顯示格式。
 - Excel 匯出時會顯示 busy 提示，並在完成前阻擋 grid 操作。
 - 多國語系訊息檔，支援英文、繁體中文，並提供未載入的簡體中文檔案。
 - 主題 CSS，來源為 `src/styles/themes/fastgrid.<suffix>.css`，並可依 `src/styles/my.wijmo.*.css` 的後綴產生對應主題。
@@ -465,6 +474,17 @@ grid.invalidItems.forEach(function(item) {
 
 `invalidItems` 是 array，每筆資料會包含錯誤 cell 的 row / column 資訊與錯誤訊息；可用 `rowNumber`、`colNumber` 直接顯示給使用者。
 
+外部直接更新 `itemsSource` 後，可用 `validateRow(rowIdx)` 重新驗證該資料列全部欄位。`rowIdx` 是 `itemsSource` 的索引；方法一律回傳 `Promise<boolean>`，因此同步與非同步 validator 都可使用：
+
+```js
+grid.itemsSource[4].yearMonth = '202715';
+
+grid.validateRow(4).then(function(valid) {
+  console.log(valid); // false
+  console.log(grid.invalidItems);
+});
+```
+
 文字遮罩欄位：
 
 ```js
@@ -640,6 +660,8 @@ row header pane 與 frozen pane 的 `bottom` 要等於水平 scrollbar 高度，
 - formatCell 造成的文字色與背景色會被帶入。
 - frozenColumns 會轉成 worksheet frozen pane。
 - 會加入 autoFilter。
+- grid 中隱藏的欄位仍會匯出，並在 Excel 工作表標記為 hidden。
+- 群組啟用時會保留 group row；群組 aggregate 使用與 grid 相同的小數顯示格式。
 
 右側凍結欄目前是畫面行為；Excel 標準 frozen pane 主要支援左側/上方凍結，因此匯出仍以左凍結欄為主。
 
@@ -689,8 +711,7 @@ source-mode 與 dist-mode 都要注意 query version。`demo/dev.html` 改 sourc
 - 尚未做 cell range multi-selection。
 - 尚未做 paste。
 - 尚未做 Excel-style filter menu。
-- 尚未做 column reorder。
-- 尚未做 grouping / tree grid / merged cells。
+- 尚未做 tree grid / merged cells。
 - 尚未做 variable row height。
 - 右側凍結欄尚未轉換成 Excel 匯出的右側 frozen 視覺，因 Excel frozen pane 模型與瀏覽器 grid 行為不同。
 

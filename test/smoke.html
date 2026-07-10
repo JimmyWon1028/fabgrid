@@ -1275,6 +1275,68 @@
               grid.invalidItems.length === 0 &&
               invalidDateCell &&
               invalidDateCell.className.indexOf('fg-cell-invalid') < 0;
+            var yearMonthValidationHost = document.createElement('div');
+            document.body.appendChild(yearMonthValidationHost);
+            var yearMonthValidationGrid = new FastGrid(yearMonthValidationHost, {
+              locale: 'zh-TW',
+              rowHeight: 32,
+              headerHeight: 32,
+              columns: [
+                {
+                  binding: 'period',
+                  header: 'Period',
+                  width: 110,
+                  editor: 'yymmbox',
+                  mask: '9999/99',
+                  autoUnmask: true
+                }
+              ],
+              itemsSource: [{ period: '202607' }]
+            });
+            yearMonthValidationGrid.select(0, 0);
+            yearMonthValidationGrid.startEditing(0, 0);
+            yearMonthValidationGrid.activeEditor.value = '203013';
+            yearMonthValidationGrid.finishEditing(true);
+            var invalidYearMonthCell = yearMonthValidationHost.querySelector('.fg-cell[data-row="0"][data-col="0"]');
+            var invalidYearMonthItem = yearMonthValidationGrid.invalidItems[0] || null;
+            var yearMonthInvalidValidationWorks = yearMonthValidationGrid.getCellData(0, 0) === '203013' &&
+              invalidYearMonthCell &&
+              invalidYearMonthCell.className.indexOf('fg-cell-invalid') >= 0 &&
+              invalidYearMonthItem &&
+              invalidYearMonthItem.type === 'yearMonth' &&
+              invalidYearMonthItem.message === '年月格式錯誤' &&
+              invalidYearMonthItem.value === '203013';
+            yearMonthValidationGrid.select(0, 0);
+            yearMonthValidationGrid.startEditing(0, 0);
+            yearMonthValidationGrid.activeEditor.value = '203012';
+            yearMonthValidationGrid.finishEditing(true);
+            invalidYearMonthCell = yearMonthValidationHost.querySelector('.fg-cell[data-row="0"][data-col="0"]');
+            var yearMonthValidCommitClearsValidationWorks = yearMonthValidationGrid.getCellData(0, 0) === '203012' &&
+              yearMonthValidationGrid.invalidItems.length === 0 &&
+              invalidYearMonthCell &&
+              invalidYearMonthCell.className.indexOf('fg-cell-invalid') < 0;
+            var validateRowInvalidWorks = false;
+            var validateRowValidWorks = false;
+            yearMonthValidationGrid.itemsSource[0].period = '202715';
+            var validateRowPromise = yearMonthValidationGrid.validateRow(0).then(function(valid) {
+              invalidYearMonthCell = yearMonthValidationHost.querySelector('.fg-cell[data-row="0"][data-col="0"]');
+              validateRowInvalidWorks = valid === false &&
+                invalidYearMonthCell &&
+                invalidYearMonthCell.className.indexOf('fg-cell-invalid') >= 0 &&
+                yearMonthValidationGrid.invalidItems.length === 1 &&
+                yearMonthValidationGrid.invalidItems[0].type === 'yearMonth' &&
+                yearMonthValidationGrid.invalidItems[0].value === '202715';
+              yearMonthValidationGrid.itemsSource[0].period = '202712';
+              return yearMonthValidationGrid.validateRow(0);
+            }).then(function(valid) {
+              invalidYearMonthCell = yearMonthValidationHost.querySelector('.fg-cell[data-row="0"][data-col="0"]');
+              validateRowValidWorks = valid === true &&
+                yearMonthValidationGrid.invalidItems.length === 0 &&
+                invalidYearMonthCell &&
+                invalidYearMonthCell.className.indexOf('fg-cell-invalid') < 0;
+              yearMonthValidationGrid.dispose();
+              document.body.removeChild(yearMonthValidationHost);
+            });
             var localeHost = document.createElement('div');
             document.body.appendChild(localeHost);
             var localeGrid = new FastGrid(localeHost, {
@@ -1379,7 +1441,7 @@
                 }, 20);
               }, 20);
             });
-            asyncValidationPromise.then(function() {
+            Promise.all([asyncValidationPromise, validateRowPromise]).then(function() {
               var excelBlob = grid.getExcelBlob();
               excelBlob.arrayBuffer().then(function(buffer) {
               var largeExportScrollResult = runLargeExportScrollCheck();
@@ -1564,6 +1626,10 @@
                 invalidTipWorks: invalidTipWorks,
                 dateboxInvalidItemsPropertyWorks: dateboxInvalidItemsPropertyWorks,
                 dateboxValidCommitClearsValidationWorks: dateboxValidCommitClearsValidationWorks,
+                yearMonthInvalidValidationWorks: yearMonthInvalidValidationWorks,
+                yearMonthValidCommitClearsValidationWorks: yearMonthValidCommitClearsValidationWorks,
+                validateRowInvalidWorks: validateRowInvalidWorks,
+                validateRowValidWorks: validateRowValidWorks,
                 englishEmptyTextWorks: englishEmptyTextWorks,
                 englishEditorAriaWorks: englishEditorAriaWorks,
                 englishBusyTextWorks: englishBusyTextWorks,

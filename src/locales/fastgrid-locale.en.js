@@ -13,6 +13,7 @@
     validation: {
       invalidValue: 'Invalid value',
       invalidDate: 'Invalid date',
+      invalidYearMonth: 'Invalid year and month',
       comboboxLimitToList: 'Please select a valid item'
     },
     aria: {
@@ -21,6 +22,8 @@
       datePicker: 'Date picker',
       openComboBox: 'Open combo box',
       comboBoxOptions: 'Combo box options',
+      openColumnChooser: 'Open column chooser',
+      columnChooser: 'Column chooser',
       selectAllRows: 'Select all rows',
       selectRow: 'Select row {rowNumber}',
       year: 'Year'

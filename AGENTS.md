@@ -21,6 +21,9 @@
 - 開發測試優先使用 source-mode demo，例如 `demo/dev.html` 直接引用 `src/fastgrid-core.js` 與 `src/styles/*`；修改 source 後要同步更新 query version，避免瀏覽器快取造成誤判。
 - 新增任何核心 UI 文字時，必須同步補齊 `en`、`zh-TW`、`zh-CN` locale key；demo-only 文字若會隨語言切換，也要放進 demo locale pack，不要寫死單一語言。
 - popup menu 樣式要維持一致：左側 icon 欄、icon 後分隔線、緊湊列高與清楚 hover/active 狀態；後續新增 popup menu 時沿用目前 filter menu 的視覺規則。
+- 工作進度記錄放在 `worklogs/YYYY-MM-DD.md`，固定使用 `## 完成進度` 標題；功能契約改動時，同步更新 README 與本文件。
+- Excel 預設匯出完整欄位集合，隱藏欄位必須保留資料並在工作表標記為 hidden；只有明確傳入 `visibleOnly === true` 時才只匯出可見欄位。
+- Excel 匯出使用目前 grid `view`。群組啟用時必須保留 group row、群組 aggregate 顯示格式與收合狀態。
 
 ## 產品方向
 
@@ -232,23 +235,22 @@ Demo 應該顯示有助於觀察效能的 runtime stats：
    - `setCellData(row, col, value)`
    - `dispose()`
 
-12. CSV 匯出
+12. CSV / Excel 匯出
    - 匯出目前 view。
    - 支援只匯出可見 columns。
-   - V1 不做 xlsx。
+   - Excel 支援欄寬、左側 frozen pane、autoFilter、footer、number format、grid style 與 hidden columns。
+   - Excel 匯出群組時保留 group row 與 aggregate 顯示格式。
 
 ## V1 不做的功能
 
 在 core 經過驗證之前，先避免以下功能：
 
-- Grouping。
 - Tree grid。
 - Merged cells。
 - Frozen rows。
 - Range selection。
 - Clipboard copy/paste。
 - Excel-style filter menu。
-- Column reorder。
 - Column pinning。
 - Row details。
 - Custom Vue slot cells。

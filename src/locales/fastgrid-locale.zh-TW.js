@@ -13,6 +13,7 @@
     validation: {
       invalidValue: '輸入值無效',
       invalidDate: '日期格式錯誤',
+      invalidYearMonth: '年月格式錯誤',
       comboboxLimitToList: '請從清單選擇有效項目'
     },
     aria: {
@@ -21,6 +22,8 @@
       datePicker: '日期選擇器',
       openComboBox: '開啟下拉選單',
       comboBoxOptions: '下拉選項',
+      openColumnChooser: '開啟欄位選擇器',
+      columnChooser: '欄位選擇器',
       selectAllRows: '選取所有列',
       selectRow: '選取第 {rowNumber} 列',
       year: '年份'
