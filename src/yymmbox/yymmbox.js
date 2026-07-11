@@ -6,7 +6,7 @@ export function createYymmBoxFactory(DateBox, editorDefinitions) {
   }
 
   editorDefinitions = editorDefinitions || {};
-  var editorDefinition = editorDefinitions.yymmbox || null;
+  var editorDefinition = editorDefinitions.datebox || null;
 
   function assign(target) {
     var index;

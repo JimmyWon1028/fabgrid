@@ -187,7 +187,8 @@
   var DEMO_ROW_GROUPS = {
     order: [
       {
-        binding: 'refCode',
+        binding: 'dlvno',
+        demoHeaderKey: 'refCode',
         header: formatDemoRowGroupHeader
       }
     ],
@@ -532,7 +533,8 @@
       { binding: 'id', header: '主要廠商', width: 88, minWidth: 72, align: 'center', dataType: 'string', readOnly: true },
       { binding: 'name', header: '簡稱', width: 108, minWidth: 88, dataType: 'string', readOnly: true },
       {
-        binding: 'refCode',
+        binding: 'dlvno',
+        demoHeaderKey: 'refCode',
         header: '訂單編號',
         width: 130,
         minWidth: 100,
@@ -571,7 +573,8 @@
         readOnly: true
       },
       {
-        binding: 'category',
+        binding: 'item',
+        demoHeaderKey: 'category',
         header: '項目',
         width: 64,
         minWidth: 56,
@@ -688,7 +691,8 @@
         }
       },
       {
-        binding: 'textDate',
+        binding: 'dlvno',
+        demoHeaderKey: 'textDate',
         header: '文字日期',
         width: 120,
         minWidth: 100,
@@ -699,12 +703,13 @@
         autoUnmask: true
       },
       {
-        binding: 'yearMonth',
+        binding: 'yymm',
+        demoHeaderKey: 'yearMonth',
         header: '年月',
         width: 110,
         minWidth: 90,
         dataType: 'string',
-        editor: 'yymmbox',
+        editor: 'datebox',
         mask: '9999/99',
         autoUnmask: true
       }
@@ -726,7 +731,7 @@
     };
     var i;
     columns.sort(function(a, b) {
-      return displayOrder[a.binding] - displayOrder[b.binding];
+      return displayOrder[a.demoHeaderKey || a.binding] - displayOrder[b.demoHeaderKey || b.binding];
     });
     for (i = columns.length + 1; i <= count; i += 1) {
       columns.push({
@@ -780,6 +785,8 @@
         crncy: 'NTD',
         category: pad((lineInGroup + 1) * 10),
         refCode: orderNo,
+        dlvno: orderNo,
+        item: pad((lineInGroup + 1) * 10),
         cusno: lookupCodes[(groupIndex + lineInGroup) % lookupCodes.length],
         stus: DEMO_WORKFLOW_VALUES[(groupIndex + lineInGroup) % DEMO_WORKFLOW_VALUES.length],
         rem: descriptions[(groupIndex + lineInGroup) % descriptions.length],
@@ -787,6 +794,7 @@
         score: (i * 17) % 100,
         textDate: createTextDateValue(i),
         yearMonth: createYearMonthValue(i),
+        yymm: createYearMonthValue(i),
         date: createOrderDateValue(groupIndex)
       };
       for (c = 10; c <= columnCount; c += 1) {
@@ -1351,7 +1359,7 @@
   function getDemoColumnHeader(binding) {
     var i;
     for (i = 0; i < columns.length; i += 1) {
-      if (columns[i].binding === binding) {
+      if (columns[i].binding === binding || columns[i].demoHeaderKey === binding) {
         return columns[i].header;
       }
     }
@@ -1464,7 +1472,7 @@
 
   function getColumnHeaderText(column, locale) {
     var headers = getDemoLocalePack(locale).columnHeaders || {};
-    var binding = column && column.binding ? String(column.binding) : '';
+    var binding = column && (column.demoHeaderKey || column.binding) ? String(column.demoHeaderKey || column.binding) : '';
     var index;
     if (Object.prototype.hasOwnProperty.call(headers, binding)) {
       return headers[binding];

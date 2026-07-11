@@ -4,6 +4,8 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const srcDir = path.join(root, 'src');
 const distDir = path.join(root, 'dist');
+const buildDate = new Date();
+const buildVersion = buildDate.getFullYear() + '.' + (buildDate.getMonth() + 1) + '.' + buildDate.getDate();
 const javascriptSources = [
   'editor/editor-definitions.js',
   'grid/fabgrid.js'
@@ -123,6 +125,7 @@ function createJavascriptBundle() {
   const locales = localeSources.map(readSource).join('\n');
   return banner('browser global') + '(function(global) {\n' + modules + '\n' +
     'global.fabui = global.fabui || {};\n' +
+    'global.fabui.version = ' + JSON.stringify(buildVersion) + ';\n' +
     'global.fabui.editorDefinitions = createEditorDefinitions();\n' +
     'global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);\n' +
     'global.fabui.FabGridLocales = global.fabui.FabGrid.locales;\n' +
@@ -148,6 +151,7 @@ function createEsmJavascriptBundle() {
     'var editorDefinitions = createEditorDefinitions();\n' +
     'var FabGrid = createFabGridFactory(editorDefinitions);\n' +
     'var fabui = {\n' +
+    '  version: ' + JSON.stringify(buildVersion) + ',\n' +
     '  editorDefinitions: editorDefinitions,\n' +
     '  FabGrid: FabGrid,\n' +
     '  FabGridLocales: FabGrid.locales\n' +
@@ -183,6 +187,9 @@ function verifyBuildOutput() {
   }
   if (/global\.fabui\.(?:TextBox|NumberBox|DateBox|YymmBox|ComboBox|Tabs)\s*=/.test(javascript)) {
     throw new Error('Standalone components must not be published in the FabGrid bundle.');
+  }
+  if (javascript.indexOf('global.fabui.version = ' + JSON.stringify(buildVersion)) < 0) {
+    throw new Error('FabUI build version does not match the build date.');
   }
   verifyCssAssets(cssFile);
   verifyCssAssets(path.join(distDir, 'fabui.min.css'));

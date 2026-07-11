@@ -51,13 +51,15 @@ ES module 使用者可由 `dist/fabui.esm.js` 匯入 `fabui`，再以 `new fabui
 - 左右凍結欄、列號欄、欄位顯示切換、footer aggregate 與 1 至 3 階群組。
 - 本機資料或 `remote: true` 遠端分頁、排序與搜尋。
 - 單一 cell 選取、多選列、鍵盤導覽、欄寬調整與欄位拖曳重排。
-- `textbox`、`numberbox`、`datebox`、`combobox` editor，以及同步／非同步欄位驗證。
+- `textbox`、`numberbox`、`datebox`、`combobox` editor，以及同步／非同步欄位驗證；`datebox` 在 mask 為 `9999/99` 或 `9999-99` 時使用年月 popup。
 - CSV 與 Excel 匯出；Excel 支援凍結窗格、篩選、群組、footer、格式與隱藏欄。
 - `en`、`zh-TW`、`zh-CN` locale 檔案與多組內建主題。
 
 ## 套件與原始碼結構
 
 `fabui` 是最上層 namespace，目前只公開 `fabui.FabGrid` 與其必要的 `fabui.editorDefinitions`、`fabui.FabGridLocales`。其他表單控件保留在原始碼中，尚未列入發佈 bundle，規劃請見 [TODO](./TODO.md)。
+
+可透過 `fabui.version` 取得發佈日期版本，格式為 `YYYY.M.D`，例如 `2026.7.11`。每次執行 build 時會依本機當天日期自動產生。
 
 ```text
 src/fabui.js             公開入口

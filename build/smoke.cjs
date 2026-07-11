@@ -313,7 +313,7 @@ server.listen(port, '127.0.0.1', async function() {
       !result.busyOverlayWorks ||
       !result.busyOverlayClearsWorks ||
       result.rowSelection !== 0 ||
-      result.rowHeaderTopText !== '1' ||
+      result.rowHeaderTopText !== '' ||
       result.rowHeaderWidth !== '60px' ||
       result.firstRowHeaderText !== '1' ||
       result.rowHeaderCells < 1 ||

@@ -262,6 +262,11 @@ export function createEditorDefinitions() {
     return handleDateDelete(editor, key, yymmOptions);
   }
 
+  function isYearMonthMask(options) {
+    var mask = options && options.mask ? String(options.mask) : '';
+    return mask === '9999/99' || mask === '9999-99';
+  }
+
   return {
     textbox: {
       type: 'textbox',
@@ -287,25 +292,24 @@ export function createEditorDefinitions() {
       className: 'textbox-f datebox-f fg-editor-datebox',
       inputMode: 'numeric',
       mask: '9999/99/99',
-      sanitize: formatDate,
-      format: formatDate,
-      parse: parseDate,
-      getDataValue: getDateDataValue,
-      getCopyText: getDateCopyText,
-      handleDelete: handleDateDelete,
-      isTextAllowed: function(editor, text) { return /^[0-9]+$/.test(String(text || '')); }
-    },
-    yymmbox: {
-      type: 'yymmbox',
-      className: 'textbox-f datebox-f yymmbox-f fg-editor-yymmbox',
-      inputMode: 'numeric',
-      mask: '9999/99',
-      sanitize: formatYymm,
-      format: formatYymm,
-      parse: parseYymm,
-      getDataValue: getYymmDataValue,
-      getCopyText: getYymmCopyText,
-      handleDelete: handleYymmDelete,
+      sanitize: function(value, options) {
+        return isYearMonthMask(options) ? formatYymm(value, options) : formatDate(value, options);
+      },
+      format: function(value, options) {
+        return isYearMonthMask(options) ? formatYymm(value, options) : formatDate(value, options);
+      },
+      parse: function(value, options) {
+        return isYearMonthMask(options) ? parseYymm(value) : parseDate(value);
+      },
+      getDataValue: function(value, options) {
+        return isYearMonthMask(options) ? getYymmDataValue(value) : getDateDataValue(value);
+      },
+      getCopyText: function(value, options) {
+        return isYearMonthMask(options) ? getYymmCopyText(value, options) : getDateCopyText(value, options);
+      },
+      handleDelete: function(editor, key, options) {
+        return isYearMonthMask(options) ? handleYymmDelete(editor, key, options) : handleDateDelete(editor, key, options);
+      },
       isTextAllowed: function(editor, text) { return /^[0-9]+$/.test(String(text || '')); }
     }
   };

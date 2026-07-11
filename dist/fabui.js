@@ -264,6 +264,11 @@ function createEditorDefinitions() {
     return handleDateDelete(editor, key, yymmOptions);
   }
 
+  function isYearMonthMask(options) {
+    var mask = options && options.mask ? String(options.mask) : '';
+    return mask === '9999/99' || mask === '9999-99';
+  }
+
   return {
     textbox: {
       type: 'textbox',
@@ -289,25 +294,24 @@ function createEditorDefinitions() {
       className: 'textbox-f datebox-f fg-editor-datebox',
       inputMode: 'numeric',
       mask: '9999/99/99',
-      sanitize: formatDate,
-      format: formatDate,
-      parse: parseDate,
-      getDataValue: getDateDataValue,
-      getCopyText: getDateCopyText,
-      handleDelete: handleDateDelete,
-      isTextAllowed: function(editor, text) { return /^[0-9]+$/.test(String(text || '')); }
-    },
-    yymmbox: {
-      type: 'yymmbox',
-      className: 'textbox-f datebox-f yymmbox-f fg-editor-yymmbox',
-      inputMode: 'numeric',
-      mask: '9999/99',
-      sanitize: formatYymm,
-      format: formatYymm,
-      parse: parseYymm,
-      getDataValue: getYymmDataValue,
-      getCopyText: getYymmCopyText,
-      handleDelete: handleYymmDelete,
+      sanitize: function(value, options) {
+        return isYearMonthMask(options) ? formatYymm(value, options) : formatDate(value, options);
+      },
+      format: function(value, options) {
+        return isYearMonthMask(options) ? formatYymm(value, options) : formatDate(value, options);
+      },
+      parse: function(value, options) {
+        return isYearMonthMask(options) ? parseYymm(value) : parseDate(value);
+      },
+      getDataValue: function(value, options) {
+        return isYearMonthMask(options) ? getYymmDataValue(value) : getDateDataValue(value);
+      },
+      getCopyText: function(value, options) {
+        return isYearMonthMask(options) ? getYymmCopyText(value, options) : getDateCopyText(value, options);
+      },
+      handleDelete: function(editor, key, options) {
+        return isYearMonthMask(options) ? handleYymmDelete(editor, key, options) : handleDateDelete(editor, key, options);
+      },
       isTextAllowed: function(editor, text) { return /^[0-9]+$/.test(String(text || '')); }
     }
   };
@@ -5743,9 +5747,6 @@ function createFabGridFactory(editorDefinitions) {
     if (config.type === 'datebox') {
       return formatDateboxEditorText(value, config, column);
     }
-    if (config.type === 'yymmbox') {
-      return formatYymmboxEditorText(value, config, column);
-    }
     if (config.type === 'combobox') {
       return getComboboxTextByValue(value, config);
     }
@@ -5884,17 +5885,6 @@ function createFabGridFactory(editorDefinitions) {
     }
     if (config.type === 'datebox') {
       formatted = sanitizeDateEditorText(this.editor.value);
-      if (formatted !== this.editor.value) {
-        this.editor.value = formatted;
-        this.editor.setSelectionRange(formatted.length, formatted.length);
-      }
-      this.syncDateboxPanelToEditor();
-      return;
-    }
-    if (config.type === 'yymmbox') {
-      formatted = editorDefinitions.yymmbox && typeof editorDefinitions.yymmbox.sanitize === 'function' ?
-        editorDefinitions.yymmbox.sanitize(this.editor.value, config.options || {}) :
-        sanitizeYymmboxEditorText(this.editor.value);
       if (formatted !== this.editor.value) {
         this.editor.value = formatted;
         this.editor.setSelectionRange(formatted.length, formatted.length);
@@ -6062,7 +6052,7 @@ function createFabGridFactory(editorDefinitions) {
     event.stopPropagation();
     if (monthButton) {
       month = toNumber(monthButton.getAttribute('data-month'), this.dateboxState ? this.dateboxState.month : 0);
-      if (target.config.type === 'yymmbox') {
+      if (isYearMonthDateboxTarget(target)) {
         this.applyDateboxTargetDate(new Date(this.dateboxState ? this.dateboxState.year : new Date().getFullYear(), clamp(month, 0, 11), 1));
         return;
       }
@@ -6669,11 +6659,11 @@ function createFabGridFactory(editorDefinitions) {
     if (!target || !target.input || !target.config) {
       date = null;
     } else {
-      date = parseDateboxEditorValue(target.input.value, target.config);
+      date = parseDateboxEditorValue(target.input.value, target.config, target.column);
     }
     if (!date && target && target.type === 'editor' && this.editing) {
-      date = target.config.type === 'yymmbox' ?
-        parseYymmboxValue(this.editing.yymmboxValue || this.editing.original) :
+      date = isYearMonthDateboxTarget(target) ?
+        parseYymmboxValue(this.editing.yearMonthValue || this.editing.original) :
         parseDateValue(this.editing.dateboxValue || this.editing.original);
     }
     if (!date) {
@@ -6683,7 +6673,7 @@ function createFabGridFactory(editorDefinitions) {
       year: date.getFullYear(),
       month: date.getMonth(),
       selected: date,
-      mode: target && target.config && target.config.type === 'yymmbox' ? 'months' : 'calendar'
+      mode: isYearMonthDateboxTarget(target) ? 'months' : 'calendar'
     };
   };
 
@@ -6694,15 +6684,15 @@ function createFabGridFactory(editorDefinitions) {
       return;
     }
     if (target.type === 'editor' && this.editing) {
-      if (target.config.type === 'yymmbox') {
-        this.editing.yymmboxValue = formatYymmboxDataText(date, target.column);
+      if (isYearMonthDateboxTarget(target)) {
+        this.editing.yearMonthValue = formatYymmboxDataText(date, target.column);
         target.input.value = formatYymmboxEditorText(date, target.config, target.column);
       } else {
         this.editing.dateboxValue = formatDateIso(date);
         target.input.value = formatDateboxEditorText(date, target.config, target.column);
       }
     } else {
-      text = target.config.type === 'yymmbox' ?
+      text = isYearMonthDateboxTarget(target) ?
         formatYymmboxEditorText(date, target.config, target.column) :
         formatDateboxEditorText(date, target.config, target.column);
       target.input.value = text;
@@ -6762,7 +6752,7 @@ function createFabGridFactory(editorDefinitions) {
     html.push('</div>');
     if (mode === 'months') {
       this.renderDateboxMonthView(html, year, month);
-      if (!this.dateboxTarget || !this.dateboxTarget.config || this.dateboxTarget.config.type !== 'yymmbox') {
+      if (!isYearMonthDateboxTarget(this.dateboxTarget)) {
         this.renderDateboxFooter(html);
       }
       this.dateboxPanel.innerHTML = html.join('');
@@ -6989,7 +6979,7 @@ function createFabGridFactory(editorDefinitions) {
       result = column.validate(args);
       if (isPromiseLike(result)) {
         return result.then(function(nextResult) {
-          return normalizeValidationResult(nextResult, value, 'custom', self) || getDefaultValidationErrorForGrid(self, config, value);
+          return normalizeValidationResult(nextResult, value, 'custom', self) || getDefaultValidationErrorForGrid(self, config, value, column);
         });
       }
       result = normalizeValidationResult(result, value, 'custom', this);
@@ -6997,7 +6987,7 @@ function createFabGridFactory(editorDefinitions) {
         return result;
       }
     }
-    return getDefaultValidationErrorForGrid(this, config, value);
+    return getDefaultValidationErrorForGrid(this, config, value, column);
   };
 
   FabGrid.prototype.validateRow = function(row) {
@@ -7095,7 +7085,7 @@ function createFabGridFactory(editorDefinitions) {
     });
   };
 
-  function getDefaultValidationErrorForGrid(grid, config, value) {
+  function getDefaultValidationErrorForGrid(grid, config, value, column) {
     var options = config && config.options ? config.options : {};
     var text;
     var validDate;
@@ -7116,8 +7106,8 @@ function createFabGridFactory(editorDefinitions) {
         value: value
       };
     }
-    isYearMonth = config.type === 'yymmbox';
-    if (config.type !== 'datebox' && !isYearMonth) {
+    isYearMonth = isYearMonthDateboxConfig(config, column);
+    if (config.type !== 'datebox') {
       return null;
     }
     text = value == null ? '' : String(value).trim();
@@ -7287,9 +7277,6 @@ function createFabGridFactory(editorDefinitions) {
     }
     if (config.type === 'datebox') {
       return getDateboxDataValue(this.editor.value, config, this.editing);
-    }
-    if (config.type === 'yymmbox') {
-      return getYymmboxDataValue(this.editor.value, config, this.editing, column);
     }
     if (config.type === 'combobox') {
       return getComboboxDataValue(this.editor.value, config, this.editing);
@@ -7930,9 +7917,6 @@ function createFabGridFactory(editorDefinitions) {
     if (config.type === 'datebox') {
       return '9999/99/99';
     }
-    if (config.type === 'yymmbox') {
-      return '9999/99';
-    }
     return '';
   }
 
@@ -8043,13 +8027,10 @@ function createFabGridFactory(editorDefinitions) {
     if (type === 'date' || type === 'calendar') {
       return 'datebox';
     }
-    if (type === 'yymm' || type === 'month' || type === 'monthbox' || type === 'yearmonth') {
-      return 'yymmbox';
-    }
     if (type === 'combo' || type === 'select' || type === 'dropdown') {
       return 'combobox';
     }
-    if (type === 'numberbox' || type === 'datebox' || type === 'yymmbox' || type === 'combobox') {
+    if (type === 'numberbox' || type === 'datebox' || type === 'combobox') {
       return type;
     }
     return 'textbox';
@@ -8204,8 +8185,8 @@ function createFabGridFactory(editorDefinitions) {
     var date = parseYymmboxValue(value);
     var text = date ? formatYymmboxDataText(date, column) : value;
     var mask = getEditorMask(column);
-    if (editorDefinitions.yymmbox && typeof editorDefinitions.yymmbox.format === 'function') {
-      return editorDefinitions.yymmbox.format(value, mergeOptions(config && config.options ? config.options : {}, { mask: mask || editorDefinitions.yymmbox.mask }));
+    if (editorDefinitions.datebox && typeof editorDefinitions.datebox.format === 'function') {
+      return editorDefinitions.datebox.format(value, mergeOptions(config && config.options ? config.options : {}, { mask: mask || '9999/99' }));
     }
     if (mask) {
       return formatMaskText(text, { mask: mask });
@@ -8235,46 +8216,21 @@ function createFabGridFactory(editorDefinitions) {
     return parsed ? formatDateIso(parsed) : value;
   }
 
-  function parseDateboxEditorValue(value, config) {
+  function parseDateboxEditorValue(value, config, column) {
     var parser = config && config.options ? config.options.parser : null;
     var parsed;
+    var options = mergeOptions(config && config.options ? config.options : {}, { mask: getEditorMask(column) });
     if (typeof parser === 'function') {
       parsed = parser(value);
       if (parsed instanceof Date && !isNaN(parsed.getTime())) {
         return parsed;
       }
-      return config && config.type === 'yymmbox' ? parseYymmboxValue(parsed) : parseDateValue(parsed);
+      return isYearMonthDateboxConfig(config, column) ? parseYymmboxValue(parsed) : parseDateValue(parsed);
     }
     if (config && editorDefinitions[config.type] && typeof editorDefinitions[config.type].parse === 'function') {
-      return editorDefinitions[config.type].parse(value, config.options || {});
+      return editorDefinitions[config.type].parse(value, options);
     }
-    return config && config.type === 'yymmbox' ? parseYymmboxValue(value) : parseDateValue(value);
-  }
-
-  function getYymmboxDataValue(value, config, edit, column) {
-    var parser = config && config.options ? config.options.parser : null;
-    var parsed;
-    var date;
-    if (edit && edit.yymmboxValue && value === formatYymmboxEditorText(edit.yymmboxValue, config, column)) {
-      return edit.yymmboxValue;
-    }
-    if (typeof parser === 'function') {
-      parsed = parser(value);
-      if (parsed instanceof Date && !isNaN(parsed.getTime())) {
-        return formatYymmboxDataText(parsed, column);
-      }
-      if (parsed != null) {
-        return parsed;
-      }
-    }
-    if (editorDefinitions.yymmbox && typeof editorDefinitions.yymmbox.getDataValue === 'function') {
-      return editorDefinitions.yymmbox.getDataValue(value, config && config.options ? config.options : {});
-    }
-    date = parseYymmboxValue(value);
-    if (date) {
-      return formatYymmboxDataText(date, column);
-    }
-    return getMaskDataValue(value, getMaskOptions(column, getEditorMask(column)));
+    return isYearMonthDateboxConfig(config, column) ? parseYymmboxValue(value) : parseDateValue(value);
   }
 
   function parseYymmboxValue(value) {
@@ -8282,8 +8238,8 @@ function createFabGridFactory(editorDefinitions) {
     var match;
     var year;
     var month;
-    if (editorDefinitions.yymmbox && typeof editorDefinitions.yymmbox.parse === 'function') {
-      return editorDefinitions.yymmbox.parse(value, {});
+    if (editorDefinitions.datebox && typeof editorDefinitions.datebox.parse === 'function') {
+      return editorDefinitions.datebox.parse(value, { mask: '9999/99' });
     }
     if (value instanceof Date && !isNaN(value.getTime())) {
       return new Date(value.getFullYear(), value.getMonth(), 1);
@@ -8365,7 +8321,22 @@ function createFabGridFactory(editorDefinitions) {
   }
 
   function isDateLikeEditorType(type) {
-    return type === 'datebox' || type === 'yymmbox';
+    return type === 'datebox';
+  }
+
+  function isYearMonthMask(mask) {
+    mask = String(mask || '');
+    return mask === '9999/99' || mask === '9999-99';
+  }
+
+  function isYearMonthDateboxConfig(config, column) {
+    var options = config && config.options ? config.options : {};
+    var mask = column ? getEditorMask(column) : options.mask;
+    return Boolean(config && config.type === 'datebox' && isYearMonthMask(mask));
+  }
+
+  function isYearMonthDateboxTarget(target) {
+    return Boolean(target && isYearMonthDateboxConfig(target.config, target.column));
   }
 
   function pad2(value) {
@@ -8924,14 +8895,14 @@ function createFabGridFactory(editorDefinitions) {
     dateConfig = getColumnEditorConfig(column);
     if (dateConfig && isDateLikeEditorType(dateConfig.type)) {
       operator = operator || 'starts';
-      sourceDate = parseDateboxEditorValue(value, dateConfig);
-      targetDate = parseDateboxEditorValue(searchText, dateConfig);
+      sourceDate = parseDateboxEditorValue(value, dateConfig, column);
+      targetDate = parseDateboxEditorValue(searchText, dateConfig, column);
       if (isComparisonSearchOperator(operator) && sourceDate && targetDate) {
-        sourceText = dateConfig.type === 'yymmbox' ? formatYymmboxDataText(sourceDate, column) : formatDateIso(sourceDate);
-        targetText = dateConfig.type === 'yymmbox' ? formatYymmboxDataText(targetDate, column) : formatDateIso(targetDate);
+        sourceText = isYearMonthDateboxConfig(dateConfig, column) ? formatYymmboxDataText(sourceDate, column) : formatDateIso(sourceDate);
+        targetText = isYearMonthDateboxConfig(dateConfig, column) ? formatYymmboxDataText(targetDate, column) : formatDateIso(targetDate);
       } else {
         sourceText = sourceDate ?
-          (dateConfig.type === 'yymmbox' ? formatYymmboxEditorText(sourceDate, dateConfig, column) : formatDateboxEditorText(sourceDate, dateConfig, column)).toLowerCase() :
+          (isYearMonthDateboxConfig(dateConfig, column) ? formatYymmboxEditorText(sourceDate, dateConfig, column) : formatDateboxEditorText(sourceDate, dateConfig, column)).toLowerCase() :
           String(value).toLowerCase();
         targetText = String(searchText).toLowerCase();
       }
@@ -9413,8 +9384,8 @@ function createFabGridFactory(editorDefinitions) {
   }
 
   function sanitizeYymmboxEditorText(value) {
-    if (editorDefinitions.yymmbox && typeof editorDefinitions.yymmbox.sanitize === 'function') {
-      return editorDefinitions.yymmbox.sanitize(value, { mask: editorDefinitions.yymmbox.mask });
+    if (editorDefinitions.datebox && typeof editorDefinitions.datebox.sanitize === 'function') {
+      return editorDefinitions.datebox.sanitize(value, { mask: '9999/99' });
     }
     return String(value == null ? '' : value).replace(/[^0-9]/g, '').slice(0, 6);
   }
@@ -10395,6 +10366,7 @@ function createFabGridFactory(editorDefinitions) {
 }
 
 global.fabui = global.fabui || {};
+global.fabui.version = "2026.7.11";
 global.fabui.editorDefinitions = createEditorDefinitions();
 global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);
 global.fabui.FabGridLocales = global.fabui.FabGrid.locales;

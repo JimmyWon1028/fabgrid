@@ -1364,7 +1364,7 @@
                   binding: 'period',
                   header: 'Period',
                   width: 110,
-                  editor: 'yymmbox',
+                  editor: 'datebox',
                   mask: '9999/99',
                   autoUnmask: true
                 }
@@ -1489,7 +1489,8 @@
               numberBox.getText() === '$1,234,567.89' &&
               numberBoxInput.value === '1234567.89' &&
               numberBox.textbox().closest('.fui-numberbox') !== null;
-            var sharedEditorDefinitionsWork = window.fabui.editorDefinitions &&
+            var sharedEditorDefinitionsWork = /^\d{4}\.\d{1,2}\.\d{1,2}$/.test(window.fabui.version || '') &&
+              window.fabui.editorDefinitions &&
               window.fabui.FabGrid.editorDefinitions === window.fabui.editorDefinitions &&
               window.fabui.TextBox.editorDefinition === window.fabui.editorDefinitions.textbox &&
               window.fabui.NumberBox.editorDefinition === window.fabui.editorDefinitions.numberbox &&
@@ -1554,12 +1555,12 @@
               value: '202607'
             });
             yymmBox.showPanel();
-            var sharedYymmEditorDefinitionWorks = window.fabui.YymmBox.editorDefinition === window.fabui.editorDefinitions.yymmbox &&
+            var sharedYymmEditorDefinitionWorks = window.fabui.YymmBox.editorDefinition === window.fabui.editorDefinitions.datebox &&
               yymmBox.getValue() === '202607' &&
               yymmBox.getText() === '2026/07' &&
               yymmBox.textbox().classList.contains('textbox-f') &&
-              yymmBox.textbox().classList.contains('yymmbox-f') &&
-              yymmBox.textbox().classList.contains('fg-editor-yymmbox') &&
+              yymmBox.textbox().classList.contains('datebox-f') &&
+              yymmBox.textbox().classList.contains('fg-editor-datebox') &&
               !yymmBox.panel().querySelector('.fui-calendar-menu').hidden &&
               yymmBox.panel().querySelectorAll('.fui-calendar-menu-month').length === 12;
             yymmBox.hidePanel();

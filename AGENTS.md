@@ -43,7 +43,9 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 ## 技術方向
 
 - `fabui` 是最上層 UI namespace，Browser global 與 ES module 公開入口目前只輸出 FabGrid 與其必要定義。
+- Browser global 與 ES module 皆以 `fabui.version` 公開 `YYYY.M.D` 格式的發佈日期版本，每次 build 依本機當天日期自動產生。
 - FabGrid editor 的共用定義位於 `src/editor/editor-definitions.js`，由 `fabui.editorDefinitions` 公開；不可在 Grid 內維護多套數字／日期清理、格式化或 editor class。
+- FabGrid 年月編輯統一使用 `datebox`；當 mask 為 `9999/99` 或 `9999-99` 時，popup 固定使用年份／月份選擇模式，不再定義 FabGrid `yymmbox` editor。
 - FabGrid 位於 `fabui.FabGrid`；`src/fabui.js` 是入口，`src/grid/fabgrid.js` 是 Grid 子模組。
 - TextBox、NumberBox、DateBox、YymmBox、ComboBox、Tabs 目前只保留原始碼，全部列於 `TODO.md`；不得由 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 或 `dist/fabui.*` 公開或編譯。
 - 未來若要重新發佈任何 standalone 控件，必須建立獨立 entry、CSS、demo、API 文件與驗證；不得併回 FabGrid core bundle。
