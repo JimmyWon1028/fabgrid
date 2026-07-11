@@ -115,6 +115,54 @@
         date: '日期',
         defaultColumn: '欄位 {index}'
       }
+    },
+    'zh-CN': {
+      search: '搜索',
+      searchPlaceholder: '输入关键字',
+      language: '语言',
+      theme: '主题',
+      frozen: '冻结列',
+      frozenRight: '右冻结列',
+      rowHeaders: '行号',
+      searchRow: '搜索行',
+      pagination: '分页',
+      remote: '远程',
+      groupRows: '分组',
+      groupNone: '不分组',
+      groupOrder: '订单编号',
+      groupVendor: '主要厂商 + 订单编号',
+      groupVendorOrder: '主要厂商 > 订单编号',
+      groupHeader: '{header}: {key} ({count} 项)',
+      groupVendorOrderHeader: '{header}: {vendor} + {order} ({count} 项)',
+      multiSelect: '多选',
+      editMode: '编辑',
+      exportCsv: '导出 CSV',
+      exportExcel: '导出 Excel',
+      popupGridTitle: 'Popup Grid 示例：客户合同订单',
+      rows: '行数',
+      rowsVisible: '可见行',
+      columnsVisible: '可见列',
+      renderedCells: '已渲染单元格',
+      resultCount: '记录数',
+      filter: '筛选:',
+      filterPlaceholder: '逗号分隔条件，例如 aaa,bbb,ccc',
+      clearFilter: '清除筛选',
+      columnHeaders: {
+        id: '主要厂商',
+        name: '简称',
+        region: '地区',
+        crncy: '币别',
+        category: '项目',
+        refCode: '订单编号',
+        cusno: '客户',
+        stus: '状态',
+        rem: '摘要',
+        amount: '应付金额',
+        score: '分数(异步)',
+        textDate: '文本日期',
+        date: '日期',
+        defaultColumn: '列 {index}'
+      }
     }
   };
   var DEMO_THEMES = [
@@ -1244,8 +1292,9 @@
 
   function getWorkflowComboboxData(locale) {
     var labels = locale === 'en' ?
-      ['Draft', 'Pending', 'Approved', 'Closed'] :
-      ['草稿', '待審核', '已核准', '已結案'];
+      ['Draft', 'Pending', 'Approved', 'Closed'] : locale === 'zh-CN' ?
+        ['草稿', '待审核', '已批准', '已结案'] :
+        ['草稿', '待審核', '已核准', '已結案'];
     var items = [];
     var i;
     for (i = 0; i < DEMO_WORKFLOW_VALUES.length; i += 1) {
@@ -1344,7 +1393,7 @@
     locale = normalizeLocaleSetting(locale, DEFAULT_DEMO_SETTINGS.locale);
     controls.language.value = locale;
     applyWorkflowComboboxData(columns, locale);
-    document.documentElement.lang = locale === 'en' ? 'en' : 'zh-Hant';
+    document.documentElement.lang = locale;
     labels.language.textContent = getDemoText('language');
     labels.theme.textContent = getDemoText('theme');
     labels.frozen.textContent = getDemoText('frozen');
@@ -1559,7 +1608,7 @@
     if (!Number.isFinite(number)) {
       return String(value);
     }
-    return number.toLocaleString(controls.language.value === 'en' ? 'en-US' : 'zh-TW');
+    return number.toLocaleString(controls.language.value === 'en' ? 'en-US' : controls.language.value);
   }
 
   function setDemoFilterPrompt(prompt) {
