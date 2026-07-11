@@ -1,0 +1,23 @@
+/* Values adapted from resource/themes/metro-blue/{textbox,combo,combobox,calendar,datebox}.css. */
+.fg-theme-metro-blue {
+  --fui-control-border: #c3d9e0;
+  --fui-control-focus: #a1c4cf;
+  --fui-control-radius: 0;
+  --fui-control-bg: #ffffff;
+  --fui-control-text: #000000;
+  --fui-control-placeholder: #aaaaaa;
+  --fui-control-icon: #404040;
+  --fui-control-label-text: #000000;
+  --fui-control-disabled-bg: #f5f5f5;
+  --fui-control-trigger-bg: #daeef5;
+  --fui-control-button-bg: #f5f5f5;
+  --fui-control-button-text: #404040;
+  --fui-control-hover: #9cc8f7;
+  --fui-control-hover-text: #404040;
+  --fui-control-selected: #6caef5;
+  --fui-control-selected-text: #ffffff;
+  --fui-panel-bg: #fafafa;
+  --fui-panel-text: #404040;
+  --fui-calendar-week-bg: #f5f5f5;
+  --fui-calendar-week-text: #404040;
+}

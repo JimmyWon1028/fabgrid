@@ -1,0 +1,58 @@
+/* Values adapted from resource/themes/material-blue/{textbox,combo,combobox,calendar,datebox,linkbutton}.css. */
+.fg-theme-material-blue {
+  --fui-control-border: #dfdfdf;
+  --fui-control-focus: #c6c6c6;
+  --fui-control-radius: 2px;
+  --fui-control-bg: #ffffff;
+  --fui-control-text: #000000;
+  --fui-control-placeholder: #aaaaaa;
+  --fui-control-icon: #404040;
+  --fui-control-label-text: #000000;
+  --fui-control-disabled-bg: #f5f5f5;
+  --fui-control-trigger-bg: #f5f5f5;
+  --fui-control-button-bg: #2196f3;
+  --fui-control-button-text: #ffffff;
+  --fui-control-button-border: #2196f3;
+  --fui-control-button-hover-bg: #eeeeee;
+  --fui-control-button-hover-text: #404040;
+  --fui-datebox-footer-bg: #fafafa;
+  --fui-datebox-footer-text: #ffffff;
+  --fui-control-hover: #eeeeee;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #cccccc;
+  --fui-control-selected: #eeeeee;
+  --fui-control-selected-text: #2196f3;
+  --fui-control-selected-border: #2196f3;
+  --fui-panel-bg: #ffffff;
+  --fui-panel-text: #404040;
+  --fui-calendar-week-bg: #fafafa;
+  --fui-calendar-week-text: #8d8d8d;
+}
+
+.fg-theme-material-blue .fui-combobox-arrow {
+  background-image: url('images/combo_arrow.png');
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.fg-theme-material-blue .fui-combobox-arrow::before,
+.fg-theme-material-blue .fui-calendar-nav::before,
+.fg-theme-material-blue .fui-calendar-nav::after {
+  display: none;
+}
+
+.fg-theme-material-blue .fui-datebox-trigger {
+  background-image: url('images/datebox_arrow.png');
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.fg-theme-material-blue .fui-calendar-nav {
+  background-image: url('images/calendar_arrows.png');
+  background-repeat: no-repeat;
+}
+
+.fg-theme-material-blue .fui-calendar-prevyear { background-position: 0 0; }
+.fg-theme-material-blue .fui-calendar-prevmonth { background-position: -16px 0; }
+.fg-theme-material-blue .fui-calendar-nextmonth { background-position: -32px 0; }
+.fg-theme-material-blue .fui-calendar-nextyear { background-position: -48px 0; }

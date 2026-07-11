@@ -76,11 +76,6 @@ body {
   background: #ffffff;
 }
 
-.search-field input {
-  width: 110px;
-  min-width: 110px;
-}
-
 .toggle {
   display: inline-flex;
   align-items: center;
@@ -155,6 +150,8 @@ body {
 }
 
 .grid-shell {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   border: 1px solid #d8e0eb;
@@ -163,8 +160,152 @@ body {
 }
 
 #grid {
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 0;
+}
+
+.demo-filter-bar {
+  display: flex;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 10px;
+  border-top: 1px solid #cbd5e1;
+  background: #f4f4f4;
+  color: gray;
+  font-family: Arial, "Microsoft JhengHei", sans-serif;
+  font-size: 14px;
+  font-weight: normal;
+}
+
+.demo-result-count {
+  font-weight: inherit;
+  white-space: nowrap;
+}
+
+.demo-filter-control,
+.demo-filter-input-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.demo-filter-control {
+  gap: 6px;
+  font-weight: inherit;
+  white-space: nowrap;
+}
+
+.demo-filter-input-wrap {
+  flex: 0 1 auto;
+  width: calc((100vw - 24px) / 3);
+  height: 30px;
+  overflow: hidden;
+  border: 1px solid #8ebcf1;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.demo-filter-input-wrap input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 8px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+}
+
+.demo-filter-input-wrap input::placeholder {
+  color: #a0a0a0;
+}
+
+.demo-filter-mode {
+  border: 0;
+  background: transparent;
+  padding: 0 6px;
+  color: #7777dd;
+  font-family: Georgia, serif;
+  font-weight: normal;
+  cursor: pointer;
+}
+
+.demo-filter-input-wrap button {
+  width: 34px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.demo-filter-input-wrap.demo-filter-textbox-ready {
+  height: 30px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.demo-filter-textbox-ready > .demo-filter-mode {
+  display: none;
+}
+
+.demo-filter-textbox-ready .fui-textbox-field {
+  width: 100%;
+  height: 30px;
+}
+
+.demo-filter-textbox-ready .fui-textbox-text {
+  width: auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 8px;
+}
+
+.demo-filter-textbox-ready .fui-textbox {
+  width: 100% !important;
+  border-color: #8ebcf1;
+  border-radius: 7px;
+}
+
+.demo-filter-textbox-ready .fui-textbox-button {
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
+  border-left-color: #8ebcf1;
+  background: transparent;
+}
+
+.demo-filter-textbox-ready .fui-textbox-button:hover {
+  background: #eef6ff;
+}
+
+.demo-filter-mode-icon::before {
+  content: "OR";
+  display: block;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 28px;
+  text-align: center;
+}
+
+.demo-filter-mode-icon.demo-filter-mode-and::before {
+  content: "&";
+  font-size: 18px;
+}
+
+.demo-filter-mode-icon,
+.demo-filter-mode-icon:hover,
+.demo-filter-mode-icon:focus-visible {
+  color: inherit;
+  font: inherit;
+  opacity: 1;
 }
 
 .fg-root .fg-cell.status-active {

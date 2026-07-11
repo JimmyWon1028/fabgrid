@@ -1,22 +1,23 @@
 (function() {
   'use strict';
 
-  var DEMO_ROW_COUNT = 2000;
+  var DEMO_ROW_COUNT = 1732;
   var DEMO_COLUMN_COUNT = 22;
   var DEMO_ROW_HEADER_WIDTH = 50;
-  var DEMO_SETTINGS_KEY = 'fabgrid.demo.settings.v3.rowGroupMode';
-  var DEMO_LEGACY_SETTINGS_KEY = 'fabgrid.demo.settings.v2.rowGroups';
+  var DEMO_SETTINGS_KEY = 'fabgrid.demo.settings.v4.default-toolbar-state';
   var DEFAULT_DEMO_SETTINGS = {
     locale: 'zh-TW',
     theme: 'default',
     searchText: '',
-    frozenColumns: 0,
-    frozenRightColumns: 0,
+    frozenColumns: 2,
+    frozenRightColumns: 1,
     showRowHeaders: true,
-    showSearchRow: true,
-    rowGroupMode: 'order',
+    showSearchRow: false,
+    pagination: false,
+    remote: false,
+    rowGroupMode: 'none',
     multiSelectRows: false,
-    editMode: true
+    editMode: false
   };
   var DEMO_LOCALES = {
     en: {
@@ -28,6 +29,8 @@
       frozenRight: 'Right frozen',
       rowHeaders: 'Row no.',
       searchRow: 'Search row',
+      pagination: 'Pagination',
+      remote: 'Remote',
       groupRows: 'Group',
       groupNone: 'No group',
       groupOrder: 'Order No.',
@@ -44,6 +47,10 @@
       rowsVisible: 'Rows visible',
       columnsVisible: 'Columns visible',
       renderedCells: 'Rendered cells',
+      resultCount: 'Records',
+      filter: 'Filter:',
+      filterPlaceholder: 'Comma-separated terms, e.g. aaa,bbb,ccc',
+      clearFilter: 'Clear filter',
       columnHeaders: {
         id: 'Vendor',
         name: 'Short Name',
@@ -70,6 +77,8 @@
       frozenRight: '右凍結欄',
       rowHeaders: '列號',
       searchRow: '搜尋列',
+      pagination: '分頁',
+      remote: '遠端',
       groupRows: '群組',
       groupNone: '沒有群組',
       groupOrder: '訂單編號',
@@ -86,6 +95,10 @@
       rowsVisible: '可視列',
       columnsVisible: '可視欄',
       renderedCells: '已渲染儲存格',
+      resultCount: '筆數',
+      filter: '篩選:',
+      filterPlaceholder: '逗號分隔條件，例如 aaa,bbb,ccc',
+      clearFilter: '清除篩選',
       columnHeaders: {
         id: '主要廠商',
         name: '簡稱',
@@ -157,28 +170,35 @@
     cellCount: document.getElementById('cellCount')
   };
   var controls = {
-    search: document.getElementById('searchInput'),
     language: document.getElementById('languageInput'),
     theme: document.getElementById('themeInput'),
     frozen: document.getElementById('frozenInput'),
     frozenRight: document.getElementById('frozenRightInput'),
     rowHeaders: document.getElementById('rowHeadersInput'),
     searchRow: document.getElementById('searchRowInput'),
+    pagination: document.getElementById('paginationInput'),
+    remote: document.getElementById('remoteInput'),
     groupRows: document.getElementById('groupRowsInput'),
     multiSelect: document.getElementById('multiSelectInput'),
-    editMode: document.getElementById('editModeInput')
+    editMode: document.getElementById('editModeInput'),
+    demoFilter: document.getElementById('demoFilterInput'),
+    demoFilterMode: document.getElementById('demoFilterMode'),
+    demoFilterClear: document.getElementById('demoFilterClear')
   };
   var labels = {
-    search: document.getElementById('searchLabel'),
     language: document.getElementById('languageLabel'),
     theme: document.getElementById('themeLabel'),
     frozen: document.getElementById('frozenLabel'),
     frozenRight: document.getElementById('frozenRightLabel'),
     rowHeaders: document.getElementById('rowHeadersLabel'),
     searchRow: document.getElementById('searchRowLabel'),
+    pagination: document.getElementById('paginationLabel'),
+    remote: document.getElementById('remoteLabel'),
     groupRows: document.getElementById('groupRowsLabel'),
     multiSelect: document.getElementById('multiSelectLabel'),
     editMode: document.getElementById('editModeLabel'),
+    demoResultCount: document.getElementById('demoResultCount'),
+    demoFilter: document.getElementById('demoFilterLabel'),
     exportCsv: document.getElementById('exportButton'),
     exportExcel: document.getElementById('exportExcelButton')
   };
@@ -187,6 +207,7 @@
   var lookupGrid = null;
   var lookupEditorArgs = null;
   var lookupLastClick = null;
+  var demoFilterMode = 'or';
 
   loadDemoThemeStyles();
   populateThemeOptions();
@@ -197,7 +218,7 @@
   applyDemoLocale(demoSettings.locale);
   applyColumnHeaderLocale(columns, demoSettings.locale);
 
-  var grid = new FabGrid('#grid', {
+  var grid = new fabui.FabGrid('#grid', {
     rowHeight: 32,
     headerHeight: 32,
     searchDelay: 200,
@@ -209,6 +230,76 @@
     showRowHeaders: demoSettings.showRowHeaders,
     rowHeaderWidth: DEMO_ROW_HEADER_WIDTH,
     observeItemsSource: true,
+    remote: demoSettings.remote,
+    loader: function(params) {
+      return new Promise(function(resolve) {
+        window.setTimeout(function() {
+          var remoteRows = rows.slice();
+          var filterRules = params.filterRules ? JSON.parse(params.filterRules) : [];
+          var sortFields = params.sort ? params.sort.split(',') : [];
+          var sortOrders = params.order ? params.order.split(',') : [];
+          var start = (params.page - 1) * params.rows;
+          if (params.q) {
+            remoteRows = remoteRows.filter(function(row) {
+              return Object.keys(row).some(function(field) {
+                return row[field] != null && String(row[field]).toLowerCase().indexOf(String(params.q).toLowerCase()) >= 0;
+              });
+            });
+          }
+          if (filterRules.length) {
+            remoteRows = remoteRows.filter(function(row) {
+              return filterRules.every(function(rule) {
+                var rawActual = row[rule.field];
+                var actual = rawActual == null ? '' : String(rawActual).toLowerCase();
+                var expected = String(rule.value).toLowerCase();
+                var comparableActual = typeof rawActual === 'number' ? rawActual : actual;
+                var comparableExpected = typeof rawActual === 'number' ? Number(rule.value) : expected;
+                if (rule.op === 'contains') return actual.indexOf(expected) >= 0;
+                if (rule.op === 'ends') return actual.lastIndexOf(expected) === actual.length - expected.length;
+                if (rule.op === 'not-starts') return actual.indexOf(expected) !== 0;
+                if (rule.op === 'not-contains') return actual.indexOf(expected) < 0;
+                if (rule.op === 'not-ends') return actual.lastIndexOf(expected) !== actual.length - expected.length;
+                if (rule.op === 'gte') return comparableActual >= comparableExpected;
+                if (rule.op === 'gt') return comparableActual > comparableExpected;
+                if (rule.op === 'lte') return comparableActual <= comparableExpected;
+                if (rule.op === 'lt') return comparableActual < comparableExpected;
+                if (rule.op === 'ne') return comparableActual !== comparableExpected;
+                if (rule.op === 'eq') return comparableActual === comparableExpected;
+                return actual.indexOf(expected) === 0;
+              });
+            });
+          }
+          if (sortFields.length) {
+            remoteRows.sort(function(left, right) {
+              var index;
+              var field;
+              var result;
+              for (index = 0; index < sortFields.length; index += 1) {
+                field = sortFields[index];
+                result = left[field] === right[field] ? 0 : (left[field] > right[field] ? 1 : -1);
+                if (result) {
+                  return sortOrders[index] === 'desc' ? -result : result;
+                }
+              }
+              return 0;
+            });
+          }
+          resolve({
+            total: String(remoteRows.length),
+            rows: remoteRows.slice(start, start + params.rows)
+          });
+        }, 500);
+      });
+    },
+    pagination: demoSettings.pagination,
+    pager: {
+      pageNumber: 1,
+      pageSize: 100,
+      pageList: [10, 20, 30, 40, 50, 100, 500],
+      showPageList: false,
+      showPageInfo: true,
+      showRefresh: true
+    },
     showSearchRow: demoSettings.showSearchRow,
     showFooter: true,
     footerHeight: 32,
@@ -237,9 +328,11 @@
       }
     }
   });
+  initializeDemoFilterTextBox();
+  updateDemoFilterAvailability(demoSettings.remote);
   applyDemoTheme(demoSettings.theme);
-  if (demoSettings.searchText) {
-    grid.setSearch(demoSettings.searchText);
+  if (demoSettings.searchText && !demoSettings.remote) {
+    applyDemoFilter(demoSettings.searchText);
   }
 
   updateDatasetSummary();
@@ -255,9 +348,12 @@
   grid.on('viewportChanged', updateViewportStats);
 
   grid.on('searchCleared', function() {
-    controls.search.value = '';
+    setDemoFilterValue('');
+    grid.setFilter(null);
     saveCurrentDemoSettings();
   });
+
+  grid.on('loadSuccess', updateDemoResultCount);
 
   grid.on('excelExporting', function() {
     setToolbarBusy(true);
@@ -271,10 +367,19 @@
     setToolbarBusy(false);
   });
 
-  controls.search.addEventListener('input', function(event) {
-    grid.setSearch(event.target.value);
+  controls.demoFilter.addEventListener('input', function(event) {
+    applyDemoFilter(event.target.value);
     saveCurrentDemoSettings();
   });
+
+  controls.demoFilterClear.addEventListener('click', function() {
+    setDemoFilterValue('');
+    applyDemoFilter('');
+    focusDemoFilter();
+    saveCurrentDemoSettings();
+  });
+
+  controls.demoFilterMode.addEventListener('click', toggleDemoFilterMode);
 
   controls.language.addEventListener('change', function(event) {
     var locale = normalizeLocaleSetting(event.target.value, DEFAULT_DEMO_SETTINGS.locale);
@@ -317,6 +422,16 @@
     if (grid.setShowSearchRow) {
       grid.setShowSearchRow(event.target.checked);
     }
+    saveCurrentDemoSettings();
+  });
+
+  controls.pagination.addEventListener('change', function() {
+    applyDemoDataMode();
+    saveCurrentDemoSettings();
+  });
+
+  controls.remote.addEventListener('change', function() {
+    applyDemoDataMode();
     saveCurrentDemoSettings();
   });
 
@@ -682,7 +797,7 @@
     ensureLookupPopup();
     lookupPopup.overlay.style.display = 'flex';
     if (!lookupGrid) {
-      lookupGrid = new FabGrid(lookupPopup.gridHost, {
+      lookupGrid = new fabui.FabGrid(lookupPopup.gridHost, {
         rowHeight: 32,
         headerHeight: 32,
         overscanRows: 4,
@@ -938,9 +1053,6 @@
     var raw;
     try {
       raw = window.localStorage ? window.localStorage.getItem(DEMO_SETTINGS_KEY) : '';
-      if (!raw && window.localStorage) {
-        raw = window.localStorage.getItem(DEMO_LEGACY_SETTINGS_KEY);
-      }
       settings = raw ? JSON.parse(raw) : null;
     } catch (error) {
       settings = null;
@@ -952,11 +1064,13 @@
     saveDemoSettings({
       locale: controls.language.value,
       theme: controls.theme.value,
-      searchText: controls.search.value,
+      searchText: getDemoFilterValue(),
       frozenColumns: controls.frozen.value,
       frozenRightColumns: controls.frozenRight.value,
       showRowHeaders: controls.rowHeaders.value,
       showSearchRow: controls.searchRow.checked,
+      pagination: controls.pagination.checked,
+      remote: controls.remote.checked,
       rowGroupMode: controls.groupRows ? controls.groupRows.value : DEFAULT_DEMO_SETTINGS.rowGroupMode,
       multiSelectRows: controls.multiSelect.checked,
       editMode: controls.editMode.checked
@@ -976,11 +1090,13 @@
   function applyDemoSettingsToControls(settings) {
     controls.language.value = settings.locale;
     controls.theme.value = settings.theme;
-    controls.search.value = settings.searchText;
+    controls.demoFilter.value = settings.searchText;
     controls.frozen.value = settings.frozenColumns;
     controls.frozenRight.value = settings.frozenRightColumns;
     controls.rowHeaders.value = settings.showRowHeaders === true ? 'true' : settings.showRowHeaders === 'cell' ? 'cell' : 'false';
     controls.searchRow.checked = settings.showSearchRow;
+    controls.pagination.checked = settings.pagination;
+    controls.remote.checked = settings.remote;
     if (controls.groupRows) {
       controls.groupRows.value = settings.rowGroupMode;
     }
@@ -998,6 +1114,8 @@
       frozenRightColumns: normalizeNumberSetting(settings.frozenRightColumns, DEFAULT_DEMO_SETTINGS.frozenRightColumns, 0, 6),
       showRowHeaders: normalizeRowHeaderSetting(settings.showRowHeaders, DEFAULT_DEMO_SETTINGS.showRowHeaders),
       showSearchRow: normalizeBooleanSetting(settings.showSearchRow, DEFAULT_DEMO_SETTINGS.showSearchRow),
+      pagination: normalizeBooleanSetting(settings.pagination, DEFAULT_DEMO_SETTINGS.pagination),
+      remote: normalizeBooleanSetting(settings.remote, DEFAULT_DEMO_SETTINGS.remote),
       rowGroupMode: normalizeRowGroupModeSetting(settings.rowGroupMode, settings.showRowGroups, DEFAULT_DEMO_SETTINGS.rowGroupMode),
       multiSelectRows: normalizeBooleanSetting(settings.multiSelectRows, DEFAULT_DEMO_SETTINGS.multiSelectRows),
       editMode: normalizeBooleanSetting(settings.editMode, DEFAULT_DEMO_SETTINGS.editMode)
@@ -1083,18 +1201,7 @@
   }
 
   function loadDemoThemeStyles() {
-    var themeRoot = window.FABGRID_DEMO_THEME_ROOT || '../dist/themes';
-    var version = window.FABGRID_DEMO_THEME_VERSION || '20260708-demo-themes';
-    var theme;
-    var link;
-    var i;
-    for (i = 0; i < DEMO_THEMES.length; i += 1) {
-      theme = DEMO_THEMES[i].value;
-      link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = themeRoot + '/fabgrid.' + theme + '.css?v=' + version;
-      document.head.appendChild(link);
-    }
+    // All themes are bundled by the public FabUI stylesheet.
   }
 
   function applyDemoTheme(theme) {
@@ -1108,6 +1215,21 @@
       grid.root.classList.remove('fg-theme-' + DEMO_THEMES[i].value);
     }
     grid.root.classList.add('fg-theme-' + theme);
+    syncDemoFilterHeaderTextStyle();
+  }
+
+  function syncDemoFilterHeaderTextStyle() {
+    var filterBar = document.querySelector('.demo-filter-bar');
+    var headerCell = grid && grid.root ? grid.root.querySelector('.fg-header-cell') : null;
+    var style;
+    if (!filterBar || !headerCell) {
+      return;
+    }
+    style = window.getComputedStyle(headerCell);
+    filterBar.style.color = style.color;
+    filterBar.style.fontFamily = style.fontFamily;
+    filterBar.style.fontSize = style.fontSize;
+    filterBar.style.fontWeight = style.fontWeight;
   }
 
   function getDemoText(key) {
@@ -1223,13 +1345,14 @@
     controls.language.value = locale;
     applyWorkflowComboboxData(columns, locale);
     document.documentElement.lang = locale === 'en' ? 'en' : 'zh-Hant';
-    labels.search.textContent = getDemoText('search');
     labels.language.textContent = getDemoText('language');
     labels.theme.textContent = getDemoText('theme');
     labels.frozen.textContent = getDemoText('frozen');
     labels.frozenRight.textContent = getDemoText('frozenRight');
     labels.rowHeaders.textContent = getDemoText('rowHeaders');
     labels.searchRow.textContent = getDemoText('searchRow');
+    labels.pagination.textContent = getDemoText('pagination');
+    labels.remote.textContent = getDemoText('remote');
     if (labels.groupRows) {
       labels.groupRows.textContent = getDemoText('groupRows');
     }
@@ -1240,7 +1363,11 @@
     labels.exportCsv.setAttribute('title', getDemoText('exportCsv'));
     labels.exportExcel.setAttribute('aria-label', getDemoText('exportExcel'));
     labels.exportExcel.setAttribute('title', getDemoText('exportExcel'));
-    controls.search.setAttribute('placeholder', getDemoText('searchPlaceholder'));
+    labels.demoFilter.textContent = getDemoText('filter');
+    setDemoFilterPrompt(getDemoText('filterPlaceholder'));
+    controls.demoFilterClear.setAttribute('aria-label', getDemoText('clearFilter'));
+    controls.demoFilterClear.setAttribute('title', getDemoText('clearFilter'));
+    updateDemoResultCount();
   }
 
   function applyGridColumnHeaderLocale(targetGrid, locale) {
@@ -1316,5 +1443,130 @@
     stats.rowRange.textContent = getDemoText('rowsVisible') + ': ' + e.rowStart + '-' + Math.max(e.rowStart, e.rowEnd - 1);
     stats.columnRange.textContent = getDemoText('columnsVisible') + ': ' + e.columnStart + '-' + Math.max(e.columnStart, e.columnEnd - 1) + ' / ' + columns.length;
     stats.cellCount.textContent = getDemoText('renderedCells') + ': ' + e.renderedCells;
+    updateDemoResultCount();
+  }
+
+  function updateDemoResultCount() {
+    var total;
+    if (!grid || !grid.options) {
+      if (labels.demoResultCount) {
+        labels.demoResultCount.textContent = getDemoText('resultCount') + ': -';
+      }
+      return;
+    }
+    total = grid.options.pagination || grid.options.remote === true ? grid.paginationTotal : grid.dataView.length;
+    if (labels.demoResultCount) {
+      labels.demoResultCount.textContent = getDemoText('resultCount') + ': ' + formatDemoNumber(total);
+    }
+  }
+
+  function initializeDemoFilterTextBox() {
+    if (!controls.demoFilter) return;
+    controls.demoFilter.setAttribute('placeholder', getDemoText('filterPlaceholder'));
+    updateDemoFilterModeIcon();
+  }
+
+  function applyDemoDataMode() {
+    var useRemote = controls.remote.checked;
+    if (useRemote) {
+      grid.clearFilter();
+    }
+    grid.options.pagination = controls.pagination.checked;
+    grid.options.remote = useRemote;
+    grid.options.pageNumber = 1;
+    if (grid.options.pager) {
+      grid.options.pager.pageNumber = 1;
+    }
+    updateDemoFilterAvailability(useRemote);
+    if (useRemote) {
+      grid.setItemsSource([], true);
+      grid.load();
+      return;
+    }
+    grid.setItemsSource(rows);
+    updateDemoResultCount();
+  }
+
+  function updateDemoFilterAvailability(useRemote) {
+    var disabled = useRemote === true;
+    controls.demoFilter.disabled = disabled;
+    controls.demoFilterMode.disabled = disabled;
+    controls.demoFilterClear.disabled = disabled;
+    if (disabled) {
+      setDemoFilterValue('');
+    }
+  }
+
+  function setDemoFilterValue(value) {
+    if (controls.demoFilter) controls.demoFilter.value = value;
+  }
+
+  function getDemoFilterValue() {
+    return controls.demoFilter ? controls.demoFilter.value : '';
+  }
+
+  function applyDemoFilter(value) {
+    var terms = String(value == null ? '' : value).split(',').map(function(term) {
+      return term.trim().toLowerCase();
+    }).filter(function(term) {
+      return term !== '';
+    });
+    if (!terms.length) {
+      grid.setFilter(null);
+      return;
+    }
+    grid.setFilter(function(item) {
+      return terms[demoFilterMode === 'and' ? 'every' : 'some'](function(term) {
+        return columns.some(function(column) {
+          var actual = getDemoFilterBindingValue(item, column.binding);
+          return String(actual == null ? '' : actual).toLowerCase().indexOf(term) >= 0;
+        });
+      });
+    });
+  }
+
+  function toggleDemoFilterMode() {
+    demoFilterMode = demoFilterMode === 'and' ? 'or' : 'and';
+    updateDemoFilterModeIcon();
+    applyDemoFilter(getDemoFilterValue());
+    saveCurrentDemoSettings();
+  }
+
+  function updateDemoFilterModeIcon() {
+    var label = demoFilterMode === 'and' ? '&' : 'OR';
+    if (!controls.demoFilterMode) return;
+    controls.demoFilterMode.textContent = label;
+    controls.demoFilterMode.classList.toggle('demo-filter-mode-and', demoFilterMode === 'and');
+    controls.demoFilterMode.setAttribute('aria-label', label);
+    controls.demoFilterMode.setAttribute('title', label);
+  }
+
+  function getDemoFilterBindingValue(item, binding) {
+    var parts = String(binding || '').split('.');
+    var value = item;
+    var i;
+    for (i = 0; i < parts.length; i += 1) {
+      if (value == null) {
+        return '';
+      }
+      value = value[parts[i]];
+    }
+    return value;
+  }
+
+  function formatDemoNumber(value) {
+    var number = Number(value);
+    if (!Number.isFinite(number)) {
+      return String(value);
+    }
+    return number.toLocaleString(controls.language.value === 'en' ? 'en-US' : 'zh-TW');
+  }
+
+  function setDemoFilterPrompt(prompt) {
+    if (controls.demoFilter) controls.demoFilter.setAttribute('placeholder', prompt);
+  }
+
+  function focusDemoFilter() {
+    if (controls.demoFilter) controls.demoFilter.focus();
   }
 }());

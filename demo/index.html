@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabGrid Demo</title>
-  <link rel="stylesheet" href="../dist/fabgrid.css?v=20260711-fabgrid-rename-v1">
-  <link rel="stylesheet" href="../dist/my.icon.css?v=20260710-index-demo-layout-v1">
-  <link rel="stylesheet" href="./style.css?v=20260710-index-demo-layout-v1">
+  <link rel="stylesheet" href="../dist/fabui.css?v=20260711-fabui-bundle-v1">
+  <link rel="stylesheet" href="./my.icon.css?v=20260711-demo-icons-v1">
+  <link rel="stylesheet" href="./style.css?v=20260711-fabgrid-only-v3">
 </head>
 <body>
   <main class="page">
@@ -15,10 +15,6 @@
         <h1>FabGrid</h1>
         <p>Pure JS performance-first grid · <span id="datasetSummary">-</span></p>
       </div>
-      <label class="field search-field">
-        <span id="searchLabel">搜尋</span>
-        <input id="searchInput" type="search" placeholder="輸入關鍵字">
-      </label>
       <label class="field compact">
         <span id="languageLabel">語言</span>
         <select id="languageInput">
@@ -56,15 +52,23 @@
         </select>
       </label>
       <label class="toggle">
-        <input id="searchRowInput" type="checkbox" checked>
+        <input id="searchRowInput" type="checkbox">
         <span id="searchRowLabel">搜尋列</span>
+      </label>
+      <label class="toggle">
+        <input id="paginationInput" type="checkbox">
+        <span id="paginationLabel">分頁</span>
+      </label>
+      <label class="toggle">
+        <input id="remoteInput" type="checkbox">
+        <span id="remoteLabel">遠端</span>
       </label>
       <label class="toggle">
         <input id="multiSelectInput" type="checkbox">
         <span id="multiSelectLabel">多選</span>
       </label>
       <label class="toggle">
-        <input id="editModeInput" type="checkbox" checked>
+        <input id="editModeInput" type="checkbox">
         <span id="editModeLabel">編輯</span>
       </label>
       <button id="exportButton" class="toolbar-icon-button icon-export" type="button" aria-label="匯出 CSV" title="匯出 CSV"></button>
@@ -80,12 +84,21 @@
 
     <section class="grid-shell">
       <div id="grid"></div>
+      <div class="demo-filter-bar" aria-label="Demo filter">
+        <span id="demoResultCount" class="demo-result-count">筆數: -</span>
+        <label class="demo-filter-control">
+          <span id="demoFilterLabel">篩選:</span>
+          <span class="demo-filter-input-wrap">
+            <input id="demoFilterInput" type="search" placeholder="輸入條件" autocomplete="off">
+            <button id="demoFilterMode" class="demo-filter-mode" type="button" aria-label="OR" title="OR">OR</button>
+            <button id="demoFilterClear" type="button" aria-label="清除篩選" title="清除篩選">🧹</button>
+          </span>
+        </label>
+      </div>
     </section>
   </main>
 
-  <script src="../dist/fabgrid.min.js?v=20260711-fabgrid-rename-v1"></script>
-  <script src="../dist/locales/fabgrid-locale.zh-TW.js?v=20260711-fabgrid-rename-v1"></script>
-  <script src="../dist/locales/fabgrid-locale.en.js?v=20260711-fabgrid-rename-v1"></script>
-  <script src="./demo.js?v=20260710-demo-column-order-v1"></script>
+  <script src="../dist/fabui.min.js?v=20260711-fabgrid-only-v2"></script>
+  <script src="./demo.js?v=20260711-default-toolbar-state-v3"></script>
 </body>
 </html>

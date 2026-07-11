@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FabUI YymmBox Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260711-component-themes-v1">
+  <link rel="stylesheet" href="./component-source.css?v=20260711-component-themes-v5">
+  <link rel="stylesheet" href="./component-themes.css?v=20260711-component-themes-v3">
+  <link rel="stylesheet" href="./textbox-demo.css?v=20260711-component-themes-v1">
+  <link rel="stylesheet" href="./datebox-demo.css?v=20260711-datebox-demo-v1">
+</head>
+<body class="fg-theme-default">
+  <main class="textbox-demo-page">
+    <aside class="textbox-demo-nav" aria-label="YymmBox examples">
+      <h1>YymmBox</h1>
+      <label class="textbox-demo-theme-label" for="componentThemeInput">主題</label>
+      <select id="componentThemeInput" class="textbox-demo-theme-select"></select>
+      <a href="#basic">Basic</a>
+      <a href="#events">Events</a>
+      <a href="#fluid">Fluid</a>
+    </aside>
+
+    <section class="textbox-demo-content">
+      <header class="textbox-demo-heading">
+        <p>FabUI component</p>
+        <h2>fabui.YymmBox</h2>
+      </header>
+
+      <article id="basic" class="textbox-demo-card">
+        <h3>Basic YymmBox</h3>
+        <p>輸入或從月份面板選擇年月；畫面顯示 YYYY/MM，資料值為 YYYYMM。</p>
+        <div class="datebox-demo-stack">
+          <input id="yymmboxBasic" value="202607">
+        </div>
+      </article>
+
+      <article id="events" class="textbox-demo-card">
+        <h3>YymmBox Events</h3>
+        <p>onSelect 會取得所選月份第一天的 Date。</p>
+        <div class="datebox-demo-stack">
+          <input id="yymmboxEvents">
+          <output id="yymmboxEventResult" class="datebox-demo-result">Selected month: —</output>
+        </div>
+      </article>
+
+      <article id="fluid" class="textbox-demo-card datebox-fluid-card">
+        <h3>Fluid YymmBox</h3>
+        <div class="datebox-demo-stack">
+          <input id="yymmboxFluid">
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260711-component-themes-v1';
+
+    window.fabui = fabui;
+    await import('./component-theme.js?v=20260711-component-themes-v1');
+    await import('./yymmbox-demo.js?v=20260711-yymmbox-v1');
+  </script>
+</body>
+</html>

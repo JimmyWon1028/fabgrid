@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FabUI ComboBox Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260711-component-themes-v1">
+  <link rel="stylesheet" href="./component-source.css?v=20260711-component-themes-v5">
+  <link rel="stylesheet" href="./component-themes.css?v=20260711-component-themes-v3">
+  <link rel="stylesheet" href="./textbox-demo.css?v=20260711-component-themes-v1">
+  <link rel="stylesheet" href="./combobox-demo.css?v=20260711-combobox-demo-v1">
+</head>
+<body class="fg-theme-default">
+  <main class="textbox-demo-page">
+    <aside class="textbox-demo-nav" aria-label="ComboBox examples">
+      <h1>ComboBox</h1>
+      <label class="textbox-demo-theme-label" for="componentThemeInput">主題</label>
+      <select id="componentThemeInput" class="textbox-demo-theme-select"></select>
+      <a href="#basic">Basic</a>
+      <a href="#multiple">Multiple Select</a>
+      <a href="#group">Group ComboBox</a>
+      <a href="#format">Custom Format</a>
+      <a href="#icons">Item Icons</a>
+      <a href="#remote">Remote Data</a>
+      <a href="#actions">ComboBox Actions</a>
+      <a href="#multiline">Multiline</a>
+      <a href="#fluid">Fluid ComboBox</a>
+    </aside>
+
+    <section class="textbox-demo-content">
+      <header class="textbox-demo-heading">
+        <p>FabUI component</p>
+        <h2>fabui.ComboBox</h2>
+      </header>
+
+      <article id="basic" class="textbox-demo-card">
+        <h3>Basic ComboBox</h3>
+        <p>可以直接輸入文字篩選，也可以從下拉清單選擇。</p>
+        <div class="combobox-demo-stack">
+          <select id="comboboxState">
+            <option value="AL">Alabama</option>
+            <option value="AK">Alaska</option>
+            <option value="AZ">Arizona</option>
+            <option value="CA">California</option>
+            <option value="CO">Colorado</option>
+            <option value="FL">Florida</option>
+            <option value="NY" selected>New York</option>
+            <option value="TX">Texas</option>
+            <option value="WA">Washington</option>
+          </select>
+        </div>
+      </article>
+
+      <article id="multiple" class="textbox-demo-card">
+        <h3>Multiple Select</h3>
+        <p>multiple 模式允許同時選擇多個值。</p>
+        <div class="combobox-demo-stack">
+          <input id="comboboxMultiple">
+        </div>
+      </article>
+
+      <article id="group" class="textbox-demo-card">
+        <h3>Group ComboBox</h3>
+        <p>groupField 將資料依群組顯示，群組標題可設為 sticky。</p>
+        <div class="combobox-demo-stack">
+          <input id="comboboxGroup">
+        </div>
+      </article>
+
+      <article id="format" class="textbox-demo-card">
+        <h3>Custom Format</h3>
+        <p>formatter 可以自訂清單項目的內容。</p>
+        <div class="combobox-demo-stack">
+          <input id="comboboxFormat">
+        </div>
+      </article>
+
+      <article id="icons" class="textbox-demo-card">
+        <h3>Show Item Icon</h3>
+        <p>showItemIcon 會顯示資料列的 iconCls。</p>
+        <div class="combobox-demo-stack">
+          <input id="comboboxIcons">
+        </div>
+      </article>
+
+      <article id="remote" class="textbox-demo-card">
+        <h3>Remote Data</h3>
+        <p>此範例使用 Promise loader 模擬遠端搜尋。</p>
+        <div class="combobox-demo-stack">
+          <input id="comboboxRemote">
+        </div>
+      </article>
+
+      <article id="actions" class="textbox-demo-card">
+        <h3>ComboBox Actions</h3>
+        <p>可使用方法設定值、讀取值、停用、啟用與動態載入資料。</p>
+        <div class="combobox-demo-actions">
+          <button type="button" data-action="set">SetValue</button>
+          <button type="button" data-action="get">GetValue</button>
+          <button type="button" data-action="disable">Disable</button>
+          <button type="button" data-action="enable">Enable</button>
+          <button type="button" data-action="load">LoadData</button>
+        </div>
+        <div class="combobox-demo-stack">
+          <input id="comboboxActions">
+          <output id="comboboxActionResult" class="combobox-demo-result">Value: —</output>
+        </div>
+      </article>
+
+      <article id="multiline" class="textbox-demo-card">
+        <h3>Multiline ComboBox</h3>
+        <p>multiple 與 multiline 可以顯示較多已選項目。</p>
+        <div class="combobox-demo-stack">
+          <input id="comboboxMultiline">
+        </div>
+      </article>
+
+      <article id="fluid" class="textbox-demo-card combobox-fluid-card">
+        <h3>Fluid ComboBox</h3>
+        <p>ComboBox 寬度可以使用百分比。</p>
+        <div class="combobox-demo-stack">
+          <input id="comboboxFluidFull">
+          <input id="comboboxFluidHalf">
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260711-component-themes-v1';
+
+    window.fabui = fabui;
+    await import('./component-theme.js?v=20260711-component-themes-v1');
+    await import('./combobox-demo.js?v=20260711-combobox-demo-v1');
+  </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+/* Values adapted from resource/themes/material/{textbox,combo,combobox,calendar,datebox,linkbutton}.css. */
+.fg-theme-material {
+  --fui-control-border: #dddddd;
+  --fui-control-focus: #c4c4c4;
+  --fui-control-radius: 4px;
+  --fui-control-bg: #ffffff;
+  --fui-control-text: #000000;
+  --fui-control-placeholder: #aaaaaa;
+  --fui-control-icon: #555;
+  --fui-control-label-text: #000000;
+  --fui-control-disabled-bg: #f5f5f5;
+  --fui-control-trigger-bg: #f5f5f5;
+  --fui-control-button-bg: #fafafa;
+  --fui-control-button-text: #404040;
+  --fui-control-button-border: #d9d9d9;
+  --fui-control-button-hover-bg: #eeeeee;
+  --fui-control-button-hover-text: #404040;
+  --fui-datebox-footer-bg: #fafafa;
+  --fui-datebox-footer-text: #404040;
+  --fui-control-hover: #eeeeee;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #cccccc;
+  --fui-control-selected: #00bbee;
+  --fui-control-selected-text: #ffffff;
+  --fui-control-selected-border: #00bbee;
+  --fui-panel-bg: #ffffff;
+  --fui-panel-text: #404040;
+  --fui-calendar-week-bg: #fafafa;
+  --fui-calendar-week-text: #8d8d8d;
+}
+
+.fg-theme-material .fui-combobox-arrow {
+  background-image: url('images/combo_arrow.png');
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.fg-theme-material .fui-combobox-arrow::before,
+.fg-theme-material .fui-calendar-nav::before,
+.fg-theme-material .fui-calendar-nav::after {
+  display: none;
+}
+
+.fg-theme-material .fui-datebox-trigger {
+  background-image: url('images/datebox_arrow.png');
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.fg-theme-material .fui-calendar-nav {
+  background-image: url('images/calendar_arrows.png');
+  background-repeat: no-repeat;
+}
+
+.fg-theme-material .fui-calendar-prevyear { background-position: 0 0; }
+.fg-theme-material .fui-calendar-prevmonth { background-position: -16px 0; }
+.fg-theme-material .fui-calendar-nextmonth { background-position: -32px 0; }
+.fg-theme-material .fui-calendar-nextyear { background-position: -48px 0; }

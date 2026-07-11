@@ -2,27 +2,24 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
+const srcDir = path.join(root, 'src');
 const distDir = path.join(root, 'dist');
-const localesDir = path.join(root, 'src', 'locales');
-const corePath = path.join(root, 'src', 'fabgrid-core.js');
-const cssPath = path.join(root, 'src', 'styles', 'fabgrid.css');
-const iconCssPath = path.join(root, 'src', 'styles', 'my.icon.css');
-const stylesDir = path.join(root, 'src', 'styles');
-const themeSourceDir = path.join(stylesDir, 'themes');
-const imagesDir = path.join(root, 'src', 'images');
-
-function ensureDir(dir) {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
+const javascriptSources = [
+  'editor/editor-definitions.js',
+  'grid/fabgrid.js'
+];
+const localeSources = [
+  'locales/fabgrid-locale.en.js',
+  'locales/fabgrid-locale.zh-TW.js',
+  'locales/fabgrid-locale.zh-CN.js'
+];
 
 function banner(name) {
-  return '/*! FabGrid ' + name + ' | performance-first data grid */\n';
+  return '/*! FabUI ' + name + ' | FabGrid-only pure JavaScript bundle */\n';
 }
 
-function stripExport(source) {
-  return source.replace(/export function createFabGridFactory/, 'function createFabGridFactory');
+function stripExports(source) {
+  return source.replace(/export function (create(?:EditorDefinitions|FabGrid|TextBox|NumberBox|DateBox|YymmBox|ComboBox|Tabs)(?:Factory)?)/g, 'function $1');
 }
 
 function minifyJs(source) {
@@ -43,258 +40,135 @@ function minifyCss(source) {
     .trim();
 }
 
-function write(file, content) {
-  fs.writeFileSync(path.join(distDir, file), content, 'utf8');
+function isStandaloneComponentStyle(request) {
+  return /(?:^|\/)(?:components|tabs)\.css$/i.test(request);
 }
 
-function copyDir(source, target) {
-  const entries = fs.readdirSync(source, { withFileTypes: true });
-  ensureDir(target);
-  for (const entry of entries) {
-    const sourcePath = path.join(source, entry.name);
-    const targetPath = path.join(target, entry.name);
-    if (entry.isDirectory()) {
-      copyDir(sourcePath, targetPath);
-    } else {
-      fs.copyFileSync(sourcePath, targetPath);
+function stripStandaloneThemeSelectors(source) {
+  return source.replace(/(\.fg-root\.fg-theme-[^{,]+),\s*\.fui-tabs\.fg-theme-[^{]+(\{)/g, '$1 $2');
+}
+
+function rewriteCssUrls(source, sourceFile) {
+  const sourceDir = path.dirname(sourceFile);
+  return source.replace(/url\((['"]?)([^)'"\s]+)\1\)/g, function(match, quote, url) {
+    const asset = path.resolve(sourceDir, url);
+    const relative = path.relative(srcDir, asset).split(path.sep).join('/');
+    if (/^(?:data:|https?:|#)/i.test(url) || !fs.existsSync(asset) || !fs.statSync(asset).isFile()) return match;
+    if (relative.indexOf('../') === 0) {
+      throw new Error('CSS asset must be located inside src: ' + asset);
     }
-  }
+    return 'url("' + relative + '")';
+  });
 }
 
-function writeLocaleFiles() {
-  const outputDir = path.join(distDir, 'locales');
-  const entries = fs.readdirSync(localesDir, { withFileTypes: true });
-  ensureDir(outputDir);
-  for (const entry of entries) {
-    const file = entry.name;
-    if (!entry.isFile() || path.extname(file) !== '.js') {
-      continue;
-    }
-    const sourcePath = path.join(localesDir, file);
-    const source = fs.readFileSync(sourcePath, 'utf8');
-    fs.writeFileSync(path.join(outputDir, file), banner(file) + source, 'utf8');
-    fs.writeFileSync(path.join(outputDir, file.replace(/\.js$/, '.min.js')), banner(file + ' min') + minifyJs(source), 'utf8');
-  }
-}
-
-function getCssBlock(source, selector) {
-  const pattern = new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([\\s\\S]*?)\\}', 'm');
-  const match = source.match(pattern);
-  return match ? match[1] : '';
-}
-
-function getCssDeclaration(block, property, fallback) {
-  const normalized = String(block || '').replace(/\/\*[\s\S]*?\*\//g, '');
-  const pattern = new RegExp('(?:^|[;\\n\\r])\\s*' + property.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*:\\s*([^;]+)', 'i');
-  const match = normalized.match(pattern);
-  return match ? match[1].trim() : fallback;
-}
-
-function getCssShadowColor(value, fallback) {
-  const match = String(value || '').match(/(#[0-9a-f]{3,8}|rgba?\([^)]+\))\s*$/i);
-  return match ? match[1] : fallback;
-}
-
-function getWijmoThemeSuffix(file) {
-  const match = file.match(/^my\.wijmo\.([^.]+)\.css$/);
-  return match ? match[1] : '';
-}
-
-function readWijmoTheme(file) {
-  const source = fs.readFileSync(path.join(stylesDir, file), 'utf8');
-  const content = getCssBlock(source, '.wj-content');
-  const cell = getCssBlock(source, '.wj-flexgrid .wj-cell');
-  const header = getCssBlock(source, '.wj-cell.wj-header');
-  const headerHover = getCssBlock(source, '.wj-cell.wj-header:hover');
-  const selected = getCssBlock(source, '.wj-flexgrid.wj-state-focused .wj-cell.wj-state-selected');
-  const rowSelected = getCssBlock(source, '.wj-cells .wj-row .wj-cell.wj-state-multi-selected');
-  const alt = getCssBlock(source, '.wj-cell.wj-alt:not(.wj-header):not(.wj-group):not(.wj-state-selected):not(.wj-state-multi-selected)');
-  const rowHover = getCssBlock(source, '.wj-cells .wj-row:hover .wj-cell:not(.wj-state-selected):not(.wj-state-multi-selected):not(input)');
-  const sort = getCssBlock(source, '.wj-glyph-up, .wj-glyph-down');
-  const editor = getCssBlock(source, '.wj-cell:has(input.wj-grid-editor.wj-form-control)');
-
-  return {
-    border: getCssDeclaration(cell, 'border-color', getCssDeclaration(content, 'border-color', '#c9c9c9')),
-    borderStrong: getCssDeclaration(content, 'border-color', '#b8c4d4'),
-    rootBg: getCssDeclaration(content, 'background-color', '#ffffff'),
-    text: getCssDeclaration(content, 'color', '#000000'),
-    headerBg: getCssDeclaration(header, 'background-color', '#efefef'),
-    headerText: getCssDeclaration(header, 'color', '#808080'),
-    headerHoverBg: getCssDeclaration(headerHover, 'background-color', '#eef6ff'),
-    selectedBg: getCssDeclaration(selected, 'background-color', '#dceeff'),
-    selectedText: getCssDeclaration(selected, 'color', getCssDeclaration(content, 'color', '#000000')),
-    selectedBorder: getCssShadowColor(getCssDeclaration(selected, 'box-shadow', ''), '#2b7fd3'),
-    rowSelectedBg: getCssDeclaration(rowSelected, 'background-color', '#ffe68a'),
-    rowSelectedText: getCssDeclaration(rowSelected, 'color', getCssDeclaration(content, 'color', '#000000')),
-    altBg: getCssDeclaration(alt, 'background-color', '#fafafa'),
-    altText: getCssDeclaration(alt, 'color', getCssDeclaration(content, 'color', '#000000')),
-    rowHoverBg: getCssDeclaration(rowHover, 'background', getCssDeclaration(rowHover, 'background-color', '#edf6ff')),
-    rowHoverText: getCssDeclaration(rowHover, 'color', getCssDeclaration(content, 'color', '#000000')),
-    sortColor: getCssDeclaration(sort, 'color', '#6190cd'),
-    editorBorder: getCssShadowColor(getCssDeclaration(editor, 'box-shadow', ''), '#2563eb')
-  };
-}
-
-function writeFabGridTheme(outputDir, suffix, theme) {
-  const className = '.fg-root.fg-theme-' + suffix;
-  const content = [
-    banner('theme ' + suffix).trimEnd(),
-    className + ' {',
-    '  --fg-border: ' + theme.border + ';',
-    '  --fg-border-strong: ' + theme.borderStrong + ';',
-    '  --fg-header-bg: ' + theme.headerBg + ';',
-    '  --fg-header-text: ' + theme.headerText + ';',
-    '  --fg-cell-bg: ' + theme.rootBg + ';',
-    '  --fg-cell-alt-bg: ' + theme.altBg + ';',
-    '  --fg-cell-text: ' + theme.text + ';',
-    '  --fg-cell-hover-bg: ' + theme.headerHoverBg + ';',
-    '  --fg-row-hover-bg: ' + theme.rowHoverBg + ';',
-    '  --fg-row-selected-bg: ' + theme.rowSelectedBg + ';',
-    '  --fg-row-header-bg: ' + theme.headerBg + ';',
-    '  --fg-row-header-text: ' + theme.headerText + ';',
-    '  --fg-selected-bg: ' + theme.selectedBg + ';',
-    '  --fg-selected-border: ' + theme.selectedBorder + ';',
-    '  --fg-editor-border: ' + theme.editorBorder + ';',
-    '  background: ' + theme.rootBg + ';',
-    '  color: ' + theme.text + ';',
-    '}',
-    '',
-    className + ' .fg-header,',
-    className + ' .fg-header-frozen,',
-    className + ' .fg-header-frozen-right,',
-    className + ' .fg-footer,',
-    className + ' .fg-footer-frozen,',
-    className + ' .fg-footer-frozen-right {',
-    '  background: ' + theme.headerBg + ';',
-    '}',
-    '',
-    className + ' .fg-row-header-top,',
-    className + ' .fg-selection-top,',
-    className + ' .fg-header-cell,',
-    className + ' .fg-footer-row-header,',
-    className + ' .fg-footer-selection,',
-    className + ' .fg-footer-cell,',
-    className + ' .fg-row-header-cell {',
-    '  background-color: ' + theme.headerBg + ';',
-    '  color: ' + theme.headerText + ';',
-    '}',
-    '',
-    className + ' .fg-body,',
-    className + ' .fg-frozen-pane,',
-    className + ' .fg-frozen-pane-right,',
-    className + ' .fg-selection-pane,',
-    className + ' .fg-cell,',
-    className + ' .fg-selection-cell {',
-    '  background: ' + theme.rootBg + ';',
-    '  color: ' + theme.text + ';',
-    '}',
-    '',
-    className + ' .fg-cell.fg-row-even,',
-    className + ' .fg-selection-cell.fg-row-even,',
-    className + ' .fg-selection-cell.fg-row-alt,',
-    className + ' .fg-cell.fg-row-alt {',
-    '  background-color: ' + theme.altBg + ';',
-    '  color: ' + theme.altText + ';',
-    '}',
-    '',
-    className + ' .fg-cell.fg-row-hovered,',
-    className + ' .fg-selection-cell.fg-row-hovered,',
-    className + ' .fg-cell:hover,',
-    className + ' .fg-cell.fg-row-hovered:hover {',
-    '  background: ' + theme.rowHoverBg + ';',
-    '  color: ' + theme.rowHoverText + ';',
-    '}',
-    '',
-    className + ' .fg-cell.fg-row-selected,',
-    className + ' .fg-selection-cell.fg-row-selected,',
-    className + ' .fg-cell.fg-row-selected:hover,',
-    className + ' .fg-row-selected.fg-selected {',
-    '  background: ' + theme.rowSelectedBg + ';',
-    '  color: ' + theme.rowSelectedText + ';',
-    '}',
-    '',
-    className + ' .fg-selected {',
-    '  background: ' + theme.selectedBg + ';',
-    '  color: ' + theme.selectedText + ';',
-    '  outline-color: ' + theme.selectedBorder + ';',
-    '}',
-    '',
-    className + ' .fg-cell.fg-row-selected.fg-selected {',
-    '  background: var(--fg-row-hover-bg);',
-    '  color: var(--fg-cell-text);',
-    '}',
-    '',
-    className + ' .fg-sort-asc {',
-    '  border-bottom-color: ' + theme.sortColor + ';',
-    '}',
-    '',
-    className + ' .fg-sort-desc {',
-    '  border-top-color: ' + theme.sortColor + ';',
-    '}',
-    '',
-    className + ' .fg-editor {',
-    '  border-color: ' + theme.editorBorder + ';',
-    '}',
-    ''
-  ].join('\n');
-
-  fs.writeFileSync(path.join(outputDir, 'fabgrid.' + suffix + '.css'), content, 'utf8');
-  fs.writeFileSync(path.join(outputDir, 'fabgrid.' + suffix + '.min.css'), banner('theme ' + suffix + ' min') + minifyCss(content), 'utf8');
-}
-
-function writeSourceThemeFiles(outputDir) {
-  const entries = fs.existsSync(themeSourceDir) ? fs.readdirSync(themeSourceDir, { withFileTypes: true }) : [];
+function bundleCss(entryFile, seen) {
+  const absolute = path.resolve(entryFile);
   let source;
-  let outputName;
-  for (const entry of entries) {
-    if (!entry.isFile() || !/^fabgrid\.[^.]+(?:-[^.]+)*\.css$/.test(entry.name) || /\.min\.css$/.test(entry.name)) {
-      continue;
+  seen = seen || {};
+  if (seen[absolute]) return '';
+  seen[absolute] = true;
+  source = fs.readFileSync(absolute, 'utf8');
+  source = source.replace(/@import\s+(?:url\()?(['"])([^'"]+\.css)\1\)?\s*;/g, function(match, quote, request) {
+    if (isStandaloneComponentStyle(request)) return '';
+    return bundleCss(path.resolve(path.dirname(absolute), request), seen);
+  });
+  return rewriteCssUrls(stripStandaloneThemeSelectors(source), absolute);
+}
+
+function copyThemeImages(sourceDir, outputDir) {
+  fs.readdirSync(sourceDir, { withFileTypes: true }).forEach(function(entry) {
+    const source = path.join(sourceDir, entry.name);
+    const output = path.join(outputDir, entry.name);
+    if (!entry.isDirectory() || entry.name === '.DS_Store') return;
+    if (entry.name === 'images') {
+      fs.cpSync(source, output, {
+        recursive: true,
+        filter: function(file) {
+          return path.basename(file) !== '.DS_Store';
+        }
+      });
+      return;
     }
-    source = fs.readFileSync(path.join(themeSourceDir, entry.name), 'utf8');
-    outputName = entry.name;
-    fs.writeFileSync(path.join(outputDir, outputName), source, 'utf8');
-    fs.writeFileSync(path.join(outputDir, outputName.replace(/\.css$/, '.min.css')), banner(outputName + ' min') + minifyCss(source), 'utf8');
-  }
+    copyThemeImages(source, output);
+  });
 }
 
-function writeThemeFiles() {
-  const outputDir = path.join(distDir, 'themes');
-  const entries = fs.readdirSync(stylesDir, { withFileTypes: true });
-  ensureDir(outputDir);
-  writeSourceThemeFiles(outputDir);
-  for (const entry of entries) {
-    const suffix = entry.isFile() ? getWijmoThemeSuffix(entry.name) : '';
-    if (!suffix) {
-      continue;
+function copyThemeOutput() {
+  const sourceThemeDir = path.join(srcDir, 'theme');
+  const outputThemeDir = path.join(distDir, 'theme');
+  fs.mkdirSync(outputThemeDir, { recursive: true });
+  fs.readdirSync(sourceThemeDir, { withFileTypes: true }).forEach(function(entry) {
+    const source = path.join(sourceThemeDir, entry.name);
+    const output = path.join(outputThemeDir, entry.name);
+    if (entry.name === '.DS_Store') return;
+    if (entry.isFile() && /^fabgrid\..+\.css$/i.test(entry.name)) {
+      const css = stripStandaloneThemeSelectors(fs.readFileSync(source, 'utf8').replace(/@import\s+(?:url\()?(['"])([^'"]+\.css)\1\)?\s*;/g, function(match, quote, request) {
+        return isStandaloneComponentStyle(request) ? '' : match;
+      }));
+      fs.writeFileSync(output, css, 'utf8');
+      fs.writeFileSync(output.replace(/\.css$/i, '.min.css'), minifyCss(css), 'utf8');
     }
-    writeFabGridTheme(outputDir, suffix, readWijmoTheme(entry.name));
+  });
+  copyThemeImages(sourceThemeDir, outputThemeDir);
+}
+
+function readSource(file) {
+  return fs.readFileSync(path.join(srcDir, file), 'utf8');
+}
+
+function createJavascriptBundle() {
+  const modules = javascriptSources.map(function(file) {
+    return stripExports(readSource(file));
+  }).join('\n');
+  const locales = localeSources.map(readSource).join('\n');
+  return banner('browser global') + '(function(global) {\n' + modules + '\n' +
+    'global.fabui = global.fabui || {};\n' +
+    'global.fabui.editorDefinitions = createEditorDefinitions();\n' +
+    'global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);\n' +
+    'global.fabui.FabGridLocales = global.fabui.FabGrid.locales;\n' +
+    '}(typeof window !== "undefined" ? window : this));\n' + locales;
+}
+
+function createEsmLocaleSource(file) {
+  const source = readSource(file);
+  const browserRoot = "}(typeof window !== 'undefined' ? window : this, function() {";
+  const moduleRoot = '}({ fabui: fabui }, function() {';
+  if (source.indexOf(browserRoot) < 0) {
+    throw new Error('Unable to convert locale for ESM bundle: ' + file);
   }
+  return source.replace(browserRoot, moduleRoot);
 }
 
-ensureDir(distDir);
-
-const source = fs.readFileSync(corePath, 'utf8');
-const core = stripExport(source);
-const css = fs.readFileSync(cssPath, 'utf8');
-
-const esm = banner('ESM') + source + '\nvar FabGrid = createFabGridFactory();\nvar FabGridLocales = FabGrid.locales;\nexport { FabGrid, FabGridLocales };\nexport default FabGrid;\n';
-const global = banner('Global') + '(function(global) {\n' + core + '\nglobal.FabGrid = createFabGridFactory();\nif (global.FabGridLocales) {\n  Object.keys(global.FabGridLocales).forEach(function(name) {\n    global.FabGrid.addLocale(name, global.FabGridLocales[name]);\n  });\n}\nglobal.FabGridLocales = global.FabGrid.locales;\n}(typeof window !== "undefined" ? window : this));\n';
-
-write('fabgrid.esm.js', esm);
-write('fabgrid.esm.min.js', banner('ESM min') + minifyJs(esm));
-write('fabgrid.js', global);
-write('fabgrid.min.js', banner('Global min') + minifyJs(global));
-write('fabgrid.css', css);
-write('fabgrid.min.css', minifyCss(css));
-if (fs.existsSync(iconCssPath)) {
-  const iconCss = fs.readFileSync(iconCssPath, 'utf8').replace(/\.\.\/images\//g, 'images/');
-  write('my.icon.css', iconCss);
-  write('my.icon.min.css', minifyCss(iconCss));
-}
-writeLocaleFiles();
-writeThemeFiles();
-if (fs.existsSync(imagesDir)) {
-  copyDir(imagesDir, path.join(distDir, 'images'));
+function createEsmJavascriptBundle() {
+  const modules = javascriptSources.map(function(file) {
+    return stripExports(readSource(file));
+  }).join('\n');
+  const locales = localeSources.map(createEsmLocaleSource).join('\n');
+  return banner('ES module') + modules + '\n' +
+    'var editorDefinitions = createEditorDefinitions();\n' +
+    'var FabGrid = createFabGridFactory(editorDefinitions);\n' +
+    'var fabui = {\n' +
+    '  editorDefinitions: editorDefinitions,\n' +
+    '  FabGrid: FabGrid,\n' +
+    '  FabGridLocales: FabGrid.locales\n' +
+    '};\n' + locales + '\n' +
+    'export { fabui };\n' +
+    'export default fabui;\n';
 }
 
-console.log('Built FabGrid dist files.');
+fs.rmSync(distDir, { recursive: true, force: true });
+fs.mkdirSync(distDir, { recursive: true });
+
+const javascript = createJavascriptBundle();
+const esmJavascript = createEsmJavascriptBundle();
+const css = banner('styles') + bundleCss(path.join(srcDir, 'fabui.css'));
+
+fs.writeFileSync(path.join(distDir, 'fabui.js'), javascript, 'utf8');
+fs.writeFileSync(path.join(distDir, 'fabui.min.js'), banner('browser global min') + minifyJs(javascript), 'utf8');
+fs.writeFileSync(path.join(distDir, 'fabui.esm.js'), esmJavascript, 'utf8');
+fs.writeFileSync(path.join(distDir, 'fabui.esm.min.js'), banner('ES module min') + minifyJs(esmJavascript), 'utf8');
+fs.writeFileSync(path.join(distDir, 'fabui.css'), css, 'utf8');
+fs.writeFileSync(path.join(distDir, 'fabui.min.css'), minifyCss(css), 'utf8');
+copyThemeOutput();
+
+console.log('Built FabUI bundles with theme and image dependencies.');

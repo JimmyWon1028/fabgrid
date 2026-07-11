@@ -1,0 +1,26 @@
+.fui-tabs.fg-theme-dark-hive {
+  --fui-tabs-border: #444444;
+  --fui-tabs-header-bg: #222222;
+  --fui-tabs-header-text: #eeeeee;
+  --fui-tabs-panel-bg: #000000;
+  --fui-tabs-panel-text: #eeeeee;
+  --fui-tabs-tab-bg: linear-gradient(to bottom, #626262 0, #222222 100%);
+  --fui-tabs-tab-text: #eeeeee;
+  --fui-tabs-hover-bg: #003147;
+  --fui-tabs-hover-text: #ffffff;
+  --fui-tabs-selected-bg: #000000;
+  --fui-tabs-selected-text: #eeeeee;
+  --fui-tabs-selected-edge: #000000;
+  --fui-tabs-selected-top-bg: linear-gradient(to bottom, #626262 0, #000000 100%);
+  --fui-tabs-selected-bottom-bg: linear-gradient(to top, #626262 0, #000000 100%);
+  --fui-tabs-selected-left-bg: linear-gradient(to right, #626262 0, #000000 100%);
+  --fui-tabs-selected-right-bg: linear-gradient(to left, #626262 0, #000000 100%);
+  --fui-tabs-pill-bg: #0972a5;
+  --fui-tabs-pill-text: #ffffff;
+}
+
+.fui-tabs.fg-theme-dark-hive .fui-tabs-close,
+.fui-tabs.fg-theme-dark-hive .fui-tabs-scroller-left,
+.fui-tabs.fg-theme-dark-hive .fui-tabs-scroller-right {
+  background-image: url('images/tabs_icons.png');
+}

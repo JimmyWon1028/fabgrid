@@ -1,0 +1,156 @@
+:root {
+  font-family: Arial, "Microsoft JhengHei", sans-serif;
+  color: #333;
+  background: #fff;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+}
+
+.textbox-demo-page {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 760px);
+  gap: 34px;
+  box-sizing: border-box;
+  max-width: 1080px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 36px 24px 64px;
+}
+
+.textbox-demo-nav {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+  padding: 20px;
+  border: 1px solid #eee;
+  background: #fafafa;
+}
+
+.textbox-demo-nav h1 {
+  margin: 0 0 20px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ddd;
+  color: #000;
+  font-size: 30px;
+}
+
+.textbox-demo-theme-label {
+  display: block;
+  margin: 0 0 5px;
+  color: #444;
+  font-size: 14px;
+}
+
+.textbox-demo-theme-select {
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  margin: 0 0 16px;
+  padding: 0 8px;
+  border: 1px solid #bbb;
+  background: #fff;
+  color: #222;
+  font: 14px Arial, "Microsoft JhengHei", sans-serif;
+}
+
+.textbox-demo-nav a {
+  display: block;
+  padding: 6px 0;
+  color: #444;
+  font-size: 18px;
+  text-decoration: none;
+}
+
+.textbox-demo-nav a:hover,
+.textbox-demo-nav a:focus-visible {
+  color: #0b63ce;
+}
+
+.textbox-demo-content {
+  min-width: 0;
+}
+
+.textbox-demo-heading {
+  margin-bottom: 24px;
+}
+
+.textbox-demo-heading p {
+  margin: 0 0 4px;
+  color: #6b7280;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.textbox-demo-heading h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 32px;
+}
+
+.textbox-demo-card {
+  margin-bottom: 18px;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  scroll-margin-top: 18px;
+}
+
+.textbox-demo-card h3 {
+  margin: 0 0 6px;
+  color: #222;
+  font-size: 20px;
+}
+
+.textbox-demo-card p {
+  margin: 0 0 18px;
+  color: #666;
+  font-size: 14px;
+}
+
+.textbox-demo-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.textbox-demo-output {
+  display: block;
+  min-height: 18px;
+  margin-top: 10px;
+  color: #567;
+  font-size: 13px;
+}
+
+.textbox-demo-fluid-card .fui-textbox-field {
+  width: 100%;
+}
+
+.textbox-custom .fui-textbox {
+  border-color: #b98ce5;
+  background: #fffaff;
+}
+
+.textbox-custom .fui-textbox-focused {
+  border-color: #8a4fc2;
+  box-shadow: 0 0 3px #b98ce5;
+}
+
+@media (max-width: 760px) {
+  .textbox-demo-page {
+    grid-template-columns: 1fr;
+    padding: 18px 14px 40px;
+  }
+
+  .textbox-demo-nav {
+    position: static;
+  }
+}

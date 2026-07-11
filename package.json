@@ -4,8 +4,9 @@
   "private": true,
   "description": "Fabulous performance-first pure JavaScript data grid.",
   "type": "module",
-  "main": "dist/fabgrid.js",
-  "module": "dist/fabgrid.esm.js",
+  "main": "dist/fabui.js",
+  "module": "dist/fabui.esm.js",
+  "style": "dist/fabui.css",
   "scripts": {
     "build": "node build/build.cjs",
     "smoke": "npm run build && node build/smoke.cjs",

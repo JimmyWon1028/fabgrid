@@ -3,8 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>FabGrid Smoke Test</title>
-  <link rel="stylesheet" href="../dist/fabgrid.css">
-  <link rel="stylesheet" href="../dist/my.icon.css">
+  <link rel="stylesheet" href="../dist/fabui.css">
   <style>
     html,
     body {
@@ -26,9 +25,7 @@
   <div id="grid"></div>
   <div id="largeGrid" style="width: 900px; height: 420px; margin-top: 20px;"></div>
   <pre id="result">pending</pre>
-  <script src="../dist/fabgrid.min.js"></script>
-  <script src="../dist/locales/fabgrid-locale.zh-TW.js"></script>
-  <script src="../dist/locales/fabgrid-locale.en.js"></script>
+  <script src="../dist/fabui.min.js"></script>
   <script>
     (function() {
       window.addEventListener('error', function(event) {
@@ -165,7 +162,7 @@
       }
 
       window.addEventListener('load', function() {
-        var grid = new FabGrid('#grid', {
+        var grid = new fabui.FabGrid('#grid', {
           rowHeight: 30,
           headerHeight: 34,
           overscanRows: 4,
@@ -461,6 +458,87 @@
           grid.selectedRows.length === 0 &&
           grid.getSelectedRowCount() === 0;
         grid.multiSelectRows = false;
+        grid.select(0, 1);
+        grid.scrollIntoView(0, 1);
+        var pageNavigationStep = Math.max(1, Math.floor(grid.getScrollableContentHeight() / grid.options.rowHeight));
+        document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'PageDown',
+          bubbles: true,
+          cancelable: true
+        }));
+        var pageDownNavigationWorks = grid.selection.row === pageNavigationStep &&
+          grid.selection.col === 1 &&
+          grid.bodyScroll.scrollTop > 0;
+        document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'PageUp',
+          bubbles: true,
+          cancelable: true
+        }));
+        var pageUpNavigationWorks = grid.selection.row === 0 &&
+          grid.selection.col === 1 &&
+          grid.bodyScroll.scrollTop === 0;
+        var smokePlatform = navigator.userAgentData && navigator.userAgentData.platform ?
+          navigator.userAgentData.platform : navigator.platform || navigator.userAgent || '';
+        var smokeIsMac = /mac/i.test(smokePlatform);
+        grid.select(5, 1);
+        document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+          key: smokeIsMac ? 'PageDown' : 'ArrowDown',
+          altKey: smokeIsMac,
+          ctrlKey: !smokeIsMac,
+          bubbles: true,
+          cancelable: true
+        }));
+        var moveToBottomHotKeyWorks = grid.selection.row === grid.view.length - 1 && grid.selection.col === 1;
+        document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+          key: smokeIsMac ? 'PageUp' : 'ArrowUp',
+          altKey: smokeIsMac,
+          ctrlKey: !smokeIsMac,
+          bubbles: true,
+          cancelable: true
+        }));
+        var moveToTopHotKeyWorks = grid.selection.row === 0 && grid.selection.col === 1;
+        grid.select(5, 1);
+        document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+          key: smokeIsMac ? 'End' : 'ArrowRight',
+          altKey: smokeIsMac,
+          ctrlKey: !smokeIsMac,
+          bubbles: true,
+          cancelable: true
+        }));
+        var moveToRightHotKeyWorks = grid.selection.row === 5 &&
+          grid.selection.col === grid.visibleColumns.length - 1 &&
+          grid.bodyScroll.scrollLeft === Math.max(0, grid.bodyScroll.scrollWidth - grid.bodyScroll.clientWidth);
+        document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+          key: smokeIsMac ? 'Home' : 'ArrowLeft',
+          altKey: smokeIsMac,
+          ctrlKey: !smokeIsMac,
+          bubbles: true,
+          cancelable: true
+        }));
+        var moveToLeftHotKeyWorks = grid.selection.row === 5 &&
+          grid.selection.col === 0 &&
+          grid.bodyScroll.scrollLeft === 0;
+        var macFnHorizontalHotKeysWork = true;
+        if (smokeIsMac) {
+          grid.select(6, 1);
+          document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'End',
+            bubbles: true,
+            cancelable: true
+          }));
+          macFnHorizontalHotKeysWork = grid.selection.row === 6 &&
+            grid.selection.col === grid.visibleColumns.length - 1 &&
+            grid.bodyScroll.scrollLeft === Math.max(0, grid.bodyScroll.scrollWidth - grid.bodyScroll.clientWidth);
+          document.querySelector('.fg-root').dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'Home',
+            bubbles: true,
+            cancelable: true
+          }));
+          macFnHorizontalHotKeysWork = macFnHorizontalHotKeysWork &&
+            grid.selection.row === 6 &&
+            grid.selection.col === 0 &&
+            grid.bodyScroll.scrollLeft === 0;
+        }
         var multiSelectColumnHiddenWorks = grid.multiSelectRows === false &&
           grid.getSelectionCheckboxWidth() === 0 &&
           window.getComputedStyle(document.querySelector('.fg-selection-pane')).display === 'none';
@@ -1277,7 +1355,7 @@
               invalidDateCell.className.indexOf('fg-cell-invalid') < 0;
             var yearMonthValidationHost = document.createElement('div');
             document.body.appendChild(yearMonthValidationHost);
-            var yearMonthValidationGrid = new FabGrid(yearMonthValidationHost, {
+            var yearMonthValidationGrid = new fabui.FabGrid(yearMonthValidationHost, {
               locale: 'zh-TW',
               rowHeight: 32,
               headerHeight: 32,
@@ -1339,7 +1417,7 @@
             });
             var localeHost = document.createElement('div');
             document.body.appendChild(localeHost);
-            var localeGrid = new FabGrid(localeHost, {
+            var localeGrid = new fabui.FabGrid(localeHost, {
               locale: 'en',
               itemsSource: [],
               columns: [
@@ -1353,17 +1431,17 @@
             localeGrid.setBusy(false);
             localeGrid.setLocale('zh-TW');
             var zhEmptyTextWorks = localeHost.querySelector('.fg-empty').textContent === '沒有資料';
-            var localeStaticsWork = window.FabGrid.locales &&
-              window.FabGrid.locales.en &&
-              window.FabGrid.locales['zh-TW'] &&
-              window.FabGridLocales === window.FabGrid.locales;
-            var zhCnLocaleNotLoadedWorks = !window.FabGrid.locales['zh-CN'] &&
-              !window.FabGridLocales['zh-CN'];
+            var localeStaticsWork = window.fabui.FabGrid.locales &&
+              window.fabui.FabGrid.locales.en &&
+              window.fabui.FabGrid.locales['zh-TW'] &&
+              window.fabui.FabGridLocales === window.fabui.FabGrid.locales;
+            var embeddedLocalesWork = !!window.fabui.FabGrid.locales['zh-CN'] &&
+              window.fabui.FabGridLocales === window.fabui.FabGrid.locales;
             localeGrid.dispose();
             document.body.removeChild(localeHost);
             var defaultHotKeyHost = document.createElement('div');
             document.body.appendChild(defaultHotKeyHost);
-            var defaultHotKeyGrid = new FabGrid(defaultHotKeyHost, {
+            var defaultHotKeyGrid = new fabui.FabGrid(defaultHotKeyHost, {
               itemsSource: [{ id: 1 }],
               columns: [{ binding: 'id', header: 'ID' }]
             });
@@ -1377,6 +1455,193 @@
               defaultHotKeyHost.querySelector('.fg-header-label').textContent === 'ID';
             defaultHotKeyGrid.dispose();
             document.body.removeChild(defaultHotKeyHost);
+            if (typeof window.fabui.TextBox === 'function') {
+            var numberBoxHost = document.createElement('div');
+            var textBoxInput = document.createElement('input');
+            var numberBoxInput = document.createElement('input');
+            var rangeNumberBoxInput = document.createElement('input');
+            numberBoxHost.appendChild(textBoxInput);
+            numberBoxHost.appendChild(numberBoxInput);
+            numberBoxHost.appendChild(rangeNumberBoxInput);
+            document.body.appendChild(numberBoxHost);
+            var textBoxIconEventWorks = false;
+            var textBox = new fabui.TextBox(textBoxInput, {
+              icons: [{
+                iconCls: 'icon-add',
+                onClick: function(e) {
+                  textBoxIconEventWorks = e.data.target === textBoxInput &&
+                    e.data.textbox === textBox &&
+                    e.data.icon === textBox.getIcon(0) &&
+                    e.data.index === 0;
+                  e.data.textbox.setValue('Something added!');
+                }
+              }]
+            });
+            textBox.getIcon(0).click();
+            var textBoxIconOnClickWorks = textBoxIconEventWorks && textBox.getValue() === 'Something added!';
+            var numberBox = new fabui.NumberBox(numberBoxInput, {
+              value: 1234567.89,
+              precision: 2,
+              groupSeparator: ',',
+              prefix: '$'
+            });
+            var numberBoxFormattingWorks = numberBox.getValue() === '1234567.89' &&
+              numberBox.getText() === '$1,234,567.89' &&
+              numberBoxInput.value === '1234567.89' &&
+              numberBox.textbox().closest('.fui-numberbox') !== null;
+            var sharedEditorDefinitionsWork = window.fabui.editorDefinitions &&
+              window.fabui.FabGrid.editorDefinitions === window.fabui.editorDefinitions &&
+              window.fabui.TextBox.editorDefinition === window.fabui.editorDefinitions.textbox &&
+              window.fabui.NumberBox.editorDefinition === window.fabui.editorDefinitions.numberbox &&
+              numberBox.textbox().classList.contains('textbox-f') &&
+              numberBox.textbox().classList.contains('numberbox-f') &&
+              numberBox.textbox().classList.contains('fg-editor-numberbox');
+            numberBox.setText('a1b2').fix();
+            var numberBoxFilterWorks = numberBox.getValue() === '12.00' && numberBox.getText() === '$12.00';
+            var rangeNumberBox = new fabui.NumberBox(rangeNumberBoxInput, {
+              precision: 2,
+              min: 10,
+              max: 90
+            });
+            rangeNumberBox.setValue(1000);
+            var numberBoxRangeWorks = rangeNumberBox.getValue() === '90.00' && rangeNumberBox.getText() === '90.00';
+            textBox.destroy();
+            numberBox.destroy();
+            rangeNumberBox.destroy();
+            document.body.removeChild(numberBoxHost);
+            var dateBoxHost = document.createElement('div');
+            var dateBoxInput = document.createElement('input');
+            var defaultDateBoxInput = document.createElement('input');
+            dateBoxHost.appendChild(dateBoxInput);
+            dateBoxHost.appendChild(defaultDateBoxInput);
+            document.body.appendChild(dateBoxHost);
+            var dateBox = new fabui.DateBox(dateBoxInput, {
+              value: '2026-07-11',
+              formatter: function(date) {
+                return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+              },
+              parser: function(value) {
+                var parts = String(value).split('-');
+                return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+              }
+            });
+            var dateBoxFormattingWorks = dateBox.getValue() === '2026-07-11' &&
+              dateBox.getDate() instanceof Date &&
+              dateBox.textbox().closest('.fui-datebox') !== null;
+            var defaultDateBox = new fabui.DateBox(defaultDateBoxInput, {
+              value: '2026-07-11'
+            });
+            var sharedDateEditorDefinitionWorks = window.fabui.DateBox.editorDefinition === window.fabui.editorDefinitions.datebox &&
+              defaultDateBox.getValue() === '2026-07-11' &&
+              defaultDateBox.getText() === '2026/07/11' &&
+              defaultDateBox.textbox().classList.contains('textbox-f') &&
+              defaultDateBox.textbox().classList.contains('datebox-f') &&
+              defaultDateBox.textbox().classList.contains('fg-editor-datebox');
+            dateBox.setDate(new Date(2026, 6, 12));
+            dateBox.showPanel();
+            var dateBoxPanelWorks = !dateBox.panel().hidden &&
+              dateBox.panel().querySelectorAll('.fui-calendar-day').length === 42 &&
+              dateBox.getValue() === '2026-07-12';
+            dateBox.hidePanel();
+            dateBox.destroy();
+            defaultDateBox.destroy();
+            document.body.removeChild(dateBoxHost);
+            var yymmBoxHost = document.createElement('div');
+            var yymmBoxInput = document.createElement('input');
+            yymmBoxHost.appendChild(yymmBoxInput);
+            document.body.appendChild(yymmBoxHost);
+            var yymmBox = new fabui.YymmBox(yymmBoxInput, {
+              value: '202607'
+            });
+            yymmBox.showPanel();
+            var sharedYymmEditorDefinitionWorks = window.fabui.YymmBox.editorDefinition === window.fabui.editorDefinitions.yymmbox &&
+              yymmBox.getValue() === '202607' &&
+              yymmBox.getText() === '2026/07' &&
+              yymmBox.textbox().classList.contains('textbox-f') &&
+              yymmBox.textbox().classList.contains('yymmbox-f') &&
+              yymmBox.textbox().classList.contains('fg-editor-yymmbox') &&
+              !yymmBox.panel().querySelector('.fui-calendar-menu').hidden &&
+              yymmBox.panel().querySelectorAll('.fui-calendar-menu-month').length === 12;
+            yymmBox.hidePanel();
+            yymmBox.destroy();
+            document.body.removeChild(yymmBoxHost);
+            var comboBoxHost = document.createElement('div');
+            var comboBoxInput = document.createElement('input');
+            var multiComboBoxInput = document.createElement('input');
+            comboBoxHost.appendChild(comboBoxInput);
+            comboBoxHost.appendChild(multiComboBoxInput);
+            document.body.appendChild(comboBoxHost);
+            var comboBoxData = [
+              { id: 'js', text: 'JavaScript' },
+              { id: 'ts', text: 'TypeScript' },
+              { id: 'py', text: 'Python' }
+            ];
+            var comboBox = new fabui.ComboBox(comboBoxInput, {
+              valueField: 'id',
+              textField: 'text',
+              data: comboBoxData,
+              value: 'ts'
+            });
+            var comboBoxValueWorks = comboBox.getValue() === 'ts' &&
+              comboBox.getText() === 'TypeScript' &&
+              comboBox.getData().length === 3 &&
+              comboBox.textbox().closest('.fui-combobox') !== null;
+            comboBox.showPanel();
+            var comboBoxPanelWorks = !comboBox.panel().hidden &&
+              comboBox.panel().querySelectorAll('.fui-combobox-item').length === 3;
+            comboBox.hidePanel();
+            var multiComboBox = new fabui.ComboBox(multiComboBoxInput, {
+              valueField: 'id',
+              textField: 'text',
+              data: comboBoxData,
+              value: ['js', 'py'],
+              multiple: true
+            });
+            multiComboBox.select('ts');
+            var comboBoxMultipleWorks = multiComboBox.getValues().join(',') === 'js,py,ts' &&
+              multiComboBox.getText() === 'JavaScript,Python,TypeScript';
+            comboBox.destroy();
+            multiComboBox.destroy();
+            document.body.removeChild(comboBoxHost);
+            var tabsHost = document.createElement('div');
+            var tabsPanelA = document.createElement('div');
+            var tabsPanelB = document.createElement('div');
+            tabsPanelA.setAttribute('title', 'Alpha');
+            tabsPanelA.textContent = 'Alpha content';
+            tabsPanelB.setAttribute('title', 'Beta');
+            tabsPanelB.textContent = 'Beta content';
+            tabsHost.appendChild(tabsPanelA);
+            tabsHost.appendChild(tabsPanelB);
+            document.body.appendChild(tabsHost);
+            var tabsSelectCount = 0;
+            var tabs = new fabui.Tabs(tabsHost, {
+              width: 400,
+              height: 180,
+              onSelect: function() {
+                tabsSelectCount += 1;
+              }
+            });
+            tabs.select('Beta');
+            var tabsAddedPanel = tabs.add({
+              title: 'Gamma',
+              content: 'Gamma content',
+              closable: true
+            });
+            tabs.update(tabsAddedPanel, { title: 'Gamma Updated' });
+            tabs.disableTab('Alpha');
+            var tabsApiWorks = tabs.getTabs().length === 3 &&
+              tabs.getSelected() === tabsAddedPanel &&
+              tabs.getTabIndex(tabsAddedPanel) === 2 &&
+              tabs.exists('Gamma Updated') &&
+              tabs.options().width === 400 &&
+              tabsSelectCount === 2 &&
+              tabs.getTab('Alpha').getAttribute('role') === 'tabpanel' &&
+              tabsHost.querySelector('.fui-tabs-tab[data-index="0"]').disabled;
+            tabs.close('Gamma Updated');
+            tabsApiWorks = tabsApiWorks && tabs.getTabs().length === 2 && tabs.getSelected() === tabsPanelB;
+            tabs.destroy();
+            document.body.removeChild(tabsHost);
+            }
             grid.setSearch('Row 4999');
             grid.select(0, 2);
             grid.startEditing(0, 2);
@@ -1441,7 +1706,7 @@
                 }, 20);
               }, 20);
             });
-            Promise.all([asyncValidationPromise, validateRowPromise]).then(function() {
+            Promise.all([asyncValidationPromise, validateRowPromise, runRemotePaginationCheck()]).then(function(asyncResults) {
               var excelBlob = grid.getExcelBlob();
               excelBlob.arrayBuffer().then(function(buffer) {
               var largeExportScrollResult = runLargeExportScrollCheck();
@@ -1450,8 +1715,27 @@
               var zipBytes = new Uint8Array(buffer);
               var sheetXml = readStoredZipEntry(zipBytes, 'xl/worksheets/sheet1.xml');
               var stylesXml = readStoredZipEntry(zipBytes, 'xl/styles.xml');
+              var safetyResult = runBindingAndGroupingSafetyCheck();
+              var paginationResult = runPaginationCheck();
+              var remotePaginationResult = asyncResults[2];
               finish({
-                hasFabGrid: typeof window.FabGrid === 'function',
+                hasFabGrid: !!window.fabui &&
+                  typeof window.fabui.FabGrid === 'function' &&
+                  window.fabui.editorDefinitions === window.fabui.FabGrid.editorDefinitions &&
+                  typeof window.FabGrid === 'undefined' &&
+                  typeof window.FabGridLocales === 'undefined',
+                coreBundleOnlyWorks: ['TextBox', 'NumberBox', 'DateBox', 'YymmBox', 'ComboBox', 'Tabs'].every(function(name) {
+                  return typeof window.fabui[name] === 'undefined';
+                }),
+                dangerousBindingBlocked: safetyResult.dangerousBindingBlocked,
+                specialGroupKeyWorks: safetyResult.specialGroupKeyWorks,
+                paginationInitialPageWorks: paginationResult.initialPageWorks,
+                paginationLastPageWorks: paginationResult.lastPageWorks,
+                paginationPageSizeWorks: paginationResult.pageSizeWorks,
+                paginationPagerWorks: paginationResult.pagerWorks,
+                remoteInitialLoadWorks: remotePaginationResult.initialLoadWorks,
+                remoteSecondPageWorks: remotePaginationResult.secondPageWorks,
+                remoteRequestFormatWorks: remotePaginationResult.requestFormatWorks,
                 totalRowsAfterSearch: grid.view.length,
                 firstAmountAfterEdit: grid.getCellData(0, 2),
                 copiedText: copiedText,
@@ -1489,6 +1773,13 @@
                 multiSelectClearAllWorks: multiSelectClearAllWorks,
                 multiArrowDownDoesNotSelectRowWorks: multiArrowDownDoesNotSelectRowWorks,
                 multiArrowUpDoesNotSelectRowWorks: multiArrowUpDoesNotSelectRowWorks,
+                pageDownNavigationWorks: pageDownNavigationWorks,
+                pageUpNavigationWorks: pageUpNavigationWorks,
+                moveToBottomHotKeyWorks: moveToBottomHotKeyWorks,
+                moveToTopHotKeyWorks: moveToTopHotKeyWorks,
+                moveToRightHotKeyWorks: moveToRightHotKeyWorks,
+                moveToLeftHotKeyWorks: moveToLeftHotKeyWorks,
+                macFnHorizontalHotKeysWork: macFnHorizontalHotKeysWork,
                 multiSelectColumnHiddenWorks: multiSelectColumnHiddenWorks,
                 collectionViewAliasWorks: grid.collectionView === grid.view,
                 rowsAliasWorks: grid.rows === grid.view,
@@ -1635,7 +1926,7 @@
                 englishBusyTextWorks: englishBusyTextWorks,
                 zhEmptyTextWorks: zhEmptyTextWorks,
                 localeStaticsWork: localeStaticsWork,
-                zhCnLocaleNotLoadedWorks: zhCnLocaleNotLoadedWorks,
+                embeddedLocalesWork: embeddedLocalesWork,
                 headerToggleDefaultDisabledWorks: headerToggleDefaultDisabledWorks,
                 dateboxEditorAlignsSelectedCellWorks: dateboxEditorAlignsSelectedCellWorks,
                 dateboxEditorHorizontalScrollAlignsSelectedCellWorks: dateboxEditorHorizontalScrollAlignsSelectedCellWorks,
@@ -1803,7 +2094,7 @@
       }
 
       function runLargeExportScrollCheck() {
-        var largeGrid = new FabGrid('#largeGrid', {
+        var largeGrid = new fabui.FabGrid('#largeGrid', {
           rowHeight: 32,
           headerHeight: 36,
           overscanRows: 8,
@@ -1878,6 +2169,127 @@
         var body = document.querySelector('.fg-body');
         var bodyRect = body.getBoundingClientRect();
         return bodyRect.bottom - measureScrollbarHeight() - measureFooterHeight();
+      }
+
+      function runBindingAndGroupingSafetyCheck() {
+        var host = document.createElement('div');
+        var prototypeProperty = '__fabgridSafetyCheck';
+        var safetyGrid;
+        var groupRows;
+        var result;
+        host.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:400px;height:240px;';
+        document.body.appendChild(host);
+        safetyGrid = new fabui.FabGrid(host, {
+          rowGroups: [{ binding: 'group' }],
+          columns: [
+            { binding: '__proto__.' + prototypeProperty, header: 'Unsafe' },
+            { binding: 'group', header: 'Group' }
+          ],
+          itemsSource: [
+            { group: '__proto__' },
+            { group: '__proto__' }
+          ]
+        });
+        result = {
+          dangerousBindingBlocked: safetyGrid.setCellData(1, 0, true) === false &&
+            Object.prototype[prototypeProperty] === undefined,
+          specialGroupKeyWorks: false
+        };
+        groupRows = safetyGrid.view.filter(function(row) {
+          return safetyGrid.isRowGroup(row);
+        });
+        result.specialGroupKeyWorks = groupRows.length === 1 && groupRows[0].count === 2;
+        safetyGrid.dispose();
+        host.remove();
+        delete Object.prototype[prototypeProperty];
+        return result;
+      }
+
+      function runPaginationCheck() {
+        var host = document.createElement('div');
+        var paginationRows = [];
+        var paginationGrid;
+        var result;
+        var i;
+        for (i = 1; i <= 25; i += 1) {
+          paginationRows.push({ id: i });
+        }
+        host.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:400px;height:240px;';
+        document.body.appendChild(host);
+        paginationGrid = new fabui.FabGrid(host, {
+          pagination: true,
+          pager: {
+            pageNumber: 1,
+            pageSize: 10,
+            pageList: [10, 20, 50],
+            showPageList: false
+          },
+          columns: [{ binding: 'id', header: 'ID' }],
+          itemsSource: paginationRows
+        });
+        result = {
+          initialPageWorks: paginationGrid.view.length === 10 && paginationGrid.paginationTotal === 25,
+          lastPageWorks: false,
+          pageSizeWorks: false,
+          pagerWorks: paginationGrid.getPager() === paginationGrid.pager &&
+            paginationGrid.pager.contains(paginationGrid.pagination) &&
+            paginationGrid.pagination.querySelector('.fg-pagination-info') !== null
+        };
+        paginationGrid.setPage(3);
+        result.lastPageWorks = paginationGrid.options.pageNumber === 3 &&
+          paginationGrid.view.length === 5 && paginationGrid.getCellData(0, 0) === 21;
+        paginationGrid.setPageSize(20);
+        result.pageSizeWorks = paginationGrid.options.pageNumber === 1 &&
+          paginationGrid.options.pageSize === 20 && paginationGrid.view.length === 20;
+        paginationGrid.dispose();
+        host.remove();
+        return result;
+      }
+
+      function runRemotePaginationCheck() {
+        var host = document.createElement('div');
+        var remoteRows = [];
+        var requests = [];
+        var remoteGrid;
+        var result = {
+          initialLoadWorks: false,
+          secondPageWorks: false,
+          requestFormatWorks: false
+        };
+        var i;
+        for (i = 1; i <= 25; i += 1) {
+          remoteRows.push({ id: i });
+        }
+        host.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:400px;height:240px;';
+        document.body.appendChild(host);
+        remoteGrid = new fabui.FabGrid(host, {
+          remote: true,
+          pagination: true,
+          pager: { pageNumber: 1, pageSize: 10 },
+          columns: [{ binding: 'id', header: 'ID' }],
+          loader: function(params) {
+            var start = (params.page - 1) * params.rows;
+            requests.push({ page: params.page, rows: params.rows });
+            return Promise.resolve({
+              total: String(remoteRows.length),
+              rows: remoteRows.slice(start, start + params.rows)
+            });
+          }
+        });
+        return remoteGrid.load().then(function() {
+          result.initialLoadWorks = remoteGrid.paginationTotal === 25 &&
+            remoteGrid.view.length === 10 && remoteGrid.getCellData(0, 0) === 1;
+          return remoteGrid.setPage(2);
+        }).then(function() {
+          result.secondPageWorks = remoteGrid.options.pageNumber === 2 &&
+            remoteGrid.view.length === 10 && remoteGrid.getCellData(0, 0) === 11;
+          result.requestFormatWorks = requests.some(function(request) {
+            return request.page === 2 && request.rows === 10;
+          });
+          remoteGrid.dispose();
+          host.remove();
+          return result;
+        });
       }
 
       function readUint16(bytes, offset) {

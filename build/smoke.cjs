@@ -78,6 +78,16 @@ server.listen(port, '127.0.0.1', async function() {
     const result = extractResult(dom);
     if (
       !result.hasFabGrid ||
+      !result.coreBundleOnlyWorks ||
+      !result.dangerousBindingBlocked ||
+      !result.specialGroupKeyWorks ||
+      !result.paginationInitialPageWorks ||
+      !result.paginationLastPageWorks ||
+      !result.paginationPageSizeWorks ||
+      !result.paginationPagerWorks ||
+      !result.remoteInitialLoadWorks ||
+      !result.remoteSecondPageWorks ||
+      !result.remoteRequestFormatWorks ||
       result.totalRowsAfterSearch !== 1 ||
       result.firstAmountAfterEdit !== 123456 ||
       result.copiedText !== '123456' ||
@@ -115,6 +125,13 @@ server.listen(port, '127.0.0.1', async function() {
       !result.multiSelectClearAllWorks ||
       !result.multiArrowDownDoesNotSelectRowWorks ||
       !result.multiArrowUpDoesNotSelectRowWorks ||
+      !result.pageDownNavigationWorks ||
+      !result.pageUpNavigationWorks ||
+      !result.moveToBottomHotKeyWorks ||
+      !result.moveToTopHotKeyWorks ||
+      !result.moveToRightHotKeyWorks ||
+      !result.moveToLeftHotKeyWorks ||
+      !result.macFnHorizontalHotKeysWork ||
       !result.multiSelectColumnHiddenWorks ||
       !result.collectionViewAliasWorks ||
       !result.rowsAliasWorks ||
@@ -139,8 +156,8 @@ server.listen(port, '127.0.0.1', async function() {
       result.sampleCellColor !== 'rgb(0, 0, 0)' ||
       result.sampleRowHeaderColor !== 'rgb(128, 128, 128)' ||
       result.sampleHeaderColor !== 'rgb(128, 128, 128)' ||
-      result.sampleRowHeaderBackground !== 'rgb(233, 233, 233)' ||
-      result.sampleRowHeaderBackgroundImage !== 'none' ||
+      !isTransparentColor(result.sampleRowHeaderBackground) ||
+      result.sampleRowHeaderBackgroundImage === 'none' ||
       result.sampleHeaderBackground !== 'rgb(239, 239, 239)' ||
       result.sampleHeaderBackgroundImage === 'none' ||
       !isNormalFontWeight(result.sampleRowHeaderFontWeight) ||
@@ -261,7 +278,7 @@ server.listen(port, '127.0.0.1', async function() {
       !result.englishBusyTextWorks ||
       !result.zhEmptyTextWorks ||
       !result.localeStaticsWork ||
-      !result.zhCnLocaleNotLoadedWorks ||
+      !result.embeddedLocalesWork ||
       !result.headerToggleDefaultDisabledWorks ||
       !result.dateboxEditorAlignsSelectedCellWorks ||
       !result.dateboxEditorHorizontalScrollAlignsSelectedCellWorks ||
@@ -302,8 +319,8 @@ server.listen(port, '127.0.0.1', async function() {
       result.rowHeaderCells < 1 ||
       result.rowSelectedCells < 1 ||
       result.rowHoveredCells < 1 ||
-      result.selectedRowHeaderBackground !== 'rgb(233, 233, 233)' ||
-      result.selectedRowHeaderBackgroundImage !== 'none' ||
+      !isTransparentColor(result.selectedRowHeaderBackground) ||
+      result.selectedRowHeaderBackgroundImage === 'none' ||
       result.selectedRowHeaderColor !== 'rgb(128, 128, 128)' ||
       result.measuredScrollbarHeight < 1 ||
       result.measuredFooterHeight !== 28 ||
@@ -326,14 +343,24 @@ server.listen(port, '127.0.0.1', async function() {
     ) {
       throw new Error('Smoke assertions failed: ' + JSON.stringify(result));
     }
-    if (!fs.existsSync(path.join(root, 'dist', 'images', 'datebox_arrow.png'))) {
-      throw new Error('Smoke assertions failed: dist/images/datebox_arrow.png was not found.');
+    const expectedDistFiles = [
+      'fabui.css',
+      'fabui.esm.js',
+      'fabui.esm.min.js',
+      'fabui.js',
+      'fabui.min.css',
+      'fabui.min.js',
+      'theme'
+    ];
+    const actualDistFiles = fs.readdirSync(path.join(root, 'dist')).sort();
+    if (JSON.stringify(actualDistFiles) !== JSON.stringify(expectedDistFiles)) {
+      throw new Error('Smoke assertions failed: unexpected dist output ' + JSON.stringify(actualDistFiles));
     }
-    if (!fs.existsSync(path.join(root, 'dist', 'locales', 'fabgrid-locale.zh-CN.js'))) {
-      throw new Error('Smoke assertions failed: dist/locales/fabgrid-locale.zh-CN.js was not found.');
-    }
-    if (!fs.existsSync(path.join(root, 'dist', 'locales', 'fabgrid-locale.zh-CN.min.js'))) {
-      throw new Error('Smoke assertions failed: dist/locales/fabgrid-locale.zh-CN.min.js was not found.');
+    if (!fs.existsSync(path.join(root, 'dist', 'theme', 'images', 'datebox_arrow.png')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'fabgrid.black.css')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'fabgrid.black.min.css')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'black', 'images', 'pagination_icons.png'))) {
+      throw new Error('Smoke assertions failed: theme dependencies are incomplete.');
     }
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {

@@ -1,0 +1,37 @@
+.datebox-demo-stack {
+  display: grid;
+  gap: 16px;
+  max-width: 420px;
+}
+
+.datebox-demo-result {
+  color: #444;
+  font-size: 14px;
+}
+
+.datebox-demo-shared-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 420px) 250px;
+  gap: 24px;
+  align-items: start;
+}
+
+.datebox-demo-action {
+  margin: 0 0 16px;
+  padding: 7px 18px;
+  border: 1px solid #95b8e7;
+  border-radius: 5px;
+  background: #f4f4f4;
+  color: #000;
+  font: 14px Arial, sans-serif;
+  cursor: pointer;
+}
+
+.datebox-demo-action:hover { background: #eaf2ff; }
+
+.datebox-fluid-card .datebox-demo-stack { max-width: none; }
+.datebox-fluid-card .fui-textbox-field:first-child { width: 100%; }
+
+@media (max-width: 760px) {
+  .datebox-demo-shared-layout { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,26 @@
+.fui-tabs.fg-theme-cupertino {
+  --fui-tabs-border: #AED0EA;
+  --fui-tabs-header-bg: #d7ebf9;
+  --fui-tabs-header-text: #2779AA;
+  --fui-tabs-panel-bg: #f2f5f7;
+  --fui-tabs-panel-text: #2779AA;
+  --fui-tabs-tab-bg: linear-gradient(to bottom, #EFF5FF 0, #d7ebf9 100%);
+  --fui-tabs-tab-text: #2779AA;
+  --fui-tabs-hover-bg: #e4f1fb;
+  --fui-tabs-hover-text: #2779AA;
+  --fui-tabs-selected-bg: #f2f5f7;
+  --fui-tabs-selected-text: #2779AA;
+  --fui-tabs-selected-edge: #f2f5f7;
+  --fui-tabs-selected-top-bg: linear-gradient(to bottom, #EFF5FF 0, #f2f5f7 100%);
+  --fui-tabs-selected-bottom-bg: linear-gradient(to top, #EFF5FF 0, #f2f5f7 100%);
+  --fui-tabs-selected-left-bg: linear-gradient(to right, #EFF5FF 0, #f2f5f7 100%);
+  --fui-tabs-selected-right-bg: linear-gradient(to left, #EFF5FF 0, #f2f5f7 100%);
+  --fui-tabs-pill-bg: #3baae3;
+  --fui-tabs-pill-text: #ffffff;
+}
+
+.fui-tabs.fg-theme-cupertino .fui-tabs-close,
+.fui-tabs.fg-theme-cupertino .fui-tabs-scroller-left,
+.fui-tabs.fg-theme-cupertino .fui-tabs-scroller-right {
+  background-image: url('images/tabs_icons.png');
+}

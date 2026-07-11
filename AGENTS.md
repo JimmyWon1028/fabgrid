@@ -13,12 +13,14 @@
 
 ## 開發工作流程
 
+- 修改範圍、需求意圖或既有行為是否應保留，只要有任何不確定，必須先向使用者確認清楚再修改；不得自行擴大需求、移除未被要求移除的功能或改變未被要求改變的行為。
+- `resource/` 位於專案根目錄，只存放本機參考檔案；build、Demo 與正式 source 不得依賴，Git/GitHub 必須忽略。
 - 日常修改不要每次都編譯到 `dist`。
 - 除非使用者明確要求「編譯」、「build」、「重建 dist」、「產生 dist」或同等意思，否則不要主動執行會更新 `dist` 的指令，例如 `npm run build` 或 `npm run smoke`。
 - 修改確認完成後，預設啟動開發伺服器，提供本機網址讓使用者自行測試。
 - 若任務需要驗證但使用者沒有要求編譯，優先使用不會改寫 `dist` 的檢查方式；如果現有驗證只能透過 build/smoke 完成，先回報限制並等待使用者指示。
-- icon 定義要一致使用 `my.icon.css` 的 icon class，例如 `icon-datebox`、`icon-refwin`；不要在核心 CSS 直接硬編圖檔路徑。
-- 開發測試優先使用 source-mode demo，例如 `demo/dev.html` 直接引用 `src/fabgrid-core.js` 與 `src/styles/*`；修改 source 後要同步更新 query version，避免瀏覽器快取造成誤判。
+- FabGrid 使用的 icon 定義統一放在 `fabgrid.icon.css`，例如 `icon-datebox`、`icon-refwin`；不要在核心 CSS 直接硬編圖檔路徑。
+- 開發測試優先使用 source-mode demo，例如 `demo/dev.html` 直接引用公開入口 `src/fabui.js` 與 `src/fabui.css`；內部模組仍放在各自目錄。修改 source 後要同步更新 query version，避免瀏覽器快取造成誤判。
 - 新增任何核心 UI 文字時，必須同步補齊 `en`、`zh-TW`、`zh-CN` locale key；demo-only 文字若會隨語言切換，也要放進 demo locale pack，不要寫死單一語言。
 - popup menu 樣式要維持一致：左側 icon 欄、icon 後分隔線、緊湊列高與清楚 hover/active 狀態；後續新增 popup menu 時沿用目前 filter menu 的視覺規則。
 - 工作進度記錄放在 `worklogs/YYYY-MM-DD.md`，固定使用 `## 完成進度` 標題；功能契約改動時，同步更新 README 與本文件。
@@ -40,12 +42,18 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 
 ## 技術方向
 
+- `fabui` 是最上層 UI namespace，Browser global 與 ES module 公開入口目前只輸出 FabGrid 與其必要定義。
+- FabGrid editor 的共用定義位於 `src/editor/editor-definitions.js`，由 `fabui.editorDefinitions` 公開；不可在 Grid 內維護多套數字／日期清理、格式化或 editor class。
+- FabGrid 位於 `fabui.FabGrid`；`src/fabui.js` 是入口，`src/grid/fabgrid.js` 是 Grid 子模組。
+- TextBox、NumberBox、DateBox、YymmBox、ComboBox、Tabs 目前只保留原始碼，全部列於 `TODO.md`；不得由 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 或 `dist/fabui.*` 公開或編譯。
+- 未來若要重新發佈任何 standalone 控件，必須建立獨立 entry、CSS、demo、API 文件與驗證；不得併回 FabGrid core bundle。
 - 核心使用不綁定框架的 pure JavaScript。
 - 第一版 demo 不需要後端。
 - core package 不依賴 Vue。
+- 資料來源選項 `remote` 預設為 `false`；`remote: true` 已支援 GET／POST、Promise loader、遠端分頁、排序、全域搜尋與欄位篩選。
 - core 必須能打包成可在其他專案引用的 library 檔案。
-- V1 至少要輸出 ES6 module 版本與 ES5 browser global 版本。
-- `dist/fabgrid.min.js` 必須是可用 `<script>` 直接引用的 ES5 相容壓縮版本。
+- 發佈主檔固定為 `fabui.js`、`fabui.min.js`、`fabui.esm.js`、`fabui.esm.min.js`、`fabui.css`、`fabui.min.css`，並輸出 `dist/theme` 下的 theme CSS 與圖片依賴。
+- `dist/fabui.min.js` 必須是可用 `<script>` 直接引用的 browser global 壓縮版本。
 - core 穩定之後，可以再加入 Vue wrapper。
 - Vue wrapper 只負責把 props、events、lifecycle 對應到 pure JS core。
 - 在大資料量情境下，Vue 不應該接管每個 cell 的渲染。
@@ -61,36 +69,34 @@ fabgrid-vue
 
 ```txt
 dist/
-  fabgrid.esm.js
-  fabgrid.esm.min.js
-  fabgrid.js
-  fabgrid.min.js
-  fabgrid.css
+  fabui.esm.js
+  fabui.esm.min.js
+  fabui.js
+  fabui.min.js
+  fabui.css
+  fabui.min.css
+  theme/
 ```
 
-`fabgrid.min.js` 必須是 ES5 相容的 browser global build，能在其他專案中直接引用：
+`fabui.min.js` 是 browser global build，能在其他專案中直接引用：
 
 ```html
-<link rel="stylesheet" href="./fabgrid.css">
-<script src="./fabgrid.min.js"></script>
+<link rel="stylesheet" href="./fabui.css">
+<script src="./fabui.min.js"></script>
 <script>
-  const grid = new FabGrid('#grid', {
+  const grid = new fabui.FabGrid('#grid', {
     itemsSource: rows,
     columns
   });
 </script>
 ```
 
-同時保留 ES6 module 匯出，方便現代 bundler 或 `<script type="module">` 使用：
+Source code 使用 ES module 維護，並從 `src/fabui.js` 組合 namespace：
 
 ```js
-import { FabGrid } from './fabgrid.esm.js';
-```
+import fabui from './src/fabui.js';
 
-建議核心 API 形式：
-
-```js
-const grid = new FabGrid('#grid', {
+const grid = new fabui.FabGrid('#grid', {
   rowHeight: 32,
   headerHeight: 36,
   overscanRows: 8,
@@ -145,7 +151,7 @@ FabGrid 從一開始就必須以雙向 virtualization 為核心設計。
 - 在前端本地產生 mock data。
 - 使用 2000 rows x 20 columns。
 - 使用 pure JS、CSS、HTML。
-- Demo 應該引用打包後的 `dist/fabgrid.min.js` 與 `dist/fabgrid.css`，用來驗證其他專案的引用方式。
+- Demo 應該引用打包後的 `dist/fabui.min.js` 與 `dist/fabui.css`，用來驗證其他專案的引用方式。
 - 除非有很強的理由，否則避免第三方依賴。
 
 Demo 應該顯示有助於觀察效能的 runtime stats：
@@ -210,6 +216,10 @@ Demo 應該顯示有助於觀察效能的 runtime stats：
    - 點擊 cell 進行選取。
    - 支援方向鍵導覽。
    - 可將選取 cell 捲動到可視區。
+   - `Page Up`／`Page Down` 依 Excel 行為移動一個可視頁面，保持同一欄並 clamp 到資料首尾。
+   - 同欄跳到資料首尾：Windows／Linux 使用 `Ctrl + ArrowUp/ArrowDown`；macOS 使用 `Fn + Option + ArrowUp/ArrowDown`，DOM key 對應 `Option + PageUp/PageDown`。
+   - 同列跳到左右邊界：Windows／Linux 使用 `Ctrl + ArrowLeft/ArrowRight`；macOS 使用 `Fn + Option + ArrowLeft/ArrowRight`，DOM key 對應 `Option + Home/End`；不可使用會觸發瀏覽器上一頁／下一頁的單純 `Option + ArrowLeft/ArrowRight`。
+   - macOS 另支援 `Fn + ArrowLeft/ArrowRight`，DOM key 對應無 modifier 的 `Home/End`；輸入框與 cell editor 編輯狀態不得攔截。
    - V1 不做 range selection 或 multi-selection。
 
 9. 編輯
@@ -241,6 +251,20 @@ Demo 應該顯示有助於觀察效能的 runtime stats：
    - Excel 支援欄寬、左側 frozen pane、autoFilter、footer、number format、grid style 與 hidden columns。
    - Excel 匯出群組時保留 group row 與 aggregate 顯示格式。
 
+13. Pagination
+   - `pagination` 預設為 `false`。
+   - 本地資料模式支援 `pageNumber`、`pageSize` 與 `pageList`。
+   - `showPageList` 預設為 `false`；pageList 隱藏時，其右側分隔線也必須隱藏。
+   - DOM 使用 `.fg-pager > .fg-pagination`，`getPager()` 回傳外層 pager。
+   - Pagination 設定優先放在 `pager` 物件內；既有頂層 `pageNumber`、`pageSize`、`pageList`、`showPageList`、`showPageInfo`、`showRefresh` 保留相容性。
+   - `pager.showPageInfo` 預設為 `true`；設為 `false` 時不顯示右側資料範圍與總筆數訊息。
+   - `pager.showRefresh` 預設為 `true`；設為 `false` 時不顯示重新整理按鈕及其左側分隔線。
+   - UI 參考 EasyUI DataGrid pager：每頁筆數、首頁、上一頁、頁碼、下一頁、末頁、重新整理與筆數資訊。
+   - `remote: true` 支援 `url + method` 內建請求與自訂 Promise loader；method 限定為 GET 或 POST。
+   - 遠端排序使用 EasyUI 的 `sort`、`order` 參數，排序後回到第 1 頁；多欄排序值以逗號分隔。
+   - 遠端全域搜尋使用 `q`，欄位篩選使用 JSON `filterRules`；條件改變後回到第 1 頁。
+   - 函式型 `setFilter(predicate)` 無法序列化，僅限 `remote: false`。
+
 ## V1 不做的功能
 
 在 core 經過驗證之前，先避免以下功能：
@@ -264,6 +288,9 @@ Demo 應該顯示有助於觀察效能的 runtime stats：
 
 ```txt
 src/
+  fabui.js
+  grid/
+    fabgrid.js
   core/
     FabGrid.js
     Column.js
@@ -286,8 +313,14 @@ src/
     Filtering.js
     Resizing.js
     ExportCsv.js
-  styles/
-    fabgrid.css
+  fabgrid.css
+  fabgrid.icon.css
+  fabui.css
+  theme/
+    fabgrid.<suffix>.css
+    images/
+    <suffix>/
+      images/
 ```
 
 建議打包相關檔案：
@@ -297,25 +330,26 @@ package.json
 build/
   build.js
 dist/
-  fabgrid.esm.js
-  fabgrid.esm.min.js
-  fabgrid.js
-  fabgrid.min.js
-  fabgrid.css
+  fabui.esm.js
+  fabui.esm.min.js
+  fabui.js
+  fabui.min.js
+  fabui.css
+  fabui.min.css
 ```
 
 打包需求：
 
 - Source code 使用 ES6 modules 維護。
-- `dist/fabgrid.esm.js` 保留 ES6 module 可讀版本。
-- `dist/fabgrid.esm.min.js` 提供 ES6 module 壓縮版本。
-- `dist/fabgrid.js` 提供 ES5 browser global 可讀版本。
-- `dist/fabgrid.min.js` 提供 ES5 browser global 壓縮版本。
-- Browser global 名稱使用 `FabGrid`。
-- ES module 使用 named export：`export { FabGrid }`。
-- ES5 browser global build 應避免使用 `class`、arrow function、`const`、`let`、template literal 等 ES6+ 語法。
-- 若使用 build tool，必須把 library code transpile 到 ES5 browser global build。
-- CSS 產物為 `dist/fabgrid.css`。
+- `dist/fabui.esm.js` 提供 ES module 可讀版本。
+- `dist/fabui.esm.min.js` 提供 ES module 壓縮版本。
+- `dist/fabui.js` 提供 browser global 可讀版本。
+- `dist/fabui.min.js` 提供 browser global 壓縮版本。
+- `dist/fabui.css` 整合所有核心控件、icon 與主題，圖片路徑指向 `dist/theme`。
+- `dist/fabui.min.css` 提供整合 CSS 壓縮版本。
+- Browser global namespace 使用 `fabui.FabGrid`。
+- Browser global namespace 使用 `fabui`，FabGrid 由 `fabui.FabGrid` 取得。
+- 每次 build 必須先清理 `dist`，主檔之外只保留必要的 `theme` CSS 與圖片依賴。
 - 不要把 demo-only code 打包進 library。
 - Build script 必須可重複執行。
 
@@ -415,7 +449,7 @@ V1 符合以下條件時可視為成功：
 - Editing 能正確把值寫回 source data。
 - Column resizing 能正確更新 layout。
 - `frozenColumns` 能固定左側指定數量 columns，且不破壞雙向 virtualization。
-- 能產生 `dist/fabgrid.esm.js`，並可用 ES6 `import { FabGrid }` 引用。
-- 能產生 ES5 相容的 `dist/fabgrid.min.js`，並可用 `<script src="...">` 在其他專案中引用。
+- `dist` 產生六個 FabUI 主檔與必要的 `theme` CSS／圖片依賴。
+- 能用 `<script src="./fabui.min.js">` 建立 `fabui.FabGrid` 與其他 FabUI 控件。
 - Demo 頁面使用打包後的 dist 檔案運作。
 - `dispose()` 會移除 listeners，且不留下明顯的殘留行為。

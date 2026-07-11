@@ -1,0 +1,26 @@
+.fui-tabs.fg-theme-default {
+  --fui-tabs-border: #95B8E7;
+  --fui-tabs-header-bg: #E0ECFF;
+  --fui-tabs-header-text: #0E2D5F;
+  --fui-tabs-panel-bg: #ffffff;
+  --fui-tabs-panel-text: #000000;
+  --fui-tabs-tab-bg: linear-gradient(to bottom, #EFF5FF 0, #E0ECFF 100%);
+  --fui-tabs-tab-text: #0E2D5F;
+  --fui-tabs-hover-bg: #eaf2ff;
+  --fui-tabs-hover-text: #000000;
+  --fui-tabs-selected-bg: #ffffff;
+  --fui-tabs-selected-text: #0E2D5F;
+  --fui-tabs-selected-edge: #ffffff;
+  --fui-tabs-selected-top-bg: linear-gradient(to bottom, #EFF5FF 0, #ffffff 100%);
+  --fui-tabs-selected-bottom-bg: linear-gradient(to top, #EFF5FF 0, #ffffff 100%);
+  --fui-tabs-selected-left-bg: linear-gradient(to right, #EFF5FF 0, #ffffff 100%);
+  --fui-tabs-selected-right-bg: linear-gradient(to left, #EFF5FF 0, #ffffff 100%);
+  --fui-tabs-pill-bg: #ffe48d;
+  --fui-tabs-pill-text: #000000;
+}
+
+.fui-tabs.fg-theme-default .fui-tabs-close,
+.fui-tabs.fg-theme-default .fui-tabs-scroller-left,
+.fui-tabs.fg-theme-default .fui-tabs-scroller-right {
+  background-image: url('images/tabs_icons.png');
+}

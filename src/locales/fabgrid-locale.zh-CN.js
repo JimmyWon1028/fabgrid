@@ -1,15 +1,30 @@
 (function(root, factory) {
   var locale = factory();
-  root.FabGridLocales = root.FabGridLocales || {};
-  root.FabGridLocales['zh-CN'] = locale;
-  if (root.FabGrid && root.FabGrid.addLocale) {
-    root.FabGrid.addLocale('zh-CN', locale);
+  root.fabui = root.fabui || {};
+  root.fabui.FabGridLocales = root.fabui.FabGridLocales || {};
+  root.fabui.FabGridLocales['zh-CN'] = locale;
+  if (root.fabui.FabGrid && root.fabui.FabGrid.addLocale) {
+    root.fabui.FabGrid.addLocale('zh-CN', locale);
   }
 }(typeof window !== 'undefined' ? window : this, function() {
   return {
     emptyText: '没有数据',
     exportBusyText: '正在导出 Excel...',
     workingText: '处理中...',
+    loadMsg: '正在处理，请稍候...',
+    pagination: {
+      ariaLabel: '分页导航',
+      pageSize: '每页条数',
+      pageNumber: '页码',
+      beforePageText: '页',
+      afterPageText: '共{pages}页',
+      displayMsg: '显示{from}到{to},共{total}记录',
+      first: '第一页',
+      previous: '上一页',
+      next: '下一页',
+      last: '最后一页',
+      refresh: '刷新'
+    },
     validation: {
       invalidValue: '输入值无效',
       invalidDate: '日期格式错误',

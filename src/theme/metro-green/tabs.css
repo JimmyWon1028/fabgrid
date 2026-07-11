@@ -1,0 +1,26 @@
+.fui-tabs.fg-theme-metro-green {
+  --fui-tabs-border: #b1c242;
+  --fui-tabs-header-bg: #e5f0c9;
+  --fui-tabs-header-text: #404040;
+  --fui-tabs-panel-bg: #fafafa;
+  --fui-tabs-panel-text: #404040;
+  --fui-tabs-tab-bg: #e5f0c9;
+  --fui-tabs-tab-text: #404040;
+  --fui-tabs-hover-bg: #E0F892;
+  --fui-tabs-hover-text: #404040;
+  --fui-tabs-selected-bg: #fafafa;
+  --fui-tabs-selected-text: #404040;
+  --fui-tabs-selected-edge: #fafafa;
+  --fui-tabs-selected-top-bg: #fafafa;
+  --fui-tabs-selected-bottom-bg: #fafafa;
+  --fui-tabs-selected-left-bg: #fafafa;
+  --fui-tabs-selected-right-bg: #fafafa;
+  --fui-tabs-pill-bg: #c8d47b;
+  --fui-tabs-pill-text: #404040;
+}
+
+.fui-tabs.fg-theme-metro-green .fui-tabs-close,
+.fui-tabs.fg-theme-metro-green .fui-tabs-scroller-left,
+.fui-tabs.fg-theme-metro-green .fui-tabs-scroller-right {
+  background-image: url('images/tabs_icons.png');
+}

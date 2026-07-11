@@ -1,0 +1,59 @@
+.pagination-first {
+  background: url('theme/images/pagination_icons.png') no-repeat 0 center;
+}
+
+.pagination-prev {
+  background: url('theme/images/pagination_icons.png') no-repeat -16px center;
+}
+
+.pagination-next {
+  background: url('theme/images/pagination_icons.png') no-repeat -32px center;
+}
+
+.pagination-last {
+  background: url('theme/images/pagination_icons.png') no-repeat -48px center;
+}
+
+.pagination-load {
+  background: url('theme/images/pagination_icons.png') no-repeat -64px center;
+}
+
+.pagination-loading {
+  background: url('theme/images/loading.gif') no-repeat center center;
+}
+
+.icon-datebox {
+  background: url('theme/images/datebox_arrow.png') no-repeat center center;
+}
+
+.icon-refwin {
+  background: url('theme/images/refwin.png') no-repeat center center;
+}
+
+.icon-export {
+  background: url('theme/images/export.png') no-repeat center center;
+}
+
+.icon-excel {
+  background: url('theme/images/excel.png') no-repeat center center;
+}
+
+.icon-add {
+  background: url('theme/images/edit_add.png') no-repeat center center;
+}
+
+.icon-remove {
+  background: url('theme/images/edit_remove_r.png') no-repeat center center;
+}
+
+.icon-close {
+  background: url('theme/images/close.png') no-repeat center center;
+}
+
+.icon-clear {
+  background: url('theme/images/clear.png') no-repeat center center;
+}
+
+.icon-check {
+  background: url('theme/images/check.png') no-repeat center center;
+}

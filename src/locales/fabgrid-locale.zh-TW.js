@@ -1,15 +1,30 @@
 (function(root, factory) {
   var locale = factory();
-  root.FabGridLocales = root.FabGridLocales || {};
-  root.FabGridLocales['zh-TW'] = locale;
-  if (root.FabGrid && root.FabGrid.addLocale) {
-    root.FabGrid.addLocale('zh-TW', locale);
+  root.fabui = root.fabui || {};
+  root.fabui.FabGridLocales = root.fabui.FabGridLocales || {};
+  root.fabui.FabGridLocales['zh-TW'] = locale;
+  if (root.fabui.FabGrid && root.fabui.FabGrid.addLocale) {
+    root.fabui.FabGrid.addLocale('zh-TW', locale);
   }
 }(typeof window !== 'undefined' ? window : this, function() {
   return {
     emptyText: '沒有資料',
     exportBusyText: '匯出 Excel 中...',
     workingText: '處理中...',
+    loadMsg: '正在處理，請稍候...',
+    pagination: {
+      ariaLabel: '分頁導覽',
+      pageSize: '每頁筆數',
+      pageNumber: '頁碼',
+      beforePageText: '頁',
+      afterPageText: '共{pages}頁',
+      displayMsg: '顯示{from}到{to},共{total}記錄',
+      first: '第一頁',
+      previous: '上一頁',
+      next: '下一頁',
+      last: '最後一頁',
+      refresh: '重新整理'
+    },
     validation: {
       invalidValue: '輸入值無效',
       invalidDate: '日期格式錯誤',

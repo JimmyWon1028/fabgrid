@@ -1,0 +1,99 @@
+.fui-combobox .fui-combobox-arrow {
+  position: relative;
+  background: var(--fui-control-trigger-bg, #e0ecff);
+}
+
+.fui-combobox .fui-combobox-arrow::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  margin: -2px 0 0 -4px;
+  border-top: 6px solid var(--fui-control-icon, #555);
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+}
+
+.fui-combobox .fui-combobox-arrow:hover,
+.fui-combobox .fui-combobox-arrow:focus-visible,
+.fui-combobox-open .fui-combobox-arrow {
+  background-color: var(--fui-control-hover, #eaf2ff);
+}
+
+.fui-combobox-panel {
+  position: absolute;
+  z-index: 11000;
+  box-sizing: border-box;
+  overflow: auto;
+  border: 1px solid var(--fui-control-border, #95b8e7);
+  background: var(--fui-panel-bg, #fff);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  color: var(--fui-panel-text, #000);
+  font: 14px Arial, sans-serif;
+}
+
+.fui-combobox-panel[hidden] { display: none; }
+
+.fui-combobox-item,
+.fui-combobox-group {
+  box-sizing: border-box;
+  min-height: 32px;
+  padding: 6px 4px;
+  line-height: 20px;
+}
+
+.fui-combobox-item {
+  cursor: pointer;
+  white-space: normal;
+}
+
+.fui-combobox-group {
+  background: var(--fui-panel-bg, #fff);
+  font-weight: bold;
+}
+
+.fui-combobox-group-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.fui-combobox-group-item { padding-left: 10px; }
+
+.fui-combobox-item-active,
+.fui-combobox-item:hover {
+  background: var(--fui-control-hover, #eaf2ff);
+  color: var(--fui-control-hover-text, #000);
+}
+
+.fui-combobox-item-selected,
+.fui-combobox-item-selected:hover,
+.fui-combobox-item-selected.fui-combobox-item-active {
+  background: var(--fui-control-selected, #ffe48d);
+  color: var(--fui-control-selected-text, #000);
+}
+
+.fui-combobox-item-disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.fui-combobox-item-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 2px;
+  background-position: center;
+  background-repeat: no-repeat;
+  vertical-align: middle;
+}
+
+.fui-combobox-text-icon {
+  padding-left: 22px;
+  background-position: 4px center !important;
+  background-repeat: no-repeat !important;
+}
+
+.fui-combobox-empty { min-height: 24px; }

@@ -1,15 +1,30 @@
 (function(root, factory) {
   var locale = factory();
-  root.FabGridLocales = root.FabGridLocales || {};
-  root.FabGridLocales.en = locale;
-  if (root.FabGrid && root.FabGrid.addLocale) {
-    root.FabGrid.addLocale('en', locale);
+  root.fabui = root.fabui || {};
+  root.fabui.FabGridLocales = root.fabui.FabGridLocales || {};
+  root.fabui.FabGridLocales.en = locale;
+  if (root.fabui.FabGrid && root.fabui.FabGrid.addLocale) {
+    root.fabui.FabGrid.addLocale('en', locale);
   }
 }(typeof window !== 'undefined' ? window : this, function() {
   return {
     emptyText: 'No data',
     exportBusyText: 'Exporting Excel...',
     workingText: 'Working...',
+    loadMsg: 'Processing, please wait...',
+    pagination: {
+      ariaLabel: 'Pagination',
+      pageSize: 'Page size',
+      pageNumber: 'Page number',
+      beforePageText: 'Page',
+      afterPageText: 'of {pages}',
+      displayMsg: 'Displaying {from} to {to} of {total} items',
+      first: 'First page',
+      previous: 'Previous page',
+      next: 'Next page',
+      last: 'Last page',
+      refresh: 'Refresh'
+    },
     validation: {
       invalidValue: 'Invalid value',
       invalidDate: 'Invalid date',

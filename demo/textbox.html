@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FabUI TextBox Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260711-component-themes-v1">
+  <link rel="stylesheet" href="./component-source.css?v=20260711-component-themes-v5">
+  <link rel="stylesheet" href="./component-themes.css?v=20260711-component-themes-v3">
+  <link rel="stylesheet" href="./my.icon.css?v=20260711-demo-icons-v1">
+  <link rel="stylesheet" href="./textbox-demo.css?v=20260711-component-themes-v1">
+</head>
+<body class="fg-theme-default">
+  <main class="textbox-demo-page">
+    <aside class="textbox-demo-nav" aria-label="TextBox examples">
+      <h1>TextBox</h1>
+      <label class="textbox-demo-theme-label" for="componentThemeInput">主題</label>
+      <select id="componentThemeInput" class="textbox-demo-theme-select"></select>
+      <a href="#basic">Basic</a>
+      <a href="#clear-icon">Clear Icon</a>
+      <a href="#custom">Custom TextBox</a>
+      <a href="#icons">TextBox with Icons</a>
+      <a href="#button">TextBox with Button</a>
+      <a href="#size">TextBox Size</a>
+      <a href="#multiline">Multiline TextBox</a>
+      <a href="#fluid">Fluid TextBox</a>
+    </aside>
+
+    <section class="textbox-demo-content">
+      <header class="textbox-demo-heading">
+        <p>FabUI component</p>
+        <h2>fabui.TextBox</h2>
+      </header>
+
+      <article id="basic" class="textbox-demo-card">
+        <h3>Basic</h3>
+        <p>基本輸入欄位與 label。</p>
+        <input id="textboxBasic" value="FabUI TextBox">
+      </article>
+
+      <article id="clear-icon" class="textbox-demo-card">
+        <h3>Clear Icon</h3>
+        <p>有內容時才顯示清除按鈕。</p>
+        <input id="textboxClear" value="Click the clear icon">
+      </article>
+
+      <article id="custom" class="textbox-demo-card">
+        <h3>Custom TextBox</h3>
+        <p>可透過 <code>cls</code> 套用專案樣式。</p>
+        <input id="textboxCustom" value="Custom style">
+      </article>
+
+      <article id="icons" class="textbox-demo-card">
+        <h3>TextBox with Icons</h3>
+        <p>icon 可放在輸入框左側或右側。</p>
+        <div class="textbox-demo-stack">
+          <input id="textboxUser" placeholder="Username">
+          <input id="textboxEmail" placeholder="Email address">
+        </div>
+      </article>
+
+      <article id="button" class="textbox-demo-card">
+        <h3>TextBox with Button</h3>
+        <p>按鈕與輸入框共用外框。</p>
+        <input id="textboxButton" placeholder="Search keyword">
+        <output id="textboxButtonResult" class="textbox-demo-output" aria-live="polite"></output>
+      </article>
+
+      <article id="size" class="textbox-demo-card">
+        <h3>TextBox Size</h3>
+        <p>width 與 height 可使用數字或 CSS 尺寸。</p>
+        <div class="textbox-demo-stack">
+          <input id="textboxSmall" placeholder="120 × 26">
+          <input id="textboxLarge" placeholder="320 × 42">
+        </div>
+      </article>
+
+      <article id="multiline" class="textbox-demo-card">
+        <h3>Multiline TextBox</h3>
+        <p>textarea 會保留換行並允許設定高度。</p>
+        <textarea id="textboxMultiline">FabUI TextBox
+supports multiple lines.</textarea>
+      </article>
+
+      <article id="fluid" class="textbox-demo-card textbox-demo-fluid-card">
+        <h3>Fluid TextBox</h3>
+        <p>使用 <code>width: '100%'</code> 配合容器寬度。</p>
+        <input id="textboxFluid" placeholder="Resize the browser window">
+      </article>
+    </section>
+  </main>
+
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260711-component-themes-v1';
+
+    window.fabui = fabui;
+    await import('./component-theme.js?v=20260711-component-themes-v1');
+    await import('./textbox-demo.js?v=20260711-textbox-icon-onclick-v1');
+  </script>
+</body>
+</html>
