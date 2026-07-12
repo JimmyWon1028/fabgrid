@@ -10,8 +10,10 @@ FabUI 提供 pure JavaScript FabGrid 與 SVG Chart。FabGrid 支援雙向 virtua
 
 - [FabGrid API 操作手冊](./docs/fabgrid-api.md)：完整的建構選項、欄位設定、方法、事件、遠端資料協定與匯出說明。
 - [Chart API 操作手冊](./docs/chart-api.md)
+- [Vue 2 Wrapper API](./docs/vue-api.md)
 - [線上 FabGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/)
-- [線上 Chart Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-chart.es5.html)
+- [線上 Chart Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-chart.html)
+- [線上 Vue 2 Demo](https://jimmywon1028.github.io/fabgrid/demo/vue2-grid.html)
 - [工作進度](./worklogs/)
 
 ## 快速使用
@@ -46,6 +48,8 @@ FabUI 提供 pure JavaScript FabGrid 與 SVG Chart。FabGrid 支援雙向 virtua
 ```
 
 ES module 使用者可由 `dist/fabui.esm.js` 匯入 `fabui`，再以 `new fabui.FabGrid(...)` 建立元件；完整範例與所有 API 請見 [API 操作手冊](./docs/fabgrid-api.md)。
+
+Vue 2 Options API wrapper 位於 `packages/fabgrid-vue`，透過 `<fab-grid>` 使用 pure JavaScript core；Vue 不接管 cell rendering。
 
 ## 主要能力
 
@@ -85,4 +89,4 @@ npm run build
 
 ## 專案方向
 
-FabGrid 保持核心 pure JavaScript 與效能優先；未來的 Vue wrapper 僅負責 props、events 與 lifecycle 對應，不接管 cell rendering。
+FabGrid 保持核心 pure JavaScript 與效能優先；現有 Vue 2 wrapper 僅負責 props、events 與 lifecycle 對應，不接管 cell rendering。

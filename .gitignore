@@ -11,3 +11,5 @@ coverage/
 *.tmp
 *.log
 /resource/
+/demo/build/
+/dist-vue-demo/

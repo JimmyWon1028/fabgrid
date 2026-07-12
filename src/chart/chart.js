@@ -294,14 +294,14 @@ export function createChartFactory() {
       percent = values[i] / total * 100;
       setDatum(path, model.series[0].name || '', pieName(data[i], i), values[i], percent, i, 0);
       group.appendChild(path);
-      this.renderPieDataLabel(sliceCx, sliceCy, radius, midAngle, data[i], values[i], percent, i);
+      this.renderPieDataLabel(group, sliceCx, sliceCy, radius, midAngle, data[i], values[i], percent, i);
       angle = next;
     }
     this.animatePieSelection(group, previousAngle, startAngle);
     this.pieStartAngle = startAngle;
   };
 
-  Chart.prototype.renderPieDataLabel = function(cx, cy, radius, angle, item, value, percent, index) {
+  Chart.prototype.renderPieDataLabel = function(group, cx, cy, radius, angle, item, value, percent, index) {
     var config = this.options.dataLabel;
     var position;
     var label;
@@ -319,7 +319,7 @@ export function createChartFactory() {
       'text-anchor': 'middle'
     });
     label.textContent = String(content);
-    this.svg.appendChild(label);
+    group.appendChild(label);
   };
 
   Chart.prototype.animatePieSelection = function(group, previousAngle, nextAngle) {

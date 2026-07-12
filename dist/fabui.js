@@ -296,14 +296,14 @@ function createChartFactory() {
       percent = values[i] / total * 100;
       setDatum(path, model.series[0].name || '', pieName(data[i], i), values[i], percent, i, 0);
       group.appendChild(path);
-      this.renderPieDataLabel(sliceCx, sliceCy, radius, midAngle, data[i], values[i], percent, i);
+      this.renderPieDataLabel(group, sliceCx, sliceCy, radius, midAngle, data[i], values[i], percent, i);
       angle = next;
     }
     this.animatePieSelection(group, previousAngle, startAngle);
     this.pieStartAngle = startAngle;
   };
 
-  Chart.prototype.renderPieDataLabel = function(cx, cy, radius, angle, item, value, percent, index) {
+  Chart.prototype.renderPieDataLabel = function(group, cx, cy, radius, angle, item, value, percent, index) {
     var config = this.options.dataLabel;
     var position;
     var label;
@@ -321,7 +321,7 @@ function createChartFactory() {
       'text-anchor': 'middle'
     });
     label.textContent = String(content);
-    this.svg.appendChild(label);
+    group.appendChild(label);
   };
 
   Chart.prototype.animatePieSelection = function(group, previousAngle, nextAngle) {
@@ -2693,6 +2693,7 @@ function createFabGridFactory(editorDefinitions) {
     syncScrollRender: true,
     itemFormatter: null,
     selectionMode: 'Cell',
+    activeCellBorder: 1,
     rowGroups: [],
     columns: [],
     observeItemsSource: false,
@@ -3160,6 +3161,9 @@ function createFabGridFactory(editorDefinitions) {
   FabGrid.prototype.applyThemeOptions = function() {
     if (this.root && this.options.alternatingRowBackground) {
       this.root.style.setProperty('--fg-cell-alt-bg', String(this.options.alternatingRowBackground));
+    }
+    if (this.root) {
+      this.root.style.setProperty('--fg-active-cell-border', Math.max(0, toNumber(this.options.activeCellBorder, 1)) + 'px');
     }
   };
 
@@ -10349,6 +10353,15 @@ function createFabGridFactory(editorDefinitions) {
           this.options.alternatingRowBackground = value || '#fafafa';
           this.applyThemeOptions();
           this.render();
+        }
+      },
+      activeCellBorder: {
+        get: function() {
+          return Math.max(0, toNumber(this.options.activeCellBorder, 1));
+        },
+        set: function(value) {
+          this.options.activeCellBorder = Math.max(0, toNumber(value, 1));
+          this.applyThemeOptions();
         }
       },
       copyHeaders: {

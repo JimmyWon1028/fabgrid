@@ -1,10 +1,13 @@
 (function() {
   'use strict';
 
-  var DEMO_ROW_COUNT = 1732;
-  var DEMO_COLUMN_COUNT = 22;
+  if (!window.FabGridDemoData || !Array.isArray(window.FabGridDemoData.rows)) {
+    throw new Error('FabGrid demo data source is not loaded.');
+  }
+  var DEMO_ROW_COUNT = window.FabGridDemoData.rowCount;
+  var DEMO_COLUMN_COUNT = window.FabGridDemoData.columnCount;
   var DEMO_ROW_HEADER_WIDTH = 50;
-  var DEMO_SETTINGS_KEY = 'fabgrid.demo.settings.v4.default-toolbar-state';
+  var DEMO_SETTINGS_KEY = window.FABGRID_DEMO_SETTINGS_KEY || 'fabgrid.demo.settings.v4.default-toolbar-state';
   var DEFAULT_DEMO_SETTINGS = {
     locale: 'zh-TW',
     theme: 'default',
@@ -209,7 +212,7 @@
       }
     ]
   };
-  var rows = createRows(DEMO_ROW_COUNT, DEMO_COLUMN_COUNT);
+  var rows = window.FabGridDemoData.rows;
   var columns = createColumns(DEMO_COLUMN_COUNT);
   var stats = {
     datasetSummary: document.getElementById('datasetSummary'),
@@ -267,9 +270,10 @@
   applyDemoLocale(demoSettings.locale);
   applyColumnHeaderLocale(columns, demoSettings.locale);
 
-  var grid = new fabui.FabGrid('#grid', {
+  var gridOptions = {
     rowHeight: 32,
     headerHeight: 32,
+    activeCellBorder: 1,
     searchDelay: 200,
     overscanRows: 14,
     overscanColumns: 3,
@@ -376,7 +380,8 @@
         args.cell.style.fontWeight = '600';
       }
     }
-  });
+  };
+  var grid = new fabui.FabGrid('#grid', gridOptions);
   initializeDemoFilterTextBox();
   updateDemoFilterAvailability(demoSettings.remote);
   applyDemoTheme(demoSettings.theme);
@@ -691,7 +696,7 @@
         }
       },
       {
-        binding: 'dlvno',
+        binding: 'textDate',
         demoHeaderKey: 'textDate',
         header: '文字日期',
         width: 120,
@@ -745,103 +750,6 @@
       });
     }
     return columns;
-  }
-
-  function createRows(count, columnCount) {
-    var vendors = [
-      { code: '408042', name: '全得' },
-      { code: '724001', name: '凱士' },
-      { code: '114021', name: '凱銳' },
-      { code: '307018', name: '翔曜' },
-      { code: '520033', name: '瑞禾' }
-    ];
-    var descriptions = [
-      '第一期工程款20%(未稅金額)',
-      '第二期工程款60%(未稅金額)',
-      '第三期工程款20%(未稅金額)',
-      '工程款30%訂金',
-      '工程款30%中款'
-    ];
-    var lookupCodes = ['2W001', 'WU001', 'CU004', 'BV001', 'RM001', 'RW001', 'JL001', 'JP001'];
-    var rows = [];
-    var row;
-    var vendor;
-    var groupIndex;
-    var lineInGroup;
-    var groupSize;
-    var orderNo;
-    var i;
-    var c;
-    for (i = 1; i <= count; i += 1) {
-      groupIndex = Math.floor((i - 1) / 3);
-      lineInGroup = (i - 1) % 3;
-      groupSize = groupIndex % 5 === 0 ? 1 : 3;
-      vendor = vendors[groupIndex % vendors.length];
-      orderNo = 'BO' + (2025000000 + groupIndex * 1005 + 27);
-      row = {
-        id: vendor.code,
-        name: vendor.name,
-        region: '',
-        crncy: 'NTD',
-        category: pad((lineInGroup + 1) * 10),
-        refCode: orderNo,
-        dlvno: orderNo,
-        item: pad((lineInGroup + 1) * 10),
-        cusno: lookupCodes[(groupIndex + lineInGroup) % lookupCodes.length],
-        stus: DEMO_WORKFLOW_VALUES[(groupIndex + lineInGroup) % DEMO_WORKFLOW_VALUES.length],
-        rem: descriptions[(groupIndex + lineInGroup) % descriptions.length],
-        amount: groupSize === 1 ? 6700 : Math.round(((groupIndex + 3) * 374398.33) / groupSize),
-        score: (i * 17) % 100,
-        textDate: createTextDateValue(i),
-        yearMonth: createYearMonthValue(i),
-        yymm: createYearMonthValue(i),
-        date: createOrderDateValue(groupIndex)
-      };
-      for (c = 10; c <= columnCount; c += 1) {
-        row['col' + pad(c)] = c % 4 === 0 ? (i * c) % 10000 : 'R' + i + '-C' + c;
-      }
-      rows.push(row);
-      if (groupSize === 1) {
-        i += 2;
-      }
-    }
-    return rows;
-  }
-
-  function createOrderDateValue(index) {
-    var day = (index % 26) + 1;
-    var month = index % 3 === 0 ? 4 : 5;
-    return '2026-' + pad(month) + '-' + pad(day);
-  }
-
-  function createTextDateValue(index) {
-    if (index % 9 === 0) {
-      return '2025' + pad((index % 12) + 1) + pad((index % 28) + 1);
-    }
-    if (index % 5 === 0) {
-      return '202606' + pad((index % 28) + 1);
-    }
-    return '202607' + pad((index % 28) + 1);
-  }
-
-  function createYearMonthValue(index) {
-    if (index % 9 === 0) {
-      return '2025' + pad((index % 12) + 1);
-    }
-    if (index % 5 === 0) {
-      return '202606';
-    }
-    return '202607';
-  }
-
-  function createDateValue(index) {
-    if (index % 9 === 0) {
-      return '2025-' + pad((index % 12) + 1) + '-' + pad((index % 28) + 1);
-    }
-    if (index % 5 === 0) {
-      return '2026-06-' + pad((index % 28) + 1);
-    }
-    return '2026-07-' + pad((index % 28) + 1);
   }
 
   function pad(value) {

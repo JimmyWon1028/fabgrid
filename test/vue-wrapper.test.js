@@ -1,0 +1,58 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createFabGridVue, createGridOptions, normalizeColumnProps, toKebabCase } from '../packages/fabgrid-vue/src/fabgrid-vue.js';
+
+test('Vue wrapper converts core event names to kebab case', function() {
+  assert.equal(toKebabCase('selectionChanged'), 'selection-changed');
+  assert.equal(toKebabCase('cellEditEnded'), 'cell-edit-ended');
+});
+
+test('Vue wrapper normalizes declarative column props', function() {
+  assert.deepEqual(normalizeColumnProps({ binding: 'amount', width: 120, visible: true, ignored: 'x' }), {
+    binding: 'amount', width: 120, visible: true
+  });
+});
+
+test('Vue wrapper gives columns prop precedence over declared columns', function() {
+  var vm = {
+    itemsSource: [{ id: 1 }],
+    columns: [{ binding: 'id' }],
+    gridOptions: { rowHeight: 31 },
+    getDeclaredColumns: function() { return [{ binding: 'name' }]; }
+  };
+  ['allowEditing', 'allowSorting', 'allowResizing', 'frozenColumns', 'frozenRightColumns', 'isReadOnly', 'locale', 'pagination', 'pager', 'remote', 'url', 'method', 'loader'].forEach(function(name) {
+    vm[name] = undefined;
+  });
+  assert.deepEqual(createGridOptions(vm), {
+    rowHeight: 31,
+    itemsSource: vm.itemsSource,
+    columns: vm.columns
+  });
+});
+
+test('Vue wrapper plugin registers FabGrid components', function() {
+  var registered = {};
+  var Vue = { component: function(name, component) { registered[name] = component; } };
+  var plugin = createFabGridVue(Vue, { FabGrid: function() {} });
+  plugin.install(Vue);
+  assert.equal(registered.FabGrid.name, 'FabGrid');
+  assert.equal(registered.FabGridColumn.name, 'FabGridColumn');
+});
+
+test('Vue wrapper removes event handlers and disposes the core control', function() {
+  var removed = 0;
+  var disposed = 0;
+  var Vue = { component: function() {} };
+  var plugin = createFabGridVue(Vue, { FabGrid: function() {} });
+  var vm = {
+    _eventBindings: [{
+      event: { removeHandler: function() { removed += 1; } },
+      handler: function() {}
+    }],
+    control: { dispose: function() { disposed += 1; } }
+  };
+  plugin.FabGrid.methods.destroyControl.call(vm);
+  assert.equal(removed, 1);
+  assert.equal(disposed, 1);
+  assert.equal(vm.control, null);
+});

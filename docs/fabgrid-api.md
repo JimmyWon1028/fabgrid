@@ -61,6 +61,7 @@ const grid = new fabui.FabGrid('#grid', {
 | `footerHeight` | `number` | `32` | Footer 高度。 |
 | `multiSelectRows` | `boolean` | `false` | 加入多選列 checkbox 欄。 |
 | `selectionMode` | `string` | `'Cell'` | 目前使用單一 active cell 模式。 |
+| `activeCellBorder` | `number` | `1` | Active cell 與 cell editor 邊框寬度，單位為 px；設為 `0` 可隱藏邊框。 |
 | `allowSorting` | `boolean` | `true` | 是否允許點擊標題排序。 |
 | `allowEditing` | `boolean` | `true` | 是否允許編輯。 |
 | `editOnSelect` | `boolean` | `false` | 點選 cell 時直接開始編輯。 |

@@ -56,6 +56,7 @@
   --fg-row-header-text: gray;
   --fg-selected-bg: #dceeff;
   --fg-selected-border: #2b7fd3;
+  --fg-active-cell-border: 1px;
   --fg-editor-border: #2563eb;
   --fg-scrollbar-size: 12px;
   --fg-scrollbar-gutter-size: 22px;
@@ -1178,8 +1179,8 @@
   z-index: 3;
   background: var(--fg-row-hover-bg);
   color: var(--fg-cell-text);
-  outline: 1px solid var(--fg-selected-border);
-  outline-offset: -1px;
+  outline: none;
+  box-shadow: inset 0 0 0 var(--fg-active-cell-border) var(--fg-selected-border);
 }
 
 .fg-cell-invalid::after {
@@ -1260,7 +1261,7 @@
   display: none;
   margin: 0;
   padding: 0 8px;
-  border: 1px solid var(--fg-editor-border);
+  border: var(--fg-active-cell-border) solid var(--fg-editor-border);
   border-radius: 0;
   background: #befcff;
   color: #111827;

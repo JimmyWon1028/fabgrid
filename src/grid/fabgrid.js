@@ -2,6 +2,7 @@ import {
   compareValues,
   createDictionary,
   getByBinding,
+  isSafeBinding,
   setByBinding
 } from './fabgrid-data.js';
 import {
@@ -76,6 +77,7 @@ export function createFabGridFactory(editorDefinitions) {
     syncScrollRender: true,
     itemFormatter: null,
     selectionMode: 'Cell',
+    activeCellBorder: 1,
     rowGroups: [],
     columns: [],
     observeItemsSource: false,
@@ -543,6 +545,9 @@ export function createFabGridFactory(editorDefinitions) {
   FabGrid.prototype.applyThemeOptions = function() {
     if (this.root && this.options.alternatingRowBackground) {
       this.root.style.setProperty('--fg-cell-alt-bg', String(this.options.alternatingRowBackground));
+    }
+    if (this.root) {
+      this.root.style.setProperty('--fg-active-cell-border', Math.max(0, toNumber(this.options.activeCellBorder, 1)) + 'px');
     }
   };
 
@@ -7732,6 +7737,15 @@ export function createFabGridFactory(editorDefinitions) {
           this.options.alternatingRowBackground = value || '#fafafa';
           this.applyThemeOptions();
           this.render();
+        }
+      },
+      activeCellBorder: {
+        get: function() {
+          return Math.max(0, toNumber(this.options.activeCellBorder, 1));
+        },
+        set: function(value) {
+          this.options.activeCellBorder = Math.max(0, toNumber(value, 1));
+          this.applyThemeOptions();
         }
       },
       copyHeaders: {

@@ -8,12 +8,21 @@
   "module": "dist/fabui.esm.js",
   "style": "dist/fabui.css",
   "scripts": {
-    "build": "node build/build.cjs",
+    "build": "node build/build.cjs && node build/build-vue.cjs && node build/build-vue-demo.cjs",
+    "build:vue": "node build/build-vue.cjs",
+    "build:vue-demo": "node build/build-vue-demo.cjs",
+    "build:vue-prod": "vite build --config vite.config.js",
+    "dev:vue": "vite --config vite.config.js",
     "test": "node --test test/*.test.js",
     "smoke": "npm run build && node build/smoke.cjs",
     "serve": "python3 -m http.server 4173"
   },
   "devDependencies": {
-    "esbuild": "^0.28.1"
+    "@vitejs/plugin-vue2": "^2.3.3",
+    "esbuild": "^0.28.1",
+    "vite": "^5.4.21",
+    "vue": "^2.7.16",
+    "vue-template-compiler": "^2.7.16",
+    "vue-template-es2015-compiler": "^1.9.1"
   }
 }
