@@ -8,10 +8,8 @@ FabUI 提供 pure JavaScript FabGrid 與 SVG Chart。FabGrid 支援雙向 virtua
 
 ## 文件與 Demo
 
-- FabGrid [API 操作手冊](./docs/api.md)：完整的建構選項、欄位設定、方法、事件、遠端資料協定與匯出說明。
-- Chart API [操作手冊](./docs/api.md)
-- [Chart API](./docs/chart-api.md)
-- [Chart Demo](./demo/chart.html)
+- FabGrid [API 操作手冊](./docs/fabgrid-api.md)：完整的建構選項、欄位設定、方法、事件、遠端資料協定與匯出說明。
+- Chart API [操作手冊](./docs/chart-api.md)
 - [線上 FabGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/)
 - [線上 Chart Demo](https://jimmywon1028.github.io/fabgrid/demo/chart.html)
 - [工作進度](./worklogs/)
@@ -47,7 +45,7 @@ FabUI 提供 pure JavaScript FabGrid 與 SVG Chart。FabGrid 支援雙向 virtua
 </script>
 ```
 
-ES module 使用者可由 `dist/fabui.esm.js` 匯入 `fabui`，再以 `new fabui.FabGrid(...)` 建立元件；完整範例與所有 API 請見 [API 操作手冊](./docs/api.md)。
+ES module 使用者可由 `dist/fabui.esm.js` 匯入 `fabui`，再以 `new fabui.FabGrid(...)` 建立元件；完整範例與所有 API 請見 [API 操作手冊](./docs/fabgrid-api.md)。
 
 ## 主要能力
 
