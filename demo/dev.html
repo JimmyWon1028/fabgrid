@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabGrid Dev Demo</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260712-active-cell-border-v4">
+  <link rel="stylesheet" href="../src/fabui.css?v=20260713-cell-padding-v4">
   <link rel="stylesheet" href="./style/my.icon.css?v=20260713-demo-style-folder-v1">
   <link rel="stylesheet" href="./style/style.css?v=20260713-demo-style-folder-v1">
 </head>
@@ -99,15 +99,15 @@
     </section>
   </main>
 
-  <script src="./js/demo-data.js?v=20260713-demo-js-folder-v1"></script>
+  <script src="./js/demo-data.js?v=20260713-demo-bindings-v2"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260713-search-enter-align-v3';
+    import fabui from '../src/fabui.js?v=20260713-search-color-v11';
 
     window.fabui = fabui;
-    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260711-remote-v1');
-    await import('../src/locales/fabgrid-locale.zh-CN.js?v=20260711-demo-zh-cn-v1');
-    await import('../src/locales/fabgrid-locale.en.js?v=20260711-remote-v1');
-    await import('./js/demo.js?v=20260713-demo-js-folder-v1');
+    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260713-color-editor-v1');
+    await import('../src/locales/fabgrid-locale.zh-CN.js?v=20260713-color-editor-v1');
+    await import('../src/locales/fabgrid-locale.en.js?v=20260713-color-editor-v1');
+    await import('./js/demo.js?v=20260713-status-colors-v1');
   </script>
 </body>
 </html>

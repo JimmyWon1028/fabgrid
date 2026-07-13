@@ -67,7 +67,7 @@ const grid = new fabui.FabGrid('#grid', {
 | `editOnSelect` | `boolean` | `false` | 點選 cell 時直接開始編輯。 |
 | `allowResizing` | `boolean` | `true` | 是否允許拖曳調整欄寬。 |
 | `allowDragging` | `'None' \| 'Columns'` | `'None'` | 設為 `'Columns'` 可拖曳重排欄位。 |
-| `showSearchRow` | `boolean` | `false` | 顯示每欄搜尋列。 |
+| `showSearchRow` | `boolean` | `false` | 顯示每欄搜尋列；`datebox`、`combobox`、`color` 會沿用對應下拉 panel。搜尋輸入只套用 filter，不執行 cell validation。 |
 | `searchDelay` | `number` | `200` | 搜尋列輸入 debounce 時間（毫秒）。 |
 | `headerDisplayMode` | `'header' \| 'binding'` | `'header'` | 標題顯示欄位標題或 binding。 |
 | `headerToggleKey` | `string \| false` | `false` | 切換標題顯示模式的快捷鍵，例如 `'F4'`。 |
@@ -124,7 +124,7 @@ const columns = [
 | `formatter` | `(value, item, column) => string` | cell 顯示格式化函式。 |
 | `footer` / `footerFormatter` | `string \| function` | 自訂 footer 文字或格式化。 |
 | `aggregate` | `'sum' \| 'avg' \| 'average' \| 'count' \| 'min' \| 'max' \| function` | Footer 與群組列的聚合計算。 |
-| `editor` | `string \| object` | `textbox`、`numberbox`、`datebox` 或 `combobox`。 |
+| `editor` | `string \| object` | `textbox`、`numberbox`、`datebox`、`combobox` 或 `color`。 |
 | `thousandsSeparator` | `boolean` | number 顯示千分位。 |
 | `precision` | `number` | number 顯示與提交時的小數位。 |
 | `mask` | `string` | 文字／日期遮罩；支援 `9`、`A`、`*`。 |
@@ -325,6 +325,15 @@ var columns = [
         { id: 'paused', descr: '暫停' }
       ]
     }
+  },
+  {
+    binding: 'color',
+    header: '顏色',
+    editor: {
+      type: 'color',
+      showAlpha: true,
+      palette: ['#ff0000', '#00ff00', '#0000ff']
+    }
   }
 ];
 ```
@@ -333,5 +342,6 @@ var columns = [
 - `numberbox`：數字、千分位與 `precision`。
 - `datebox`：日期面板與日期遮罩。
 - `combobox`：下拉選項；可配合 `limitToList` 限制輸入值。
+- `color`：色票與 HSV 顏色面板；支援 `#RGB`、`#RGBA`、`#RRGGBB`、`#RRGGBBAA` 與標準 CSS 顏色名稱。名稱不分大小寫，可直接預覽並保留原輸入文字，例如 `red` 提交後仍為 `red`；hex 短格式仍會正規化，例如 `#f00` 成為 `#ff0000`。`palette` 可自訂色票，`showAlpha: false` 可隱藏透明度控制。
 
 雙擊 cell、按 `Enter` 或 `F2` 可開始編輯；`Enter` / `Tab` 提交並移至下一個可編輯欄，`Escape` 取消。

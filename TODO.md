@@ -39,7 +39,7 @@
   - 移入 grouping prototype 流程、group state 與 group row 建立協調。
   - 移入 aggregate prototype 協調；資料 helper 已在 data 模組。
 - [ ] 完成 `src/grid/fabgrid-editor.js`
-  - 移入 editor lifecycle、textbox／numberbox、datebox／年月模式與 combobox。
+  - 移入 editor lifecycle、textbox／numberbox、datebox／年月模式、combobox 與 color。
   - 移入同步／非同步 validation、invalid item 狀態與 popup rendering／定位。
 - [ ] 完成上述兩個領域後重新評估 `src/grid/fabgrid.js`；renderer、selection、dragging、resizing 與 virtualization 暫不拆分，除非能維持清楚邊界且不增加循環依賴。
 - [ ] 每批拆分後執行 `npm test`、JavaScript 語法檢查與 `/tmp` 隔離副本 smoke；未明確要求 build 時不得改寫工作區 `dist`。

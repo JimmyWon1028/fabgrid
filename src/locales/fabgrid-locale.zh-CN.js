@@ -30,6 +30,7 @@
       invalidValue: '输入值无效',
       invalidDate: '日期格式错误',
       invalidYearMonth: '年月格式错误',
+      invalidColor: '色码格式错误',
       comboboxLimitToList: '请从列表选择有效项目'
     },
     aria: {
@@ -38,6 +39,8 @@
       datePicker: '日期选择器',
       openComboBox: '打开下拉菜单',
       comboBoxOptions: '下拉选项',
+      openColorPicker: '打开颜色选择器',
+      colorPicker: '颜色选择器',
       openColumnChooser: '打开字段选择器',
       columnChooser: '字段选择器',
       selectAllRows: '选择所有行',

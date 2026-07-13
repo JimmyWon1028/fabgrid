@@ -2594,6 +2594,184 @@ function createEditorDefinitions() {
     return mask === '9999/99' || mask === '9999-99';
   }
 
+  // CSS named colors use their standard sRGB hex values.
+  var CSS_NAMED_COLORS = {
+    aliceblue: 'f0f8ff',
+    antiquewhite: 'faebd7',
+    aqua: '00ffff',
+    aquamarine: '7fffd4',
+    azure: 'f0ffff',
+    beige: 'f5f5dc',
+    bisque: 'ffe4c4',
+    black: '000000',
+    blanchedalmond: 'ffebcd',
+    blue: '0000ff',
+    blueviolet: '8a2be2',
+    brown: 'a52a2a',
+    burlywood: 'deb887',
+    cadetblue: '5f9ea0',
+    chartreuse: '7fff00',
+    chocolate: 'd2691e',
+    coral: 'ff7f50',
+    cornflowerblue: '6495ed',
+    cornsilk: 'fff8dc',
+    crimson: 'dc143c',
+    cyan: '00ffff',
+    darkblue: '00008b',
+    darkcyan: '008b8b',
+    darkgoldenrod: 'b8860b',
+    darkgray: 'a9a9a9',
+    darkgreen: '006400',
+    darkgrey: 'a9a9a9',
+    darkkhaki: 'bdb76b',
+    darkmagenta: '8b008b',
+    darkolivegreen: '556b2f',
+    darkorange: 'ff8c00',
+    darkorchid: '9932cc',
+    darkred: '8b0000',
+    darksalmon: 'e9967a',
+    darkseagreen: '8fbc8f',
+    darkslateblue: '483d8b',
+    darkslategray: '2f4f4f',
+    darkslategrey: '2f4f4f',
+    darkturquoise: '00ced1',
+    darkviolet: '9400d3',
+    deeppink: 'ff1493',
+    deepskyblue: '00bfff',
+    dimgray: '696969',
+    dimgrey: '696969',
+    dodgerblue: '1e90ff',
+    firebrick: 'b22222',
+    floralwhite: 'fffaf0',
+    forestgreen: '228b22',
+    fuchsia: 'ff00ff',
+    gainsboro: 'dcdcdc',
+    ghostwhite: 'f8f8ff',
+    gold: 'ffd700',
+    goldenrod: 'daa520',
+    gray: '808080',
+    green: '008000',
+    greenyellow: 'adff2f',
+    grey: '808080',
+    honeydew: 'f0fff0',
+    hotpink: 'ff69b4',
+    indianred: 'cd5c5c',
+    indigo: '4b0082',
+    ivory: 'fffff0',
+    khaki: 'f0e68c',
+    lavender: 'e6e6fa',
+    lavenderblush: 'fff0f5',
+    lawngreen: '7cfc00',
+    lemonchiffon: 'fffacd',
+    lightblue: 'add8e6',
+    lightcoral: 'f08080',
+    lightcyan: 'e0ffff',
+    lightgoldenrodyellow: 'fafad2',
+    lightgray: 'd3d3d3',
+    lightgreen: '90ee90',
+    lightgrey: 'd3d3d3',
+    lightpink: 'ffb6c1',
+    lightsalmon: 'ffa07a',
+    lightseagreen: '20b2aa',
+    lightskyblue: '87cefa',
+    lightslategray: '778899',
+    lightslategrey: '778899',
+    lightsteelblue: 'b0c4de',
+    lightyellow: 'ffffe0',
+    lime: '00ff00',
+    limegreen: '32cd32',
+    linen: 'faf0e6',
+    magenta: 'ff00ff',
+    maroon: '800000',
+    mediumaquamarine: '66cdaa',
+    mediumblue: '0000cd',
+    mediumorchid: 'ba55d3',
+    mediumpurple: '9370db',
+    mediumseagreen: '3cb371',
+    mediumslateblue: '7b68ee',
+    mediumspringgreen: '00fa9a',
+    mediumturquoise: '48d1cc',
+    mediumvioletred: 'c71585',
+    midnightblue: '191970',
+    mintcream: 'f5fffa',
+    mistyrose: 'ffe4e1',
+    moccasin: 'ffe4b5',
+    navajowhite: 'ffdead',
+    navy: '000080',
+    oldlace: 'fdf5e6',
+    olive: '808000',
+    olivedrab: '6b8e23',
+    orange: 'ffa500',
+    orangered: 'ff4500',
+    orchid: 'da70d6',
+    palegoldenrod: 'eee8aa',
+    palegreen: '98fb98',
+    paleturquoise: 'afeeee',
+    palevioletred: 'db7093',
+    papayawhip: 'ffefd5',
+    peachpuff: 'ffdab9',
+    peru: 'cd853f',
+    pink: 'ffc0cb',
+    plum: 'dda0dd',
+    powderblue: 'b0e0e6',
+    purple: '800080',
+    rebeccapurple: '663399',
+    red: 'ff0000',
+    rosybrown: 'bc8f8f',
+    royalblue: '4169e1',
+    saddlebrown: '8b4513',
+    salmon: 'fa8072',
+    sandybrown: 'f4a460',
+    seagreen: '2e8b57',
+    seashell: 'fff5ee',
+    sienna: 'a0522d',
+    silver: 'c0c0c0',
+    skyblue: '87ceeb',
+    slateblue: '6a5acd',
+    slategray: '708090',
+    slategrey: '708090',
+    snow: 'fffafa',
+    springgreen: '00ff7f',
+    steelblue: '4682b4',
+    tan: 'd2b48c',
+    teal: '008080',
+    thistle: 'd8bfd8',
+    tomato: 'ff6347',
+    transparent: '00000000',
+    turquoise: '40e0d0',
+    violet: 'ee82ee',
+    wheat: 'f5deb3',
+    white: 'ffffff',
+    whitesmoke: 'f5f5f5',
+    yellow: 'ffff00',
+    yellowgreen: '9acd32'
+  };
+
+  function normalizeColor(value) {
+    var text = value == null ? '' : String(value).trim().toLowerCase();
+    var hex;
+    if (!text) return '';
+    if (Object.prototype.hasOwnProperty.call(CSS_NAMED_COLORS, text)) {
+      return '#' + CSS_NAMED_COLORS[text];
+    }
+    if (text.charAt(0) !== '#') text = '#' + text;
+    hex = text.slice(1);
+    if (!/^(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/.test(hex)) return '';
+    if (hex.length === 3 || hex.length === 4) {
+      hex = hex.replace(/./g, function(character) { return character + character; });
+    }
+    return '#' + hex;
+  }
+
+  function parseColor(value) {
+    var text = value == null ? '' : String(value).trim();
+    var normalized = normalizeColor(value);
+    if (Object.prototype.hasOwnProperty.call(CSS_NAMED_COLORS, text.toLowerCase())) {
+      return text;
+    }
+    return normalized || text;
+  }
+
   return {
     textbox: {
       type: 'textbox',
@@ -2638,6 +2816,16 @@ function createEditorDefinitions() {
         return isYearMonthMask(options) ? handleYymmDelete(editor, key, options) : handleDateDelete(editor, key, options);
       },
       isTextAllowed: function(editor, text) { return /^[0-9]+$/.test(String(text || '')); }
+    },
+    color: {
+      type: 'color',
+      className: 'textbox-f color-f fg-editor-color',
+      inputMode: 'text',
+      normalize: normalizeColor,
+      parse: parseColor,
+      isValid: function(value) {
+        return value == null || String(value).trim() === '' || Boolean(normalizeColor(value));
+      }
     }
   };
 }
@@ -2714,6 +2902,14 @@ function createFabGridFactory(editorDefinitions) {
     itemsSource: []
   };
   var FABGRID_INTERNAL_LOCALES = {};
+  var DEFAULT_COLOR_PALETTE = [
+    '#ffffff', '#000000', '#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ccff', '#0066ff', '#6633cc', '#cc33cc',
+    '#d9e1f2', '#7f8c8d', '#f4cccc', '#fce5cd', '#fff2cc', '#d9ead3', '#d0e0e3', '#c9daf8', '#d9d2e9', '#ead1dc',
+    '#b4c6e7', '#595959', '#e6b8af', '#f9cb9c', '#ffe599', '#b6d7a8', '#a2c4c9', '#a4c2f4', '#b4a7d6', '#d5a6bd',
+    '#8ea9db', '#3f3f3f', '#cc0000', '#e69138', '#bf9000', '#6aa84f', '#45818e', '#3c78d8', '#674ea7', '#a64d79',
+    '#4472c4', '#262626', '#990000', '#b45f06', '#7f6000', '#38761d', '#134f5c', '#1155cc', '#351c75', '#741b47',
+    '#2f5597', '#0d0d0d', '#660000', '#783f04', '#7f6000', '#274e13', '#0c343d', '#1c4587', '#20124d', '#4c1130'
+  ];
 
   function FabGrid(element, options) {
     this.host = typeof element === 'string' ? document.querySelector(element) : element;
@@ -2779,6 +2975,9 @@ function createFabGridFactory(editorDefinitions) {
     this.dateboxState = null;
     this.dateboxTarget = null;
     this.comboboxTarget = null;
+    this.colorState = null;
+    this.colorDragState = null;
+    this.colorTarget = null;
     this.headerSearchFocusRequest = null;
     this.headerSearchFocusRaf = 0;
     this.comboboxItems = [];
@@ -2842,6 +3041,9 @@ function createFabGridFactory(editorDefinitions) {
     this._boundDateboxClick = bind(this, this.handleDateboxClick);
     this._boundDateboxChange = bind(this, this.handleDateboxChange);
     this._boundComboboxMouseDown = bind(this, this.handleComboboxMouseDown);
+    this._boundColorPanelPointerDown = bind(this, this.handleColorPanelPointerDown);
+    this._boundColorPanelPointerMove = bind(this, this.handleColorPanelPointerMove);
+    this._boundColorPanelPointerUp = bind(this, this.handleColorPanelPointerUp);
     this._boundFilterMenuClick = bind(this, this.handleFilterMenuClick);
     this._boundColumnChooserChange = bind(this, this.handleColumnChooserChange);
     this._boundPaginationClick = bind(this, this.handlePaginationClick);
@@ -3053,6 +3255,7 @@ function createFabGridFactory(editorDefinitions) {
         '<div class="fg-editor-icons"><button class="fg-editor-trigger" type="button"></button></div>' +
         '<div class="fg-datebox-panel" role="dialog"></div>' +
         '<div class="fg-combobox-panel" role="listbox"></div>' +
+        '<div class="fg-color-panel" role="dialog"></div>' +
         '<div class="fg-invalid-tip" role="tooltip"></div>' +
         '<div class="fg-empty"></div>' +
         '<div class="fg-busy-overlay" aria-live="polite"><div class="fg-busy-panel"><span class="fg-busy-spinner"></span><span class="fg-busy-text"></span></div></div>' +
@@ -3103,6 +3306,7 @@ function createFabGridFactory(editorDefinitions) {
     this.editorTrigger = root.querySelector('.fg-editor-trigger');
     this.dateboxPanel = root.querySelector('.fg-datebox-panel');
     this.comboboxPanel = root.querySelector('.fg-combobox-panel');
+    this.colorPanel = root.querySelector('.fg-color-panel');
     this.filterMenu = root.querySelector('.fg-filter-menu');
     this.columnChooser = root.querySelector('.fg-column-chooser');
     this.invalidTip = root.querySelector('.fg-invalid-tip');
@@ -3138,6 +3342,9 @@ function createFabGridFactory(editorDefinitions) {
     if (this.comboboxPanel) {
       this.comboboxPanel.setAttribute('aria-label', this.getText('aria.comboBoxOptions'));
     }
+    if (this.colorPanel) {
+      this.colorPanel.setAttribute('aria-label', this.getText('aria.colorPicker'));
+    }
     if (this.columnChooser) {
       this.columnChooser.setAttribute('aria-label', this.getText('aria.columnChooser'));
     }
@@ -3153,9 +3360,13 @@ function createFabGridFactory(editorDefinitions) {
     if (this.editorIconConfigs && this.editorIconConfigs.length) {
       return this.editorIconConfigs[0].ariaLabel || this.editorIconConfigs[0].label || this.editorIconConfigs[0].title || this.getText('aria.cellEditor');
     }
-    return this.editorConfig && this.editorConfig.type === 'combobox' ?
-      this.getText('aria.openComboBox') :
-      this.getText('aria.openDatePicker');
+    if (this.editorConfig && this.editorConfig.type === 'combobox') {
+      return this.getText('aria.openComboBox');
+    }
+    if (this.editorConfig && this.editorConfig.type === 'color') {
+      return this.getText('aria.openColorPicker');
+    }
+    return this.getText('aria.openDatePicker');
   };
 
   FabGrid.prototype.applyThemeOptions = function() {
@@ -3198,6 +3409,10 @@ function createFabGridFactory(editorDefinitions) {
     this.dateboxPanel.addEventListener('click', this._boundDateboxClick);
     this.dateboxPanel.addEventListener('change', this._boundDateboxChange);
     this.comboboxPanel.addEventListener('mousedown', this._boundComboboxMouseDown);
+    this.colorPanel.addEventListener('pointerdown', this._boundColorPanelPointerDown);
+    this.colorPanel.addEventListener('pointermove', this._boundColorPanelPointerMove);
+    this.colorPanel.addEventListener('pointerup', this._boundColorPanelPointerUp);
+    this.colorPanel.addEventListener('pointercancel', this._boundColorPanelPointerUp);
     this.filterMenu.addEventListener('pointerdown', this._boundFilterMenuClick, true);
     this.filterMenu.addEventListener('mousedown', this._boundFilterMenuClick, true);
     this.filterMenu.addEventListener('click', this._boundFilterMenuClick);
@@ -3561,6 +3776,10 @@ function createFabGridFactory(editorDefinitions) {
     this.dateboxPanel.removeEventListener('click', this._boundDateboxClick);
     this.dateboxPanel.removeEventListener('change', this._boundDateboxChange);
     this.comboboxPanel.removeEventListener('mousedown', this._boundComboboxMouseDown);
+    this.colorPanel.removeEventListener('pointerdown', this._boundColorPanelPointerDown);
+    this.colorPanel.removeEventListener('pointermove', this._boundColorPanelPointerMove);
+    this.colorPanel.removeEventListener('pointerup', this._boundColorPanelPointerUp);
+    this.colorPanel.removeEventListener('pointercancel', this._boundColorPanelPointerUp);
     this.filterMenu.removeEventListener('pointerdown', this._boundFilterMenuClick, true);
     this.filterMenu.removeEventListener('mousedown', this._boundFilterMenuClick, true);
     this.filterMenu.removeEventListener('click', this._boundFilterMenuClick);
@@ -3982,6 +4201,9 @@ function createFabGridFactory(editorDefinitions) {
     }
     if (this.isComboboxPanelOpen()) {
       this.hideComboboxPanel();
+    }
+    if (this.isColorPanelOpen()) {
+      this.hideColorPanel();
     }
     this.updateScrollState();
     this.syncFixedPaneScrollOffset();
@@ -5734,14 +5956,15 @@ function createFabGridFactory(editorDefinitions) {
 
   FabGrid.prototype.renderCellContent = function(cell, item, column, value, rowIndex, colIndex) {
     var text = value == null ? '' : String(value);
+    var editorConfig = getColumnEditorConfig(column);
     var args;
     if (this.isRowGroupFooter(item)) {
       text = column.aggregate ? this.formatAggregateValue(value, column, item.items) : '';
       cell.textContent = text == null ? '' : String(text);
       return;
     }
-    if (getColumnEditorConfig(column).type === 'combobox') {
-      text = getComboboxTextByValue(value, getColumnEditorConfig(column));
+    if (editorConfig.type === 'combobox') {
+      text = getComboboxTextByValue(value, editorConfig);
     }
     if (column.dataType === 'number' && value != null && value !== '' &&
       (shouldUseThousandsSeparator(column) || getNumberPrecision(column) != null)) {
@@ -5753,7 +5976,11 @@ function createFabGridFactory(editorDefinitions) {
     if (typeof column.formatter === 'function') {
       text = column.formatter(value, item, column);
     }
-    cell.textContent = text == null ? '' : String(text);
+    if (editorConfig.type === 'color' && typeof column.formatter !== 'function') {
+      this.renderColorCellContent(cell, text);
+    } else {
+      cell.textContent = text == null ? '' : String(text);
+    }
     args = {
       grid: this,
       panel: this.cells,
@@ -5773,6 +6000,24 @@ function createFabGridFactory(editorDefinitions) {
       this.options.itemFormatter(this.cells, rowIndex, colIndex, cell);
     }
     this.emit('formatItem', args);
+  };
+
+  FabGrid.prototype.renderColorCellContent = function(cell, value) {
+    var color = normalizeColorValue(value);
+    var swatch;
+    var text;
+    cell.className += ' fg-color-cell';
+    cell.textContent = '';
+    if (color) {
+      swatch = document.createElement('span');
+      swatch.className = 'fg-color-swatch';
+      swatch.style.backgroundColor = color;
+      cell.appendChild(swatch);
+    }
+    text = document.createElement('span');
+    text.className = 'fg-color-text';
+    text.textContent = value == null ? '' : String(value);
+    cell.appendChild(text);
   };
 
   FabGrid.prototype.renderSelection = function() {
@@ -6003,6 +6248,7 @@ function createFabGridFactory(editorDefinitions) {
     var mask;
     var formatted;
     var key;
+    var color;
     var value;
     if (!input) {
       return;
@@ -6037,6 +6283,14 @@ function createFabGridFactory(editorDefinitions) {
       this.renderComboboxPanel(false);
       this.setComboboxActiveIndex(this.getComboboxInitialActiveIndex());
       this.positionHeaderSearchComboboxPanel(input);
+    }
+    if (this.colorTarget && this.colorTarget.type === 'search' && this.colorTarget.input === input && this.isColorPanelOpen()) {
+      color = normalizeColorValue(input.value);
+      if (color && !this.colorDragState) {
+        this.colorState = createColorState(color);
+        this.renderColorPanel();
+        this.positionHeaderSearchColorPanel(input);
+      }
     }
     selectionStart = input.selectionStart;
     selectionEnd = input.selectionEnd;
@@ -6078,6 +6332,14 @@ function createFabGridFactory(editorDefinitions) {
       this.showHeaderSearchComboboxPanel(input, column, true);
       return;
     }
+    if (iconConfig && iconConfig.builtin === 'color') {
+      if (this.isColorPanelOpen() && this.colorTarget && this.colorTarget.input === input) {
+        this.hideColorPanel();
+      } else {
+        this.showHeaderSearchColorPanel(input, column);
+      }
+      return;
+    }
     if (typeof handler === 'function') {
       result = handler.call(this, this.createHeaderSearchIconArgs(event, button, input, column, iconConfig, iconIndex));
     }
@@ -6112,6 +6374,9 @@ function createFabGridFactory(editorDefinitions) {
       return true;
     }
     if (this.handleHeaderSearchComboboxKeyDown(event, input)) {
+      return true;
+    }
+    if (this.handleHeaderSearchColorKeyDown(event, input)) {
       return true;
     }
     if (event.key !== 'Enter' && event.key !== 'Tab') {
@@ -6199,6 +6464,31 @@ function createFabGridFactory(editorDefinitions) {
     if (event.key === 'Escape') {
       event.preventDefault();
       this.hideComboboxPanel();
+      input.focus();
+      return true;
+    }
+    return false;
+  };
+
+  FabGrid.prototype.handleHeaderSearchColorKeyDown = function(event, input) {
+    var colIndex;
+    var column;
+    if (!input) {
+      return false;
+    }
+    colIndex = toNumber(input.getAttribute('data-col'), -1);
+    column = this.visibleColumns[colIndex];
+    if (!column || getColumnEditorConfig(column).type !== 'color') {
+      return false;
+    }
+    if (event.key === 'ArrowDown' && event.altKey) {
+      event.preventDefault();
+      this.showHeaderSearchColorPanel(input, column);
+      return true;
+    }
+    if (event.key === 'Escape' && this.isColorPanelOpen() && this.colorTarget && this.colorTarget.input === input) {
+      event.preventDefault();
+      this.hideColorPanel();
       input.focus();
       return true;
     }
@@ -6919,6 +7209,9 @@ function createFabGridFactory(editorDefinitions) {
       if (event.target === this.editor && this.handleComboboxKeyDown(event)) {
         return;
       }
+      if (event.target === this.editor && this.handleColorKeyDown(event)) {
+        return;
+      }
       if (event.target === this.editor && this.shouldBlockEditorKey(event)) {
         event.preventDefault();
         return;
@@ -7520,6 +7813,9 @@ function createFabGridFactory(editorDefinitions) {
     if (this.editorConfig.type === 'combobox') {
       this.editing.comboboxValue = value;
     }
+    if (this.editorConfig.type === 'color') {
+      this.syncColorEditorAppearance();
+    }
     this.editor.style.textAlign = normalizeTextAlign(column.align);
     this.editor.style.display = 'block';
     this.render();
@@ -7534,7 +7830,7 @@ function createFabGridFactory(editorDefinitions) {
     var type = config.type;
     var definition = editorDefinitions[type] || null;
     var editorClassName = definition && definition.className ? definition.className : 'textbox-f fg-editor-' + type + ' ' + type + '-f';
-    var hasBuiltInEditorIcon = isDateLikeEditorType(type) || type === 'combobox';
+    var hasBuiltInEditorIcon = isDateLikeEditorType(type) || type === 'combobox' || type === 'color';
     var iconConfigs = hasBuiltInEditorIcon ? [] : getEditorIconConfigs(config);
     var hasEditorIcons = hasBuiltInEditorIcon || iconConfigs.length > 0;
     this.editorConfig = config;
@@ -7552,6 +7848,9 @@ function createFabGridFactory(editorDefinitions) {
     }
     if (type !== 'combobox') {
       this.hideComboboxPanel();
+    }
+    if (type !== 'color') {
+      this.hideColorPanel();
     }
   };
 
@@ -7603,6 +7902,9 @@ function createFabGridFactory(editorDefinitions) {
     }
     if (config.type === 'combobox') {
       return getComboboxTextByValue(value, config);
+    }
+    if (config.type === 'color') {
+      return parseColorValue(value);
     }
     return String(value);
   };
@@ -7737,6 +8039,15 @@ function createFabGridFactory(editorDefinitions) {
     if (!column || !config) {
       return;
     }
+    if (config.type === 'color') {
+      this.syncColorEditorAppearance();
+      if (this.isColorPanelOpen() && normalizeColorValue(this.editor.value)) {
+        this.colorState = createColorState(this.editor.value);
+        this.renderColorPanel();
+        this.positionEditor();
+      }
+      return;
+    }
     if (config.type === 'datebox') {
       formatted = sanitizeDateEditorText(this.editor.value);
       if (formatted !== this.editor.value) {
@@ -7864,6 +8175,15 @@ function createFabGridFactory(editorDefinitions) {
         this.hideComboboxPanel();
       } else {
         this.showComboboxPanel(true);
+      }
+      this.editor.focus();
+      return;
+    }
+    if (this.editorConfig.type === 'color') {
+      if (this.isColorPanelOpen()) {
+        this.hideColorPanel();
+      } else {
+        this.showColorPanel();
       }
       this.editor.focus();
     }
@@ -8015,6 +8335,18 @@ function createFabGridFactory(editorDefinitions) {
       }
       this.hideComboboxPanel();
     }
+    if (this.isColorPanelOpen()) {
+      if (
+        (this.colorTarget && event.target === this.colorTarget.input) ||
+        event.target === this.editor ||
+        closest(event.target, 'fg-editor-icons') ||
+        closest(event.target, 'fg-header-search-icons') ||
+        closest(event.target, 'fg-color-panel')
+      ) {
+        return;
+      }
+      this.hideColorPanel();
+    }
     if (!this.editing) {
       return;
     }
@@ -8050,6 +8382,24 @@ function createFabGridFactory(editorDefinitions) {
     if (event.key === 'Escape') {
       event.preventDefault();
       this.hideComboboxPanel();
+      return true;
+    }
+    return false;
+  };
+
+  FabGrid.prototype.handleColorKeyDown = function(event) {
+    if (!this.editorConfig || this.editorConfig.type !== 'color') {
+      return false;
+    }
+    if (event.key === 'ArrowDown' && event.altKey) {
+      event.preventDefault();
+      this.showColorPanel();
+      return true;
+    }
+    if (event.key === 'Escape' && this.isColorPanelOpen()) {
+      event.preventDefault();
+      this.hideColorPanel();
+      this.editor.focus();
       return true;
     }
     return false;
@@ -8220,7 +8570,7 @@ function createFabGridFactory(editorDefinitions) {
     isScrollableEditor = edit.col >= this.frozenColumns && edit.col < this.scrollableColumnEnd;
     this.editor.style.zIndex = isScrollableEditor ? '3' : '10';
     this.editorIconHost.style.zIndex = isScrollableEditor ? '3' : '11';
-    if (this.editorConfig && (isDateLikeEditorType(this.editorConfig.type) || this.editorConfig.type === 'combobox' || (this.editorIconConfigs && this.editorIconConfigs.length))) {
+    if (this.editorConfig && (isDateLikeEditorType(this.editorConfig.type) || this.editorConfig.type === 'combobox' || this.editorConfig.type === 'color' || (this.editorIconConfigs && this.editorIconConfigs.length))) {
       this.editorIconHost.style.left = (left + width - this.getEditorIconHostWidth() - 2) + 'px';
       this.editorIconHost.style.top = top + 'px';
       this.editorIconHost.style.height = height + 'px';
@@ -8230,6 +8580,9 @@ function createFabGridFactory(editorDefinitions) {
     }
     if (this.editorConfig && this.editorConfig.type === 'combobox') {
       this.positionComboboxPanel(left, top + height, width);
+    }
+    if (this.editorConfig && this.editorConfig.type === 'color') {
+      this.positionColorPanel(left, top + height);
     }
   };
 
@@ -8243,6 +8596,7 @@ function createFabGridFactory(editorDefinitions) {
       column: this.visibleColumns[this.editing.col],
       config: this.editorConfig
     };
+    this.hideColorPanel();
     this.syncDateboxPanelToEditor();
     this.renderDateboxPanel();
     this.dateboxPanel.style.display = 'block';
@@ -8261,6 +8615,7 @@ function createFabGridFactory(editorDefinitions) {
       config: config
     };
     this.hideComboboxPanel();
+    this.hideColorPanel();
     this.syncDateboxPanelToTarget(this.dateboxTarget);
     this.renderDateboxPanel();
     this.dateboxPanel.style.display = 'block';
@@ -8279,6 +8634,7 @@ function createFabGridFactory(editorDefinitions) {
       config: this.editorConfig
     };
     this.hideDateboxPanel();
+    this.hideColorPanel();
     this.renderComboboxPanel(showAll === true);
     this.comboboxPanel.style.display = 'block';
     this.setComboboxActiveIndex(this.getComboboxInitialActiveIndex());
@@ -8297,6 +8653,7 @@ function createFabGridFactory(editorDefinitions) {
       config: config
     };
     this.hideDateboxPanel();
+    this.hideColorPanel();
     this.renderComboboxPanel(showAll === true);
     this.comboboxPanel.style.display = 'block';
     this.setComboboxActiveIndex(this.getComboboxInitialActiveIndex());
@@ -8360,8 +8717,298 @@ function createFabGridFactory(editorDefinitions) {
     this.positionComboboxPanel(left, top, inputRect.width);
   };
 
+  FabGrid.prototype.positionHeaderSearchColorPanel = function(input) {
+    var inputRect;
+    var bodyRect;
+    var left;
+    var top;
+    if (!input || !this.body) {
+      return;
+    }
+    inputRect = input.getBoundingClientRect();
+    bodyRect = this.body.getBoundingClientRect();
+    left = inputRect.left - bodyRect.left;
+    top = inputRect.bottom - bodyRect.top;
+    this.positionColorPanel(left, top);
+  };
+
   FabGrid.prototype.isComboboxPanelOpen = function() {
     return !!this.comboboxPanel && this.comboboxPanel.style.display === 'block';
+  };
+
+  FabGrid.prototype.getColorTarget = function() {
+    if (this.colorTarget) {
+      return this.colorTarget;
+    }
+    if (!this.editing || !this.editorConfig || this.editorConfig.type !== 'color') {
+      return null;
+    }
+    return {
+      type: 'editor',
+      input: this.editor,
+      column: this.visibleColumns[this.editing.col],
+      config: this.editorConfig
+    };
+  };
+
+  FabGrid.prototype.getColorPanelConfig = function() {
+    var target = this.getColorTarget();
+    return target && target.config ? target.config : this.editorConfig;
+  };
+
+  FabGrid.prototype.showColorPanel = function() {
+    if (!this.editing || !this.editorConfig || this.editorConfig.type !== 'color') {
+      return;
+    }
+    this.colorTarget = {
+      type: 'editor',
+      input: this.editor,
+      column: this.visibleColumns[this.editing.col],
+      config: this.editorConfig
+    };
+    this.hideDateboxPanel();
+    this.hideComboboxPanel();
+    this.colorState = createColorState(this.editor.value || this.editing.original);
+    this.renderColorPanel();
+    this.colorPanel.style.display = 'flex';
+    this.positionEditor();
+  };
+
+  FabGrid.prototype.showHeaderSearchColorPanel = function(input, column) {
+    var config = getColumnEditorConfig(column);
+    if (!input || !column || !config || config.type !== 'color') {
+      return;
+    }
+    this.colorTarget = {
+      type: 'search',
+      input: input,
+      column: column,
+      config: config
+    };
+    this.hideDateboxPanel();
+    this.hideComboboxPanel();
+    this.colorState = createColorState(input.value || '#ff0000');
+    this.renderColorPanel();
+    this.colorPanel.style.display = 'flex';
+    this.positionHeaderSearchColorPanel(input);
+    input.focus();
+  };
+
+  FabGrid.prototype.hideColorPanel = function() {
+    if (this.colorPanel) {
+      this.colorPanel.style.display = 'none';
+    }
+    this.colorDragState = null;
+    this.colorTarget = null;
+  };
+
+  FabGrid.prototype.isColorPanelOpen = function() {
+    return !!this.colorPanel && this.colorPanel.style.display === 'flex';
+  };
+
+  FabGrid.prototype.renderColorPanel = function() {
+    var config = this.getColorPanelConfig();
+    var palette = getColorPalette(config);
+    var paletteElement = document.createElement('div');
+    var controls = document.createElement('div');
+    var sv = document.createElement('div');
+    var svMarker = document.createElement('span');
+    var hue = document.createElement('div');
+    var hueMarker = document.createElement('span');
+    var alpha = document.createElement('div');
+    var alphaFill = document.createElement('span');
+    var alphaMarker = document.createElement('span');
+    var swatch;
+    var color;
+    var i;
+    this.colorPanel.innerHTML = '';
+    paletteElement.className = 'fg-color-palette';
+    for (i = 0; i < palette.length; i += 1) {
+      color = normalizeColorValue(palette[i]);
+      if (!color) {
+        continue;
+      }
+      swatch = document.createElement('button');
+      swatch.type = 'button';
+      swatch.className = 'fg-color-palette-swatch';
+      swatch.setAttribute('data-color', color);
+      swatch.setAttribute('aria-label', color);
+      swatch.title = color;
+      swatch.style.backgroundColor = color;
+      paletteElement.appendChild(swatch);
+    }
+
+    controls.className = 'fg-color-controls';
+    sv.className = 'fg-color-sv';
+    svMarker.className = 'fg-color-marker fg-color-sv-marker';
+    sv.appendChild(svMarker);
+    hue.className = 'fg-color-hue';
+    hueMarker.className = 'fg-color-marker fg-color-hue-marker';
+    hue.appendChild(hueMarker);
+    alpha.className = 'fg-color-alpha';
+    alphaFill.className = 'fg-color-alpha-fill';
+    alphaMarker.className = 'fg-color-marker fg-color-alpha-marker';
+    alpha.appendChild(alphaFill);
+    alpha.appendChild(alphaMarker);
+    controls.appendChild(sv);
+    controls.appendChild(hue);
+    if (getColorShowAlpha(config)) {
+      controls.appendChild(alpha);
+    }
+    this.colorPanel.appendChild(paletteElement);
+    this.colorPanel.appendChild(controls);
+    this.updateColorPanelVisuals();
+  };
+
+  FabGrid.prototype.updateColorPanelVisuals = function() {
+    var state = this.colorState || createColorState('#ff0000');
+    var rgb = hsvToRgb(state.h, state.s, state.v);
+    var sv = this.colorPanel.querySelector('.fg-color-sv');
+    var svMarker = this.colorPanel.querySelector('.fg-color-sv-marker');
+    var hueMarker = this.colorPanel.querySelector('.fg-color-hue-marker');
+    var alphaFill = this.colorPanel.querySelector('.fg-color-alpha-fill');
+    var alphaMarker = this.colorPanel.querySelector('.fg-color-alpha-marker');
+    if (sv) {
+      sv.style.backgroundColor = 'hsl(' + Math.round(state.h) + ', 100%, 50%)';
+    }
+    if (svMarker) {
+      svMarker.style.left = (state.s * 100) + '%';
+      svMarker.style.top = ((1 - state.v) * 100) + '%';
+    }
+    if (hueMarker) {
+      hueMarker.style.top = (state.h / 360 * 100) + '%';
+    }
+    if (alphaFill) {
+      alphaFill.style.backgroundImage = 'linear-gradient(to right, rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', 0), rgb(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + '))';
+    }
+    if (alphaMarker) {
+      alphaMarker.style.left = (state.a * 100) + '%';
+    }
+  };
+
+  FabGrid.prototype.handleColorPanelPointerDown = function(event) {
+    var paletteSwatch = closest(event.target, 'fg-color-palette-swatch');
+    var area;
+    var mode;
+    var target = this.getColorTarget();
+    var value;
+    if (!this.isColorPanelOpen()) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (paletteSwatch) {
+      value = paletteSwatch.getAttribute('data-color') || '';
+      this.colorState = createColorState(value);
+      this.applyColorValueToTarget(value);
+      this.updateColorPanelVisuals();
+      if (target && target.type === 'search') {
+        this.hideColorPanel();
+        target.input.focus();
+      }
+      return;
+    }
+    area = closest(event.target, 'fg-color-sv');
+    mode = 'sv';
+    if (!area) {
+      area = closest(event.target, 'fg-color-hue');
+      mode = 'hue';
+    }
+    if (!area) {
+      area = closest(event.target, 'fg-color-alpha');
+      mode = 'alpha';
+    }
+    if (!area) {
+      return;
+    }
+    this.colorDragState = { mode: mode, element: area, pointerId: event.pointerId };
+    if (area.setPointerCapture && event.pointerId != null) {
+      area.setPointerCapture(event.pointerId);
+    }
+    this.updateColorFromPointer(event);
+  };
+
+  FabGrid.prototype.handleColorPanelPointerMove = function(event) {
+    if (!this.colorDragState) {
+      return;
+    }
+    event.preventDefault();
+    this.updateColorFromPointer(event);
+  };
+
+  FabGrid.prototype.handleColorPanelPointerUp = function(event) {
+    var drag = this.colorDragState;
+    var target = this.getColorTarget();
+    if (!drag) {
+      return;
+    }
+    if (drag.element.releasePointerCapture && drag.pointerId != null) {
+      try {
+        drag.element.releasePointerCapture(drag.pointerId);
+      } catch (error) {
+        // The pointer capture may already be released by the browser.
+      }
+    }
+    this.colorDragState = null;
+    if (target && target.type === 'search') {
+      this.hideColorPanel();
+      target.input.focus();
+    }
+    event.preventDefault();
+  };
+
+  FabGrid.prototype.updateColorFromPointer = function(event) {
+    var drag = this.colorDragState;
+    var rect;
+    var x;
+    var y;
+    if (!drag || !drag.element) {
+      return;
+    }
+    rect = drag.element.getBoundingClientRect();
+    x = clamp((event.clientX - rect.left) / Math.max(1, rect.width), 0, 1);
+    y = clamp((event.clientY - rect.top) / Math.max(1, rect.height), 0, 1);
+    this.colorState = this.colorState || createColorState('#ff0000');
+    if (drag.mode === 'sv') {
+      this.colorState.s = x;
+      this.colorState.v = 1 - y;
+    } else if (drag.mode === 'hue') {
+      this.colorState.h = Math.min(359.999, y * 360);
+    } else if (drag.mode === 'alpha') {
+      this.colorState.a = x;
+    }
+    this.applyColorStateToEditor();
+    this.updateColorPanelVisuals();
+  };
+
+  FabGrid.prototype.applyColorStateToEditor = function() {
+    var target = this.getColorTarget();
+    var config;
+    if (!this.colorState || !target || !target.input) {
+      return;
+    }
+    config = target.config || this.editorConfig;
+    this.applyColorValueToTarget(colorStateToHex(this.colorState, getColorShowAlpha(config)));
+  };
+
+  FabGrid.prototype.applyColorValueToTarget = function(value) {
+    var target = this.getColorTarget();
+    if (!target || !target.input) {
+      return;
+    }
+    target.input.value = value;
+    if (target.type === 'search') {
+      target.input.dispatchEvent(new Event('input', { bubbles: true }));
+    } else {
+      this.syncColorEditorAppearance();
+    }
+  };
+
+  FabGrid.prototype.syncColorEditorAppearance = function() {
+    var color = this.editor ? normalizeColorValue(this.editor.value) : '';
+    if (this.editor) {
+      this.editor.style.setProperty('--fg-editor-color', color || 'transparent');
+    }
   };
 
   FabGrid.prototype.renderComboboxPanel = function(showAll) {
@@ -8710,6 +9357,16 @@ function createFabGridFactory(editorDefinitions) {
     this.comboboxPanel.style.width = panelWidth + 'px';
   };
 
+  FabGrid.prototype.positionColorPanel = function(left, top) {
+    var panelWidth = Math.min(420, Math.max(260, this.root.clientWidth - 4));
+    var panelHeight = Math.max(190, this.colorPanel.offsetHeight || 210);
+    var maxLeft = Math.max(0, this.root.clientWidth - panelWidth - 2);
+    var maxTop = Math.max(0, this.root.clientHeight - panelHeight - 2);
+    this.colorPanel.style.left = clamp(left, 0, maxLeft) + 'px';
+    this.colorPanel.style.top = clamp(top, 0, maxTop) + 'px';
+    this.colorPanel.style.width = panelWidth + 'px';
+  };
+
   FabGrid.prototype.measureComboboxPanelWidth = function() {
     var previousWidth;
     var width;
@@ -8729,6 +9386,8 @@ function createFabGridFactory(editorDefinitions) {
     this.editorIconConfigs = [];
     this.dateboxState = null;
     this.comboboxItems = [];
+    this.colorState = null;
+    this.colorDragState = null;
     if (this.editor) {
       this.editor.style.display = 'none';
     }
@@ -8738,6 +9397,7 @@ function createFabGridFactory(editorDefinitions) {
     this.hideInvalidTip();
     this.hideDateboxPanel();
     this.hideComboboxPanel();
+    this.hideColorPanel();
   };
 
   FabGrid.prototype.syncEditingWithView = function() {
@@ -8960,6 +9620,17 @@ function createFabGridFactory(editorDefinitions) {
         value: value
       };
     }
+    if (config.type === 'color') {
+      text = value == null ? '' : String(value).trim();
+      if (text === '' || isColorValueValid(text)) {
+        return null;
+      }
+      return {
+        type: 'color',
+        message: grid ? grid.getText('validation.invalidColor') : 'Invalid color',
+        value: value
+      };
+    }
     isYearMonth = isYearMonthDateboxConfig(config, column);
     if (config.type !== 'datebox') {
       return null;
@@ -9134,6 +9805,9 @@ function createFabGridFactory(editorDefinitions) {
     }
     if (config.type === 'combobox') {
       return getComboboxDataValue(this.editor.value, config, this.editing);
+    }
+    if (config.type === 'color') {
+      return parseColorValue(this.editor.value);
     }
     return this.editor.value;
   };
@@ -9527,6 +10201,9 @@ function createFabGridFactory(editorDefinitions) {
     if (config && config.type === 'combobox') {
       return [{ iconCls: 'fg-editor-trigger-combobox', builtin: 'combobox' }];
     }
+    if (config && config.type === 'color') {
+      return [{ iconCls: 'fg-editor-trigger-color', builtin: 'color' }];
+    }
     return [];
   }
 
@@ -9559,7 +10236,7 @@ function createFabGridFactory(editorDefinitions) {
 
   function getEditorIconConfigWidth(icons, type) {
     if (!icons || !icons.length) {
-      return isDateLikeEditorType(type) || type === 'combobox' ? 22 : 0;
+      return isDateLikeEditorType(type) || type === 'combobox' || type === 'color' ? 22 : 0;
     }
     return getIconConfigWidth(icons, 22);
   }
@@ -9702,7 +10379,10 @@ function createFabGridFactory(editorDefinitions) {
     if (type === 'combo' || type === 'select' || type === 'dropdown') {
       return 'combobox';
     }
-    if (type === 'numberbox' || type === 'datebox' || type === 'combobox') {
+    if (type === 'colour' || type === 'colorbox' || type === 'colourbox') {
+      return 'color';
+    }
+    if (type === 'numberbox' || type === 'datebox' || type === 'combobox' || type === 'color') {
       return type;
     }
     return 'textbox';
@@ -10904,6 +11584,139 @@ function createFabGridFactory(editorDefinitions) {
     return sign + integer + (hasDecimal ? '.' + decimal : '');
   }
 
+  function normalizeColorValue(value) {
+    if (editorDefinitions.color && typeof editorDefinitions.color.normalize === 'function') {
+      return editorDefinitions.color.normalize(value);
+    }
+    var text = value == null ? '' : String(value).trim().toLowerCase();
+    var hex;
+    if (!text) return '';
+    if (text.charAt(0) !== '#') text = '#' + text;
+    hex = text.slice(1);
+    if (!/^(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/.test(hex)) return '';
+    if (hex.length === 3 || hex.length === 4) {
+      hex = hex.replace(/./g, function(character) { return character + character; });
+    }
+    return '#' + hex;
+  }
+
+  function parseColorValue(value) {
+    if (editorDefinitions.color && typeof editorDefinitions.color.parse === 'function') {
+      return editorDefinitions.color.parse(value);
+    }
+    return normalizeColorValue(value) || (value == null ? '' : String(value).trim());
+  }
+
+  function isColorValueValid(value) {
+    if (editorDefinitions.color && typeof editorDefinitions.color.isValid === 'function') {
+      return editorDefinitions.color.isValid(value);
+    }
+    return Boolean(normalizeColorValue(value));
+  }
+
+  function getColorPalette(config) {
+    var options = config && config.options ? config.options : {};
+    return Array.isArray(options.palette) && options.palette.length ? options.palette : DEFAULT_COLOR_PALETTE;
+  }
+
+  function getColorShowAlpha(config) {
+    var options = config && config.options ? config.options : {};
+    return options.showAlpha !== false;
+  }
+
+  function createColorState(value) {
+    var color = normalizeColorValue(value) || '#ff0000';
+    var hex = color.slice(1);
+    var rgb;
+    var hsv;
+    if (hex.length === 6) {
+      hex += 'ff';
+    }
+    rgb = {
+      r: parseInt(hex.slice(0, 2), 16),
+      g: parseInt(hex.slice(2, 4), 16),
+      b: parseInt(hex.slice(4, 6), 16)
+    };
+    hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
+    hsv.a = parseInt(hex.slice(6, 8), 16) / 255;
+    return hsv;
+  }
+
+  function rgbToHsv(red, green, blue) {
+    var r = red / 255;
+    var g = green / 255;
+    var b = blue / 255;
+    var max = Math.max(r, g, b);
+    var min = Math.min(r, g, b);
+    var delta = max - min;
+    var hue = 0;
+    if (delta) {
+      if (max === r) {
+        hue = ((g - b) / delta) % 6;
+      } else if (max === g) {
+        hue = (b - r) / delta + 2;
+      } else {
+        hue = (r - g) / delta + 4;
+      }
+      hue *= 60;
+      if (hue < 0) hue += 360;
+    }
+    return {
+      h: hue,
+      s: max === 0 ? 0 : delta / max,
+      v: max
+    };
+  }
+
+  function hsvToRgb(hue, saturation, value) {
+    var chroma = value * saturation;
+    var section = hue / 60;
+    var x = chroma * (1 - Math.abs(section % 2 - 1));
+    var m = value - chroma;
+    var r = 0;
+    var g = 0;
+    var b = 0;
+    if (section < 1) {
+      r = chroma;
+      g = x;
+    } else if (section < 2) {
+      r = x;
+      g = chroma;
+    } else if (section < 3) {
+      g = chroma;
+      b = x;
+    } else if (section < 4) {
+      g = x;
+      b = chroma;
+    } else if (section < 5) {
+      r = x;
+      b = chroma;
+    } else {
+      r = chroma;
+      b = x;
+    }
+    return {
+      r: Math.round((r + m) * 255),
+      g: Math.round((g + m) * 255),
+      b: Math.round((b + m) * 255)
+    };
+  }
+
+  function colorStateToHex(state, showAlpha) {
+    var rgb = hsvToRgb(state.h, state.s, state.v);
+    var alpha = clamp(state.a == null ? 1 : state.a, 0, 1);
+    var value = '#' + toHexColorPart(rgb.r) + toHexColorPart(rgb.g) + toHexColorPart(rgb.b);
+    if (showAlpha && alpha < 0.999) {
+      value += toHexColorPart(Math.round(alpha * 255));
+    }
+    return value;
+  }
+
+  function toHexColorPart(value) {
+    var text = clamp(Math.round(value), 0, 255).toString(16);
+    return text.length < 2 ? '0' + text : text;
+  }
+
   function findColumnByOffset(columns, start, end, offset) {
     var low = start;
     var high = end - 1;
@@ -10992,6 +11805,7 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
       invalidValue: 'Invalid value',
       invalidDate: 'Invalid date',
       invalidYearMonth: 'Invalid year and month',
+      invalidColor: 'Invalid color',
       comboboxLimitToList: 'Please select a valid item'
     },
     aria: {
@@ -11000,6 +11814,8 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
       datePicker: 'Date picker',
       openComboBox: 'Open combo box',
       comboBoxOptions: 'Combo box options',
+      openColorPicker: 'Open color picker',
+      colorPicker: 'Color picker',
       openColumnChooser: 'Open column chooser',
       columnChooser: 'Column chooser',
       selectAllRows: 'Select all rows',
@@ -11076,6 +11892,7 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
       invalidValue: '輸入值無效',
       invalidDate: '日期格式錯誤',
       invalidYearMonth: '年月格式錯誤',
+      invalidColor: '色碼格式錯誤',
       comboboxLimitToList: '請從清單選擇有效項目'
     },
     aria: {
@@ -11084,6 +11901,8 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
       datePicker: '日期選擇器',
       openComboBox: '開啟下拉選單',
       comboBoxOptions: '下拉選項',
+      openColorPicker: '開啟顏色選擇器',
+      colorPicker: '顏色選擇器',
       openColumnChooser: '開啟欄位選擇器',
       columnChooser: '欄位選擇器',
       selectAllRows: '選取所有列',
@@ -11160,6 +11979,7 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
       invalidValue: '输入值无效',
       invalidDate: '日期格式错误',
       invalidYearMonth: '年月格式错误',
+      invalidColor: '色码格式错误',
       comboboxLimitToList: '请从列表选择有效项目'
     },
     aria: {
@@ -11168,6 +11988,8 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
       datePicker: '日期选择器',
       openComboBox: '打开下拉菜单',
       comboBoxOptions: '下拉选项',
+      openColorPicker: '打开颜色选择器',
+      colorPicker: '颜色选择器',
       openColumnChooser: '打开字段选择器',
       columnChooser: '字段选择器',
       selectAllRows: '选择所有行',

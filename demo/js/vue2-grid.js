@@ -256,8 +256,8 @@
         var groups = [];
         if (!this.grid) return;
         if (this.rowGroupMode === 'order') groups = [{ binding: 'dlvno' }];
-        if (this.rowGroupMode === 'vendor') groups = [{ binding: ['id', 'refCode'] }];
-        if (this.rowGroupMode === 'vendor-order') groups = [{ binding: 'id' }, { binding: 'refCode' }];
+        if (this.rowGroupMode === 'vendor') groups = [{ binding: ['facno', 'refCode'] }];
+        if (this.rowGroupMode === 'vendor-order') groups = [{ binding: 'facno' }, { binding: 'refCode' }];
         this.grid.setRowGroups(groups);
         this.updateStats();
       },
@@ -422,7 +422,7 @@
     var headers = GRID_HEADERS[locale] || GRID_HEADERS['zh-TW'];
     var texts = TEXTS[locale] || TEXTS['zh-TW'];
     var columns = [
-      { binding: 'id', header: headers.id, width: 88, align: 'center', readOnly: true },
+      { binding: 'facno', header: headers.id, width: 88, align: 'center', readOnly: true },
       { binding: 'name', header: headers.name, width: 108, readOnly: true },
       { binding: 'dlvno', header: headers.dlvno, width: 130 },
       { binding: 'item', header: headers.item, width: 64, align: 'center', readOnly: true },
@@ -451,7 +451,7 @@
         }
       },
       { binding: 'stus', header: headers.stus, width: 120, editor: createWorkflowEditor(locale) },
-      { binding: 'textDate', header: headers.textDate, width: 120, editor: 'datebox', mask: '9999/99/99' },
+      { binding: 'dlvdt', header: headers.textDate, width: 120, editor: 'datebox', mask: '9999/99/99' },
       { binding: 'yearMonth', header: headers.yearMonth, width: 110, editor: 'datebox', mask: '9999/99' },
       {
         binding: 'amount',

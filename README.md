@@ -61,7 +61,8 @@ jQuery wrapper 位於 `packages/fabgrid-jquery`，透過 `$(element).fabgrid(opt
 - 左右凍結欄、列號欄、欄位顯示切換、footer aggregate 與 1 至 3 階群組。
 - 本機資料或 `remote: true` 遠端分頁、排序與搜尋。
 - 單一 cell 選取、多選列、鍵盤導覽、欄寬調整與欄位拖曳重排。
-- `textbox`、`numberbox`、`datebox`、`combobox` editor，以及同步／非同步欄位驗證；`datebox` 在 mask 為 `9999/99` 或 `9999-99` 時使用年月 popup。
+- `textbox`、`numberbox`、`datebox`、`combobox`、`color` editor，以及同步／非同步欄位驗證；`datebox` 在 mask 為 `9999/99` 或 `9999-99` 時使用年月 popup，`color` 可輸入 hex 或標準 CSS 顏色名稱，名稱提交後保留原文字。
+- 欄位搜尋列會為 `datebox`、`combobox`、`color` 顯示對應下拉 panel；搜尋輸入僅建立 filter，不執行 cell validation。
 - CSV 與 XLSX 匯出；Excel 支援凍結窗格、篩選、群組、footer、格式與隱藏欄。
 - `en`、`zh-TW`、`zh-CN` locale 檔案與多組內建主題。
 

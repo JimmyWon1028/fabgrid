@@ -1,6 +1,10 @@
 (function() {
   'use strict';
 
+  // ---------------------------------------------------------------------------
+  // Demo configuration and static data
+  // ---------------------------------------------------------------------------
+
   if (!window.FabGridDemoData || !Array.isArray(window.FabGridDemoData.rows)) {
     throw new Error('FabGrid demo data source is not loaded.');
   }
@@ -63,6 +67,7 @@
         refCode: 'Order No.',
         cusno: 'Customer',
         stus: 'Status',
+        color: 'Color',
         rem: 'Summary',
         amount: 'Payable',
         score: 'Score (async)',
@@ -111,6 +116,7 @@
         refCode: '訂單編號',
         cusno: '客戶',
         stus: '狀態',
+        color: '顏色',
         rem: '摘要',
         amount: '應付金額',
         score: '分數(非同步)',
@@ -159,6 +165,7 @@
         refCode: '订单编号',
         cusno: '客户',
         stus: '状态',
+        color: '颜色',
         rem: '摘要',
         amount: '应付金额',
         score: '分数(异步)',
@@ -187,6 +194,12 @@
     { value: 'black', label: 'Black' }
   ];
   var DEMO_WORKFLOW_VALUES = ['draft', 'pending', 'approved', 'closed'];
+  var DEMO_STATUS_STYLES = {
+    draft: { className: 'status-draft', color: '#6b7280' },
+    pending: { className: 'status-pending', color: '#b45309' },
+    approved: { className: 'status-approved', color: '#047857' },
+    closed: { className: 'status-closed', color: '#1d4ed8' }
+  };
   var DEMO_ROW_GROUPS = {
     order: [
       {
@@ -197,13 +210,13 @@
     ],
     vendor: [
       {
-        binding: ['id', 'refCode'],
+        binding: ['facno', 'refCode'],
         header: formatDemoVendorOrderRowGroupHeader
       }
     ],
     'vendor-order': [
       {
-        binding: 'id',
+        binding: 'facno',
         header: formatDemoRowGroupHeader
       },
       {
@@ -260,7 +273,10 @@
   var lookupEditorArgs = null;
   var lookupLastClick = null;
   var demoFilterMode = 'or';
+  var demoSettings = null;
+  var grid = null;
 
+  // Create the grid through the jQuery wrapper when that adapter is loaded.
   function createGridControl(host, options) {
     var $host;
     if (window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.fabgrid === 'function') {
@@ -272,281 +288,313 @@
     return new fabui.FabGrid(host, options);
   }
 
-  loadDemoThemeStyles();
-  populateThemeOptions();
+  // ---------------------------------------------------------------------------
+  // Application bootstrap
+  // ---------------------------------------------------------------------------
 
-  var demoSettings = loadDemoSettings();
+  function initializeDemo() {
+    loadDemoThemeStyles();
+    populateThemeOptions();
 
-  applyDemoSettingsToControls(demoSettings);
-  applyDemoLocale(demoSettings.locale);
-  applyColumnHeaderLocale(columns, demoSettings.locale);
+    demoSettings = loadDemoSettings();
+    applyDemoSettingsToControls(demoSettings);
+    applyDemoLocale(demoSettings.locale);
+    applyColumnHeaderLocale(columns, demoSettings.locale);
 
-  var gridOptions = {
-    rowHeight: 32,
-    headerHeight: 32,
-    activeCellBorder: 1,
-    searchDelay: 200,
-    overscanRows: 14,
-    overscanColumns: 3,
-    frozenColumns: demoSettings.frozenColumns,
-    frozenRightColumns: demoSettings.frozenRightColumns,
-    locale: demoSettings.locale,
-    showRowHeaders: demoSettings.showRowHeaders,
-    rowHeaderWidth: DEMO_ROW_HEADER_WIDTH,
-    observeItemsSource: true,
-    remote: demoSettings.remote,
-    loader: function(params) {
-      return new Promise(function(resolve) {
-        window.setTimeout(function() {
-          var remoteRows = rows.slice();
-          var filterRules = params.filterRules ? JSON.parse(params.filterRules) : [];
-          var sortFields = params.sort ? params.sort.split(',') : [];
-          var sortOrders = params.order ? params.order.split(',') : [];
-          var start = (params.page - 1) * params.rows;
-          if (params.q) {
-            remoteRows = remoteRows.filter(function(row) {
-              return Object.keys(row).some(function(field) {
-                return row[field] != null && String(row[field]).toLowerCase().indexOf(String(params.q).toLowerCase()) >= 0;
-              });
-            });
-          }
-          if (filterRules.length) {
-            remoteRows = remoteRows.filter(function(row) {
-              return filterRules.every(function(rule) {
-                var rawActual = row[rule.field];
-                var actual = rawActual == null ? '' : String(rawActual).toLowerCase();
-                var expected = String(rule.value).toLowerCase();
-                var comparableActual = typeof rawActual === 'number' ? rawActual : actual;
-                var comparableExpected = typeof rawActual === 'number' ? Number(rule.value) : expected;
-                if (rule.op === 'contains') return actual.indexOf(expected) >= 0;
-                if (rule.op === 'ends') return actual.lastIndexOf(expected) === actual.length - expected.length;
-                if (rule.op === 'not-starts') return actual.indexOf(expected) !== 0;
-                if (rule.op === 'not-contains') return actual.indexOf(expected) < 0;
-                if (rule.op === 'not-ends') return actual.lastIndexOf(expected) !== actual.length - expected.length;
-                if (rule.op === 'gte') return comparableActual >= comparableExpected;
-                if (rule.op === 'gt') return comparableActual > comparableExpected;
-                if (rule.op === 'lte') return comparableActual <= comparableExpected;
-                if (rule.op === 'lt') return comparableActual < comparableExpected;
-                if (rule.op === 'ne') return comparableActual !== comparableExpected;
-                if (rule.op === 'eq') return comparableActual === comparableExpected;
-                return actual.indexOf(expected) === 0;
-              });
-            });
-          }
-          if (sortFields.length) {
-            remoteRows.sort(function(left, right) {
-              var index;
-              var field;
-              var result;
-              for (index = 0; index < sortFields.length; index += 1) {
-                field = sortFields[index];
-                result = left[field] === right[field] ? 0 : (left[field] > right[field] ? 1 : -1);
-                if (result) {
-                  return sortOrders[index] === 'desc' ? -result : result;
-                }
-              }
-              return 0;
-            });
-          }
-          resolve({
-            total: String(remoteRows.length),
-            rows: remoteRows.slice(start, start + params.rows)
-          });
-        }, 500);
-      });
-    },
-    pagination: demoSettings.pagination,
-    pager: {
-      pageNumber: 1,
-      pageSize: 100,
-      pageList: [10, 20, 30, 40, 50, 100, 500],
-      showPageList: false,
-      showPageInfo: true,
-      showRefresh: true
-    },
-    showSearchRow: demoSettings.showSearchRow,
-    showFooter: true,
-    footerHeight: 32,
-    multiSelectRows: demoSettings.multiSelectRows,
-    itemsSource: rows,
-    columns: columns,
-    rowGroups: getDemoRowGroups(demoSettings.rowGroupMode),
-    allowSorting: true,
-    allowDragging: 'Columns',
-    allowEditing: demoSettings.editMode,
-    editOnSelect: demoSettings.editMode,
-    allowResizing: true,
-    alternatingRows: true,
-    alternatingRowBackground: '#fafafa',
-    headerToggleKey: 'F4', //'Ctrl+F4'
-    formatCell: function(args) {
-      if (args.column.binding === 'crncy') {
-        if (args.value === 'Active' || args.value === '啟用') {
-          args.cell.className += ' status-active';
-          args.cell.style.color = '#047857';
-        } else {
-          args.cell.className += ' status-paused';
-          args.cell.style.color = '#9a3412';
-        }
-        args.cell.style.fontWeight = '600';
-      }
+    grid = createGridControl('#grid', createGridOptions(demoSettings));
+    initializeDemoFilterTextBox();
+    updateDemoFilterAvailability(demoSettings.remote);
+    applyDemoTheme(demoSettings.theme);
+
+    if (demoSettings.searchText && !demoSettings.remote) {
+      applyDemoFilter(demoSettings.searchText);
     }
-  };
-  var grid = createGridControl('#grid', gridOptions);
-  initializeDemoFilterTextBox();
-  updateDemoFilterAvailability(demoSettings.remote);
-  applyDemoTheme(demoSettings.theme);
-  if (demoSettings.searchText && !demoSettings.remote) {
-    applyDemoFilter(demoSettings.searchText);
+
+    bindGridEvents();
+    bindToolbarEvents();
+    updateDatasetSummary();
+    refreshViewportStats();
+    exposeDemoApi();
   }
 
-  updateDatasetSummary();
-  updateViewportStats({
-    totalRows: grid.view.length,
-    rowStart: grid.rowRange.start,
-    rowEnd: grid.rowRange.end,
-    columnStart: grid.columnRange.start,
-    columnEnd: grid.columnRange.end,
-    renderedCells: grid.root.querySelectorAll('.fg-cell').length
-  });
+  function createGridOptions(settings) {
+    return {
+      rowHeight: 32,
+      headerHeight: 32,
+      activeCellBorder: 2,
+      searchDelay: 200,
+      overscanRows: 14,
+      overscanColumns: 3,
+      frozenColumns: settings.frozenColumns,
+      frozenRightColumns: settings.frozenRightColumns,
+      locale: settings.locale,
+      showRowHeaders: settings.showRowHeaders,
+      rowHeaderWidth: DEMO_ROW_HEADER_WIDTH,
+      observeItemsSource: true,
+      remote: settings.remote,
+      loader: loadRemoteRows,
+      pagination: settings.pagination,
+      pager: {
+        pageNumber: 1,
+        pageSize: 100,
+        pageList: [10, 20, 30, 40, 50, 100, 500],
+        showPageList: false,
+        showPageInfo: true,
+        showRefresh: true
+      },
+      showSearchRow: settings.showSearchRow,
+      showFooter: true,
+      footerHeight: 32,
+      multiSelectRows: settings.multiSelectRows,
+      itemsSource: rows,
+      columns: columns,
+      rowGroups: getDemoRowGroups(settings.rowGroupMode),
+      allowSorting: true,
+      allowDragging: 'Columns',
+      allowEditing: settings.editMode,
+      editOnSelect: settings.editMode,
+      allowResizing: true,
+      alternatingRows: true,
+      alternatingRowBackground: '#fafafa',
+      headerToggleKey: 'F4',
+      formatCell: formatDemoCell
+    };
+  }
 
-  grid.on('viewportChanged', updateViewportStats);
+  function formatDemoCell(args) {
+    var statusStyle;
 
-  grid.on('searchCleared', function() {
-    setDemoFilterValue('');
-    grid.setFilter(null);
-    saveCurrentDemoSettings();
-  });
+    if (args.column.binding !== 'stus') {
+      return;
+    }
 
-  grid.on('loadSuccess', updateDemoResultCount);
+    statusStyle = DEMO_STATUS_STYLES[String(args.value || '').toLowerCase()];
+    if (!statusStyle) {
+      return;
+    }
 
-  grid.on('excelExporting', function() {
-    setToolbarBusy(true);
-  });
+    args.cell.className += ' ' + statusStyle.className;
+    args.cell.style.color = statusStyle.color;
+  }
 
-  grid.on('excelExported', function() {
-    setToolbarBusy(false);
-  });
+  // Simulate a server request while keeping the Demo self-contained.
+  function loadRemoteRows(params) {
+    return new Promise(function(resolve) {
+      window.setTimeout(function() {
+        var remoteRows = rows.slice();
+        var filterRules = params.filterRules ? JSON.parse(params.filterRules) : [];
+        var sortFields = params.sort ? params.sort.split(',') : [];
+        var sortOrders = params.order ? params.order.split(',') : [];
+        var start = (params.page - 1) * params.rows;
 
-  grid.on('excelExportFailed', function() {
-    setToolbarBusy(false);
-  });
+        remoteRows = filterRemoteRows(remoteRows, params.q, filterRules);
+        sortRemoteRows(remoteRows, sortFields, sortOrders);
+        resolve({
+          total: String(remoteRows.length),
+          rows: remoteRows.slice(start, start + params.rows)
+        });
+      }, 500);
+    });
+  }
 
-  controls.demoFilter.addEventListener('input', function(event) {
-    applyDemoFilter(event.target.value);
-    saveCurrentDemoSettings();
-  });
+  function filterRemoteRows(sourceRows, searchText, filterRules) {
+    var filteredRows = sourceRows;
+    if (searchText) {
+      filteredRows = filteredRows.filter(function(row) {
+        return Object.keys(row).some(function(field) {
+          return row[field] != null && String(row[field]).toLowerCase().indexOf(String(searchText).toLowerCase()) >= 0;
+        });
+      });
+    }
+    if (filterRules.length) {
+      filteredRows = filteredRows.filter(function(row) {
+        return filterRules.every(function(rule) {
+          return matchesRemoteFilterRule(row, rule);
+        });
+      });
+    }
+    return filteredRows;
+  }
 
-  controls.demoFilterClear.addEventListener('click', function() {
-    setDemoFilterValue('');
-    applyDemoFilter('');
-    focusDemoFilter();
-    saveCurrentDemoSettings();
-  });
+  function matchesRemoteFilterRule(row, rule) {
+    var rawActual = row[rule.field];
+    var actual = rawActual == null ? '' : String(rawActual).toLowerCase();
+    var expected = String(rule.value).toLowerCase();
+    var comparableActual = typeof rawActual === 'number' ? rawActual : actual;
+    var comparableExpected = typeof rawActual === 'number' ? Number(rule.value) : expected;
 
-  controls.demoFilterMode.addEventListener('click', toggleDemoFilterMode);
+    switch (rule.op) {
+      case 'contains':
+        return actual.indexOf(expected) >= 0;
+      case 'ends':
+        return actual.lastIndexOf(expected) === actual.length - expected.length;
+      case 'not-starts':
+        return actual.indexOf(expected) !== 0;
+      case 'not-contains':
+        return actual.indexOf(expected) < 0;
+      case 'not-ends':
+        return actual.lastIndexOf(expected) !== actual.length - expected.length;
+      case 'gte':
+        return comparableActual >= comparableExpected;
+      case 'gt':
+        return comparableActual > comparableExpected;
+      case 'lte':
+        return comparableActual <= comparableExpected;
+      case 'lt':
+        return comparableActual < comparableExpected;
+      case 'ne':
+        return comparableActual !== comparableExpected;
+      case 'eq':
+        return comparableActual === comparableExpected;
+      default:
+        return actual.indexOf(expected) === 0;
+    }
+  }
 
-  controls.language.addEventListener('change', function(event) {
+  function sortRemoteRows(remoteRows, sortFields, sortOrders) {
+    if (!sortFields.length) {
+      return;
+    }
+    remoteRows.sort(function(left, right) {
+      var index;
+      var field;
+      var result;
+      for (index = 0; index < sortFields.length; index += 1) {
+        field = sortFields[index];
+        result = left[field] === right[field] ? 0 : (left[field] > right[field] ? 1 : -1);
+        if (result) {
+          return sortOrders[index] === 'desc' ? -result : result;
+        }
+      }
+      return 0;
+    });
+  }
+
+  // Keep grid events separate from toolbar DOM events for easier maintenance.
+  function bindGridEvents() {
+    grid.on('viewportChanged', updateViewportStats);
+    grid.on('searchCleared', function() {
+      setDemoFilterValue('');
+      grid.setFilter(null);
+      saveCurrentDemoSettings();
+    });
+    grid.on('loadSuccess', updateDemoResultCount);
+    grid.on('excelExporting', function() {
+      setToolbarBusy(true);
+    });
+    grid.on('excelExported', function() {
+      setToolbarBusy(false);
+    });
+    grid.on('excelExportFailed', function() {
+      setToolbarBusy(false);
+    });
+  }
+
+  function bindToolbarEvents() {
+    controls.demoFilter.addEventListener('input', function(event) {
+      applyDemoFilter(event.target.value);
+      saveCurrentDemoSettings();
+    });
+    controls.demoFilterClear.addEventListener('click', function() {
+      setDemoFilterValue('');
+      applyDemoFilter('');
+      focusDemoFilter();
+      saveCurrentDemoSettings();
+    });
+    controls.demoFilterMode.addEventListener('click', toggleDemoFilterMode);
+    controls.language.addEventListener('change', handleLanguageChange);
+    controls.theme.addEventListener('change', function(event) {
+      applyDemoTheme(event.target.value);
+      saveCurrentDemoSettings();
+    });
+    controls.frozen.addEventListener('input', function(event) {
+      grid.setFrozenColumns(Number(event.target.value || 0));
+      saveCurrentDemoSettings();
+    });
+    controls.frozenRight.addEventListener('input', function(event) {
+      grid.setFrozenRightColumns(Number(event.target.value || 0));
+      saveCurrentDemoSettings();
+    });
+    controls.rowHeaders.addEventListener('change', function(event) {
+      grid.setShowRowHeaders(normalizeRowHeaderSetting(event.target.value, DEFAULT_DEMO_SETTINGS.showRowHeaders));
+      saveCurrentDemoSettings();
+    });
+    controls.searchRow.addEventListener('change', function(event) {
+      if (grid.setShowSearchRow) {
+        grid.setShowSearchRow(event.target.checked);
+      }
+      saveCurrentDemoSettings();
+    });
+    controls.pagination.addEventListener('change', handleDataModeChange);
+    controls.remote.addEventListener('change', handleDataModeChange);
+    bindOptionalToolbarEvents();
+    bindExportEvents();
+  }
+
+  function bindOptionalToolbarEvents() {
+    if (controls.groupRows) {
+      controls.groupRows.addEventListener('change', function(event) {
+        grid.setRowGroups(getDemoRowGroups(event.target.value));
+        saveCurrentDemoSettings();
+        refreshViewportStats();
+      });
+    }
+    controls.multiSelect.addEventListener('change', function(event) {
+      grid.setMultiSelectRows(event.target.checked);
+      saveCurrentDemoSettings();
+    });
+    controls.editMode.addEventListener('change', function(event) {
+      grid.setEditMode(event.target.checked);
+      saveCurrentDemoSettings();
+    });
+  }
+
+  function bindExportEvents() {
+    labels.exportCsv.addEventListener('click', function() {
+      grid.exportCsv('fabgrid-demo.csv');
+    });
+    labels.exportExcel.addEventListener('click', function() {
+      grid.exportExcel('fabgrid-demo.xlsx').catch(function(error) {
+        window.setTimeout(function() {
+          throw error;
+        }, 0);
+      });
+    });
+  }
+
+  function handleLanguageChange(event) {
     var locale = normalizeLocaleSetting(event.target.value, DEFAULT_DEMO_SETTINGS.locale);
     grid.setLocale(locale);
     applyDemoLocale(locale);
     applyGridColumnHeaderLocale(grid, locale);
     refreshDemoRowGroups();
     saveCurrentDemoSettings();
-    updateViewportStats({
-      totalRows: grid.view.length,
-      rowStart: grid.rowRange.start,
-      rowEnd: grid.rowRange.end,
-      columnStart: grid.columnRange.start,
-      columnEnd: grid.columnRange.end,
-      renderedCells: grid.root.querySelectorAll('.fg-cell').length
-    });
-  });
-
-  controls.theme.addEventListener('change', function(event) {
-    applyDemoTheme(event.target.value);
-    saveCurrentDemoSettings();
-  });
-
-  controls.frozen.addEventListener('input', function(event) {
-    grid.setFrozenColumns(Number(event.target.value || 0));
-    saveCurrentDemoSettings();
-  });
-
-  controls.frozenRight.addEventListener('input', function(event) {
-    grid.setFrozenRightColumns(Number(event.target.value || 0));
-    saveCurrentDemoSettings();
-  });
-
-  controls.rowHeaders.addEventListener('change', function(event) {
-    grid.setShowRowHeaders(normalizeRowHeaderSetting(event.target.value, DEFAULT_DEMO_SETTINGS.showRowHeaders));
-    saveCurrentDemoSettings();
-  });
-
-  controls.searchRow.addEventListener('change', function(event) {
-    if (grid.setShowSearchRow) {
-      grid.setShowSearchRow(event.target.checked);
-    }
-    saveCurrentDemoSettings();
-  });
-
-  controls.pagination.addEventListener('change', function() {
-    applyDemoDataMode();
-    saveCurrentDemoSettings();
-  });
-
-  controls.remote.addEventListener('change', function() {
-    applyDemoDataMode();
-    saveCurrentDemoSettings();
-  });
-
-  if (controls.groupRows) {
-    controls.groupRows.addEventListener('change', function(event) {
-      grid.setRowGroups(getDemoRowGroups(event.target.value));
-      saveCurrentDemoSettings();
-      updateViewportStats({
-        totalRows: grid.view.length,
-        rowStart: grid.rowRange.start,
-        rowEnd: grid.rowRange.end,
-        columnStart: grid.columnRange.start,
-        columnEnd: grid.columnRange.end,
-        renderedCells: grid.root.querySelectorAll('.fg-cell').length
-      });
-    });
+    refreshViewportStats();
   }
 
-  controls.multiSelect.addEventListener('change', function(event) {
-    grid.setMultiSelectRows(event.target.checked);
+  function handleDataModeChange() {
+    applyDemoDataMode();
     saveCurrentDemoSettings();
-  });
+  }
 
-  controls.editMode.addEventListener('change', function(event) {
-    grid.setEditMode(event.target.checked);
-    saveCurrentDemoSettings();
-  });
+  function exposeDemoApi() {
+    window.fabGridDemo = {
+      grid: grid,
+      rows: rows,
+      columns: columns,
+      themes: DEMO_THEMES
+    };
+  }
 
-  document.getElementById('exportButton').addEventListener('click', function() {
-    grid.exportCsv('fabgrid-demo.csv');
-  });
+  initializeDemo();
 
-  document.getElementById('exportExcelButton').addEventListener('click', function() {
-    grid.exportExcel('fabgrid-demo.xlsx').catch(function(error) {
-      window.setTimeout(function() {
-        throw error;
-      }, 0);
-    });
-  });
-
-  window.fabGridDemo = {
-    grid: grid,
-    rows: rows,
-    columns: columns,
-    themes: DEMO_THEMES
-  };
+  // ---------------------------------------------------------------------------
+  // Column definitions
+  // ---------------------------------------------------------------------------
 
   function createColumns(count) {
     var columns = [
-      { binding: 'id', header: '主要廠商', width: 88, minWidth: 72, align: 'center', dataType: 'string', readOnly: true },
+      { binding: 'facno', demoHeaderKey: 'id', header: '主要廠商', width: 88, minWidth: 72, align: 'center', dataType: 'string', readOnly: true },
       { binding: 'name', header: '簡稱', width: 108, minWidth: 88, dataType: 'string', readOnly: true },
       {
         binding: 'dlvno',
@@ -582,7 +630,7 @@
       {
         binding: 'crncy',
         header: '幣別',
-        width: 62,
+        width: 65,
         minWidth: 56,
         align: 'center',
         dataType: 'string',
@@ -639,6 +687,17 @@
           limitToList: true,
           showValueInList: true,
           data: getWorkflowComboboxData('zh-TW')
+        }
+      },
+      {
+        binding: 'color',
+        header: '顏色',
+        width: 112,
+        minWidth: 92,
+        dataType: 'string',
+        editor: {
+          type: 'color',
+          showAlpha: true
         }
       },
       {
@@ -707,7 +766,7 @@
         }
       },
       {
-        binding: 'textDate',
+        binding: 'dlvdt',
         demoHeaderKey: 'textDate',
         header: '文字日期',
         width: 120,
@@ -739,11 +798,12 @@
       crncy: 5,
       cusno: 6,
       stus: 7,
-      textDate: 8,
-      yearMonth: 9,
-      amount: 10,
-      score: 11,
-      rem: 12
+      color: 8,
+      textDate: 9,
+      yearMonth: 10,
+      amount: 11,
+      score: 12,
+      rem: 13
     };
     var i;
     columns.sort(function(a, b) {
@@ -766,6 +826,10 @@
   function pad(value) {
     return value < 10 ? '0' + value : String(value);
   }
+
+  // ---------------------------------------------------------------------------
+  // Lookup popup
+  // ---------------------------------------------------------------------------
 
   function showLookupPopup(args) {
     lookupEditorArgs = args;
@@ -1016,6 +1080,10 @@
     lookupLastClick = null;
   }
 
+  // ---------------------------------------------------------------------------
+  // Persisted settings and control state
+  // ---------------------------------------------------------------------------
+
   function setToolbarBusy(value) {
     var i;
     for (i = 0; i < toolbarControls.length; i += 1) {
@@ -1161,6 +1229,10 @@
     return defaultValue;
   }
 
+  // ---------------------------------------------------------------------------
+  // Theme, locale, and grouping helpers
+  // ---------------------------------------------------------------------------
+
   function populateThemeOptions() {
     var fragment = document.createDocumentFragment();
     var option;
@@ -1247,7 +1319,7 @@
   function formatDemoVendorOrderRowGroupHeader(args) {
     return formatDemoText(getDemoText('groupVendorOrderHeader'), {
       header: getDemoRowGroupHeaderText(args),
-      vendor: args.item.id,
+      vendor: args.item.facno,
       order: args.item.refCode,
       count: args.count
     });
@@ -1260,12 +1332,12 @@
       return args.header;
     }
     if (bindings == null) {
-      if (args.key === args.item.id) {
-        bindings = 'id';
+      if (args.key === args.item.facno) {
+        bindings = 'facno';
       } else if (args.key === args.item.refCode) {
         bindings = 'refCode';
       } else {
-        bindings = ['id', 'refCode'];
+        bindings = ['facno', 'refCode'];
       }
     }
     if (!Array.isArray(bindings)) {
@@ -1408,10 +1480,25 @@
     return match ? Number(match[1]) : null;
   }
 
+  // ---------------------------------------------------------------------------
+  // Runtime statistics, data mode, and filtering
+  // ---------------------------------------------------------------------------
+
   function updateDatasetSummary() {
     if (stats.datasetSummary) {
       stats.datasetSummary.textContent = rows.length + ' x ' + columns.length;
     }
+  }
+
+  function refreshViewportStats() {
+    updateViewportStats({
+      totalRows: grid.view.length,
+      rowStart: grid.rowRange.start,
+      rowEnd: grid.rowRange.end,
+      columnStart: grid.columnRange.start,
+      columnEnd: grid.columnRange.end,
+      renderedCells: grid.root.querySelectorAll('.fg-cell').length
+    });
   }
 
   function updateViewportStats(e) {

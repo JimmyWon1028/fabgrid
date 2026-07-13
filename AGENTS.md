@@ -81,7 +81,8 @@ fabgrid-jquery
 - 單一 cell、列選取、多選列、clipboard copy 與鍵盤導覽。
 - 欄位拖曳、欄寬調整、欄位顯示切換、footer aggregate。
 - CSV 與 Excel 匯出，以及 Excel hidden columns、格式、凍結窗格與 autoFilter。
-- `textbox`、`numberbox`、`datebox`、`combobox` grid editor；standalone 控件仍不由 core bundle 公開。
+- `textbox`、`numberbox`、`datebox`、`combobox`、`color` grid editor；`color` 支援 hex 與標準 CSS 顏色名稱，名稱提交後保留原文字；standalone 控件仍不由 core bundle 公開。
+- 欄位搜尋列遇到 `datebox`、`combobox`、`color` editor 時沿用對應下拉 panel；搜尋輸入只建立 filter，不執行 cell validation。
 - `en`、`zh-TW`、`zh-CN` locale 與多組 theme。
 
 後方 V1 章節是初始範圍與架構背景，不得用來否定上述已交付能力。新增或修改功能時，以目前 source、API 文件與 smoke test 契約為準。

@@ -30,6 +30,7 @@
       invalidValue: 'Invalid value',
       invalidDate: 'Invalid date',
       invalidYearMonth: 'Invalid year and month',
+      invalidColor: 'Invalid color',
       comboboxLimitToList: 'Please select a valid item'
     },
     aria: {
@@ -38,6 +39,8 @@
       datePicker: 'Date picker',
       openComboBox: 'Open combo box',
       comboBoxOptions: 'Combo box options',
+      openColorPicker: 'Open color picker',
+      colorPicker: 'Color picker',
       openColumnChooser: 'Open column chooser',
       columnChooser: 'Column chooser',
       selectAllRows: 'Select all rows',

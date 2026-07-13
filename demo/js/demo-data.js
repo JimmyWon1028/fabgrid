@@ -19,6 +19,7 @@
     '工程款30%中款'
   ];
   var LOOKUP_CODES = ['2W001', 'WU001', 'CU004', 'BV001', 'RM001', 'RW001', 'JL001', 'JP001'];
+  var COLORS = ['#ff0000', '#ff9900', '#ffd966', '#70ad47', '#00b0f0', '#4472c4', '#7030a0', '#c00000cc'];
 
   function createRows(count, columnCount, options) {
     var exactRowCount = options && options.exactRowCount === true;
@@ -38,7 +39,7 @@
       vendor = VENDORS[groupIndex % VENDORS.length];
       orderNo = 'BO' + (2025000000 + groupIndex * 1005 + 27);
       row = {
-        id: vendor.code,
+        facno: vendor.code,
         name: vendor.name,
         region: '',
         crncy: 'NTD',
@@ -48,10 +49,11 @@
         item: pad((lineInGroup + 1) * 10),
         cusno: LOOKUP_CODES[(groupIndex + lineInGroup) % LOOKUP_CODES.length],
         stus: WORKFLOW_VALUES[(groupIndex + lineInGroup) % WORKFLOW_VALUES.length],
+        color: COLORS[(groupIndex + lineInGroup) % COLORS.length],
         rem: DESCRIPTIONS[(groupIndex + lineInGroup) % DESCRIPTIONS.length],
         amount: groupSize === 1 ? 6700 : Math.round(((groupIndex + 3) * 374398.33) / groupSize),
         score: (i * 17) % 100,
-        textDate: createTextDateValue(i),
+        dlvdt: createTextDateValue(i),
         yearMonth: createYearMonthValue(i),
         yymm: createYearMonthValue(i),
         date: createOrderDateValue(groupIndex)
