@@ -39,8 +39,6 @@ jobs:
           mkdir -p .pages
           cp -R demo .pages/demo
           cp -R dist .pages/dist
-          mkdir -p .pages/packages/fabgrid-vue
-          cp -R packages/fabgrid-vue/dist .pages/packages/fabgrid-vue/dist
           printf '%s\n' '<!doctype html>' '<html lang="zh-Hant">' '<head>' '  <meta charset="utf-8">' '  <meta name="viewport" content="width=device-width, initial-scale=1">' '  <meta http-equiv="refresh" content="0; url=./demo/">' '  <title>FabGrid Demo</title>' '</head>' '<body>' '  <p><a href="./demo/">Open FabGrid Demo</a></p>' '</body>' '</html>' > .pages/index.html
 
       - name: Setup Pages

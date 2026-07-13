@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FabGrid Dev Demo</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260712-active-cell-border-v4">
+  <title>FabGrid jQuery Dev Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260713-jquery-wrapper-v2">
   <link rel="stylesheet" href="./style/my.icon.css?v=20260713-demo-style-folder-v1">
   <link rel="stylesheet" href="./style/style.css?v=20260713-demo-style-folder-v1">
 </head>
@@ -12,8 +12,8 @@
   <main class="page">
     <section class="toolbar" aria-label="FabGrid controls">
       <div class="brand">
-        <h1>FabGrid</h1>
-        <p>Pure JS performance-first grid · <span id="datasetSummary">-</span></p>
+        <h1>FabGrid jQuery</h1>
+        <p>jQuery wrapper · <span id="datasetSummary">-</span></p>
       </div>
       <label class="field compact">
         <span id="languageLabel">語言</span>
@@ -99,11 +99,14 @@
     </section>
   </main>
 
+  <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
   <script src="./js/demo-data.js?v=20260713-demo-js-folder-v1"></script>
   <script type="module">
     import fabui from '../src/fabui.js?v=20260713-search-enter-align-v3';
+    import { createFabGridJQuery } from '../packages/fabgrid-jquery/src/fabgrid-jquery.js?v=20260713-jquery-wrapper-v2';
 
     window.fabui = fabui;
+    createFabGridJQuery(window.jQuery, fabui);
     await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260711-remote-v1');
     await import('../src/locales/fabgrid-locale.zh-CN.js?v=20260711-demo-zh-cn-v1');
     await import('../src/locales/fabgrid-locale.en.js?v=20260711-remote-v1');

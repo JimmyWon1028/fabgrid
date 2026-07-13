@@ -1424,7 +1424,12 @@ export function createFabGridFactory(editorDefinitions) {
   FabGrid.prototype.syncHeaderFooterScrollPosition = function() {
     var scrollLeft;
     var transform;
-    if (this.useScrollLinkedHorizontal || !this.bodyScroll) {
+    if (!this.bodyScroll) {
+      return;
+    }
+    this.headerScroll.scrollLeft = 0;
+    this.footerScroll.scrollLeft = 0;
+    if (this.useScrollLinkedHorizontal) {
       return;
     }
     scrollLeft = this.bodyScroll.scrollLeft;
@@ -3681,7 +3686,13 @@ export function createFabGridFactory(editorDefinitions) {
     if (!input) {
       return false;
     }
-    input.focus();
+    this.headerScroll.scrollLeft = 0;
+    try {
+      input.focus({ preventScroll: true });
+    } catch (error) {
+      input.focus();
+    }
+    this.headerScroll.scrollLeft = 0;
     if (selectionStart != null && input.setSelectionRange) {
       input.setSelectionRange(selectionStart, selectionEnd == null ? selectionStart : selectionEnd);
     }

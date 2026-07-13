@@ -1,0 +1,13 @@
+{
+  "name": "fabgrid-jquery",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "jQuery wrapper for FabGrid.",
+  "main": "dist/fabgrid-jquery.js",
+  "module": "dist/fabgrid-jquery.esm.js",
+  "types": "index.d.ts",
+  "peerDependencies": {
+    "jquery": ">=3.7.0 <5"
+  }
+}

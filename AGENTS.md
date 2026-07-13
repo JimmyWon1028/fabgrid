@@ -59,6 +59,8 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 - `dist/fabui.min.js` 必須是可用 `<script>` 直接引用的 browser global 壓縮版本。
 - Vue 2 Options API wrapper 位於 `packages/fabgrid-vue`，只負責把 props、events、lifecycle 對應到 pure JS core。
 - Vue wrapper 使用 `fabgrid-vue` 獨立 build，不可併入 FabUI 主 bundle，也不可讓 Vue 接管 cell rendering。
+- jQuery wrapper 位於 `packages/fabgrid-jquery`，使用 `$.fn.fabgrid` 對應 core options、events、methods 與 lifecycle；不得複製 core 行為或讓 jQuery 接管 cell rendering。
+- jQuery wrapper 使用獨立 build，不可併入 FabUI 主 bundle；browser bundle 依賴全域 `jQuery` 與 `fabui`，ESM 入口由使用者注入依賴。
 - 在大資料量情境下，Vue 不應該接管每個 cell 的渲染。
 
 建議套件方向：
@@ -66,6 +68,7 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 ```txt
 fabgrid-core
 fabgrid-vue
+fabgrid-jquery
 ```
 
 ## 現行已交付能力
@@ -490,10 +493,20 @@ Wrapper 職責：
 - `control` 保持 non-reactive，透過 component ref 公開底層 FabGrid instance。
 - `columns` prop 優先於 declarative `FabGridColumn`，兩者不可合併。
 - browser wrapper bundle 依賴全域 `Vue` 與 `fabui`，ESM bundle 公開 `createFabGridVue(Vue, fabui)` factory。
-- wrapper build 輸出到 `packages/fabgrid-vue/dist`，不得併入 `dist/fabui.*` 主 bundle。
+- wrapper build 完整輸出到 `packages/fabgrid-vue/dist`，browser minified 版本另同步到 `dist/wrapper/fabgrid-vue.min.js`；不得併入 `dist/fabui.*` 主 bundle。
 - Vue Demo 使用 Vue 2 Options API，位於 `demo/vue2-grid.html`；Pages artifact 必須包含 wrapper dist。
 
 V1 不提供 Vue cell slot、editor slot 或逐 cell component mount，避免 Vue 負責渲染 virtualized cells。
+
+## jQuery Wrapper 筆記
+
+- jQuery wrapper 位於 `packages/fabgrid-jquery`，公開 `$.fn.fabgrid`，每個 host element 對應一個 `fabui.FabGrid` instance。
+- 初始化、setter、無回傳值方法與 `destroy` 保持 jQuery chaining；`instance`、option getter 與有回傳值的 core method 回傳實際結果。
+- 重複傳入 options 更新既有 instance，不建立第二個 Grid；具有正式 core setter 的 option 必須優先呼叫 setter。
+- core events 轉為小寫 jQuery events，固定使用 `.fabgrid` namespace；取消狀態必須回傳 core event args。
+- `destroy` 必須解除 wrapper 的 core event handlers、呼叫 `dispose()` 並清除 instance data，不得移除使用者自己的 jQuery events。
+- wrapper build 完整輸出到 `packages/fabgrid-jquery/dist`，browser minified 版本另同步到 `dist/wrapper/fabgrid-jquery.min.js`；不得併入 `dist/fabui.*` 主 bundle。
+- `demo/dev-jquery-grid.html` 是 source-mode 開發 Demo；`demo/jquery-grid.html` 是 build-mode browser global Demo，只引用 `dist` core 與 wrapper bundle。日常修改不得為了 jQuery wrapper 主動 build。
 
 ## 驗收標準
 

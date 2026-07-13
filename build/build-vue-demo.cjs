@@ -6,7 +6,7 @@ const transpileTemplate = require('vue-template-es2015-compiler');
 
 const root = path.resolve(__dirname, '..');
 const demoDir = path.join(root, 'demo');
-const entryFile = path.join(demoDir, 'vue2-sfc-entry.js');
+const entryFile = path.join(demoDir, 'js', 'vue2-sfc-entry.js');
 const componentFile = path.join(demoDir, 'vue2-grid.vue');
 const outputDir = path.join(demoDir, 'build');
 const componentSource = fs.readFileSync(componentFile, 'utf8');

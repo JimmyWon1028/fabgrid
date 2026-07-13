@@ -125,8 +125,8 @@
 import Vue from 'vue';
 import fabui from '../src/fabui.js';
 import { createFabGridVue } from '../packages/fabgrid-vue/src/fabgrid-vue.js';
-import './demo-data.js';
-import './vue2-grid.js';
+import './js/demo-data.js';
+import './js/vue2-grid.js';
 
 const wrapper = createFabGridVue(Vue, fabui);
 const options = window.createVue2GridDemoOptions();
@@ -141,6 +141,6 @@ export default options;
 
 <style>
 @import '../src/fabui.css';
-@import './my.icon.css';
-@import './style.css';
+@import './style/my.icon.css';
+@import './style/style.css';
 </style>

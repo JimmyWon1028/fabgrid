@@ -8,12 +8,14 @@
   "module": "dist/fabui.esm.js",
   "style": "dist/fabui.css",
   "scripts": {
-    "build": "node build/build.cjs && node build/build-vue.cjs && node build/build-vue-demo.cjs",
+    "build": "node build/build.cjs && node build/build-vue.cjs && node build/build-jquery.cjs && node build/build-vue-demo.cjs",
     "build:vue": "node build/build-vue.cjs",
     "build:vue-demo": "node build/build-vue-demo.cjs",
     "build:vue-prod": "vite build --config vite.config.js",
+    "build:jquery": "node build/build-jquery.cjs",
     "dev:vue": "vite --config vite.config.js",
     "test": "node --test test/*.test.js",
+    "test:jquery": "node --test test/jquery-wrapper.test.js",
     "smoke": "npm run build && node build/smoke.cjs",
     "serve": "python3 -m http.server 4173"
   },

@@ -261,6 +261,17 @@
   var lookupLastClick = null;
   var demoFilterMode = 'or';
 
+  function createGridControl(host, options) {
+    var $host;
+    if (window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.fabgrid === 'function') {
+      $host = window.jQuery(host);
+      $host.attr('data-demo-adapter', 'jquery');
+      $host.fabgrid(options);
+      return $host.fabgrid('instance');
+    }
+    return new fabui.FabGrid(host, options);
+  }
+
   loadDemoThemeStyles();
   populateThemeOptions();
 
@@ -381,7 +392,7 @@
       }
     }
   };
-  var grid = new fabui.FabGrid('#grid', gridOptions);
+  var grid = createGridControl('#grid', gridOptions);
   initializeDemoFilterTextBox();
   updateDemoFilterAvailability(demoSettings.remote);
   applyDemoTheme(demoSettings.theme);
@@ -761,7 +772,7 @@
     ensureLookupPopup();
     lookupPopup.overlay.style.display = 'flex';
     if (!lookupGrid) {
-      lookupGrid = new fabui.FabGrid(lookupPopup.gridHost, {
+      lookupGrid = createGridControl(lookupPopup.gridHost, {
         rowHeight: 32,
         headerHeight: 32,
         overscanRows: 4,

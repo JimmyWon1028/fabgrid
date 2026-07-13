@@ -1,5 +1,5 @@
 import Vue from 'vue';
-import App from './vue2-grid.vue';
+import App from '../vue2-grid.vue';
 
 new Vue({
   render: function(createElement) {

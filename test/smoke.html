@@ -1708,7 +1708,7 @@
                 }, 20);
               }, 20);
             });
-            Promise.all([asyncValidationPromise, validateRowPromise, runRemotePaginationCheck()]).then(function(asyncResults) {
+            Promise.all([asyncValidationPromise, validateRowPromise, runRemotePaginationCheck(), runHeaderSearchAlignmentCheck()]).then(function(asyncResults) {
               var excelBlob = grid.getExcelBlob();
               excelBlob.arrayBuffer().then(function(buffer) {
               var largeExportScrollResult = runLargeExportScrollCheck();
@@ -1718,6 +1718,7 @@
               var sheetXml = readStoredZipEntry(zipBytes, 'xl/worksheets/sheet1.xml');
               var stylesXml = readStoredZipEntry(zipBytes, 'xl/styles.xml');
               var safetyResult = runBindingAndGroupingSafetyCheck();
+              var headerSearchAlignmentResult = asyncResults[3];
               var paginationResult = runPaginationCheck();
               var remotePaginationResult = asyncResults[2];
               var chart = new window.fabui.Chart('#chartSmoke', {
@@ -1746,6 +1747,8 @@
                 }),
                 dangerousBindingBlocked: safetyResult.dangerousBindingBlocked,
                 specialGroupKeyWorks: safetyResult.specialGroupKeyWorks,
+                headerSearchEnterAlignmentWorks: headerSearchAlignmentResult.alignmentWorks,
+                headerSearchContainerScrollWorks: headerSearchAlignmentResult.containerScrollWorks,
                 paginationInitialPageWorks: paginationResult.initialPageWorks,
                 paginationLastPageWorks: paginationResult.lastPageWorks,
                 paginationPageSizeWorks: paginationResult.pageSizeWorks,
@@ -2220,6 +2223,56 @@
         host.remove();
         delete Object.prototype[prototypeProperty];
         return result;
+      }
+
+      function runHeaderSearchAlignmentCheck() {
+        var host = document.createElement('div');
+        var searchGrid;
+        var input;
+        var bodyCell;
+        var headerRect;
+        var bodyRect;
+        var col;
+        var i;
+        var result;
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:640px;height:280px;';
+        document.body.appendChild(host);
+        searchGrid = new fabui.FabGrid(host, {
+          showSearchRow: true,
+          showRowHeaders: true,
+          frozenColumns: 1,
+          frozenRightColumns: 1,
+          columns: columns(20),
+          itemsSource: rows(20)
+        });
+        input = searchGrid.header.querySelector('.fg-header-search-input[data-col="1"]');
+        input.focus();
+        for (i = 0; i < 12; i += 1) {
+          input = searchGrid.getActiveHeaderSearchInput();
+          input.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'Enter',
+            bubbles: true,
+            cancelable: true
+          }));
+        }
+        return new Promise(function(resolve) {
+          requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+              input = searchGrid.getActiveHeaderSearchInput();
+              col = input ? input.getAttribute('data-col') : '-1';
+              bodyCell = searchGrid.cellLayer.querySelector('.fg-cell[data-col="' + col + '"]');
+              headerRect = input ? input.getBoundingClientRect() : null;
+              bodyRect = bodyCell ? bodyCell.getBoundingClientRect() : null;
+              result = {
+                alignmentWorks: headerRect && bodyRect && Math.abs(headerRect.left - bodyRect.left) <= 1,
+                containerScrollWorks: searchGrid.headerScroll.scrollLeft === 0
+              };
+              searchGrid.dispose();
+              host.remove();
+              resolve(result);
+            });
+          });
+        });
       }
 
       function runPaginationCheck() {

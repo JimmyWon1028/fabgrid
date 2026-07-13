@@ -6,6 +6,7 @@ const root = path.resolve(__dirname, '..');
 const packageDir = path.join(root, 'packages', 'fabgrid-vue');
 const sourceFile = path.join(packageDir, 'src', 'fabgrid-vue.js');
 const distDir = path.join(packageDir, 'dist');
+const wrapperDistDir = path.join(root, 'dist', 'wrapper');
 const source = fs.readFileSync(sourceFile, 'utf8');
 const browserSource = source
   .replace(/export function ([A-Za-z_$][\w$]*)/g, 'function $1');
@@ -15,14 +16,17 @@ const browserEntry = '(function(global) {\n' + browserSource + '\n' +
   'global.Vue.use(plugin);\n' +
   '})(typeof globalThis !== "undefined" ? globalThis : window);\n';
 const esmEntry = source + '\nexport default createFabGridVue;\n';
+const minifiedBrowserEntry = esbuild.transformSync(browserEntry, {
+  minify: true,
+  target: 'es2017'
+}).code.trim();
 
 fs.rmSync(distDir, { recursive: true, force: true });
 fs.mkdirSync(distDir, { recursive: true });
+fs.mkdirSync(wrapperDistDir, { recursive: true });
 fs.writeFileSync(path.join(distDir, 'fabgrid-vue.js'), browserEntry);
-fs.writeFileSync(path.join(distDir, 'fabgrid-vue.min.js'), esbuild.transformSync(browserEntry, {
-  minify: true,
-  target: 'es2017'
-}).code.trim());
+fs.writeFileSync(path.join(distDir, 'fabgrid-vue.min.js'), minifiedBrowserEntry);
+fs.writeFileSync(path.join(wrapperDistDir, 'fabgrid-vue.min.js'), minifiedBrowserEntry);
 fs.writeFileSync(path.join(distDir, 'fabgrid-vue.esm.js'), esmEntry);
 fs.writeFileSync(path.join(distDir, 'fabgrid-vue.esm.min.js'), esbuild.transformSync(esmEntry, {
   format: 'esm',
@@ -33,5 +37,6 @@ fs.writeFileSync(path.join(distDir, 'fabgrid-vue.esm.min.js'), esbuild.transform
 ['fabgrid-vue.js', 'fabgrid-vue.min.js', 'fabgrid-vue.esm.js', 'fabgrid-vue.esm.min.js'].forEach(function(name) {
   if (!fs.existsSync(path.join(distDir, name)) || !fs.statSync(path.join(distDir, name)).size) throw new Error('Missing Vue wrapper output: ' + name);
 });
+if (!fs.existsSync(path.join(wrapperDistDir, 'fabgrid-vue.min.js'))) throw new Error('Missing shared Vue wrapper output.');
 
 console.log('Built FabGrid Vue 2 wrapper bundles.');

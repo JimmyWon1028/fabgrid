@@ -86,6 +86,8 @@ server.listen(port, '127.0.0.1', async function() {
       !result.coreBundleOnlyWorks ||
       !result.dangerousBindingBlocked ||
       !result.specialGroupKeyWorks ||
+      !result.headerSearchEnterAlignmentWorks ||
+      !result.headerSearchContainerScrollWorks ||
       !result.paginationInitialPageWorks ||
       !result.paginationLastPageWorks ||
       !result.paginationPageSizeWorks ||
@@ -355,7 +357,8 @@ server.listen(port, '127.0.0.1', async function() {
       'fabui.js',
       'fabui.min.css',
       'fabui.min.js',
-      'theme'
+      'theme',
+      'wrapper'
     ];
     const actualDistFiles = fs.readdirSync(path.join(root, 'dist')).sort();
     if (JSON.stringify(actualDistFiles) !== JSON.stringify(expectedDistFiles)) {
@@ -366,6 +369,10 @@ server.listen(port, '127.0.0.1', async function() {
       !fs.existsSync(path.join(root, 'dist', 'theme', 'fabgrid.black.min.css')) ||
       !fs.existsSync(path.join(root, 'dist', 'theme', 'black', 'images', 'pagination_icons.png'))) {
       throw new Error('Smoke assertions failed: theme dependencies are incomplete.');
+    }
+    const wrapperFiles = fs.readdirSync(path.join(root, 'dist', 'wrapper')).sort();
+    if (JSON.stringify(wrapperFiles) !== JSON.stringify(['fabgrid-jquery.min.js', 'fabgrid-vue.min.js'])) {
+      throw new Error('Smoke assertions failed: wrapper outputs are incomplete.');
     }
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {

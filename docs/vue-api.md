@@ -30,7 +30,7 @@ Browser global 依序載入 Vue、FabUI 與 wrapper：
 <link rel="stylesheet" href="./dist/fabui.css">
 <script src="https://cdn.jsdelivr.net/npm/vue@2.7.16/dist/vue.min.js"></script>
 <script src="./dist/fabui.min.js"></script>
-<script src="./packages/fabgrid-vue/dist/fabgrid-vue.min.js"></script>
+<script src="./dist/wrapper/fabgrid-vue.min.js"></script>
 ```
 
 Browser bundle 會自動執行 `Vue.use(fabuiVue)`。
