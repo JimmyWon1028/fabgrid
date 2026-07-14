@@ -10,6 +10,4 @@ coverage/
 .nyc_output/
 *.tmp
 *.log
-/resource/
-/demo/build/
-/dist-vue-demo/
+/res/

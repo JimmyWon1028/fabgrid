@@ -5,6 +5,7 @@ const esbuild = require('esbuild');
 const root = path.resolve(__dirname, '..');
 const packageDir = path.join(root, 'packages', 'fabgrid-vue');
 const sourceFile = path.join(packageDir, 'src', 'fabgrid-vue.js');
+const vueRuntimeFile = path.join(root, 'node_modules', 'vue', 'dist', 'vue.min.js');
 const distDir = path.join(packageDir, 'dist');
 const wrapperDistDir = path.join(root, 'dist', 'wrapper');
 const source = fs.readFileSync(sourceFile, 'utf8');
@@ -26,6 +27,8 @@ fs.mkdirSync(distDir, { recursive: true });
 fs.mkdirSync(wrapperDistDir, { recursive: true });
 fs.writeFileSync(path.join(distDir, 'fabgrid-vue.js'), browserEntry);
 fs.writeFileSync(path.join(distDir, 'fabgrid-vue.min.js'), minifiedBrowserEntry);
+fs.copyFileSync(vueRuntimeFile, path.join(wrapperDistDir, 'vue.min.js'));
+fs.writeFileSync(path.join(wrapperDistDir, 'fabgrid-vue.js'), browserEntry);
 fs.writeFileSync(path.join(wrapperDistDir, 'fabgrid-vue.min.js'), minifiedBrowserEntry);
 fs.writeFileSync(path.join(distDir, 'fabgrid-vue.esm.js'), esmEntry);
 fs.writeFileSync(path.join(distDir, 'fabgrid-vue.esm.min.js'), esbuild.transformSync(esmEntry, {
@@ -37,6 +40,10 @@ fs.writeFileSync(path.join(distDir, 'fabgrid-vue.esm.min.js'), esbuild.transform
 ['fabgrid-vue.js', 'fabgrid-vue.min.js', 'fabgrid-vue.esm.js', 'fabgrid-vue.esm.min.js'].forEach(function(name) {
   if (!fs.existsSync(path.join(distDir, name)) || !fs.statSync(path.join(distDir, name)).size) throw new Error('Missing Vue wrapper output: ' + name);
 });
-if (!fs.existsSync(path.join(wrapperDistDir, 'fabgrid-vue.min.js'))) throw new Error('Missing shared Vue wrapper output.');
+['vue.min.js', 'fabgrid-vue.js', 'fabgrid-vue.min.js'].forEach(function(name) {
+  if (!fs.existsSync(path.join(wrapperDistDir, name)) || !fs.statSync(path.join(wrapperDistDir, name)).size) {
+    throw new Error('Missing shared Vue wrapper output: ' + name);
+  }
+});
 
 console.log('Built FabGrid Vue 2 wrapper bundles.');

@@ -14,7 +14,7 @@
 ## 開發工作流程
 
 - 修改範圍、需求意圖或既有行為是否應保留，只要有任何不確定，必須先向使用者確認清楚再修改；不得自行擴大需求、移除未被要求移除的功能或改變未被要求改變的行為。
-- `resource/` 位於專案根目錄，只存放本機參考檔案；build、Demo 與正式 source 不得依賴，Git/GitHub 必須忽略。
+- `res/` 位於專案根目錄，只存放本機參考檔案；build、Demo 與正式 source 不得依賴，Git/GitHub 必須忽略。
 - 日常修改不要每次都編譯到 `dist`。
 - 除非使用者明確要求「編譯」、「build」、「重建 dist」、「產生 dist」或同等意思，否則不要主動執行會更新 `dist` 的指令，例如 `npm run build` 或 `npm run smoke`。
 - 修改確認完成後，預設啟動開發伺服器，提供本機網址讓使用者自行測試。
@@ -494,8 +494,10 @@ Wrapper 職責：
 - `control` 保持 non-reactive，透過 component ref 公開底層 FabGrid instance。
 - `columns` prop 優先於 declarative `FabGridColumn`，兩者不可合併。
 - browser wrapper bundle 依賴全域 `Vue` 與 `fabui`，ESM bundle 公開 `createFabGridVue(Vue, fabui)` factory。
-- wrapper build 完整輸出到 `packages/fabgrid-vue/dist`，browser minified 版本另同步到 `dist/wrapper/fabgrid-vue.min.js`；不得併入 `dist/fabui.*` 主 bundle。
-- Vue Demo 使用 Vue 2 Options API，位於 `demo/vue2-grid.html`；Pages artifact 必須包含 wrapper dist。
+- wrapper build 完整輸出到 `packages/fabgrid-vue/dist`，並將 `vue.min.js`、browser global `fabgrid-vue.js` 與 `fabgrid-vue.min.js` 同步到 `dist/wrapper`；不得併入 `dist/fabui.*` 主 bundle。
+- Vue Demo 固定使用 `demo/vue2-grid.html`，依序載入 `dist/wrapper/vue.min.js`、`dist/fabui.min.js` 與 `dist/wrapper/fabgrid-vue.min.js` browser global，再由 SystemJS runtime loader 動態載入 `demo/js/vue2-grid.vue`。目前不提供獨立 production HTML；不得恢復已移除的 `demo/vue2-grid-app.html`，除非使用者明確要求新的發布流程。
+- Vue Demo 的工具列、欄位 editor、theme、locale、群組、篩選、remote、Popup Grid、匯出與 runtime stats 必須和 `demo/dev.html` 保持同等功能；Vue 只負責 wrapper props、events 與 Demo 狀態，cell rendering 仍由 core 處理。
+- Vue Demo 的 Options API、locale、資料處理與 helper 全部直接放在 `demo/js/vue2-grid.vue`；不得再拆出 `demo/js/vue2-grid.js` 或透過 `window.createVue2GridDemoOptions` 組裝元件。
 
 V1 不提供 Vue cell slot、editor slot 或逐 cell component mount，避免 Vue 負責渲染 virtualized cells。
 

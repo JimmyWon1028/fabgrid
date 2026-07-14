@@ -2903,12 +2903,12 @@ function createFabGridFactory(editorDefinitions) {
   };
   var FABGRID_INTERNAL_LOCALES = {};
   var DEFAULT_COLOR_PALETTE = [
-    '#ffffff', '#000000', '#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ccff', '#0066ff', '#6633cc', '#cc33cc',
-    '#d9e1f2', '#7f8c8d', '#f4cccc', '#fce5cd', '#fff2cc', '#d9ead3', '#d0e0e3', '#c9daf8', '#d9d2e9', '#ead1dc',
-    '#b4c6e7', '#595959', '#e6b8af', '#f9cb9c', '#ffe599', '#b6d7a8', '#a2c4c9', '#a4c2f4', '#b4a7d6', '#d5a6bd',
-    '#8ea9db', '#3f3f3f', '#cc0000', '#e69138', '#bf9000', '#6aa84f', '#45818e', '#3c78d8', '#674ea7', '#a64d79',
-    '#4472c4', '#262626', '#990000', '#b45f06', '#7f6000', '#38761d', '#134f5c', '#1155cc', '#351c75', '#741b47',
-    '#2f5597', '#0d0d0d', '#660000', '#783f04', '#7f6000', '#274e13', '#0c343d', '#1c4587', '#20124d', '#4c1130'
+    '#ffffff', '#000000', '#ff0000', '#ffc000', '#ffff00', '#92d050', '#00b050', '#00b0f0', '#0070c0', '#7030a0',
+    '#f2f2f2', '#737373', '#ffe5e5', '#fff9e5', '#ffffe5', '#f3ffe5', '#e5fff1', '#e5f8ff', '#e5f4ff', '#f4e5ff',
+    '#d9d9d9', '#595959', '#e6a1a1', '#e6d4a1', '#e5e6a1', '#c4e6a1', '#a1e6c0', '#a1d3e6', '#a1c9e6', '#c8a1e6',
+    '#bfbfbf', '#404040', '#cc6666', '#ccb366', '#cccc66', '#9bcc66', '#66cc94', '#66b1cc', '#66a2cc', '#a066cc',
+    '#a6a6a6', '#262626', '#b23636', '#b29436', '#b2b236', '#76b236', '#36b26e', '#3691b2', '#367eb2', '#7d36b2',
+    '#8c8c8c', '#0d0d0d', '#990f0f', '#99770f', '#99990f', '#56990f', '#0f994e', '#0f7499', '#0f6099', '#5e0f99'
   ];
 
   function FabGrid(element, options) {
@@ -11767,7 +11767,7 @@ function createFabGridFactory(editorDefinitions) {
 }
 
 global.fabui = global.fabui || {};
-global.fabui.version = "2026.7.13";
+global.fabui.version = "2026.7.14";
 global.fabui.editorDefinitions = createEditorDefinitions();
 global.fabui.Chart = createChartFactory();
 global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);
