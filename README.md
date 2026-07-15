@@ -8,16 +8,15 @@ FabUI 提供 pure JavaScript FabGrid 與 SVG Chart。FabGrid 支援雙向 virtua
 
 ## 文件與 Demo
 
-- [FabGrid API 操作手冊](./docs/fabgrid-api.md)：完整的建構選項、欄位設定、方法、事件、遠端資料協定與匯出說明。
-- [Chart API 操作手冊](./docs/chart-api.md)
-- [Vue 2 Wrapper API](./docs/vue-api.md)
-- [jQuery Wrapper API](./docs/jquery-api.md)
 - [線上 FabGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/grid.html)
 - [線上 TreeGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/treegrid.html)
 - [線上 Grid / Grid 拖曳 Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-grid.html)
 - [線上 Grid / TreeGrid 拖曳 Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-treegrid.html)
 - [線上 Chart Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-chart.html)
-- [線上 jQuery Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-jquery.html)
+- [FabGrid API 操作手冊](./docs/fabgrid-api.md)：完整的建構選項、欄位設定、方法、事件、遠端資料協定與匯出說明。
+- [Chart API 操作手冊](./docs/chart-api.md)
+- [Vue 2 Wrapper API](./docs/vue-api.md)
+- [jQuery Wrapper API](./docs/jquery-api.md)
 - [工作進度](./worklogs/)
 
 ## 快速使用

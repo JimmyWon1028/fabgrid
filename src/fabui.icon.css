@@ -69,3 +69,7 @@
 .icon-search {
   background: url('theme/images/search.png') no-repeat center center;
 }
+
+.icon-row-number {
+  background: url('theme/images/row-number.png') no-repeat center center;
+}

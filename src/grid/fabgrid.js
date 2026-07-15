@@ -2539,6 +2539,7 @@ export function createFabGridFactory(editorDefinitions) {
       },
       {
         action: 'row-headers-menu',
+        iconClass: 'icon-row-number',
         label: this.getText('topLeftMenu.rowHeaders'),
         children: rowHeaderItems
       },
