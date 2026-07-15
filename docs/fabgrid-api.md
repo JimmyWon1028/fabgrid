@@ -54,7 +54,7 @@ const grid = new fabui.FabGrid('#grid', {
 | `overscanColumns` | `number` | `3` | 水平虛擬化預先渲染欄數。 |
 | `frozenColumns` | `number` | `0` | 左側凍結欄數。 |
 | `frozenRightColumns` | `number` | `0` | 右側凍結欄數。 |
-| `showRowHeaders` | `boolean \| 'numbers' \| 'none'` | `true` | 顯示左側列號欄；可用 `'none'` 隱藏。 |
+| `showRowHeaders` | `boolean \| 'numbers' \| 'none' \| 'cell'` | `true` | 顯示左側列號欄；`false`／`'none'` 隱藏，`'cell'` 只保留窄列頭 cell。 |
 | `rowHeaderWidth` | `number` | `60` | 列號欄寬度。 |
 | `showColumnChooser` | `boolean` | `true` | 顯示左上角欄位選擇器。 |
 | `showFooter` | `boolean` | `false` | 顯示 footer aggregate 列。 |
@@ -65,8 +65,8 @@ const grid = new fabui.FabGrid('#grid', {
 | `allowSorting` | `boolean` | `true` | 是否允許點擊標題排序。 |
 | `allowEditing` | `boolean` | `true` | 是否允許編輯。 |
 | `editOnSelect` | `boolean` | `false` | 點選 cell 時直接開始編輯。 |
-| `allowResizing` | `boolean` | `true` | 是否允許拖曳調整欄寬。 |
-| `allowDragging` | `'None' \| 'Columns'` | `'None'` | 設為 `'Columns'` 可拖曳重排欄位。 |
+| `allowResizing` | `boolean` | `true` | 是否允許拖曳調整欄寬；雙擊 header 分隔線會自動調整為合適欄寬。 |
+| `allowDragging` | `'None' \| 'Columns' \| 'Rows' \| 'All'` | `'None'` | `'Columns'` 重排欄位；`'Rows'` 啟用同一 Grid 或跨 Grid 資料列拖曳；`'All'` 同時啟用兩者。Row drag 僅支援本機資料。 |
 | `showSearchRow` | `boolean` | `false` | 顯示每欄搜尋列；`datebox`、`combobox`、`color` 會沿用對應下拉 panel。搜尋輸入只套用 filter，不執行 cell validation。 |
 | `searchDelay` | `number` | `200` | 搜尋列輸入 debounce 時間（毫秒）。 |
 | `headerDisplayMode` | `'header' \| 'binding'` | `'header'` | 標題顯示欄位標題或 binding。 |
@@ -75,6 +75,9 @@ const grid = new fabui.FabGrid('#grid', {
 | `locale` | `string \| object` | `null` | Locale 名稱或 locale object。 |
 | `messages` | `object` | `null` | 覆寫 locale 文字。 |
 | `observeItemsSource` | `boolean` | `false` | 以 Proxy 觀察直接修改的資料列；開啟會有額外成本。 |
+| `childItemsPath` | `string \| function` | `null` | 指定子節點陣列的 binding path 或 callback；設定後啟用 TreeGrid。 |
+| `treeColumn` | `number \| string \| Column` | `null` | 顯示階層箭頭與縮排的欄位；預設為第一個可見欄。 |
+| `treeIndent` | `number` | `20` | 每一階 TreeGrid 縮排寬度，單位為 px。 |
 
 ### 分頁與遠端資料
 
@@ -92,6 +95,69 @@ const grid = new fabui.FabGrid('#grid', {
 | `showPageList` | `boolean` | `false` | 是否顯示 page size 下拉選單。 |
 | `showPageInfo` | `boolean` | `true` | 是否顯示範圍與總筆數。 |
 | `showRefresh` | `boolean` | `true` | 是否顯示重新整理按鈕。 |
+
+### TreeGrid
+
+TreeGrid 是 `fabui.FabGrid` 的階層資料模式，不是另一個 renderer 或 class。只要設定 `childItemsPath`，核心會把目前展開的節點扁平化為可視列，再交給既有垂直與水平 virtualization：
+
+```js
+var rows = [
+  {
+    id: 'D01',
+    name: '研發部',
+    children: [
+      { id: 'T01', name: '前端工程組' },
+      { id: 'T02', name: '後端工程組' }
+    ]
+  }
+];
+
+var grid = new fabui.FabGrid('#grid', {
+  itemsSource: rows,
+  childItemsPath: 'children',
+  treeColumn: 'name',
+  columns: [
+    { binding: 'name', header: '組織', width: 260 },
+    { binding: 'id', header: '代碼', width: 100 }
+  ]
+});
+
+grid.collapseGroupsToLevel(0);
+```
+
+節點箭頭與樹欄聚焦時的左右方向鍵都可收合／展開。排序只調整同一父節點下的兄弟順序，不會破壞階層；本機篩選會保留符合節點的祖先路徑，並暫時展開該路徑。TreeGrid 列號以完整展開後的階層順序為準，節點收合或篩選只隱藏列，不會重新編號。啟用 `pagination` 時以根節點數量分頁，每個根節點的可視子樹會留在同一頁。設定 `childItemsPath` 時 TreeGrid view 優先，不再套用 `rowGroups`。
+
+設定 `allowDragging: 'Rows'` 後，可拖曳同一 TreeGrid 節點或從另一個啟用 row drag 的 Grid 移入。節點列上緣、中央、下緣分別代表 `before`、`inside`、`after`；核心會阻止把父節點移入自己的子孫節點。跨 Grid drop 採 move 語意，成功後資料會從來源 Grid 移除：
+
+```js
+var pool = new fabui.FabGrid('#pool', {
+  itemsSource: availableRows,
+  columns: columns,
+  allowDragging: 'Rows'
+});
+
+var tree = new fabui.FabGrid('#tree', {
+  itemsSource: organizationRows,
+  columns: columns,
+  childItemsPath: 'children',
+  treeColumn: 'name',
+  allowDragging: 'Rows'
+});
+```
+
+若程式直接新增或替換 `children`，呼叫 `refreshTree()` 重新建立可視列。可用收合事件實作 lazy loading：
+
+```js
+grid.on('groupCollapsedChanged', function(e) {
+  if (!e.tree || e.collapsed || e.item.children.length !== 1 || !e.item.children[0].loading) return;
+  e.item.children = loadChildren(e.item);
+  grid.refreshTree();
+});
+```
+
+Lazy loading 節點需先放一筆 `{ loading: true }` placeholder，讓核心知道該節點可展開；實際資料載入後再替換 placeholder。
+
+完整頁面請見 `demo/dev-treegrid.html`（source-mode）與 `demo/treegrid.html`（build-mode）；兩頁共用 `demo/js/treegrid-data.js` 的獨立階層範例資料與 `demo/js/treegrid.js` 互動入口。一般 Grid 的同 Grid 重排與跨 Grid 移動範例請見 `demo/dev-grid-grid.html`（source-mode）、`demo/grid-grid.html`（build-mode）與 `demo/grid-grid-vue2.html`（Vue 2）；Grid 拖入 TreeGrid 及節點上下階範例請見 `demo/dev-grid-treegrid.html`（source-mode）、`demo/grid-treegrid.html`（build-mode）與 `demo/grid-treegrid-vue2.html`（Vue 2）。
 
 ## 3. 欄位設定（`Column`）
 
@@ -142,7 +208,19 @@ const columns = [
 | `setItemsSource(rows)` | 替換本機資料來源並重新建立 view。 |
 | `setColumns(columns)` | 替換欄位集合。 |
 | `setColumnVisible(column, visible)` | 顯示／隱藏指定欄；`column` 可為索引或欄位 object。成功回傳 `true`。 |
+| `autoSizeColumn(column)` | 依 header、目前 view、群組 aggregate 與可見 footer 自動調整指定欄寬；成功回傳新寬度。 |
 | `setRowGroups(groups)` | 設定 1 至 3 階群組設定。 |
+| `setChildItemsPath(path)` | 設定子節點 path／callback 並重新建立 TreeGrid view；傳入 `null` 可停用。 |
+| `getTreeRow(row)` | 取得可視樹列 descriptor，包含 `dataItem`、`level`、`parentItem`、`hasChildren`、`isCollapsed`、`rowNumber`。 |
+| `toggleTreeNode(row, collapsed?)` | 切換或指定可視樹節點的收合狀態。 |
+| `moveTreeItem(item, targetItem, position)` | 移動或插入 TreeGrid 節點；`position` 為 `'before'`、`'inside'`、`'after'`。成功回傳移動結果，無效或形成循環時回傳 `false`。 |
+| `insertTreeItem(item, parentItem?, index?)` | 將新節點插入根層或指定父節點。 |
+| `removeTreeItem(item)` | 從 TreeGrid 階層移除指定節點。 |
+| `moveFlatRowItem(item, targetItem, position)` | 依 `'before'`／`'after'` 重排一般 Grid 的本機資料列。 |
+| `removeRowItem(item)` | 從一般 Grid 或 TreeGrid 移除指定資料項目。 |
+| `collapseGroupsToLevel(level)` | 將指定階層及以下的父節點收合；`0` 只保留根節點。 |
+| `expandAllTreeNodes()` | 展開所有 TreeGrid 節點。 |
+| `refreshTree()` | 子節點陣列直接變動後重新建立可視樹列。 |
 | `getColumn(indexOrName)` | 依索引、`binding`、`header` 或 `name` 取得欄位。 |
 | `getCellData(row, col)` | 讀取目前 view 的 cell 值。 |
 | `setCellData(row, col, value)` | 寫入目前 view 的 cell 值；成功回傳 `true`。 |
@@ -159,6 +237,9 @@ const columns = [
 | `setShowRowHeaders(value)` | 切換列號欄。 |
 | `setShowFooter(value)` | 切換 footer aggregate 列。 |
 | `setShowSearchRow(value)` | 切換搜尋列。 |
+| `isFullscreen()` | Grid root 目前是否處於 fullscreen。 |
+| `isFullscreenAvailable()` | 瀏覽器是否支援 Grid fullscreen。 |
+| `toggleFullscreen()` | 切換 Grid root fullscreen；不支援時回傳 `false`。 |
 | `setEditMode(value)` | `true` 時點選 cell 即開始編輯。 |
 | `setMultiSelectRows(value)` | 切換多選列 checkbox 欄。 |
 | `setHeaderDisplayMode(mode)` | 設定 `'header'` 或 `'binding'`。 |
@@ -203,6 +284,10 @@ const columns = [
 | `getExcelBlob(visibleOnly?)` | 取得 XLSX `Blob`；預設輸出所有欄位，傳入 `true` 時僅輸出可見欄。 |
 | `exportExcel(filename?, visibleOnly?)` | 下載 XLSX，回傳 `Promise<boolean>`；預設為 `fabgrid.xlsx`。 |
 
+### 左上角功能表
+
+在左上角列頭 cell 按滑鼠右鍵會開啟核心功能表，提供顯示／隱藏搜尋列、列號、匯出 Excel、匯出 CSV 與 Grid fullscreen。「列號」的下層功能表提供關閉、顯示列號及只顯示 cell，並以勾選標示目前模式；功能表文字跟隨目前 locale，搜尋列與 fullscreen 項目會依當下狀態切換文字。
+
 ## 5. 事件
 
 使用 `grid.on(name, handler)` 註冊事件；handler 回傳 `false` 可取消支援取消的事件。
@@ -227,6 +312,12 @@ grid.on('cellEditEnding', function(e) {
 | `sortingColumn` / `sortedColumn` | 排序前／後。 |
 | `cellEditEnding` / `cellEditEnded` | cell 編輯提交前／後。 |
 | `resizingColumn` / `resizedColumn` | 拖曳欄寬期間／完成後。 |
+| `autoSizingColumn` / `autoSizedColumn` | AutoFit 套用欄寬前／後；前者可取消或調整 `e.width`。 |
+| `searchRowVisibilityChanged` | 呼叫 `setShowSearchRow()` 改變搜尋列顯示狀態後；`e.visible` 為目前狀態。 |
+| `rowHeaderModeChanged` | 呼叫 `setShowRowHeaders()` 改變列號模式後；`e.mode` 為 `true`、`false` 或 `'cell'`。 |
+| `draggingRow` | Row drag 開始或進入新落點時；可回傳 `false` 取消，`e.phase` 為 `'start'` 或 `'over'`。 |
+| `draggedRow` | Row drop 完成後；包含 `e.sourceGrid`、`e.targetGrid`、`e.item`、`e.targetItem`、`e.position`。 |
+| `groupCollapsedChanging` / `groupCollapsedChanged` | 群組或 TreeGrid 節點收合前／後；TreeGrid event args 會包含 `tree: true`、`row`、`item`、`level`、`collapsed`。 |
 | `viewportChanged` | 可視 row、column 範圍或 render cell 數變動。 |
 | `columnVisibilityChanged` | 欄位顯示狀態變更。 |
 | `searchCleared` | 呼叫 `clearSearchConditions()`。 |

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FabGrid Grid + TreeGrid Drag Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260715-row-pointer-drag-v1">
+  <link rel="stylesheet" href="./style/grid-treegrid.css?v=20260715-row-pointer-drag-v1">
+</head>
+<body>
+  <main class="grid-tree-page">
+    <header class="grid-tree-header">
+      <div>
+        <h1>FabGrid Grid + TreeGrid 拖曳</h1>
+        <p>左側 Grid 資料列可拖入右側 TreeGrid；右側節點可調整順序與上下階。</p>
+      </div>
+      <div class="grid-tree-actions">
+        <button id="expandDragTree" type="button">全部展開</button>
+        <button id="resetDragDemo" type="button">重設資料</button>
+      </div>
+    </header>
+
+    <section class="grid-tree-layout">
+      <article class="grid-tree-panel">
+        <div class="grid-tree-panel-header">
+          <div>
+            <h2>待配置 Grid</h2>
+            <p>拖曳任一資料列到右側組織節點。</p>
+          </div>
+          <span id="poolRowCount" class="grid-tree-count">-</span>
+        </div>
+        <div id="dragSourceGrid" class="grid-tree-control"></div>
+      </article>
+
+      <article class="grid-tree-panel">
+        <div class="grid-tree-panel-header">
+          <div>
+            <h2>組織 TreeGrid</h2>
+            <p>拖到上緣／中央／下緣，分別代表之前／下階／之後。</p>
+          </div>
+          <span id="treeNodeCount" class="grid-tree-count">-</span>
+        </div>
+        <div id="dragTargetTree" class="grid-tree-control"></div>
+      </article>
+    </section>
+
+    <footer class="grid-tree-footer">
+      <div class="grid-tree-drop-help" aria-label="TreeGrid 拖曳落點說明">
+        <span><i class="drop-before"></i>上緣：同層之前</span>
+        <span><i class="drop-inside"></i>中央：成為子節點</span>
+        <span><i class="drop-after"></i>下緣：同層之後</span>
+      </div>
+      <div id="dragDemoStatus" class="grid-tree-status" aria-live="polite">準備中</div>
+    </footer>
+  </main>
+
+  <script src="./js/grid-treegrid-data.js?v=20260715-row-pointer-drag-v1"></script>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260715-row-pointer-drag-v1';
+
+    window.fabui = fabui;
+    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260715-row-pointer-drag-v1');
+    await import('./js/grid-treegrid.js?v=20260715-row-pointer-drag-v1');
+  </script>
+</body>
+</html>

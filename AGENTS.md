@@ -10,6 +10,7 @@
 
 - 可以依任務需要建立本地 commit，但不要主動推送到 GitHub。
 - 只有在使用者明確要求「上傳」、「推送」、「同步到 GitHub」或同等意思時，才執行 `git push` 或 GitHub 遠端操作。
+- 除非使用者明確要求建立或切換分支，否則不得自行建立分支或切換離開目前分支；`build`、`push`、發佈或一般開發要求都不代表授權建立新分支。
 
 ## 開發工作流程
 
@@ -20,7 +21,7 @@
 - 修改確認完成後，預設啟動開發伺服器，提供本機網址讓使用者自行測試。
 - 若任務需要驗證但使用者沒有要求編譯，優先使用不會改寫 `dist` 的檢查方式；如果現有驗證只能透過 build/smoke 完成，先回報限制並等待使用者指示。
 - FabUI 使用的 icon 定義統一放在 `src/fabui.icon.css`，例如 `icon-datebox`、`icon-refwin`；不要在核心 CSS 直接硬編圖檔路徑。
-- 開發測試優先使用 source-mode demo，例如 `demo/dev.html` 直接引用公開入口 `src/fabui.js` 與 `src/fabui.css`；內部模組仍放在各自目錄。修改 source 後要同步更新 query version，避免瀏覽器快取造成誤判。
+- 開發測試優先使用 source-mode `demo/dev-grid.html`，直接引用公開入口 `src/fabui.js` 與 `src/fabui.css`；build-mode 主 Demo 固定為 `demo/grid.html`。內部模組仍放在各自目錄。修改 source 後要同步更新 query version，避免瀏覽器快取造成誤判。
 - 新增任何核心 UI 文字時，必須同步補齊 `en`、`zh-TW`、`zh-CN` locale key；demo-only 文字若會隨語言切換，也要放進 demo locale pack，不要寫死單一語言。
 - popup menu 樣式要維持一致：左側 icon 欄、icon 後分隔線、緊湊列高與清楚 hover/active 狀態；後續新增 popup menu 時沿用目前 filter menu 的視覺規則。
 - 工作進度記錄放在 `worklogs/YYYY-MM-DD.md`，固定使用 `## 完成進度` 標題；功能契約改動時，同步更新 README 與本文件。
@@ -78,8 +79,11 @@ fabgrid-jquery
 - 雙向 virtualization、左右凍結欄、固定列高與欄寬。
 - 本機與 `remote: true` 資料模式，包含分頁、排序、全域搜尋與欄位篩選。
 - 1 至 3 階列群組、aggregate、群組收合狀態與 Excel 群組匯出。
+- `childItemsPath` TreeGrid、節點收合／展開、同層排序、篩選祖先路徑、收合／篩選後維持原始列號與階層鍵盤導覽。
+- `allowDragging: 'Rows'` 的本機資料列拖曳、跨 Grid move、TreeGrid `before`／`inside`／`after` 節點重排與上下階；循環階層必須被拒絕。
+- 左上角列頭 cell 右鍵功能表，提供搜尋列切換、「列號」下層顯示模式、Excel／CSV 匯出與 Grid fullscreen。
 - 單一 cell、列選取、多選列、clipboard copy 與鍵盤導覽。
-- 欄位拖曳、欄寬調整、欄位顯示切換、footer aggregate。
+- 欄位拖曳、欄寬調整、雙擊 header 分隔線 AutoFit、欄位顯示切換、footer aggregate。
 - CSV 與 Excel 匯出，以及 Excel hidden columns、格式、凍結窗格與 autoFilter。
 - `textbox`、`numberbox`、`datebox`、`combobox`、`color` grid editor；`color` 支援 hex 與標準 CSS 顏色名稱，名稱提交後保留原文字；standalone 控件仍不由 core bundle 公開。
 - 欄位搜尋列遇到 `datebox`、`combobox`、`color` editor 時沿用對應下拉 panel；搜尋輸入只建立 filter，不執行 cell validation。
@@ -309,7 +313,7 @@ Demo 應該顯示有助於觀察效能的 runtime stats：
 
 ## 歷史 V1 當時不做的功能
 
-本節保留初始決策背景，其中 remote data、pagination、grouping、clipboard 等項目後來已交付；現況以「現行已交付能力」、README、API 文件與測試為準。
+本節保留初始決策背景，其中 remote data、pagination、grouping、clipboard、Tree grid 等項目後來已交付；現況以「現行已交付能力」、README、API 文件與測試為準。
 
 在 core 經過驗證之前，先避免以下功能：
 
@@ -332,8 +336,10 @@ Demo 應該顯示有助於觀察效能的 runtime stats：
 
 ```txt
 src/grid/fabgrid-data.js    binding、資料比較、remote、pagination、grouping、aggregate
+src/grid/fabgrid-drag.js    row pointer drag、跨 Grid drop、TreeGrid drop 協調
 src/grid/fabgrid-editor.js  grid editor mask、caret 與 validation helpers
 src/grid/fabgrid-export.js  CSV、XML 與 Excel 共用序列化工具
+src/grid/fabgrid-tree.js    TreeGrid 可視列、節點狀態與互動
 src/grid/fabgrid.css        FabGrid 核心樣式
 src/fabui.icon.css          FabUI icon 樣式入口
 ```
@@ -495,10 +501,12 @@ Wrapper 職責：
 - `columns` prop 優先於 declarative `FabGridColumn`，兩者不可合併。
 - browser wrapper bundle 依賴全域 `Vue` 與 `fabui`，ESM bundle 公開 `createFabGridVue(Vue, fabui)` factory。
 - wrapper build 完整輸出到 `packages/fabgrid-vue/dist`，並將 `vue.min.js`、browser global `fabgrid-vue.js` 與 `fabgrid-vue.min.js` 同步到 `dist/wrapper`；不得併入 `dist/fabui.*` 主 bundle。
-- Vue Demo 固定使用 `demo/demo-vue2.html`，依序載入 `dist/wrapper/vue.min.js`、`dist/fabui.min.js` 與 `dist/wrapper/fabgrid-vue.min.js` browser global，再由 SystemJS runtime loader 動態載入 `demo/js/demo-vue2.vue`。目前不提供獨立 production HTML；不得恢復已移除的 `demo/vue2-grid-app.html`，除非使用者明確要求新的發布流程。
-- Vue Demo 的工具列、欄位 editor、theme、locale、群組、篩選、remote、Popup Grid、匯出與 runtime stats 必須和 `demo/dev.html` 保持同等功能；Vue 只負責 wrapper props、events 與 Demo 狀態，cell rendering 仍由 core 處理。
-- Vue Demo 的 Options API、locale、資料處理與 helper 全部直接放在 `demo/js/demo-vue2.vue`；不得再拆出 `demo/js/vue2-grid.js` 或透過 `window.createVue2GridDemoOptions` 組裝元件。
-- Pure JS、Vue 2 與 jQuery Demo 的上方工具列 HTML 結構統一由 `demo/js/demo-toolbar.js` 產生；各 Demo 保留自己的狀態、事件與框架綁定，不得複製工具列 markup。
+- Vue Demo 固定使用 `demo/grid-vue2.html`，依序載入 `dist/wrapper/vue.min.js`、`dist/fabui.min.js` 與 `dist/wrapper/fabgrid-vue.min.js` browser global，再由 SystemJS runtime loader 動態載入 `demo/js/grid-vue2.vue`。目前不提供獨立 production HTML；不得恢復已移除的 `demo/vue2-grid-app.html`，除非使用者明確要求新的發布流程。
+- Vue Demo 的工具列、欄位 editor、theme、locale、群組、篩選、remote、Popup Grid、匯出與 runtime stats 必須和 `demo/dev-grid.html` 保持同等功能；Vue 只負責 wrapper props、events 與 Demo 狀態，cell rendering 仍由 core 處理。
+- Vue Demo 的 Options API、locale、資料處理與 helper 全部直接放在 `demo/js/grid-vue2.vue`；不得再拆出 `demo/js/grid-vue2-options.js` 或透過 `window.createVue2GridDemoOptions` 組裝元件。
+- `demo/grid-grid-vue2.html` 是專用雙 Grid 拖曳範例，必須沿用 `demo/grid-vue2.html` 的 SystemJS runtime loader 掛載 `demo/js/grid-grid-vue2.vue`，並載入 Vue、FabUI 與 Vue wrapper browser global bundle；上方按鈕透過 wrapper `allowDragging` prop 同步開啟／關閉兩個 Grid 的資料列拖曳，Vue 管理資料與頁面狀態，Grid cell rendering 仍由 core 負責。
+- `demo/grid-treegrid-vue2.html` 必須沿用 `demo/grid-vue2.html` 的 SystemJS runtime loader 掛載 `demo/js/grid-treegrid-vue2.vue`，並使用既有 Vue 2 wrapper 建立 Grid／TreeGrid component；上方按鈕透過 wrapper `allowDragging` prop 同步開啟／關閉 Grid 與 TreeGrid 的資料列拖曳，Vue 管理資料與頁面狀態，cell rendering 與 row drag 仍由 core 負責。
+- Pure JS、Vue 2 與 jQuery Demo 的上方工具列 HTML 結構統一由 `demo/js/grid-toolbar.js` 產生；各 Demo 保留自己的狀態、事件與框架綁定，不得複製工具列 markup。
 
 V1 不提供 Vue cell slot、editor slot 或逐 cell component mount，避免 Vue 負責渲染 virtualized cells。
 
@@ -510,9 +518,9 @@ V1 不提供 Vue cell slot、editor slot 或逐 cell component mount，避免 Vu
 - core events 轉為小寫 jQuery events，固定使用 `.fabgrid` namespace；取消狀態必須回傳 core event args。
 - `destroy` 必須解除 wrapper 的 core event handlers、呼叫 `dispose()` 並清除 instance data，不得移除使用者自己的 jQuery events。
 - wrapper build 完整輸出到 `packages/fabgrid-jquery/dist`，browser minified 版本另同步到 `dist/wrapper/fabgrid-jquery.min.js`；不得併入 `dist/fabui.*` 主 bundle。
-- `demo/dev-jquery-grid.html` 是 source-mode 開發 Demo；`demo/demo-jquery.html` 是 build-mode browser global Demo，只引用 `dist` core 與 wrapper bundle。日常修改不得為了 jQuery wrapper 主動 build。
-- jQuery Demo 必須先載入 `demo/js/demo-jquery.js` adapter，再載入共用 `demo/js/demo.js`；初始化、公開方法與事件必須明確經過 `$.fn.fabgrid` 與 jQuery events，不得只在建立後改用 core instance 操作。
-- `demo/js/demo-jquery.js` 只負責 jQuery adapter，不得複製 `demo/js/demo.js` 的資料、Popup、locale、toolbar 或篩選流程；runtime property 可透過 wrapper option／instance getter 讀取，但所有會改變 Grid 狀態的公開操作必須使用 `$host.fabgrid(...)`。
+- `demo/dev-jquery-grid.html` 是 source-mode 開發 Demo；`demo/grid-jquery.html` 是 build-mode browser global Demo，只引用 `dist` core 與 wrapper bundle。日常修改不得為了 jQuery wrapper 主動 build。
+- jQuery Demo 必須先載入 `demo/js/grid-jquery.js` adapter，再載入共用 `demo/js/grid.js`；初始化、公開方法與事件必須明確經過 `$.fn.fabgrid` 與 jQuery events，不得只在建立後改用 core instance 操作。
+- `demo/js/grid-jquery.js` 只負責 jQuery adapter，不得複製 `demo/js/grid.js` 的資料、Popup、locale、toolbar 或篩選流程；runtime property 可透過 wrapper option／instance getter 讀取，但所有會改變 Grid 狀態的公開操作必須使用 `$host.fabgrid(...)`。
 - jQuery Demo 建立 Grid 後必須保留 `data-demo-adapter="jquery"` 標記，供人工檢查與自動驗證確認實際走 wrapper。
 
 ## 驗收標準

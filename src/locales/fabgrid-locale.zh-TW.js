@@ -33,6 +33,19 @@
       invalidColor: '色碼格式錯誤',
       comboboxLimitToList: '請從清單選擇有效項目'
     },
+    topLeftMenu: {
+      ariaLabel: 'Grid 功能表',
+      showSearchRow: '顯示搜尋列',
+      hideSearchRow: '隱藏搜尋列',
+      rowHeaders: '列號',
+      rowHeadersOff: '列號：關閉',
+      rowHeadersNumbers: '列號：顯示列號',
+      rowHeadersCellOnly: '列號：只顯示 cell',
+      exportExcel: '匯出 Excel',
+      exportCsv: '匯出 CSV',
+      fullscreen: 'Grid 全螢幕',
+      exitFullscreen: '離開全螢幕'
+    },
     aria: {
       cellEditor: '儲存格編輯器',
       openDatePicker: '開啟日期選擇器',
@@ -45,6 +58,9 @@
       columnChooser: '欄位選擇器',
       selectAllRows: '選取所有列',
       selectRow: '選取第 {rowNumber} 列',
+      rowDragItem: 'Grid 資料列',
+      expandNode: '展開節點',
+      collapseNode: '收合節點',
       year: '年份'
     },
     filter: {

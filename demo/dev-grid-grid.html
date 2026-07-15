@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FabGrid Grid + Grid Drag Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260715-grid-grid-drag-v1">
+  <link rel="stylesheet" href="./style/grid-grid.css?v=20260715-grid-grid-drag-v1">
+</head>
+<body>
+  <main class="grid-grid-page">
+    <header class="grid-grid-header">
+      <div>
+        <h1>FabGrid Grid + Grid 拖曳</h1>
+        <p>左右兩側都是一般 Grid，可在各自 Grid 內上下重排，也可拖曳到另一個 Grid。</p>
+      </div>
+      <button id="resetGridGridDemo" type="button">重設資料</button>
+    </header>
+
+    <section class="grid-grid-layout">
+      <article class="grid-grid-panel">
+        <div class="grid-grid-panel-header">
+          <div>
+            <h2>待辦工作</h2>
+            <p>拖曳資料列調整優先順序，或移到右側。</p>
+          </div>
+          <span id="leftGridCount" class="grid-grid-count">-</span>
+        </div>
+        <div id="leftGrid" class="grid-grid-control"></div>
+      </article>
+
+      <article class="grid-grid-panel">
+        <div class="grid-grid-panel-header">
+          <div>
+            <h2>進行中</h2>
+            <p>拖曳資料列調整執行順序，或移回左側。</p>
+          </div>
+          <span id="rightGridCount" class="grid-grid-count">-</span>
+        </div>
+        <div id="rightGrid" class="grid-grid-control"></div>
+      </article>
+    </section>
+
+    <footer class="grid-grid-footer">
+      <div class="grid-grid-drop-help" aria-label="Grid 拖曳落點說明">
+        <span><i class="drop-before"></i>資料列上半部：放在之前</span>
+        <span><i class="drop-after"></i>資料列下半部：放在之後</span>
+      </div>
+      <div id="gridGridStatus" class="grid-grid-status" aria-live="polite">準備中</div>
+    </footer>
+  </main>
+
+  <script src="./js/grid-grid-data.js?v=20260715-grid-grid-drag-v1"></script>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260715-grid-grid-drag-v1';
+
+    window.fabui = fabui;
+    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260715-grid-grid-drag-v1');
+    await import('./js/grid-grid.js?v=20260715-grid-grid-drag-v1');
+  </script>
+</body>
+</html>

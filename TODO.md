@@ -24,10 +24,14 @@
   - group／footer row、frozen pane、column width 與 computed CSS style resolver。
   - style registry、font、fill、border、number format 與 cell XML。
   - ZIP、UTF-8 byte 與 CRC32 writer。
-- [x] `src/grid/fabgrid-data.js` 基礎與主要 view 流程
+- [x] `src/grid/fabgrid-data.js`
   - binding、typed comparison、pagination、remote request／response。
   - itemsSource、observed source、remote load/reload 與 pager options。
   - filter、global／column search、sorting 與 `applyView()`。
+  - grouping prototype 流程、group state、group row 與 aggregate 協調。
+- [x] `src/grid/fabgrid-tree.js`
+  - `childItemsPath` 階層資料讀取、可視樹列扁平化與循環資料保護。
+  - 節點收合狀態、同層排序、篩選祖先路徑、階層鍵盤導覽與 TreeGrid API。
 - [x] `src/grid/fabgrid-editor.js` 基礎 helper
   - mask、caret、copy 與 validation result helper。
 - [x] Grid 專用版面樣式移至 `src/grid/fabgrid.css`。
@@ -35,13 +39,10 @@
 
 尚未完成：
 
-- [ ] 完成 `src/grid/fabgrid-data.js`
-  - 移入 grouping prototype 流程、group state 與 group row 建立協調。
-  - 移入 aggregate prototype 協調；資料 helper 已在 data 模組。
 - [ ] 完成 `src/grid/fabgrid-editor.js`
   - 移入 editor lifecycle、textbox／numberbox、datebox／年月模式、combobox 與 color。
   - 移入同步／非同步 validation、invalid item 狀態與 popup rendering／定位。
-- [ ] 完成上述兩個領域後重新評估 `src/grid/fabgrid.js`；renderer、selection、dragging、resizing 與 virtualization 暫不拆分，除非能維持清楚邊界且不增加循環依賴。
+- [ ] 完成 editor 領域後重新評估 `src/grid/fabgrid.js`；renderer、selection、dragging、resizing 與 virtualization 暫不拆分，除非能維持清楚邊界且不增加循環依賴。
 - [ ] 每批拆分後執行 `npm test`、JavaScript 語法檢查與 `/tmp` 隔離副本 smoke；未明確要求 build 時不得改寫工作區 `dist`。
 
 ## FabUI Chart

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FabGrid TreeGrid Source Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260715-row-pointer-drag-v1">
+  <link rel="stylesheet" href="./style/treegrid.css?v=20260715-treegrid-controls-v1">
+</head>
+<body>
+  <main class="tree-page">
+    <header class="tree-header">
+      <div>
+        <h1>FabGrid TreeGrid</h1>
+        <p>Source-mode：以 childItemsPath 顯示三層組織資料，維持固定列高與雙向 virtualization。</p>
+      </div>
+      <div class="tree-actions">
+        <label class="tree-control tree-toggle">
+          <input id="treeSearchRowToggle" type="checkbox" checked>
+          <span>搜尋列</span>
+        </label>
+        <label class="tree-control">
+          <span>列號</span>
+          <select id="treeRowHeaderMode">
+            <option value="false">關閉</option>
+            <option value="true" selected>顯示列號</option>
+            <option value="cell">只顯示 cell</option>
+          </select>
+        </label>
+        <button id="collapseTree" type="button">全部收合</button>
+        <button id="expandTree" type="button">全部展開</button>
+      </div>
+    </header>
+
+    <section class="tree-card">
+      <div id="treeGrid"></div>
+      <div class="tree-footer">
+        <div class="tree-status">
+          <span id="treeRowCount">目前可視節點：-</span>
+          <span id="treeLastAction">準備中</span>
+        </div>
+        <label class="tree-filter-control">
+          <span>篩選:</span>
+          <span class="tree-filter-input-wrap">
+            <input
+              id="treeQuickSearch"
+              type="search"
+              placeholder="逗號分隔條件，例如 團隊,啟用"
+              autocomplete="off"
+            >
+            <button
+              id="treeQuickSearchMode"
+              class="tree-filter-mode"
+              type="button"
+              aria-label="OR"
+              title="OR"
+            >OR</button>
+            <button
+              id="treeQuickSearchClear"
+              type="button"
+              aria-label="清除篩選"
+              title="清除篩選"
+            >🧹</button>
+          </span>
+        </label>
+      </div>
+    </section>
+    <p class="tree-note">可點擊節點箭頭收合／展開；聚焦樹欄後也可使用鍵盤左右方向鍵操作。</p>
+  </main>
+
+  <script src="./js/treegrid-data.js?v=20260715-treegrid-v1"></script>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260715-row-pointer-drag-v1';
+
+    window.fabui = fabui;
+    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260715-row-pointer-drag-v1');
+    await import('./js/treegrid.js?v=20260715-top-left-row-header-v1');
+  </script>
+</body>
+</html>

@@ -10,6 +10,8 @@ const buildVersion = buildDate.getFullYear() + '.' + (buildDate.getMonth() + 1) 
 const javascriptSources = [
   'chart/chart.js',
   'grid/fabgrid-data.js',
+  'grid/fabgrid-tree.js',
+  'grid/fabgrid-drag.js',
   'grid/fabgrid-editor.js',
   'grid/fabgrid-export.js',
   'editor/editor-definitions.js',
@@ -206,6 +208,12 @@ function verifyBuildOutput() {
   }
   if (javascript.indexOf('function downloadBlob(') < 0) {
     throw new Error('FabGrid export download helper is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('function installFabGridTree(') < 0) {
+    throw new Error('FabGrid TreeGrid module is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('function installFabGridDrag(') < 0) {
+    throw new Error('FabGrid row drag module is missing from the JavaScript bundle.');
   }
   verifyCssAssets(cssFile);
   verifyCssAssets(path.join(distDir, 'fabui.min.css'));

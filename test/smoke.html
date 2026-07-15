@@ -357,6 +357,35 @@
         }
         var resizeEndWidth = grid.visibleColumns[1]._width;
         var headerDividerResizeWorks = resizeStartWidth === 150 && resizeEndWidth === 180;
+        var autoSizingColumnCount = 0;
+        var autoSizedColumnCount = 0;
+        var autoSizingColumnHandler = function(e) {
+          if (e.column === grid.visibleColumns[1]) autoSizingColumnCount += 1;
+        };
+        var autoSizedColumnHandler = function(e) {
+          if (e.column === grid.visibleColumns[1]) autoSizedColumnCount += 1;
+        };
+        grid.on('autoSizingColumn', autoSizingColumnHandler);
+        grid.on('autoSizedColumn', autoSizedColumnHandler);
+        var autoFitOriginalName = grid.source[0].name;
+        grid.source[0].name = 'AutoFit should measure this intentionally long column content value';
+        grid.applyView();
+        grid.render();
+        resizeHandle = document.querySelector('.fg-header-cell[data-col="1"] .fg-resize');
+        if (resizeHandle) {
+          resizeHandle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+        }
+        var autoFitEndWidth = grid.visibleColumns[1]._width;
+        var headerDividerAutoFitWorks = autoFitEndWidth > resizeEndWidth;
+        var autoFitEventsWork = autoSizingColumnCount === 1 && autoSizedColumnCount === 1;
+        grid.off('autoSizingColumn', autoSizingColumnHandler);
+        grid.off('autoSizedColumn', autoSizedColumnHandler);
+        grid.source[0].name = autoFitOriginalName;
+        grid.visibleColumns[1]._width = resizeEndWidth;
+        grid.visibleColumns[1].width = resizeEndWidth;
+        grid.applyView();
+        grid.updateLayout();
+        grid.render();
         grid.showRowHeaders = false;
         var rowHeadersHiddenWorks = grid.showRowHeaders === false &&
           grid.getRowHeaderWidth() === 0 &&
@@ -1075,7 +1104,7 @@
               customEditorButtons[0].className.indexOf('icon-add') >= 0 &&
               customEditorButtons[1].className.indexOf('icon-remove') >= 0 &&
               window.getComputedStyle(customEditorButtons[0]).backgroundImage.indexOf('edit_add.png') >= 0 &&
-              window.getComputedStyle(customEditorButtons[1]).backgroundImage.indexOf('edit_remove_r.png') >= 0 &&
+              window.getComputedStyle(customEditorButtons[1]).backgroundImage.indexOf('edit_remove.png') >= 0 &&
               grid.activeEditor.className.indexOf('fg-editor-with-icons') >= 0 &&
               parseInt(window.getComputedStyle(grid.activeEditor).paddingRight, 10) >= 48;
             if (customEditorButton) {
@@ -1758,6 +1787,9 @@
                 resizeStartWidth: resizeStartWidth,
                 resizeEndWidth: resizeEndWidth,
                 resizeLineBackground: resizeLineBackground,
+                headerDividerAutoFitWorks: headerDividerAutoFitWorks,
+                autoFitEndWidth: autoFitEndWidth,
+                autoFitEventsWork: autoFitEventsWork,
                 rowHeadersHiddenWorks: rowHeadersHiddenWorks,
                 rowHeadersShownWorks: rowHeadersShownWorks,
                 rowHeadersCellOnlyWorks: rowHeadersCellOnlyWorks,

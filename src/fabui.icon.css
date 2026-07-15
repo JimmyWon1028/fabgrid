@@ -43,7 +43,7 @@
 }
 
 .icon-remove {
-  background: url('theme/images/edit_remove_r.png') no-repeat center center;
+  background: url('theme/images/edit_remove.png') no-repeat center center;
 }
 
 .icon-close {
@@ -60,4 +60,12 @@
 
 .icon-check {
   background: url('theme/images/check.png') no-repeat center center;
+}
+
+.icon-fullscreen {
+  background: url('theme/images/fullscreen.png') no-repeat center center;
+}
+
+.icon-search {
+  background: url('theme/images/search.png') no-repeat center center;
 }

@@ -1,0 +1,182 @@
+:root {
+  color: #1f2937;
+  font-family: Inter, "Noto Sans TC", Arial, sans-serif;
+  background: #edf2f7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 880px;
+  margin: 0;
+}
+
+button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #b8c4d4;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #24364b;
+  cursor: pointer;
+  font: inherit;
+}
+
+button:hover {
+  border-color: #4f8fe8;
+  background: #f4f8ff;
+}
+
+.grid-tree-page {
+  display: flex;
+  min-height: 100vh;
+  padding: 16px;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.grid-tree-header,
+.grid-tree-panel-header,
+.grid-tree-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.grid-tree-header {
+  padding: 14px 16px;
+  border: 1px solid #cdd8e5;
+  background: #ffffff;
+}
+
+.grid-tree-header h1,
+.grid-tree-panel-header h2 {
+  margin: 0;
+  color: #18283d;
+}
+
+.grid-tree-header h1 {
+  font-size: 22px;
+}
+
+.grid-tree-panel-header h2 {
+  font-size: 17px;
+}
+
+.grid-tree-header p,
+.grid-tree-panel-header p {
+  margin: 4px 0 0;
+  color: #66758a;
+}
+
+.grid-tree-header p {
+  font-size: 14px;
+}
+
+.grid-tree-panel-header p {
+  font-size: 12px;
+}
+
+.grid-tree-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.grid-tree-drag-toggle-active {
+  border-color: #2f80ed;
+  background: #eaf4ff;
+  color: #1f65bd;
+}
+
+.grid-tree-layout {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 12px;
+}
+
+.grid-tree-panel {
+  display: flex;
+  min-width: 0;
+  min-height: 540px;
+  padding: 12px;
+  border: 1px solid #cdd8e5;
+  background: #ffffff;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grid-tree-count {
+  min-width: 42px;
+  padding: 5px 8px;
+  border-radius: 12px;
+  background: #e8f1ff;
+  color: #2468c5;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.grid-tree-control {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.grid-tree-control > .fg-root {
+  height: 100%;
+  min-height: 470px;
+}
+
+.grid-tree-footer {
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid #cdd8e5;
+  background: #ffffff;
+}
+
+.grid-tree-drop-help {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #526176;
+  font-size: 12px;
+}
+
+.grid-tree-drop-help span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.grid-tree-drop-help i {
+  display: inline-block;
+  width: 22px;
+  height: 8px;
+}
+
+.drop-before,
+.drop-after {
+  border-top: 2px solid #2f80ed;
+}
+
+.drop-inside {
+  border: 2px solid #2f80ed;
+  background: rgba(47, 128, 237, 0.12);
+}
+
+.grid-tree-status {
+  color: #245b9d;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+}
+
+@media (max-width: 1050px) {
+  .grid-tree-drop-help {
+    gap: 8px;
+  }
+}

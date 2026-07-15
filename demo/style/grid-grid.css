@@ -1,0 +1,179 @@
+:root {
+  color: #1f2937;
+  font-family: Inter, "Noto Sans TC", Arial, sans-serif;
+  background: #edf2f7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 880px;
+  margin: 0;
+}
+
+button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #b8c4d4;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #24364b;
+  cursor: pointer;
+  font: inherit;
+}
+
+button:hover {
+  border-color: #4f8fe8;
+  background: #f4f8ff;
+}
+
+.grid-grid-page {
+  display: flex;
+  min-height: 100vh;
+  padding: 16px;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.grid-grid-header,
+.grid-grid-panel-header,
+.grid-grid-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.grid-grid-header {
+  padding: 14px 16px;
+  border: 1px solid #cdd8e5;
+  background: #ffffff;
+}
+
+.grid-grid-header h1,
+.grid-grid-panel-header h2 {
+  margin: 0;
+  color: #18283d;
+}
+
+.grid-grid-header h1 {
+  font-size: 22px;
+}
+
+.grid-grid-panel-header h2 {
+  font-size: 17px;
+}
+
+.grid-grid-header p,
+.grid-grid-panel-header p {
+  margin: 4px 0 0;
+  color: #66758a;
+}
+
+.grid-grid-header p {
+  font-size: 14px;
+}
+
+.grid-grid-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.grid-grid-drag-toggle-active {
+  border-color: #2f80ed;
+  background: #eaf4ff;
+  color: #1f65bd;
+}
+
+.grid-grid-panel-header p {
+  font-size: 12px;
+}
+
+.grid-grid-layout {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.grid-grid-panel {
+  display: flex;
+  min-width: 0;
+  min-height: 540px;
+  padding: 12px;
+  border: 1px solid #cdd8e5;
+  background: #ffffff;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grid-grid-count {
+  min-width: 42px;
+  padding: 5px 8px;
+  border-radius: 12px;
+  background: #e8f1ff;
+  color: #2468c5;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.grid-grid-control {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.grid-grid-control > .fg-root {
+  height: 100%;
+  min-height: 470px;
+}
+
+.grid-grid-footer {
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid #cdd8e5;
+  background: #ffffff;
+}
+
+.grid-grid-drop-help {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #526176;
+  font-size: 12px;
+}
+
+.grid-grid-drop-help span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.grid-grid-drop-help i {
+  display: inline-block;
+  width: 22px;
+  height: 8px;
+  border-top: 2px solid #2f80ed;
+}
+
+.grid-grid-drop-help .drop-after {
+  border-top: 0;
+  border-bottom: 2px solid #2f80ed;
+}
+
+.grid-grid-status {
+  color: #245b9d;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+}
+
+@media (max-width: 1050px) {
+  .grid-grid-drop-help {
+    gap: 8px;
+  }
+}

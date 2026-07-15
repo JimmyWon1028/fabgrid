@@ -4,7 +4,7 @@
 
 # FabGrid
 
-FabUI 提供 pure JavaScript FabGrid 與 SVG Chart。FabGrid 支援雙向 virtualization、凍結欄、排序、搜尋、編輯、群組、分頁與 CSV / Excel 匯出；Chart 支援直條圖、橫條圖、折線圖與圓餅圖。
+FabUI 提供 pure JavaScript FabGrid 與 SVG Chart。FabGrid 支援雙向 virtualization、凍結欄、TreeGrid、排序、搜尋、編輯、群組、分頁與 CSV / Excel 匯出；Chart 支援直條圖、橫條圖、折線圖與圓餅圖。
 
 ## 文件與 Demo
 
@@ -12,9 +12,12 @@ FabUI 提供 pure JavaScript FabGrid 與 SVG Chart。FabGrid 支援雙向 virtua
 - [Chart API 操作手冊](./docs/chart-api.md)
 - [Vue 2 Wrapper API](./docs/vue-api.md)
 - [jQuery Wrapper API](./docs/jquery-api.md)
-- [線上 FabGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/)
+- [線上 FabGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/grid.html)
+- [線上 TreeGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/treegrid.html)
+- [線上 Grid / Grid 拖曳 Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-grid.html)
+- [線上 Grid / TreeGrid 拖曳 Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-treegrid.html)
 - [線上 Chart Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-chart.html)
-- [線上 jQuery Demo](https://jimmywon1028.github.io/fabgrid/demo/demo-jquery.html)
+- [線上 jQuery Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-jquery.html)
 - [工作進度](./worklogs/)
 
 ## 快速使用
@@ -71,17 +74,20 @@ $grid.on('selectionchanged.fabgrid', function(event, args) {
 
 jQuery Demo 分成以下兩層：
 
-- `demo/js/demo-jquery.js`：jQuery 專用 adapter，集中 `$.fn.fabgrid` 方法、option 與 jQuery event 操作。
-- `demo/js/demo.js`：Pure JS 與 jQuery Demo 共用的資料展示、工具列、Popup、篩選及匯出流程。
+- `demo/js/grid-jquery.js`：jQuery 專用 adapter，集中 `$.fn.fabgrid` 方法、option 與 jQuery event 操作。
+- `demo/js/grid.js`：Pure JS 與 jQuery Demo 共用的資料展示、工具列、Popup、篩選及匯出流程。
 
-開發版入口為 `demo/dev-jquery-grid.html`；引用 build 輸出的 browser global 版本為 `demo/demo-jquery.html`。
+開發版入口為 `demo/dev-jquery-grid.html`；引用 build 輸出的 browser global 版本為 `demo/grid-jquery.html`。
 
 ## 主要能力
 
 - 固定列高與欄寬的雙向 virtualization，適合大量資料。
+- `childItemsPath` TreeGrid 模式、節點收合／展開、階層鍵盤導覽、同層排序、保留祖先路徑的篩選，以及收合／篩選後維持原始列號。
+- `allowDragging: 'Rows'` 支援一般 Grid 列重排、跨 Grid 移動、跨 Grid 移入 TreeGrid，以及 TreeGrid `before`／`inside`／`after` 節點上下階；開發範例為 `demo/dev-grid-grid.html` 與 `demo/dev-grid-treegrid.html`，其他範例為 `demo/grid-grid.html`、`demo/grid-grid-vue2.html`、`demo/grid-treegrid.html` 與 `demo/grid-treegrid-vue2.html`。
+- 左上角列頭 cell 右鍵功能表，可切換搜尋列、從「列號」下層選擇關閉／顯示列號／只顯示 cell、匯出 Excel／CSV 與進入或離開 Grid fullscreen。
 - 左右凍結欄、列號欄、欄位顯示切換、footer aggregate 與 1 至 3 階群組。
 - 本機資料或 `remote: true` 遠端分頁、排序與搜尋。
-- 單一 cell 選取、多選列、鍵盤導覽、欄寬調整與欄位拖曳重排。
+- 單一 cell 選取、多選列、鍵盤導覽、欄寬拖曳調整、雙擊 header 分隔線 AutoFit 與欄位拖曳重排。
 - `textbox`、`numberbox`、`datebox`、`combobox`、`color` editor，以及同步／非同步欄位驗證；`datebox` 在 mask 為 `9999/99` 或 `9999-99` 時使用年月 popup，`color` 可輸入 hex 或標準 CSS 顏色名稱，名稱提交後保留原文字。
 - 欄位搜尋列會為 `datebox`、`combobox`、`color` 顯示對應下拉 panel；搜尋輸入僅建立 filter，不執行 cell validation。
 - CSV 與 XLSX 匯出；Excel 支援凍結窗格、篩選、群組、footer、格式與隱藏欄。
@@ -96,6 +102,7 @@ jQuery Demo 分成以下兩層：
 ```text
 src/fabui.js             公開入口
 src/grid/fabgrid.js      FabGrid 核心
+src/grid/fabgrid-tree.js TreeGrid 可視列、狀態與互動
 src/editor/              共用 editor 定義
 ```
 
@@ -107,7 +114,7 @@ src/editor/              共用 editor 定義
 npm run serve
 ```
 
-開啟 `http://127.0.0.1:4173/demo/` 查看 demo。若需要重新產生發佈檔，請執行：
+開啟 `http://127.0.0.1:4173/demo/grid.html` 查看 build-mode Demo，或開啟 `http://127.0.0.1:4173/demo/dev-grid.html` 查看 source-mode Demo。若需要重新產生發佈檔，請執行：
 
 ```bash
 npm run build

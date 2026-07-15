@@ -224,11 +224,235 @@ function clampNumber(value, min, max) {
 
 export function installFabGridData(FabGrid, context) {
   var DEFAULT_OPTIONS = context.DEFAULT_OPTIONS;
+  var formatNumberDisplayText = context.formatNumberDisplayText;
   var getColumnSearchKey = context.getColumnSearchKey;
   var mergeOptions = context.mergeOptions;
   var normalizeColumnSearchOperator = context.normalizeColumnSearchOperator;
   var rowMatchesColumnSearch = context.rowMatchesColumnSearch;
   var rowMatchesSearch = context.rowMatchesSearch;
+
+  FabGrid.prototype.setRowGroups = function(groups, silent) {
+    this.options.rowGroups = Array.isArray(groups) ? groups.slice() : [];
+    this.applyView();
+    this.resetVerticalScroll();
+    if (!silent) {
+      this.refresh();
+    }
+  };
+
+  FabGrid.prototype.createGroupedView = function(rows) {
+    var configs = normalizeGroupConfigs(this.options.rowGroups, 3);
+    var output = [];
+    if (!configs.length) {
+      return rows;
+    }
+
+    this.appendGroupedRows(output, rows, configs, 0, '');
+    return output;
+  };
+
+  FabGrid.prototype.appendGroupedRows = function(output, rows, configs, level, parentStateKey) {
+    var config = configs[level];
+    var buckets;
+    var item;
+    var bucket;
+    var stateKey;
+    var i;
+    if (!config) {
+      return;
+    }
+    buckets = createGroupBuckets(rows, config, this);
+    for (i = 0; i < buckets.length; i += 1) {
+      bucket = buckets[i];
+      stateKey = this.getRowGroupStateKey(parentStateKey, bucket.key, level);
+      item = this.createRowGroupItem(bucket, config, level, stateKey);
+      output.push(item);
+      if (!item.collapsed) {
+        if (level + 1 < configs.length) {
+          this.appendGroupedRows(output, bucket.items, configs, level + 1, stateKey);
+        } else {
+          Array.prototype.push.apply(output, bucket.items);
+        }
+      }
+    }
+  };
+
+  FabGrid.prototype.getRowGroupStateKey = function(parentStateKey, key, level) {
+    return getGroupStateKey(parentStateKey, key, level);
+  };
+
+  FabGrid.prototype.getRowGroupKey = function(item, config, index) {
+    return getGroupKey(item, config, index, this);
+  };
+
+  FabGrid.prototype.createRowGroupItem = function(bucket, config, level, stateKey) {
+    var formatter = config.header || config.formatter || config.label;
+    var headerText = this.getRowGroupHeaderText(config);
+    var label;
+    var item = {
+      __fgRowType: 'group',
+      key: bucket.key,
+      stateKey: stateKey,
+      level: level,
+      items: bucket.items,
+      count: bucket.items.length,
+      collapsed: this.rowGroupState[stateKey] === true,
+      aggregates: this.calculateRowGroupAggregates(bucket.items)
+    };
+    if (typeof formatter === 'function') {
+      label = formatter({
+        grid: this,
+        key: bucket.key,
+        item: bucket.firstItem,
+        items: bucket.items,
+        count: bucket.items.length,
+        level: level,
+        config: config,
+        header: headerText
+      });
+    } else {
+      label = headerText ? headerText + ': ' + bucket.key : bucket.key;
+    }
+    item.label = label == null ? '' : String(label);
+    return item;
+  };
+
+  FabGrid.prototype.getRowGroupHeaderText = function(config) {
+    var bindings = config && (config.bindings || config.binding || config.fields || config.field);
+    var labels = [];
+    var column;
+    var i;
+    if (!Array.isArray(bindings)) {
+      bindings = bindings == null ? [] : [bindings];
+    }
+    for (i = 0; i < bindings.length; i += 1) {
+      column = this.getColumn(bindings[i]);
+      labels.push(column && column.header ? column.header : String(bindings[i]));
+    }
+    return labels.join(' + ');
+  };
+
+  FabGrid.prototype.createRowGroupFooterItem = function(group) {
+    return {
+      __fgRowType: 'groupFooter',
+      key: group.key,
+      stateKey: group.stateKey,
+      level: group.level,
+      group: group,
+      items: group.items,
+      count: group.count,
+      aggregates: group.aggregates
+    };
+  };
+
+  FabGrid.prototype.calculateRowGroupAggregates = function(rows) {
+    var values = {};
+    var i;
+    var column;
+    for (i = 0; i < this.columns.length; i += 1) {
+      column = this.columns[i];
+      if (column.aggregate && column.binding) {
+        values[column.binding] = this.calculateAggregateForRows(column.aggregate, column, rows);
+      }
+    }
+    return values;
+  };
+
+  FabGrid.prototype.calculateAggregate = function(aggregate, column) {
+    return this.calculateAggregateForRows(aggregate, column, this.dataView || this.view);
+  };
+
+  FabGrid.prototype.calculateAggregateForRows = function(aggregate, column, rows) {
+    return calculateAggregate(aggregate, column, rows, this);
+  };
+
+  FabGrid.prototype.formatAggregateValue = function(value, column, rows) {
+    var formatted;
+    if (value == null) {
+      return '';
+    }
+    if (typeof column.footerFormatter === 'function') {
+      formatted = column.footerFormatter(value, column, rows || this.dataView || this.view);
+      return formatted == null ? '' : String(formatted);
+    }
+    if (typeof column.formatter === 'function') {
+      formatted = column.formatter(value, null, column);
+      return formatted == null ? '' : String(formatted);
+    }
+    if (column && column.dataType === 'number') {
+      return formatNumberDisplayText(value, column);
+    }
+    return String(value);
+  };
+
+  FabGrid.prototype.isRowGroup = function(item) {
+    return !!(item && item.__fgRowType === 'group');
+  };
+
+  FabGrid.prototype.isRowGroupFooter = function(item) {
+    return !!(item && item.__fgRowType === 'groupFooter');
+  };
+
+  FabGrid.prototype.getRowGroupAggregateValue = function(group, column) {
+    if (column.binding && Object.prototype.hasOwnProperty.call(group.aggregates, column.binding)) {
+      return group.aggregates[column.binding];
+    }
+    return this.calculateAggregateForRows(column.aggregate, column, group.items || []);
+  };
+
+  FabGrid.prototype.getRowGroupFooterValue = function(footer, column) {
+    if (!footer || !column || !column.aggregate) {
+      return '';
+    }
+    return this.getRowGroupAggregateValue(footer, column);
+  };
+
+  FabGrid.prototype.toggleRowGroup = function(rowIndex) {
+    var group = this.view[rowIndex];
+    if (!this.isRowGroup(group)) {
+      return;
+    }
+    if (this.emit('groupCollapsedChanging', { group: group, collapsed: !group.collapsed }) === false) {
+      return;
+    }
+    this.rowGroupState[group.stateKey || group.key] = !group.collapsed;
+    this.applyView();
+    this.clampSelection();
+    this.render();
+    this.emit('groupCollapsedChanged', {
+      group: group,
+      collapsed: this.rowGroupState[group.stateKey || group.key] === true
+    });
+  };
+
+  FabGrid.prototype.toggleAllRowGroups = function() {
+    var groups = [];
+    var shouldCollapse = false;
+    var i;
+    var group;
+    for (i = 0; i < this.view.length; i += 1) {
+      group = this.view[i];
+      if (this.isRowGroup(group)) {
+        groups.push(group);
+        if (!group.collapsed) {
+          shouldCollapse = true;
+        }
+      }
+    }
+    if (!groups.length) {
+      return;
+    }
+    if (shouldCollapse) {
+      for (i = 0; i < groups.length; i += 1) {
+        this.rowGroupState[groups[i].stateKey || groups[i].key] = true;
+      }
+    } else {
+      this.rowGroupState = createDictionary();
+    }
+    this.applyView();
+    this.clampSelection();
+    this.render();
+  };
 
   FabGrid.prototype.setItemsSource = function(rows, silent) {
     if (!silent && this.emit('itemsSourceChanging', { rows: rows || [] }) === false) {
@@ -236,6 +460,9 @@ export function installFabGridData(FabGrid, context) {
     }
     if (!silent && this.emit('loadingRows', { rows: rows || [] }) === false) {
       return;
+    }
+    if (typeof this.resetTreeState === 'function') {
+      this.resetTreeState();
     }
     this.source = this.createObservedItemsSource(rows || []);
     this.applyView();
@@ -356,6 +583,9 @@ export function installFabGridData(FabGrid, context) {
 
   FabGrid.prototype.loadRemoteData = function(data) {
     var normalized = normalizeRemoteData(data);
+    if (typeof this.resetTreeState === 'function') {
+      this.resetTreeState();
+    }
     this.source = this.createObservedItemsSource(normalized.rows);
     this.paginationTotal = normalized.total;
     this.applyView();
@@ -579,57 +809,109 @@ export function installFabGridData(FabGrid, context) {
     var sortStates = this.getSortStates();
     var selectionState = this.captureSelectionState();
     var indexedRows;
+    var treeOptions;
+    var filtering;
 
-    if (this.options.remote !== true && (filterPredicate || searchText || columnSearchValues)) {
-      rows = rows.filter(function(item, index) {
-        if (filterPredicate && !filterPredicate(item, index)) {
-          return false;
-        }
-        if (!searchText) {
-          return !columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators);
-        }
-        return rowMatchesSearch(item, columns, searchText) && (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators));
-      });
-    }
-
-    if (sortStates.length && this.options.remote !== true) {
-      indexedRows = rows.map(function(item, index) {
-        return { item: item, index: index };
-      });
-      indexedRows.sort(function(a, b) {
-        var comparison;
-        var sortState;
-        var i;
-        for (i = 0; i < sortStates.length; i += 1) {
-          sortState = sortStates[i];
-          comparison = compareValues(
-            getByBinding(a.item, sortState.column.binding),
-            getByBinding(b.item, sortState.column.binding),
-            sortState.column.dataType
-          ) * sortState.direction;
-          if (comparison) {
-            return comparison;
+    if (typeof this.isTreeGrid === 'function' && this.isTreeGrid()) {
+      filtering = this.options.remote !== true && Boolean(filterPredicate || searchText || columnSearchValues);
+      treeOptions = {
+        filtering: filtering,
+        pagination: false,
+        pageNumber: this.options.pageNumber,
+        pageSize: this.options.pageSize,
+        matches: function(item) {
+          if (filterPredicate && !filterPredicate(item)) {
+            return false;
           }
-        }
-        return a.index - b.index;
-      });
-      rows = indexedRows.map(function(entry) {
-        return entry.item;
-      });
-    }
+          if (!searchText) {
+            return !columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators);
+          }
+          return rowMatchesSearch(item, columns, searchText) &&
+            (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators));
+        },
+        compare: sortStates.length && this.options.remote !== true ? function(a, b) {
+          var comparison;
+          var sortState;
+          var i;
+          for (i = 0; i < sortStates.length; i += 1) {
+            sortState = sortStates[i];
+            comparison = compareValues(
+              getByBinding(a, sortState.column.binding),
+              getByBinding(b, sortState.column.binding),
+              sortState.column.dataType
+            ) * sortState.direction;
+            if (comparison) {
+              return comparison;
+            }
+          }
+          return 0;
+        } : null
+      };
+      rows = this.createTreeView(rows, treeOptions);
+      if (this.options.remote !== true) {
+        this.paginationTotal = this._treeRootCount;
+      }
+      if (this.options.pagination === true && this.options.remote !== true) {
+        this.normalizePaginationOptions();
+        treeOptions.pagination = true;
+        treeOptions.pageNumber = this.options.pageNumber;
+        treeOptions.pageSize = this.options.pageSize;
+        rows = this.createTreeView(this.source.slice(), treeOptions);
+      }
+      this.dataView = rows;
+      this.view = rows;
+    } else {
+      if (this.options.remote !== true && (filterPredicate || searchText || columnSearchValues)) {
+        rows = rows.filter(function(item, index) {
+          if (filterPredicate && !filterPredicate(item, index)) {
+            return false;
+          }
+          if (!searchText) {
+            return !columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators);
+          }
+          return rowMatchesSearch(item, columns, searchText) && (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators));
+        });
+      }
 
-    if (this.options.remote !== true) {
-      this.paginationTotal = rows.length;
+      if (sortStates.length && this.options.remote !== true) {
+        indexedRows = rows.map(function(item, index) {
+          return { item: item, index: index };
+        });
+        indexedRows.sort(function(a, b) {
+          var comparison;
+          var sortState;
+          var i;
+          for (i = 0; i < sortStates.length; i += 1) {
+            sortState = sortStates[i];
+            comparison = compareValues(
+              getByBinding(a.item, sortState.column.binding),
+              getByBinding(b.item, sortState.column.binding),
+              sortState.column.dataType
+            ) * sortState.direction;
+            if (comparison) {
+              return comparison;
+            }
+          }
+          return a.index - b.index;
+        });
+        rows = indexedRows.map(function(entry) {
+          return entry.item;
+        });
+      }
+
+      if (this.options.remote !== true) {
+        this.paginationTotal = rows.length;
+      }
+      if (this.options.pagination === true && this.options.remote !== true) {
+        this.normalizePaginationOptions();
+        rows = rows.slice(
+          (this.options.pageNumber - 1) * this.options.pageSize,
+          this.options.pageNumber * this.options.pageSize
+        );
+      }
+      this.dataView = rows;
+      this.view = this.createGroupedView(rows);
     }
-    if (this.options.pagination === true && this.options.remote !== true) {
-      this.normalizePaginationOptions();
-      rows = rows.slice(
-        (this.options.pageNumber - 1) * this.options.pageSize,
-        this.options.pageNumber * this.options.pageSize
-      );
-    }
-    this.dataView = rows;
-    this.view = this.createGroupedView(rows);
     this.refreshInvalidItemRows();
     this.restoreSelectionState(selectionState);
     this.clampSelection();

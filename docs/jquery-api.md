@@ -42,7 +42,7 @@ $("#grid").fabgrid("setItemsSource", nextRows);
 $("#grid").fabgrid("exportExcel", "report.xlsx");
 ```
 
-完整 Demo 的 jQuery adapter 位於 `demo/js/demo-jquery.js`。Grid 初始化、公開方法與事件綁定均透過 `$.fn.fabgrid` 與 jQuery events 執行；共用 `demo.js` 只負責 Demo 流程。
+完整 Demo 的 jQuery adapter 位於 `demo/js/grid-jquery.js`。Grid 初始化、公開方法與事件綁定均透過 `$.fn.fabgrid` 與 jQuery events 執行；共用 `grid.js` 只負責 Demo 流程。
 
 初始化、無回傳值的方法、option setter 與 `destroy` 回傳原 jQuery collection。具有回傳值的 core 方法會回傳方法結果。以多元素 collection 呼叫具有回傳值的方法時，回傳最後一個 element 的結果。
 

@@ -377,7 +377,7 @@ test("jQuery demo adapter routes initialization, methods and events through the 
   };
   var context = { window: { jQuery: $ } };
   runInNewContext(
-    readFileSync(new URL("../demo/js/demo-jquery.js", import.meta.url), "utf8"),
+    readFileSync(new URL("../demo/js/grid-jquery.js", import.meta.url), "utf8"),
     context
   );
   var adapter = context.window.FabGridDemoCreateControl(element, {

@@ -33,6 +33,19 @@
       invalidColor: 'Invalid color',
       comboboxLimitToList: 'Please select a valid item'
     },
+    topLeftMenu: {
+      ariaLabel: 'Grid menu',
+      showSearchRow: 'Show search row',
+      hideSearchRow: 'Hide search row',
+      rowHeaders: 'Row headers',
+      rowHeadersOff: 'Row headers: Off',
+      rowHeadersNumbers: 'Row headers: Numbers',
+      rowHeadersCellOnly: 'Row headers: Cells only',
+      exportExcel: 'Export Excel',
+      exportCsv: 'Export CSV',
+      fullscreen: 'Grid fullscreen',
+      exitFullscreen: 'Exit fullscreen'
+    },
     aria: {
       cellEditor: 'Cell editor',
       openDatePicker: 'Open date picker',
@@ -45,6 +58,9 @@
       columnChooser: 'Column chooser',
       selectAllRows: 'Select all rows',
       selectRow: 'Select row {rowNumber}',
+      rowDragItem: 'Grid row',
+      expandNode: 'Expand node',
+      collapseNode: 'Collapse node',
       year: 'Year'
     },
     filter: {

@@ -118,6 +118,9 @@ server.listen(port, '127.0.0.1', async function() {
       result.resizeStartWidth !== 150 ||
       result.resizeEndWidth !== 180 ||
       !isTransparentColor(result.resizeLineBackground) ||
+      !result.headerDividerAutoFitWorks ||
+      result.autoFitEndWidth <= result.resizeEndWidth ||
+      !result.autoFitEventsWork ||
       !result.rowHeadersHiddenWorks ||
       !result.rowHeadersShownWorks ||
       !result.rowHeadersCellOnlyWorks ||

@@ -33,6 +33,19 @@
       invalidColor: '色码格式错误',
       comboboxLimitToList: '请从列表选择有效项目'
     },
+    topLeftMenu: {
+      ariaLabel: 'Grid 菜单',
+      showSearchRow: '显示搜索行',
+      hideSearchRow: '隐藏搜索行',
+      rowHeaders: '行号',
+      rowHeadersOff: '行号：关闭',
+      rowHeadersNumbers: '行号：显示行号',
+      rowHeadersCellOnly: '行号：仅显示 cell',
+      exportExcel: '导出 Excel',
+      exportCsv: '导出 CSV',
+      fullscreen: 'Grid 全屏',
+      exitFullscreen: '退出全屏'
+    },
     aria: {
       cellEditor: '单元格编辑器',
       openDatePicker: '打开日期选择器',
@@ -45,6 +58,9 @@
       columnChooser: '字段选择器',
       selectAllRows: '选择所有行',
       selectRow: '选择第 {rowNumber} 行',
+      rowDragItem: 'Grid 数据行',
+      expandNode: '展开节点',
+      collapseNode: '折叠节点',
       year: '年份'
     },
     filter: {

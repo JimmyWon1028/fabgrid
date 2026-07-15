@@ -9,11 +9,16 @@ var GRID_EVENTS = [
   'loadSuccess',
   'loadError',
   'itemsSourceChanged',
-  'loadedRows'
+  'loadedRows',
+  'draggedRow',
+  'draggingRow',
+  'rowHeaderModeChanged',
+  'searchRowVisibilityChanged'
 ];
 
 var OPTION_PROPS = [
   'allowEditing',
+  'allowDragging',
   'allowSorting',
   'allowResizing',
   'activeCellBorder',
@@ -108,6 +113,7 @@ function createFabGridVue(Vue, fabui) {
       columns: { type: Array, default: null },
       gridOptions: { type: Object, default: function() { return {}; } },
       allowEditing: { type: Boolean, default: undefined },
+      allowDragging: { type: [Boolean, String], default: undefined },
       allowSorting: { type: Boolean, default: undefined },
       allowResizing: { type: Boolean, default: undefined },
       activeCellBorder: { type: Number, default: undefined },
@@ -156,6 +162,7 @@ function createFabGridVue(Vue, fabui) {
         deep: false
       },
       allowEditing: function(value) { this.applyOption('allowEditing', value); },
+      allowDragging: function(value) { this.applyOption('allowDragging', value); },
       allowSorting: function(value) { this.applyOption('allowSorting', value); },
       allowResizing: function(value) { this.applyOption('allowResizing', value); },
       activeCellBorder: function(value) {
