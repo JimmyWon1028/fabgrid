@@ -221,6 +221,55 @@ function clampNumber(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+function normalizeExcelFilter(filter, normalizeOperator) {
+  var type;
+  var values;
+  if (!filter || typeof filter !== 'object') {
+    return null;
+  }
+  type = String(filter.type || filter.mode || '').toLowerCase();
+  if (type === 'values') {
+    values = Array.isArray(filter.values) ? filter.values.slice() : [];
+    return { type: 'values', values: values };
+  }
+  return null;
+}
+
+function cloneExcelFilter(filter) {
+  if (!filter) {
+    return null;
+  }
+  return filter.type === 'values' ? {
+    type: 'values',
+    values: Array.isArray(filter.values) ? filter.values.slice() : []
+  } : null;
+}
+
+function cloneExcelFilters(filters) {
+  var result = {};
+  var key;
+  var filter;
+  for (key in filters) {
+    if (Object.prototype.hasOwnProperty.call(filters, key)) {
+      filter = cloneExcelFilter(filters[key]);
+      if (filter) {
+        result[key] = filter;
+      }
+    }
+  }
+  return result;
+}
+
+function hasExcelFilters(filters) {
+  var key;
+  for (key in filters || {}) {
+    if (Object.prototype.hasOwnProperty.call(filters, key) && filters[key]) {
+      return true;
+    }
+  }
+  return false;
+}
+
 
 export function installFabGridData(FabGrid, context) {
   var DEFAULT_OPTIONS = context.DEFAULT_OPTIONS;
@@ -228,6 +277,7 @@ export function installFabGridData(FabGrid, context) {
   var getColumnSearchKey = context.getColumnSearchKey;
   var mergeOptions = context.mergeOptions;
   var normalizeColumnSearchOperator = context.normalizeColumnSearchOperator;
+  var rowMatchesExcelFilters = context.rowMatchesExcelFilters;
   var rowMatchesColumnSearch = context.rowMatchesColumnSearch;
   var rowMatchesSearch = context.rowMatchesSearch;
 
@@ -558,6 +608,21 @@ export function installFabGridData(FabGrid, context) {
           });
         }
       });
+    } else {
+      this.columns.forEach(function(column) {
+        var key = getColumnSearchKey(column);
+        var filter = (self.excelFilters || {})[key];
+        if (!filter || typeof column.binding !== 'string' || !column.binding) {
+          return;
+        }
+        if (filter.type === 'values' && Array.isArray(filter.values)) {
+          rules.push({
+            field: column.binding,
+            op: 'in',
+            value: filter.values.slice()
+          });
+        }
+      });
     }
     return {
       q: this.searchText || undefined,
@@ -710,6 +775,7 @@ export function installFabGridData(FabGrid, context) {
     this.searchText = '';
     this.columnSearchValues = {};
     this.columnSearchOperators = {};
+    this.excelFilters = {};
     this.cancelHeaderSearchTimer();
     this.hideFilterMenu();
     this.updateColumnSearchState();
@@ -769,6 +835,60 @@ export function installFabGridData(FabGrid, context) {
     this.applyFilterChange(true, 'clearColumnSearch');
   };
 
+  FabGrid.prototype.setExcelFilter = function(column, filter) {
+    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
+    var key;
+    var normalized;
+    if (!col || this.options.showSearchRow === true) {
+      return false;
+    }
+    this.excelFilters = this.excelFilters || {};
+    key = getColumnSearchKey(col);
+    normalized = normalizeExcelFilter(filter, normalizeColumnSearchOperator);
+    if (normalized) {
+      this.excelFilters[key] = normalized;
+    } else {
+      delete this.excelFilters[key];
+    }
+    this.hideFilterMenu();
+    this.applyFilterChange(false, 'setExcelFilter');
+    return true;
+  };
+
+  FabGrid.prototype.getExcelFilter = function(column) {
+    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
+    var filter;
+    if (!col) {
+      return null;
+    }
+    filter = (this.excelFilters || {})[getColumnSearchKey(col)];
+    return filter ? cloneExcelFilter(filter) : null;
+  };
+
+  FabGrid.prototype.clearExcelFilter = function(column) {
+    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
+    var key;
+    if (!col) {
+      return false;
+    }
+    this.excelFilters = this.excelFilters || {};
+    key = getColumnSearchKey(col);
+    if (!Object.prototype.hasOwnProperty.call(this.excelFilters, key)) {
+      this.hideFilterMenu();
+      return false;
+    }
+    delete this.excelFilters[key];
+    this.hideFilterMenu();
+    this.applyFilterChange(false, 'clearExcelFilter');
+    return true;
+  };
+
+  FabGrid.prototype.clearExcelFilters = function(source) {
+    this.excelFilters = {};
+    this.hideFilterMenu();
+    this.applyFilterChange(false, source || 'clearExcelFilters');
+  };
+
   FabGrid.prototype.clearSearchConditions = function(source) {
     this.searchText = '';
     this.columnSearchValues = {};
@@ -784,6 +904,8 @@ export function installFabGridData(FabGrid, context) {
     var columnSearchValues;
     var columnSearchOperators;
     var columnSearchActive;
+    var excelFilterActive;
+    var excelFilters;
     var active;
     if (this.options.remote === true) {
       this.options.pageNumber = 1;
@@ -803,7 +925,9 @@ export function installFabGridData(FabGrid, context) {
     columnSearchActive = this.options.showSearchRow === true && Object.keys(columnSearchValues).some(function(key) {
       return String(columnSearchValues[key] == null ? '' : columnSearchValues[key]).trim() !== '';
     });
-    active = typeof this.filterPredicate === 'function' || Boolean(this.searchText) || columnSearchActive;
+    excelFilters = cloneExcelFilters(this.excelFilters || {});
+    excelFilterActive = this.options.showSearchRow !== true && hasExcelFilters(excelFilters);
+    active = typeof this.filterPredicate === 'function' || Boolean(this.searchText) || columnSearchActive || excelFilterActive;
     if (source) {
       this.emit('filterChanged', {
         source: source,
@@ -814,6 +938,7 @@ export function installFabGridData(FabGrid, context) {
         searchText: this.searchText || '',
         columnSearchValues: columnSearchValues,
         columnSearchOperators: columnSearchOperators,
+        excelFilters: excelFilters,
         view: this.view,
         viewRowCount: this.view.length
       });
@@ -829,6 +954,7 @@ export function installFabGridData(FabGrid, context) {
     var searchText = this.searchText;
     var columnSearchValues = this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchValues : null;
     var columnSearchOperators = this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchOperators : null;
+    var excelFilters = this.options.showSearchRow !== true && hasExcelFilters(this.excelFilters) ? this.excelFilters : null;
     var columns = this.columns;
     var sortStates = this.getSortStates();
     var selectionState = this.captureSelectionState();
@@ -837,7 +963,7 @@ export function installFabGridData(FabGrid, context) {
     var filtering;
 
     if (typeof this.isTreeGrid === 'function' && this.isTreeGrid()) {
-      filtering = this.options.remote !== true && Boolean(filterPredicate || searchText || columnSearchValues);
+      filtering = this.options.remote !== true && Boolean(filterPredicate || searchText || columnSearchValues || excelFilters);
       treeOptions = {
         filtering: filtering,
         pagination: false,
@@ -848,10 +974,12 @@ export function installFabGridData(FabGrid, context) {
             return false;
           }
           if (!searchText) {
-            return !columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators);
+            return (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators)) &&
+              (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
           }
           return rowMatchesSearch(item, columns, searchText) &&
-            (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators));
+            (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators)) &&
+            (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
         },
         compare: sortStates.length && this.options.remote !== true ? function(a, b) {
           var comparison;
@@ -885,15 +1013,18 @@ export function installFabGridData(FabGrid, context) {
       this.dataView = rows;
       this.view = rows;
     } else {
-      if (this.options.remote !== true && (filterPredicate || searchText || columnSearchValues)) {
+      if (this.options.remote !== true && (filterPredicate || searchText || columnSearchValues || excelFilters)) {
         rows = rows.filter(function(item, index) {
           if (filterPredicate && !filterPredicate(item, index)) {
             return false;
           }
           if (!searchText) {
-            return !columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators);
+            return (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators)) &&
+              (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
           }
-          return rowMatchesSearch(item, columns, searchText) && (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators));
+          return rowMatchesSearch(item, columns, searchText) &&
+            (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators)) &&
+            (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
         });
       }
 

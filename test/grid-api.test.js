@@ -96,3 +96,87 @@ test('updated view can be bound from constructor options', function() {
   assert.equal(sender, grid);
   assert.deepEqual(received, { totalRows: 3 });
 });
+
+test('search row mode changes clear the other column filter mode', function() {
+  var FabGrid = createFabGridFactory({});
+  var events = [];
+  var applies = [];
+  var grid = {
+    options: { showSearchRow: false },
+    searchText: 'quick',
+    excelFilters: { country: { type: 'values', values: ['TW'] } },
+    columnSearchValues: {},
+    columnSearchOperators: {},
+    hasColumnSearch: false,
+    cancelHeaderSearchTimer: function() {},
+    hideFilterMenu: function() {},
+    applyFilterChange: function(reset, source) {
+      applies.push({ reset: reset, source: source });
+    },
+    emit: function(name, args) {
+      events.push({ name: name, args: args });
+    }
+  };
+
+  FabGrid.prototype.setShowSearchRow.call(grid, true);
+  assert.deepEqual(grid.excelFilters, {});
+  assert.equal(grid.searchText, 'quick');
+  assert.equal(events[0].args.clearedFilter, true);
+
+  grid.columnSearchValues = { country: 'T' };
+  grid.columnSearchOperators = { country: 'starts' };
+  grid.hasColumnSearch = true;
+  FabGrid.prototype.setShowSearchRow.call(grid, false);
+
+  assert.deepEqual(grid.columnSearchValues, {});
+  assert.deepEqual(grid.columnSearchOperators, {});
+  assert.equal(grid.hasColumnSearch, false);
+  assert.equal(grid.searchText, 'quick');
+  assert.deepEqual(applies, [
+    { reset: true, source: 'searchRowVisibility' },
+    { reset: true, source: 'searchRowVisibility' }
+  ]);
+});
+
+test('excel value filters are applied only while search row is hidden', function() {
+  var FabGrid = createFabGridFactory({});
+  var columns = [
+    { binding: 'country', dataType: 'string', visible: true },
+    { binding: 'amount', dataType: 'number', visible: true }
+  ];
+  var grid = {
+    options: {
+      showSearchRow: false,
+      remote: false,
+      pagination: false,
+      rowGroups: []
+    },
+    source: [
+      { country: 'Taiwan', amount: 10 },
+      { country: 'Japan', amount: 20 },
+      { country: 'Germany', amount: 30 }
+    ],
+    columns: columns,
+    excelFilters: { 'binding:country': { type: 'values', values: ['Taiwan', 'Japan'] } },
+    filterPredicate: null,
+    searchText: '',
+    columnSearchValues: {},
+    columnSearchOperators: {},
+    hasColumnSearch: false,
+    getSortStates: function() { return []; },
+    captureSelectionState: function() { return null; },
+    isTreeGrid: function() { return false; },
+    createGroupedView: function(rows) { return rows; },
+    refreshInvalidItemRows: function() {},
+    restoreSelectionState: function() {},
+    clampSelection: function() {},
+    syncEditingWithView: function() {}
+  };
+
+  FabGrid.prototype.applyView.call(grid);
+  assert.deepEqual(grid.view.map(function(item) { return item.country; }), ['Taiwan', 'Japan']);
+
+  grid.options.showSearchRow = true;
+  FabGrid.prototype.applyView.call(grid);
+  assert.equal(grid.view.length, 3);
+});

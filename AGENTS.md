@@ -79,7 +79,7 @@ fabgrid-jquery
 
 - 雙向 virtualization、左右凍結欄、固定列高與欄寬；body 凍結分隔線只能由實際渲染的資料列繪製，不得延伸到無資料空白區。
 - 本機與 `remote: true` 資料模式，包含分頁、排序、全域搜尋與欄位篩選。
-- `filterChanged` 會在 predicate、全域搜尋、欄位搜尋與清除 filter 完成套用後觸發；遠端模式的資料完成事件仍使用 `loadSuccess`。
+- `filterChanged` 會在 predicate、全域搜尋、Search Row、Excel-like 欄位篩選、模式切換與清除 filter 完成套用後觸發；遠端模式的資料完成事件仍使用 `loadSuccess`。
 - `updatedView` 支援 constructor option callback，簽名為 `(grid, eventArgs)`；既有 Wijmo-compatible event object 與 native emitter API 必須保持相容。
 - 1 至 3 階列群組、aggregate、群組收合狀態與 Excel 群組匯出。
 - `childItemsPath` TreeGrid、節點收合／展開、同層排序、篩選祖先路徑、收合／篩選後維持原始列號與階層鍵盤導覽。
@@ -90,6 +90,7 @@ fabgrid-jquery
 - CSV 與 Excel 匯出，以及 Excel hidden columns、格式、凍結窗格與 autoFilter。
 - `textbox`、`numberbox`、`datebox`、`combobox`、`color` grid editor；`color` 支援 hex 與標準 CSS 顏色名稱，名稱提交後保留原文字；standalone 控件仍不由 core bundle 公開。
 - 欄位搜尋列遇到 `datebox`、`combobox`、`color` editor 時沿用對應下拉 panel；搜尋輸入只建立 filter，不執行 cell validation。
+- Header 漏斗採互斥的兩套欄位篩選：`showSearchRow: true` 使用原 Search Row 運算子，`false` 使用 Excel-like 值篩選；每次切換模式先清除另一套欄位條件，右下角 Quick Search 保留。
 - `en`、`zh-TW`、`zh-CN` locale 與多組 theme。
 
 後方 V1 章節是初始範圍與架構背景，不得用來否定上述已交付能力。新增或修改功能時，以目前 source、API 文件與 smoke test 契約為準。

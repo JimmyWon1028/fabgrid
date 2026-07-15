@@ -65,6 +65,12 @@
       year: '年份'
     },
     filter: {
+      openMenu: '打开“{column}”筛选菜单',
+      searchValues: '搜索',
+      selectAll: '全选',
+      apply: '应用',
+      cancel: '取消',
+      blankValue: '(空白)',
       startsWith: '开头比对({symbol})',
       contains: '包含比对({symbol})',
       endsWith: '结尾比对({symbol})',

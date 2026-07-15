@@ -17,6 +17,7 @@ function createInstalledGrid(rows, groups, columns) {
     getColumnSearchKey: function(column) { return column.binding; },
     mergeOptions: function(base, override) { return Object.assign({}, base, override); },
     normalizeColumnSearchOperator: function(operator) { return operator || ''; },
+    rowMatchesExcelFilters: function() { return true; },
     rowMatchesColumnSearch: function() { return true; },
     rowMatchesSearch: function() { return true; }
   });
@@ -91,6 +92,7 @@ test('clear filter resets every local filter condition', function() {
   grid.searchText = 'vendor';
   grid.columnSearchValues = { status: 'approved' };
   grid.columnSearchOperators = { status: 'equal' };
+  grid.excelFilters = { country: { type: 'values', values: ['TW'] } };
   grid.cancelHeaderSearchTimer = function() { calls.push('cancel'); };
   grid.hideFilterMenu = function() { calls.push('hide'); };
   grid.updateColumnSearchState = function() { calls.push('update'); };
@@ -104,6 +106,7 @@ test('clear filter resets every local filter condition', function() {
   assert.equal(grid.searchText, '');
   assert.deepEqual(grid.columnSearchValues, {});
   assert.deepEqual(grid.columnSearchOperators, {});
+  assert.deepEqual(grid.excelFilters, {});
   assert.deepEqual(calls, ['cancel', 'hide', 'update', ['apply', false]]);
 });
 

@@ -65,6 +65,12 @@
       year: 'Year'
     },
     filter: {
+      openMenu: 'Open filter menu for {column}',
+      searchValues: 'Search',
+      selectAll: 'Select All',
+      apply: 'Apply',
+      cancel: 'Cancel',
+      blankValue: '(Blanks)',
       startsWith: 'Starts with ({symbol})',
       contains: 'Contains ({symbol})',
       endsWith: 'Ends with ({symbol})',

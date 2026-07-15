@@ -67,7 +67,8 @@ const grid = new fabui.FabGrid('#grid', {
 | `editOnSelect` | `boolean` | `false` | 點選 cell 時直接開始編輯。 |
 | `allowResizing` | `boolean` | `true` | 是否允許拖曳調整欄寬；雙擊 header 分隔線會自動調整為合適欄寬。 |
 | `allowDragging` | `'None' \| 'Columns' \| 'Rows' \| 'All'` | `'None'` | `'Columns'` 重排欄位；`'Rows'` 啟用同一 Grid 或跨 Grid 資料列拖曳；`'All'` 同時啟用兩者。Row drag 僅支援本機資料。 |
-| `showSearchRow` | `boolean` | `false` | 顯示每欄搜尋列；`datebox`、`combobox`、`color` 會沿用對應下拉 panel。搜尋輸入只套用 filter，不執行 cell validation。 |
+| `showSearchRow` | `boolean` | `false` | 顯示每欄搜尋列；顯示時 Header 漏斗使用原有欄位搜尋運算子，隱藏時改用 Excel-like 篩選。切換顯示狀態會先清除另一套欄位篩選，兩套不混用。 |
+| `excelFilterMaxValues` | `number` | `1000` | Excel-like「依值篩選」最多列出的唯一值數量。 |
 | `updatedView` | `function(grid, eventArgs)` | `null` | View 完成更新時呼叫；等同註冊 `grid.updatedView.addHandler()`。 |
 | `searchDelay` | `number` | `200` | 搜尋列輸入 debounce 時間（毫秒）。 |
 | `headerDisplayMode` | `'header' \| 'binding'` | `'header'` | 標題顯示欄位標題或 binding。 |
@@ -238,7 +239,7 @@ const columns = [
 | `setRowHeaderWidth(width)` | Runtime 設定列號欄寬度並自動重新計算 layout 與 refresh；負數會限制為 `0`。 |
 | `setShowRowHeaders(value)` | 切換列號欄。 |
 | `setShowFooter(value)` | 切換 footer aggregate 列。 |
-| `setShowSearchRow(value)` | 切換搜尋列。 |
+| `setShowSearchRow(value)` | 切換搜尋列；切換前會清除另一套欄位篩選，Quick Search 保留。 |
 | `isFullscreen()` | Grid root 目前是否處於 fullscreen。 |
 | `isFullscreenAvailable()` | 瀏覽器是否支援 Grid fullscreen。 |
 | `toggleFullscreen()` | 切換 Grid root fullscreen；不支援時回傳 `false`。 |
@@ -254,12 +255,16 @@ const columns = [
 | 方法 | 說明 |
 | --- | --- |
 | `setFilter(predicate)` | 本機模式設定資料列 predicate；遠端模式不可使用。 |
-| `clearFilter()` | 清除 predicate、全域搜尋與欄位搜尋，並觸發 `filterChanged`。 |
+| `clearFilter()` | 清除 predicate、全域搜尋、Search Row 與 Excel-like 欄位篩選，並觸發 `filterChanged`。 |
 | `setSearch(text)` | 設定全域搜尋字串。 |
 | `setColumnSearch(column, value)` | 設定單欄搜尋值。 |
 | `setColumnSearchOperator(column, operator)` | 設定欄位運算子，例如 `starts`、`contains`、`gte`、`eq`。 |
 | `clearColumnSearch()` | 清除所有欄位搜尋。 |
 | `clearSearchConditions(source)` | 清除全域與欄位搜尋，並觸發 `searchCleared`。 |
+| `setExcelFilter(column, filter)` | Search Rows 隱藏時設定 Excel-like 值篩選，格式為 `{ type: 'values', values: [...] }`。Search Rows 顯示時回傳 `false`。 |
+| `getExcelFilter(column)` | 取得指定欄位 Excel-like filter 的副本；未設定時回傳 `null`。 |
+| `clearExcelFilter(column)` | 清除指定欄位 Excel-like filter。 |
+| `clearExcelFilters(source?)` | 清除全部 Excel-like filters。 |
 
 ### 分頁、遠端載入與選取
 
@@ -315,14 +320,14 @@ grid.on('cellEditEnding', function(e) {
 | `cellEditEnding` / `cellEditEnded` | cell 編輯提交前／後。 |
 | `resizingColumn` / `resizedColumn` | 拖曳欄寬期間／完成後。 |
 | `autoSizingColumn` / `autoSizedColumn` | AutoFit 套用欄寬前／後；前者可取消或調整 `e.width`。 |
-| `searchRowVisibilityChanged` | 呼叫 `setShowSearchRow()` 改變搜尋列顯示狀態後；`e.visible` 為目前狀態。 |
+| `searchRowVisibilityChanged` | 呼叫 `setShowSearchRow()` 改變搜尋列顯示狀態後；`e.visible` 為目前狀態，`e.clearedFilter` 表示切換時是否清除另一套欄位篩選。 |
 | `rowHeaderModeChanged` | 呼叫 `setShowRowHeaders()` 改變列號模式後；`e.mode` 為 `true`、`false` 或 `'cell'`。 |
 | `draggingRow` | Row drag 開始或進入新落點時；可回傳 `false` 取消，`e.phase` 為 `'start'` 或 `'over'`。 |
 | `draggedRow` | Row drop 完成後；包含 `e.sourceGrid`、`e.targetGrid`、`e.item`、`e.targetItem`、`e.position`。 |
 | `groupCollapsedChanging` / `groupCollapsedChanged` | 群組或 TreeGrid 節點收合前／後；TreeGrid event args 會包含 `tree: true`、`row`、`item`、`level`、`collapsed`。 |
 | `viewportChanged` | 可視 row、column 範圍或 render cell 數變動。 |
 | `columnVisibilityChanged` | 欄位顯示狀態變更。 |
-| `filterChanged` | Filter 條件套用完成後觸發；`setFilter()`、全域搜尋、欄位搜尋與所有清除 filter 操作都會觸發。 |
+| `filterChanged` | Filter 條件套用完成後觸發；`setFilter()`、全域搜尋、Search Row、Excel-like 篩選、模式切換與所有清除 filter 操作都會觸發。 |
 | `searchCleared` | 呼叫 `clearSearchConditions()`。 |
 | `excelExporting` / `excelExported` / `excelExportFailed` | Excel 匯出流程。 |
 
@@ -346,7 +351,7 @@ grid.on('filterChanged', function(e) {
 });
 ```
 
-事件參數包含 `source`、`active`、`cleared`、`remote`、`filterPredicate`、`searchText`、`columnSearchValues`、`columnSearchOperators`、`view` 與 `viewRowCount`。遠端模式會在重新載入資料前觸發；資料回傳完成仍使用 `loadSuccess`。
+事件參數包含 `source`、`active`、`cleared`、`remote`、`filterPredicate`、`searchText`、`columnSearchValues`、`columnSearchOperators`、`excelFilters`、`view` 與 `viewRowCount`。遠端模式會在重新載入資料前觸發；資料回傳完成仍使用 `loadSuccess`。
 
 Wijmo-like aliases 也可使用，例如：
 
@@ -383,7 +388,7 @@ var grid = new fabui.FabGrid('#grid', {
 | `sort` | 排序欄位，以逗號區隔；多欄排序時依序排列。 |
 | `order` | `asc` 或 `desc`，與 `sort` 對應。 |
 | `q` | 全域搜尋字串。 |
-| `filterRules` | 欄位搜尋規則 JSON 字串，例如 `[{"field":"status","op":"eq","value":"草稿"}]`。 |
+| `filterRules` | 欄位搜尋規則 JSON 字串，例如 `[{"field":"status","op":"eq","value":"草稿"}]`。Excel-like 值篩選使用 `op: "in"` 並以陣列傳送 `value`。 |
 
 伺服器應回傳 EasyUI 格式：
 
