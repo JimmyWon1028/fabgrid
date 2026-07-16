@@ -596,7 +596,7 @@ export function installFabGridData(FabGrid, context) {
   FabGrid.prototype.getRemoteFilterParams = function() {
     var rules = [];
     var self = this;
-    if (this.options.showSearchRow === true) {
+    if (this.options.allowFiltering !== false && this.options.showSearchRow === true) {
       this.columns.forEach(function(column) {
         var key = getColumnSearchKey(column);
         var value = self.columnSearchValues[key];
@@ -608,7 +608,7 @@ export function installFabGridData(FabGrid, context) {
           });
         }
       });
-    } else {
+    } else if (this.options.allowFiltering !== false) {
       this.columns.forEach(function(column) {
         var key = getColumnSearchKey(column);
         var filter = (self.excelFilters || {})[key];
@@ -790,8 +790,8 @@ export function installFabGridData(FabGrid, context) {
   FabGrid.prototype.setColumnSearch = function(column, value) {
     var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
     var key;
-    if (!col) {
-      return;
+    if (!col || this.options.allowFiltering === false) {
+      return false;
     }
     this.cancelHeaderSearchTimer();
     key = getColumnSearchKey(col);
@@ -803,13 +803,14 @@ export function installFabGridData(FabGrid, context) {
     }
     this.updateColumnSearchState();
     this.applyFilterChange(false, 'setColumnSearch');
+    return true;
   };
 
   FabGrid.prototype.setColumnSearchOperator = function(column, operator) {
     var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
     var key;
-    if (!col) {
-      return;
+    if (!col || this.options.allowFiltering === false) {
+      return false;
     }
     key = getColumnSearchKey(col);
     operator = normalizeColumnSearchOperator(operator);
@@ -820,6 +821,7 @@ export function installFabGridData(FabGrid, context) {
     }
     this.hideFilterMenu();
     this.applyFilterChange(false, 'setColumnSearchOperator');
+    return true;
   };
 
   FabGrid.prototype.applyHeaderSearch = function(colIndex, selectionStart, selectionEnd) {
@@ -839,7 +841,7 @@ export function installFabGridData(FabGrid, context) {
     var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
     var key;
     var normalized;
-    if (!col || this.options.showSearchRow === true) {
+    if (!col || this.options.allowFiltering === false || this.options.showSearchRow === true) {
       return false;
     }
     this.excelFilters = this.excelFilters || {};
@@ -922,11 +924,11 @@ export function installFabGridData(FabGrid, context) {
     this.refresh();
     columnSearchValues = mergeOptions({}, this.columnSearchValues || {});
     columnSearchOperators = mergeOptions({}, this.columnSearchOperators || {});
-    columnSearchActive = this.options.showSearchRow === true && Object.keys(columnSearchValues).some(function(key) {
+    columnSearchActive = this.options.allowFiltering !== false && this.options.showSearchRow === true && Object.keys(columnSearchValues).some(function(key) {
       return String(columnSearchValues[key] == null ? '' : columnSearchValues[key]).trim() !== '';
     });
     excelFilters = cloneExcelFilters(this.excelFilters || {});
-    excelFilterActive = this.options.showSearchRow !== true && hasExcelFilters(excelFilters);
+    excelFilterActive = this.options.allowFiltering !== false && this.options.showSearchRow !== true && hasExcelFilters(excelFilters);
     active = typeof this.filterPredicate === 'function' || Boolean(this.searchText) || columnSearchActive || excelFilterActive;
     if (source) {
       this.emit('filterChanged', {
@@ -952,9 +954,9 @@ export function installFabGridData(FabGrid, context) {
     var rows = this.source.slice();
     var filterPredicate = this.filterPredicate;
     var searchText = this.searchText;
-    var columnSearchValues = this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchValues : null;
-    var columnSearchOperators = this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchOperators : null;
-    var excelFilters = this.options.showSearchRow !== true && hasExcelFilters(this.excelFilters) ? this.excelFilters : null;
+    var columnSearchValues = this.options.allowFiltering !== false && this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchValues : null;
+    var columnSearchOperators = this.options.allowFiltering !== false && this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchOperators : null;
+    var excelFilters = this.options.allowFiltering !== false && this.options.showSearchRow !== true && hasExcelFilters(this.excelFilters) ? this.excelFilters : null;
     var columns = this.columns;
     var sortStates = this.getSortStates();
     var selectionState = this.captureSelectionState();

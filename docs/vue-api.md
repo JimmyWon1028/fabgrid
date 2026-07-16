@@ -43,6 +43,7 @@ Browser bundle 會自動執行 `Vue.use(fabuiVue)`。
 | `columns` | `Array` | 欄位定義；提供後優先於 `FabGridColumn`。 |
 | `gridOptions` | `Object` | 傳給 core 的進階完整 options。 |
 | `allowEditing` | `Boolean` | 是否允許編輯。 |
+| `allowFiltering` | `Boolean` | Search Row 與 Excel-like 欄位篩選的共用開關；關閉時保留 Quick Search。 |
 | `allowSorting` | `Boolean` | 是否允許排序。 |
 | `allowResizing` | `Boolean` | 是否允許調整欄寬。 |
 | `activeCellBorder` | `Number` | Active cell 與 cell editor 邊框寬度，單位為 px。 |

@@ -63,6 +63,7 @@ const grid = new fabui.FabGrid('#grid', {
 | `selectionMode` | `string` | `'Cell'` | 目前使用單一 active cell 模式。 |
 | `activeCellBorder` | `number` | `2` | Active cell 與 cell editor 邊框寬度，單位為 px；設為 `0` 可隱藏邊框。 |
 | `allowSorting` | `boolean` | `true` | 是否允許點擊標題排序。 |
+| `allowFiltering` | `boolean` | `true` | Search Row 與 Excel-like 欄位篩選的共用開關。設為 `false` 會隱藏兩套欄位篩選 UI、清除其條件並保留右下角 Quick Search。 |
 | `allowEditing` | `boolean` | `true` | 是否允許編輯。 |
 | `editOnSelect` | `boolean` | `false` | 點選 cell 時直接開始編輯。 |
 | `allowResizing` | `boolean` | `true` | 是否允許拖曳調整欄寬；雙擊 header 分隔線會自動調整為合適欄寬。 |
@@ -239,6 +240,7 @@ const columns = [
 | `setRowHeaderWidth(width)` | Runtime 設定列號欄寬度並自動重新計算 layout 與 refresh；負數會限制為 `0`。 |
 | `setShowRowHeaders(value)` | 切換列號欄。 |
 | `setShowFooter(value)` | 切換 footer aggregate 列。 |
+| `setAllowFiltering(value)` | Runtime 切換 Search Row 與 Excel-like 欄位篩選；設為 `false` 時清除兩套欄位條件並保留 Quick Search。 |
 | `setShowSearchRow(value)` | 切換搜尋列；切換前會清除另一套欄位篩選，Quick Search 保留。 |
 | `isFullscreen()` | Grid root 目前是否處於 fullscreen。 |
 | `isFullscreenAvailable()` | 瀏覽器是否支援 Grid fullscreen。 |
@@ -257,14 +259,16 @@ const columns = [
 | `setFilter(predicate)` | 本機模式設定資料列 predicate；遠端模式不可使用。 |
 | `clearFilter()` | 清除 predicate、全域搜尋、Search Row 與 Excel-like 欄位篩選，並觸發 `filterChanged`。 |
 | `setSearch(text)` | 設定全域搜尋字串。 |
-| `setColumnSearch(column, value)` | 設定單欄搜尋值。 |
-| `setColumnSearchOperator(column, operator)` | 設定欄位運算子，例如 `starts`、`contains`、`gte`、`eq`。 |
+| `setColumnSearch(column, value)` | 設定單欄搜尋值；`allowFiltering: false` 時回傳 `false`。 |
+| `setColumnSearchOperator(column, operator)` | 設定欄位運算子，例如 `starts`、`contains`、`gte`、`eq`；`allowFiltering: false` 時回傳 `false`。 |
 | `clearColumnSearch()` | 清除所有欄位搜尋。 |
 | `clearSearchConditions(source)` | 清除全域與欄位搜尋，並觸發 `searchCleared`。 |
-| `setExcelFilter(column, filter)` | Search Rows 隱藏時設定 Excel-like 值篩選，格式為 `{ type: 'values', values: [...] }`。Search Rows 顯示時回傳 `false`。 |
+| `setExcelFilter(column, filter)` | Search Rows 隱藏時設定 Excel-like 值篩選，格式為 `{ type: 'values', values: [...] }`。Search Rows 顯示或 `allowFiltering: false` 時回傳 `false`。 |
 | `getExcelFilter(column)` | 取得指定欄位 Excel-like filter 的副本；未設定時回傳 `null`。 |
 | `clearExcelFilter(column)` | 清除指定欄位 Excel-like filter。 |
 | `clearExcelFilters(source?)` | 清除全部 Excel-like filters。 |
+
+Excel-like 篩選 popup 開啟時可按 `Escape` 關閉；尚未按「套用」的選取變更不會寫入篩選條件。
 
 ### 分頁、遠端載入與選取
 

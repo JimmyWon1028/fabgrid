@@ -31,6 +31,7 @@
     frozenColumns: 2,
     frozenRightColumns: 1,
     showRowHeaders: true,
+    allowFiltering: true,
     showSearchRow: false,
     pagination: false,
     remote: false,
@@ -105,7 +106,7 @@
     frozen: document.getElementById("frozenInput"),
     frozenRight: document.getElementById("frozenRightInput"),
     rowHeaders: document.getElementById("rowHeadersInput"),
-    searchRow: document.getElementById("searchRowInput"),
+    filtering: document.getElementById("searchRowInput"),
     pagination: document.getElementById("paginationInput"),
     remote: document.getElementById("remoteInput"),
     groupRows: document.getElementById("groupRowsInput"),
@@ -121,7 +122,7 @@
     frozen: document.getElementById("frozenLabel"),
     frozenRight: document.getElementById("frozenRightLabel"),
     rowHeaders: document.getElementById("rowHeadersLabel"),
-    searchRow: document.getElementById("searchRowLabel"),
+    filtering: document.getElementById("searchRowLabel"),
     pagination: document.getElementById("paginationLabel"),
     remote: document.getElementById("remoteLabel"),
     groupRows: document.getElementById("groupRowsLabel"),
@@ -183,7 +184,7 @@
     return {
       rowHeight: 32,
       headerHeight: 32,
-      activeCellBorder: 2,
+      // activeCellBorder: 2,
       searchDelay: 200,
       overscanRows: 14,
       overscanColumns: 3,
@@ -205,6 +206,7 @@
         showRefresh: true,
       },
       showSearchRow: settings.showSearchRow,
+      allowFiltering: settings.allowFiltering,
       // showFooter: true,
       footerHeight: 32,
       multiSelectRows: settings.multiSelectRows,
@@ -273,7 +275,7 @@
       saveCurrentDemoSettings();
     });
     grid.on("searchRowVisibilityChanged", function (event) {
-      controls.searchRow.checked = event.visible === true;
+      demoSettings.showSearchRow = event.visible === true;
       saveCurrentDemoSettings();
     });
     grid.on("rowHeaderModeChanged", function (event) {
@@ -327,10 +329,11 @@
       );
       saveCurrentDemoSettings();
     });
-    controls.searchRow.addEventListener("change", function (event) {
-      if (grid.setShowSearchRow) {
-        grid.setShowSearchRow(event.target.checked);
+    controls.filtering.addEventListener("change", function (event) {
+      if (grid.setAllowFiltering) {
+        grid.setAllowFiltering(event.target.checked);
       }
+      demoSettings.allowFiltering = event.target.checked;
       saveCurrentDemoSettings();
     });
     controls.pagination.addEventListener("change", handleDataModeChange);
@@ -1098,7 +1101,8 @@
       frozenColumns: controls.frozen.value,
       frozenRightColumns: controls.frozenRight.value,
       showRowHeaders: controls.rowHeaders.value,
-      showSearchRow: controls.searchRow.checked,
+      allowFiltering: controls.filtering.checked,
+      showSearchRow: grid.options.showSearchRow === true,
       pagination: controls.pagination.checked,
       remote: controls.remote.checked,
       rowGroupMode: controls.groupRows
@@ -1134,7 +1138,7 @@
         : settings.showRowHeaders === "cell"
         ? "cell"
         : "false";
-    controls.searchRow.checked = settings.showSearchRow;
+    controls.filtering.checked = settings.allowFiltering;
     controls.pagination.checked = settings.pagination;
     controls.remote.checked = settings.remote;
     if (controls.groupRows) {
@@ -1171,6 +1175,10 @@
       showRowHeaders: normalizeRowHeaderSetting(
         settings.showRowHeaders,
         DEFAULT_DEMO_SETTINGS.showRowHeaders
+      ),
+      allowFiltering: normalizeBooleanSetting(
+        settings.allowFiltering,
+        DEFAULT_DEMO_SETTINGS.allowFiltering
       ),
       showSearchRow: normalizeBooleanSetting(
         settings.showSearchRow,
@@ -1464,7 +1472,7 @@
     labels.frozenRight.textContent = getDemoText("frozenRight");
     labels.rowHeaders.textContent = getDemoText("rowHeaders");
     updateRowHeaderOptions();
-    labels.searchRow.textContent = getDemoText("searchRow");
+    labels.filtering.textContent = getDemoText("filtering");
     labels.pagination.textContent = getDemoText("pagination");
     labels.remote.textContent = getDemoText("remote");
     if (labels.groupRows) {

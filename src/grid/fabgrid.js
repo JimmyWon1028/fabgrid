@@ -49,6 +49,7 @@ export function createFabGridFactory(editorDefinitions) {
     multiSelectRows: false,
     selectionCheckboxWidth: 44,
     allowSorting: true,
+    allowFiltering: true,
     allowEditing: true,
     editOnSelect: false,
     allowResizing: true,
@@ -781,6 +782,24 @@ export function createFabGridFactory(editorDefinitions) {
     this.refresh();
   };
 
+  FabGrid.prototype.setAllowFiltering = function(value) {
+    var enabled = value !== false;
+    var changed = this.options.allowFiltering !== enabled;
+    if (!changed) {
+      return;
+    }
+    this.options.allowFiltering = enabled;
+    if (!enabled) {
+      this.columnSearchValues = {};
+      this.columnSearchOperators = {};
+      this.hasColumnSearch = false;
+      this.excelFilters = {};
+    }
+    this.cancelHeaderSearchTimer();
+    this.hideFilterMenu();
+    this.applyFilterChange(true, 'allowFiltering');
+  };
+
   FabGrid.prototype.setShowSearchRow = function(value) {
     var visible = value === true;
     var changed = this.options.showSearchRow !== visible;
@@ -970,7 +989,7 @@ export function createFabGridFactory(editorDefinitions) {
   FabGrid.prototype.getSearchRowHeight = function() {
     var fallback = toNumber(this.options.rowHeight, DEFAULT_OPTIONS.rowHeight);
     var height = this.options.searchRowHeight == null ? fallback : toNumber(this.options.searchRowHeight, fallback);
-    return this.options.showSearchRow === true ? Math.max(22, height) : 0;
+    return this.options.allowFiltering !== false && this.options.showSearchRow === true ? Math.max(22, height) : 0;
   };
 
   FabGrid.prototype.syncHeaderLayout = function() {
@@ -2144,8 +2163,8 @@ export function createFabGridFactory(editorDefinitions) {
   FabGrid.prototype.hasActiveFilter = function() {
     return !!this.filterPredicate ||
       !!this.searchText ||
-      (this.options.showSearchRow === true && this.hasColumnSearch) ||
-      (this.options.showSearchRow !== true && hasExcelFilterEntries(this.excelFilters));
+      (this.options.allowFiltering !== false && this.options.showSearchRow === true && this.hasColumnSearch) ||
+      (this.options.allowFiltering !== false && this.options.showSearchRow !== true && hasExcelFilterEntries(this.excelFilters));
   };
 
   FabGrid.prototype.getFixedLeftWidth = function() {
@@ -2438,17 +2457,19 @@ export function createFabGridFactory(editorDefinitions) {
     sortWrap.appendChild(sort);
     title.appendChild(sortWrap);
     cell.appendChild(title);
-    filterIcon.className = 'fg-filter-icon' +
-      (this.options.showSearchRow === true && searchOperator ? ' fg-filter-icon-active' : '') +
-      (this.options.showSearchRow !== true && excelFilterActive ? ' fg-filter-icon-excel-active' : '');
-    filterIcon.textContent = this.options.showSearchRow === true && searchOperator ? getColumnSearchOperatorSymbol(searchOperator) : '';
-    filterIcon.setAttribute('data-col', column._viewIndex);
-    filterIcon.setAttribute('role', 'button');
-    filterIcon.setAttribute('aria-label', this.getText('filter.openMenu', { column: this.getHeaderCellText(column) }));
-    filterIcon.setAttribute('aria-haspopup', 'menu');
-    filterIcon.setAttribute('aria-expanded', this.filterMenuColumn === column && this.isFilterMenuOpen() ? 'true' : 'false');
-    title.appendChild(filterIcon);
-    if (this.options.showSearchRow === true) {
+    if (this.options.allowFiltering !== false) {
+      filterIcon.className = 'fg-filter-icon' +
+        (this.options.showSearchRow === true && searchOperator ? ' fg-filter-icon-active' : '') +
+        (this.options.showSearchRow !== true && excelFilterActive ? ' fg-filter-icon-excel-active' : '');
+      filterIcon.textContent = this.options.showSearchRow === true && searchOperator ? getColumnSearchOperatorSymbol(searchOperator) : '';
+      filterIcon.setAttribute('data-col', column._viewIndex);
+      filterIcon.setAttribute('role', 'button');
+      filterIcon.setAttribute('aria-label', this.getText('filter.openMenu', { column: this.getHeaderCellText(column) }));
+      filterIcon.setAttribute('aria-haspopup', 'menu');
+      filterIcon.setAttribute('aria-expanded', this.filterMenuColumn === column && this.isFilterMenuOpen() ? 'true' : 'false');
+      title.appendChild(filterIcon);
+    }
+    if (this.options.allowFiltering !== false && this.options.showSearchRow === true) {
       searchEditorConfig = getColumnEditorConfig(column);
       searchIcons = getColumnSearchIconConfigs(column);
       search = document.createElement('span');
@@ -2542,8 +2563,8 @@ export function createFabGridFactory(editorDefinitions) {
   };
 
   FabGrid.prototype.handleContextMenu = function(event) {
-    var topLeft = closest(event.target, 'fg-row-header-top');
-    if (topLeft !== this.rowHeaderTop) {
+    var headerTitle = closest(event.target, 'fg-header-title');
+    if (!headerTitle) {
       this.hideTopLeftMenu();
       return;
     }
@@ -2597,12 +2618,15 @@ export function createFabGridFactory(editorDefinitions) {
         checked: rowHeaderMode === 'cell'
       }
     ];
-    var items = [
-      {
+    var items = [];
+    if (this.options.allowFiltering !== false) {
+      items.push({
         action: 'toggle-search-row',
         iconClass: 'icon-search',
         label: this.getText(this.options.showSearchRow === true ? 'topLeftMenu.hideSearchRow' : 'topLeftMenu.showSearchRow')
-      },
+      });
+    }
+    items.push(
       {
         action: 'clear-filter',
         iconClass: 'icon-clear',
@@ -2622,7 +2646,7 @@ export function createFabGridFactory(editorDefinitions) {
         label: this.getText(this.isFullscreen() ? 'topLeftMenu.exitFullscreen' : 'topLeftMenu.fullscreen'),
         disabled: !this.isFullscreenAvailable()
       }
-    ];
+    );
     var fragment = document.createDocumentFragment();
     var item;
     var icon;
@@ -2819,7 +2843,7 @@ export function createFabGridFactory(editorDefinitions) {
 
   FabGrid.prototype.showFilterMenu = function(colIndex, anchor) {
     var column = this.visibleColumns[colIndex];
-    if (!column || !this.filterMenu) {
+    if (this.options.allowFiltering === false || !column || !this.filterMenu) {
       return;
     }
     if (this.filterMenuColumn === column && this.isFilterMenuOpen()) {
@@ -4736,7 +4760,7 @@ export function createFabGridFactory(editorDefinitions) {
   FabGrid.prototype.handleTopLeftSearchDblClick = function(event) {
     var topCell;
     var rect;
-    if (this.options.showSearchRow !== true) {
+    if (this.options.allowFiltering === false || this.options.showSearchRow !== true) {
       return false;
     }
     topCell = closest(event.target, 'fg-row-header-top') || closest(event.target, 'fg-selection-top');
@@ -4903,6 +4927,13 @@ export function createFabGridFactory(editorDefinitions) {
     if (this.busy) {
       event.preventDefault();
       event.stopPropagation();
+      return;
+    }
+
+    if (event.key === 'Escape' && this.isFilterMenuOpen()) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.hideFilterMenu();
       return;
     }
 
@@ -8804,6 +8835,14 @@ export function createFabGridFactory(editorDefinitions) {
         },
         set: function(value) {
           this.options.allowSorting = value !== false;
+        }
+      },
+      allowFiltering: {
+        get: function() {
+          return this.options.allowFiltering !== false;
+        },
+        set: function(value) {
+          this.setAllowFiltering(value);
         }
       },
       allowResizing: {

@@ -46,7 +46,7 @@
     "</label>",
     '<label class="toggle">',
     '  <input id="searchRowInput" type="checkbox">',
-    '  <span id="searchRowLabel">搜尋列</span>',
+    '  <span id="searchRowLabel">篩選</span>',
     "</label>",
     '<label class="toggle">',
     '  <input id="paginationInput" type="checkbox">',

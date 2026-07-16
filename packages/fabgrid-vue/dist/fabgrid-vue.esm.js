@@ -19,6 +19,7 @@ var GRID_EVENTS = [
 var OPTION_PROPS = [
   'allowEditing',
   'allowDragging',
+  'allowFiltering',
   'allowSorting',
   'allowResizing',
   'activeCellBorder',
@@ -114,6 +115,7 @@ export function createFabGridVue(Vue, fabui) {
       gridOptions: { type: Object, default: function() { return {}; } },
       allowEditing: { type: Boolean, default: undefined },
       allowDragging: { type: [Boolean, String], default: undefined },
+      allowFiltering: { type: Boolean, default: undefined },
       allowSorting: { type: Boolean, default: undefined },
       allowResizing: { type: Boolean, default: undefined },
       activeCellBorder: { type: Number, default: undefined },
@@ -163,6 +165,11 @@ export function createFabGridVue(Vue, fabui) {
       },
       allowEditing: function(value) { this.applyOption('allowEditing', value); },
       allowDragging: function(value) { this.applyOption('allowDragging', value); },
+      allowFiltering: function(value) {
+        if (!this.control || value === undefined) return;
+        if (typeof this.control.setAllowFiltering === 'function') this.control.setAllowFiltering(value);
+        else this.applyOption('allowFiltering', value);
+      },
       allowSorting: function(value) { this.applyOption('allowSorting', value); },
       allowResizing: function(value) { this.applyOption('allowResizing', value); },
       activeCellBorder: function(value) {
@@ -246,7 +253,11 @@ export function createFabGridVue(Vue, fabui) {
         var self = this;
         if (!this.control) return;
         Object.keys(options).forEach(function(name) {
-          self.control.options[name] = options[name];
+          if (name === 'allowFiltering' && typeof self.control.setAllowFiltering === 'function') {
+            self.control.setAllowFiltering(options[name]);
+          } else {
+            self.control.options[name] = options[name];
+          }
         });
         this.control.invalidate();
       },

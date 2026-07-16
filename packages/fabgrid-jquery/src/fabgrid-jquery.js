@@ -77,6 +77,7 @@ var GRID_EVENTS = [
 
 var SETTER_METHODS = {
   activeCellBorder: 'setActiveCellBorder',
+  allowFiltering: 'setAllowFiltering',
   columns: 'setColumns',
   editMode: 'setEditMode',
   frozenColumns: 'setFrozenColumns',

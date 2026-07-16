@@ -44,7 +44,7 @@ test('Vue wrapper gives columns prop precedence over declared columns', function
     gridOptions: { rowHeight: 31 },
     getDeclaredColumns: function() { return [{ binding: 'name' }]; }
   };
-  ['allowEditing', 'allowSorting', 'allowResizing', 'frozenColumns', 'frozenRightColumns', 'isReadOnly', 'locale', 'pagination', 'pager', 'remote', 'url', 'method', 'loader'].forEach(function(name) {
+  ['allowEditing', 'allowFiltering', 'allowSorting', 'allowResizing', 'frozenColumns', 'frozenRightColumns', 'isReadOnly', 'locale', 'pagination', 'pager', 'remote', 'url', 'method', 'loader'].forEach(function(name) {
     vm[name] = undefined;
   });
   assert.deepEqual(createGridOptions(vm), {
@@ -52,6 +52,27 @@ test('Vue wrapper gives columns prop precedence over declared columns', function
     itemsSource: vm.itemsSource,
     columns: vm.columns
   });
+});
+
+test('Vue wrapper routes allowFiltering grid options through the core setter', function() {
+  var Vue = { component: function() {} };
+  var plugin = createFabGridVue(Vue, { FabGrid: function() {} });
+  var calls = [];
+  var vm = {
+    control: {
+      options: {},
+      setAllowFiltering: function(value) { calls.push(value); },
+      invalidate: function() {}
+    }
+  };
+
+  plugin.FabGrid.methods.applyGridOptions.call(vm, {
+    allowFiltering: false,
+    rowHeight: 36
+  });
+
+  assert.deepEqual(calls, [false]);
+  assert.equal(vm.control.options.rowHeight, 36);
 });
 
 test('Vue wrapper plugin registers FabGrid components', function() {

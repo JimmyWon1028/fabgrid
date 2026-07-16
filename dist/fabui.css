@@ -482,8 +482,8 @@
   position: absolute;
   top: 5px;
   right: 4px;
+  bottom: 0;
   width: 10px;
-  height: 12px;
   color: #cfcfcf;
   cursor: default;
 }
@@ -518,15 +518,14 @@
 .fg-filter-icon-active {
   top: 2px;
   right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   width: 22px;
-  height: 18px;
+  height: auto;
   color: #3b82f6;
   font-size: 13px;
   font-weight: bold;
-  line-height: 1;
+  line-height: 18px;
+  text-align: center;
 }
 
 .fg-filter-icon-active::before,

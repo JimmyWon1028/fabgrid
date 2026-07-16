@@ -191,6 +191,10 @@ FakeGrid.prototype.setShowSearchRow = function (value) {
   this.options.showSearchRow = value;
   this.setterCalls.push(["setShowSearchRow", value]);
 };
+FakeGrid.prototype.setAllowFiltering = function (value) {
+  this.options.allowFiltering = value;
+  this.setterCalls.push(["setAllowFiltering", value]);
+};
 FakeGrid.prototype.invalidate = function () {
   this.invalidations += 1;
 };
@@ -249,6 +253,7 @@ test("jQuery wrapper uses official core setters for dynamic options", function (
   createFabGridJQuery($, { FabGrid: FakeGrid });
   $(element).fabgrid({});
   $(element).fabgrid("option", {
+    allowFiltering: false,
     editMode: true,
     headerDisplayMode: "binding",
     multiSelectRows: true,
@@ -259,6 +264,7 @@ test("jQuery wrapper uses official core setters for dynamic options", function (
     showSearchRow: true,
   });
   assert.deepEqual($(element).fabgrid("instance").setterCalls, [
+    ["setAllowFiltering", false],
     ["setEditMode", true],
     ["setHeaderDisplayMode", "binding"],
     ["setMultiSelectRows", true],

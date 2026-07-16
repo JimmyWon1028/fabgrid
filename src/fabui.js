@@ -1,6 +1,6 @@
 import { createEditorDefinitions } from './editor/editor-definitions.js?v=20260713-color-names-v10';
 import { createChartFactory } from './chart/chart.js?v=20260712-pie-label-v1';
-import { createFabGridFactory } from './grid/fabgrid.js?v=20260716-excel-value-filter-v1';
+import { createFabGridFactory } from './grid/fabgrid.js?v=20260716-excel-filter-escape-v1';
 
 var editorDefinitions = createEditorDefinitions();
 var FabGrid = createFabGridFactory(editorDefinitions);
