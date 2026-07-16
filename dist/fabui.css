@@ -1,4 +1,4 @@
-/*! FabUI styles | FabGrid-only pure JavaScript bundle */
+/*! FabUI styles | Pure JavaScript UI bundle */
 /* FabUI public style entry. Keep imports ordered from shared foundations to themes. */
 .fui-chart { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 240px; box-sizing: border-box; color: #1f2937; font-family: helvetica, tahoma, verdana, sans-serif; background: #fff; }
 .fui-chart-title { flex: 0 0 auto; padding: 12px 16px 4px; text-align: center; font-size: 16px; font-weight: 600; }
@@ -2368,6 +2368,477 @@
 @keyframes fg-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+.fg-root.fg-pivot-grid {
+  --fg-pivot-total-bg: color-mix(in srgb, var(--fg-header-bg) 72%, var(--fg-cell-bg));
+  --fg-pivot-detail-backdrop: rgb(15 23 42 / 28%);
+}
+
+.fg-pivot-grid .fg-pivot-header-cell {
+  justify-content: center;
+  border-bottom: 1px dotted var(--fg-border);
+  background-color: var(--fg-header-bg);
+  color: var(--fg-header-text);
+}
+
+.fg-pivot-grid .fg-pivot-header-title {
+  width: 100%;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px;
+}
+
+.fg-pivot-grid .fg-pivot-row-field-header .fg-pivot-header-title {
+  justify-content: flex-start;
+  cursor: pointer;
+}
+
+.fg-pivot-grid .fg-pivot-filter-field-header {
+  z-index: 2;
+  justify-content: stretch;
+  border-right: 1px solid var(--fg-border-strong);
+}
+
+.fg-pivot-grid .fg-pivot-filter-field-header .fg-pivot-header-title {
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 3px 6px;
+}
+
+.fg-pivot-grid .fg-pivot-filter-field-label {
+  flex: 0 1 auto;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-grid .fg-pivot-filter-field-select {
+  flex: 1 1 auto;
+  min-width: 58px;
+  height: 24px;
+  padding: 0 22px 0 6px;
+  border: 1px solid var(--fg-border-strong);
+  border-radius: 2px;
+  background: var(--fg-cell-bg);
+  color: var(--fg-cell-text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.fg-pivot-grid .fg-pivot-filter-field-select:focus {
+  border-color: var(--fg-selected-border);
+  outline: 1px solid var(--fg-selected-border);
+}
+
+.fg-pivot-grid .fg-pivot-row-field-header .fg-header-label::after {
+  display: inline-block;
+  margin-left: 5px;
+  color: var(--fg-header-text);
+  content: "↕";
+  font-size: 11px;
+  opacity: .65;
+}
+
+.fg-pivot-grid .fg-pivot-row-field-cell {
+  justify-content: flex-start;
+  background-color: var(--fg-cell-bg);
+}
+
+.fg-pivot-grid .fg-pivot-row-merged-cell {
+  z-index: 2;
+  align-items: center;
+  gap: 4px;
+  border-bottom-style: solid;
+  background-color: var(--fg-cell-bg);
+}
+
+.fg-pivot-grid .fg-pivot-row-merged-label {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-grid .fg-pivot-row-merged-covered {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.fg-pivot-grid .fg-pivot-row-merged-cell .fg-pivot-row-toggle {
+  flex: 0 0 18px;
+}
+
+.fg-pivot-grid .fg-pivot-total-cell {
+  background-color: var(--fg-pivot-total-bg);
+  font-weight: 600;
+}
+
+.fg-pivot-grid .fg-pivot-total-cell.fg-selected,
+.fg-pivot-grid .fg-pivot-total-cell.fg-range-selected {
+  background-color: var(--fg-selected-bg);
+}
+
+.fg-pivot-toggle {
+  display: inline-flex;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--fg-border-strong);
+  border-radius: 2px;
+  background: var(--fg-cell-bg);
+  color: var(--fg-cell-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fg-pivot-toggle:hover,
+.fg-pivot-toggle:focus-visible {
+  border-color: var(--fg-selected-border);
+  outline: 1px solid var(--fg-selected-border);
+}
+
+.fg-pivot-column-toggle {
+  background: var(--fg-header-bg);
+  color: var(--fg-header-text);
+}
+
+.fg-pivot-detail-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--fg-pivot-detail-backdrop);
+}
+
+.fg-pivot-detail-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(900px, 94%);
+  height: min(560px, 88%);
+  overflow: hidden;
+  border: 1px solid var(--fg-border-strong);
+  border-radius: 4px;
+  background: var(--fg-cell-bg);
+  box-shadow: 0 12px 32px rgb(15 23 42 / 28%);
+  color: var(--fg-cell-text);
+}
+
+.fg-pivot-detail-header {
+  display: flex;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--fg-border-strong);
+  background: var(--fg-header-bg);
+  color: var(--fg-header-text);
+}
+
+.fg-pivot-detail-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-detail-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fg-pivot-detail-close:hover,
+.fg-pivot-detail-close:focus-visible {
+  border-color: var(--fg-border-strong);
+  background: var(--fg-selected-bg);
+  outline: none;
+}
+
+.fg-pivot-detail-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.fg-pivot-detail-body > .fg-root {
+  min-height: 0;
+  border: 0;
+}
+
+@supports not (color: color-mix(in srgb, white, black)) {
+  .fg-root.fg-pivot-grid {
+    --fg-pivot-total-bg: #f4f4f4;
+  }
+}
+
+.fg-root.fg-pivot-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+  min-height: 420px;
+  overflow: hidden;
+  border: 1px solid var(--fg-border-strong);
+  background: var(--fg-cell-bg);
+  color: var(--fg-cell-text);
+  font-family: helvetica, tahoma, verdana, sans-serif;
+  font-size: 14px;
+}
+
+.fg-pivot-panel-header {
+  display: flex;
+  flex: 0 0 38%;
+  min-height: 150px;
+  flex-direction: column;
+  border-bottom: 1px solid var(--fg-border-strong);
+}
+
+.fg-pivot-panel-areas {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fg-pivot-panel-section {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--fg-border);
+  border-bottom: 1px solid var(--fg-border);
+}
+
+.fg-pivot-panel-section:nth-child(2n) {
+  border-right: 0;
+}
+
+.fg-pivot-panel-section-title {
+  display: flex;
+  flex: 0 0 30px;
+  align-items: center;
+  height: 30px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--fg-border);
+  background: var(--fg-header-bg);
+  color: var(--fg-header-text);
+  font-weight: 600;
+}
+
+.fg-pivot-panel-list {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 52px;
+  overflow: auto;
+  padding: 4px;
+  background: var(--fg-cell-bg);
+  transition: background-color .12s ease, box-shadow .12s ease;
+}
+
+.fg-pivot-panel-fields {
+  display: grid;
+  align-content: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fg-pivot-panel-field,
+.fg-pivot-panel-item {
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+}
+
+.fg-pivot-panel-field:hover,
+.fg-pivot-panel-item:hover {
+  border-color: var(--fg-border);
+  background: var(--fg-cell-hover-bg);
+}
+
+.fg-pivot-panel-field label {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 30px;
+  gap: 6px;
+  padding: 0 6px;
+  cursor: pointer;
+}
+
+.fg-pivot-panel-field-check {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.fg-pivot-panel-field-type {
+  display: inline-flex;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-right: 1px solid var(--fg-border);
+  color: var(--fg-header-text);
+  font-size: 11px;
+}
+
+.fg-pivot-panel-field-label,
+.fg-pivot-panel-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-panel-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 3px;
+  padding: 2px 3px;
+  border-color: var(--fg-border);
+  background: var(--fg-header-bg);
+  color: var(--fg-header-text);
+  cursor: grab;
+}
+
+.fg-pivot-panel-item:last-child {
+  margin-bottom: 0;
+}
+
+.fg-pivot-panel-drag {
+  flex: 0 0 14px;
+  color: var(--fg-header-text);
+  font-size: 10px;
+  letter-spacing: -3px;
+}
+
+.fg-pivot-panel-item-label {
+  flex: 1 1 auto;
+}
+
+.fg-pivot-panel-value-item .fg-pivot-panel-item-label {
+  font-weight: 600;
+}
+
+.fg-pivot-panel-aggregate-menu {
+  z-index: 48;
+}
+
+.fg-pivot-panel-menu-title {
+  overflow: hidden;
+  min-height: 32px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #d8d8d8;
+  background: var(--fg-header-bg);
+  color: var(--fg-header-text);
+  font-weight: 600;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-panel-item-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.fg-pivot-panel-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--fg-border);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.fg-pivot-panel-action:hover,
+.fg-pivot-panel-action:focus-visible {
+  background: var(--fg-selected-bg);
+  color: var(--fg-cell-text);
+  outline: none;
+}
+
+.fg-pivot-panel-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 8px;
+  color: var(--fg-header-text);
+  font-style: italic;
+  text-align: center;
+}
+
+.fg-pivot-panel-drop-active {
+  background: var(--fg-selected-bg);
+  box-shadow: inset 0 0 0 2px var(--fg-selected-border);
+}
+
+.fg-pivot-panel-dragging {
+  opacity: .45;
+}
+
+.fg-pivot-panel-insert-line {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 2px;
+  height: 2px;
+  margin: 1px 2px 2px;
+  border-radius: 1px;
+  background: var(--fg-selected-border);
+  box-shadow: 0 0 0 1px var(--fg-cell-bg);
+  pointer-events: none;
+}
+
+.fg-pivot-panel-insert-line::before {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg-selected-border);
+  content: '';
+}
+
+@media (max-width: 920px) {
+  .fg-root.fg-pivot-panel {
+    min-height: 520px;
+  }
+
+  .fg-pivot-panel-fields {
+    grid-template-columns: 1fr;
   }
 }
 

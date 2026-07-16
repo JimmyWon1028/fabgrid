@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FabUI PivotGrid Build Demo</title>
+  <link rel="stylesheet" href="../dist/fabui.css?v=20260716-pivot-build-v11">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body { margin: 0; color: #1f2937; background: #f3f4f6; font-family: helvetica, tahoma, verdana, sans-serif; }
+    .page { display: flex; width: 100%; height: 100vh; height: 100dvh; min-height: 0; margin: 0; padding: 10px; flex-direction: column; }
+    .header { display: flex; flex: 0 0 auto; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+    .header h1 { margin: 0; font-size: 24px; }
+    .toolbar { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; scrollbar-width: none; }
+    .toolbar::-webkit-scrollbar { display: none; }
+    .toolbar button, .toolbar select { height: 30px; padding: 0 11px; border: 1px solid #b8c4d4; border-radius: 3px; background: #fff; cursor: pointer; }
+    .toolbar > button, .toolbar > select, .toolbar > span { flex: 0 0 auto; }
+    .toolbar span { margin-left: auto; color: #64748b; font-size: 13px; }
+    .card { overflow: hidden; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
+    .workspace { display: grid; min-width: 0; min-height: 0; overflow: hidden; flex: 1 1 auto; gap: 12px; grid-template-columns: 320px minmax(0, 1fr); }
+    .workspace.pivot-panel-hidden { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+    .workspace.pivot-panel-hidden .panel-card { display: none; }
+    .panel-card, .pivot-card { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
+    .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 38px; margin: 0; padding: 0 12px; border-bottom: 1px solid #cbd5e1; font-size: 14px; }
+    .panel-title-actions { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; }
+    .panel-title-actions button { height: 27px; padding: 0 9px; border: 1px solid #b8c4d4; border-radius: 3px; background: #fff; color: #1f2937; cursor: pointer; font: inherit; font-size: 12px; font-weight: normal; }
+    .panel-title-actions button:hover { border-color: #2b7fd3; background: #eef6ff; }
+    #pivotPanel, #pivotGrid { min-height: 0; height: 100%; flex: 1 1 auto; }
+    #pivotPanel { border: 0; }
+    @media (max-width: 900px) {
+      .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+      .workspace.pivot-panel-hidden { grid-template-rows: minmax(0, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .page { padding: 10px; }
+      .header { align-items: center; margin-bottom: 8px; }
+      .header h1 { margin: 0; font-size: 20px; }
+      .toolbar { overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; margin-bottom: 8px; padding: 6px 8px; }
+      .workspace { gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div><h1>fabui.pivot.PivotGrid Build Demo</h1></div>
+    </header>
+    <section class="toolbar">
+      <select id="viewSelect" aria-label="View">
+        <option value="region-product">季度／區域／產品</option>
+        <option value="basic">季度／平台</option>
+        <option value="region">季度／區域</option>
+      </select>
+      <button id="saveView" type="button">儲存 View</button>
+      <button id="loadView" type="button">載入 View</button>
+      <span id="stats"></span>
+    </section>
+    <div id="pivotWorkspace" class="workspace">
+      <section id="pivotPanelCard" class="card panel-card"><h2 class="panel-title">定義 View</h2><div id="pivotPanel"></div></section>
+      <section class="card pivot-card">
+        <h2 class="panel-title">
+          銷售分析
+          <span class="panel-title-actions">
+            <button id="togglePivotPanel" type="button" aria-controls="pivotPanelCard" aria-expanded="true">隱藏定義</button>
+            <button id="toggleAllGroups" type="button" data-action="collapse">全部疊合</button>
+          </span>
+        </h2>
+        <div id="pivotGrid"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="../dist/fabui.min.js?v=20260716-pivot-build-v11"></script>
+  <script>
+    (function() {
+      var regions = ['北區', '中區', '南區', '東區'];
+      var platforms = ['Web', 'Mobile'];
+      var products = ['FabGrid', 'FabChart', 'FabForms'];
+      var agents = ['Amy', 'Ben', 'Cindy', 'David', 'Eva', 'Frank'];
+      var rows = [];
+      var i;
+      var sales;
+      var engine;
+      var pivot;
+      var panel;
+      var definitions;
+      var toggleAllGroupsButton;
+
+      function updateAllGroupsButton() {
+        var hasToggle = !!pivot.root.querySelector('.fg-pivot-row-toggle, .fg-pivot-column-toggle');
+        var hasExpanded = !!pivot.root.querySelector(
+          '.fg-pivot-row-toggle[aria-expanded="true"], .fg-pivot-column-toggle[aria-expanded="true"]'
+        );
+        toggleAllGroupsButton.disabled = !hasToggle;
+        toggleAllGroupsButton.setAttribute('data-action', hasExpanded ? 'collapse' : 'expand');
+        toggleAllGroupsButton.textContent = hasExpanded ? '全部疊合' : '全部展開';
+      }
+
+      for (i = 0; i < 10000; i += 1) {
+        sales = 40 + (i * 37) % 980;
+        rows.push({
+          quarter: 2025 + Math.floor((i % 18) / 12) + ' Q' + (Math.floor((i % 12) / 3) + 1),
+          agent: agents[i % agents.length],
+          region: regions[(i * 3) % regions.length],
+          platform: platforms[(i * 5) % platforms.length],
+          product: products[(i * 7) % products.length],
+          sales: sales,
+          downloads: 20 + (i * 19) % 720,
+          revenue: Math.round(sales * 2.35 * 100) / 100
+        });
+      }
+      engine = new fabui.pivot.PivotEngine({
+        itemsSource: rows,
+        fields: [
+          { key: 'quarter', binding: 'quarter', header: '季度', width: 120 },
+          { key: 'agent', binding: 'agent', header: '業務', width: 100 },
+          { key: 'region', binding: 'region', header: '區域', width: 100 },
+          { key: 'platform', binding: 'platform', header: '平台', width: 110 },
+          { key: 'product', binding: 'product', header: '產品', width: 118 },
+          { key: 'sales', binding: 'sales', header: '銷售額', dataType: 'number', aggregate: 'Sum', format: 'n0' },
+          { key: 'downloads', binding: 'downloads', header: '下載數', dataType: 'number', aggregate: 'Sum', format: 'n0' },
+          { key: 'revenue', binding: 'revenue', header: '營收', dataType: 'number', aggregate: 'Sum', format: 'n2' }
+        ],
+        rowFields: ['quarter', 'region'],
+        columnFields: ['platform', 'product'],
+        valueFields: ['sales', 'downloads', 'revenue'],
+        filterFields: ['agent'],
+        showRowTotals: 'Subtotals',
+        showColumnTotals: 'Subtotals'
+      });
+      pivot = new fabui.pivot.PivotGrid('#pivotGrid', {
+        itemsSource: engine,
+        locale: 'zh-TW',
+        collapsibleSubtotals: true,
+        showDetailOnDoubleClick: true,
+        customContextMenu: true
+      });
+      panel = new fabui.pivot.PivotPanel('#pivotPanel', { itemsSource: engine, locale: 'zh-TW' });
+      pivot.root.classList.add('fg-theme-default');
+      panel.hostElement.classList.add('fg-theme-default');
+      definitions = {
+        basic: { rowFields: ['quarter'], columnFields: ['platform'], valueFields: ['sales', 'downloads', 'revenue'], filterFields: ['agent'] },
+        region: { rowFields: ['quarter', 'region'], columnFields: [], valueFields: ['sales', 'downloads', 'revenue'], filterFields: ['agent'] },
+        'region-product': { rowFields: ['quarter', 'region'], columnFields: ['platform', 'product'], valueFields: ['sales', 'downloads', 'revenue'], filterFields: ['agent'] }
+      };
+      toggleAllGroupsButton = document.getElementById('toggleAllGroups');
+      toggleAllGroupsButton.onclick = function(event) {
+        if (event.currentTarget.getAttribute('data-action') === 'collapse') {
+          pivot.collapseAll();
+        } else {
+          pivot.expandAll();
+        }
+        window.requestAnimationFrame(updateAllGroupsButton);
+      };
+      document.getElementById('togglePivotPanel').onclick = function(event) {
+        var workspace = document.getElementById('pivotWorkspace');
+        var hidden = workspace.classList.toggle('pivot-panel-hidden');
+        event.currentTarget.textContent = hidden ? '開啟定義' : '隱藏定義';
+        event.currentTarget.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+        window.requestAnimationFrame(function() {
+          pivot.refresh();
+        });
+      };
+      pivot.root.addEventListener('click', function(event) {
+        if (event.target.classList.contains('fg-pivot-row-toggle') ||
+            event.target.classList.contains('fg-pivot-column-toggle')) {
+          window.requestAnimationFrame(updateAllGroupsButton);
+        }
+      });
+      engine.updatedView.addHandler(function() {
+        window.requestAnimationFrame(updateAllGroupsButton);
+      });
+      document.getElementById('viewSelect').onchange = function(event) {
+        var selected = definitions[event.target.value];
+        var definition = engine.viewDefinition;
+        definition.rowFields = selected.rowFields;
+        definition.columnFields = selected.columnFields;
+        definition.valueFields = selected.valueFields;
+        definition.filterFields = selected.filterFields;
+        engine.viewDefinition = definition;
+      };
+      document.getElementById('saveView').onclick = function() {
+        localStorage.setItem('fabui.pivot.viewDefinition', panel.viewDefinition);
+      };
+      document.getElementById('loadView').onclick = function() {
+        var definition = localStorage.getItem('fabui.pivot.viewDefinition');
+        if (definition) panel.viewDefinition = definition;
+      };
+      function updateStats() {
+        document.getElementById('stats').textContent = '原始 ' + rows.length.toLocaleString() +
+          ' 筆 · Pivot ' + pivot.view.length.toLocaleString() + ' 列 × ' + pivot.visibleColumns.length.toLocaleString() + ' 欄';
+      }
+      engine.updatedView.addHandler(updateStats);
+      pivot.updatedView.addHandler(updateStats);
+      updateStats();
+      updateAllGroupsButton();
+      window.pivotEngine = engine;
+      window.pivotGrid = pivot;
+      window.pivotPanel = panel;
+    }());
+  </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-/*! FabUI ES module | FabGrid-only pure JavaScript bundle */
+/*! FabUI ES module | Pure JavaScript UI bundle */
 var controlRegistry = new WeakMap();
 
 function resolveControlElement(element) {
@@ -16046,15 +16046,2683 @@ function createFabGridFactory(editorDefinitions) {
   return FabGrid;
 }
 
+var PivotAggregate = Object.freeze({
+  Sum: 'Sum',
+  Count: 'Count',
+  Average: 'Average',
+  Min: 'Min',
+  Max: 'Max'
+});
+
+var PivotShowTotals = Object.freeze({
+  None: 'None',
+  GrandTotals: 'GrandTotals',
+  Subtotals: 'Subtotals'
+});
+
+function PivotEvent() {
+  this.handlers = [];
+}
+
+PivotEvent.prototype.addHandler = function(handler, self) {
+  if (typeof handler === 'function') {
+    this.handlers.push({ handler: handler, self: self || null });
+  }
+  return this;
+};
+
+PivotEvent.prototype.removeHandler = function(handler, self) {
+  var matchSelf = arguments.length > 1;
+  var i;
+  for (i = this.handlers.length - 1; i >= 0; i -= 1) {
+    if (this.handlers[i].handler === handler && (!matchSelf || this.handlers[i].self === self)) {
+      this.handlers.splice(i, 1);
+    }
+  }
+  return this;
+};
+
+PivotEvent.prototype.raise = function(sender, args) {
+  var handlers = this.handlers.slice();
+  var i;
+  for (i = 0; i < handlers.length; i += 1) {
+    handlers[i].handler.call(handlers[i].self || sender, sender, args || {});
+  }
+};
+
+function getPivotBindingValue(item, binding) {
+  var parts;
+  var value = item;
+  var i;
+  if (!binding) {
+    return undefined;
+  }
+  parts = String(binding).split('.');
+  for (i = 0; i < parts.length; i += 1) {
+    if (value == null) {
+      return undefined;
+    }
+    value = value[parts[i]];
+  }
+  return value;
+}
+
+function inferDataType(value) {
+  if (value instanceof Date) {
+    return 'date';
+  }
+  if (typeof value === 'number') {
+    return 'number';
+  }
+  if (typeof value === 'boolean') {
+    return 'boolean';
+  }
+  return 'string';
+}
+
+function createHeader(binding) {
+  return String(binding || '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/^./, function(character) {
+      return character.toUpperCase();
+    });
+}
+
+function normalizeAggregate(value, dataType) {
+  var text = String(value || '').toLowerCase();
+  if (text === 'count') return PivotAggregate.Count;
+  if (text === 'average' || text === 'avg') return PivotAggregate.Average;
+  if (text === 'min') return PivotAggregate.Min;
+  if (text === 'max') return PivotAggregate.Max;
+  if (text === 'sum') return PivotAggregate.Sum;
+  return dataType === 'number' ? PivotAggregate.Sum : PivotAggregate.Count;
+}
+
+function normalizeTotals(value, fallback) {
+  var text = String(value || '').toLowerCase();
+  if (text === 'none') return PivotShowTotals.None;
+  if (text === 'subtotals' || text === 'subtotal') return PivotShowTotals.Subtotals;
+  if (text === 'grandtotals' || text === 'grandtotal') return PivotShowTotals.GrandTotals;
+  return fallback;
+}
+
+function normalizeDate(value) {
+  var date = value instanceof Date ? value : new Date(value);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+function getGroupedValue(value, groupBy) {
+  var date;
+  var month;
+  var quarter;
+  var type;
+  if (typeof groupBy === 'function') {
+    return groupBy(value);
+  }
+  if (!groupBy) {
+    return value;
+  }
+  type = String(groupBy).toLowerCase();
+  date = normalizeDate(value);
+  if (!date) {
+    return value;
+  }
+  month = date.getMonth() + 1;
+  if (type === 'year') {
+    return date.getFullYear();
+  }
+  if (type === 'quarter') {
+    quarter = Math.floor((month - 1) / 3) + 1;
+    return date.getFullYear() + ' Q' + quarter;
+  }
+  if (type === 'month') {
+    return date.getFullYear() + '-' + String(month).padStart(2, '0');
+  }
+  if (type === 'day') {
+    return date.getFullYear() + '-' + String(month).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  }
+  return value;
+}
+
+function PivotField(engine, binding, header, options) {
+  options = options || {};
+  this.engine = engine || null;
+  this.binding = binding || options.binding || '';
+  this.key = options.key || options.header || header || this.binding;
+  this.header = options.header || header || createHeader(this.binding);
+  this.dataType = String(options.dataType || 'string').toLowerCase();
+  this.aggregate = normalizeAggregate(options.aggregate, this.dataType);
+  this.format = options.format || '';
+  this.align = options.align || (this.dataType === 'number' ? 'right' : 'left');
+  this.descending = options.descending === true;
+  this.filter = options.filter || null;
+  this.groupBy = options.groupBy || null;
+  this.getValue = typeof options.getValue === 'function' ? options.getValue : null;
+  this.width = Math.max(48, Number(options.width) || (this.dataType === 'number' ? 112 : 132));
+  this.visible = options.visible !== false;
+}
+
+PivotField.prototype.getItemValue = function(item) {
+  var value = this.getValue ? this.getValue(item) : getPivotBindingValue(item, this.binding);
+  return getGroupedValue(value, this.groupBy);
+};
+
+function createPathKey(path) {
+  return JSON.stringify(path.map(function(value) {
+    if (value instanceof Date) {
+      return ['date', value.getTime()];
+    }
+    if (value === null) return ['null', null];
+    if (value === undefined) return ['undefined', null];
+    if (typeof value === 'number' && isNaN(value)) return ['nan', null];
+    return [typeof value, value];
+  }));
+}
+
+function createAggregatePaths(path, totals) {
+  var result = [path.slice()];
+  var i;
+  if (!path.length) {
+    return result;
+  }
+  if (totals === PivotShowTotals.Subtotals) {
+    for (i = path.length - 1; i > 0; i -= 1) {
+      result.push(path.slice(0, i));
+    }
+  }
+  if (totals !== PivotShowTotals.None) {
+    result.push([]);
+  }
+  return result;
+}
+
+function comparePivotValues(left, right) {
+  var leftValue = left instanceof Date ? left.getTime() : left;
+  var rightValue = right instanceof Date ? right.getTime() : right;
+  if (leftValue == null && rightValue == null) return 0;
+  if (leftValue == null) return -1;
+  if (rightValue == null) return 1;
+  if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+    return leftValue === rightValue ? 0 : leftValue < rightValue ? -1 : 1;
+  }
+  return String(leftValue).localeCompare(String(rightValue), undefined, {
+    numeric: true,
+    sensitivity: 'base'
+  });
+}
+
+function compareEntries(left, right, fields, totalsBeforeData) {
+  var length = Math.min(left.path.length, right.path.length);
+  var direction;
+  var compared;
+  var i;
+  for (i = 0; i < length; i += 1) {
+    compared = comparePivotValues(left.path[i], right.path[i]);
+    if (compared) {
+      direction = fields[i] && fields[i].descending ? -1 : 1;
+      return compared * direction;
+    }
+  }
+  if (left.path.length === right.path.length) {
+    return 0;
+  }
+  if (left.path.length < right.path.length) {
+    return totalsBeforeData ? -1 : 1;
+  }
+  return totalsBeforeData ? 1 : -1;
+}
+
+function createAccumulator() {
+  return {
+    count: 0,
+    sum: 0,
+    min: null,
+    max: null
+  };
+}
+
+function accumulateValue(accumulator, value, aggregate) {
+  var number;
+  if (value == null || value === '') {
+    return;
+  }
+  accumulator.count += 1;
+  if (aggregate === PivotAggregate.Sum || aggregate === PivotAggregate.Average) {
+    number = Number(value);
+    if (!isNaN(number)) {
+      accumulator.sum += number;
+    }
+  }
+  if (accumulator.min == null || comparePivotValues(value, accumulator.min) < 0) {
+    accumulator.min = value;
+  }
+  if (accumulator.max == null || comparePivotValues(value, accumulator.max) > 0) {
+    accumulator.max = value;
+  }
+}
+
+function finalizeAccumulator(accumulator, aggregate) {
+  if (!accumulator || !accumulator.count) {
+    return aggregate === PivotAggregate.Count ? 0 : null;
+  }
+  if (aggregate === PivotAggregate.Count) return accumulator.count;
+  if (aggregate === PivotAggregate.Average) return accumulator.sum / accumulator.count;
+  if (aggregate === PivotAggregate.Min) return accumulator.min;
+  if (aggregate === PivotAggregate.Max) return accumulator.max;
+  return accumulator.sum;
+}
+
+function matchesFieldFilter(field, item) {
+  var filter = field.filter;
+  var value;
+  var values;
+  if (!filter) {
+    return true;
+  }
+  value = field.getItemValue(item);
+  if (typeof filter === 'function') {
+    return filter(value, item) !== false;
+  }
+  if (Array.isArray(filter)) {
+    return filter.indexOf(value) >= 0;
+  }
+  if (typeof filter.predicate === 'function' && filter.predicate(value, item) === false) {
+    return false;
+  }
+  values = Array.isArray(filter.values) ? filter.values : null;
+  return !values || values.indexOf(value) >= 0;
+}
+
+function pathMatches(item, fields, path) {
+  var i;
+  for (i = 0; i < path.length; i += 1) {
+    if (comparePivotValues(fields[i].getItemValue(item), path[i]) !== 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function copyDefinitionField(field) {
+  var filter = field.filter && Array.isArray(field.filter.values) ? {
+    values: field.filter.values.slice()
+  } : null;
+  return {
+    key: field.key,
+    binding: field.binding,
+    header: field.header,
+    dataType: field.dataType,
+    aggregate: field.aggregate,
+    format: field.format,
+    align: field.align,
+    descending: field.descending,
+    filter: filter,
+    groupBy: typeof field.groupBy === 'string' ? field.groupBy : null,
+    width: field.width,
+    visible: field.visible
+  };
+}
+
+function PivotEngine(options) {
+  options = options || {};
+  this.events = {};
+  this._updateLevel = 0;
+  this._pendingRefresh = false;
+  this._itemsSource = Array.isArray(options.itemsSource) ? options.itemsSource : [];
+  this.autoGenerateFields = options.autoGenerateFields !== false;
+  this.showRowTotals = normalizeTotals(options.showRowTotals, PivotShowTotals.GrandTotals);
+  this.showColumnTotals = normalizeTotals(options.showColumnTotals, PivotShowTotals.GrandTotals);
+  this.totalsBeforeData = options.totalsBeforeData === true;
+  this.showZeros = options.showZeros === true;
+  this.isUpdating = false;
+  this.fields = [];
+  this.rowFields = [];
+  this.columnFields = [];
+  this.valueFields = [];
+  this.filterFields = [];
+  this.pivotView = createEmptyPivotView(this);
+  this._createEvents(options);
+  this.setFields(options.fields || [], true);
+  if (!this.fields.length && this.autoGenerateFields) {
+    this.generateFields();
+  }
+  this.setViewFields('rowFields', options.rowFields || [], true);
+  this.setViewFields('columnFields', options.columnFields || [], true);
+  this.setViewFields('valueFields', options.valueFields || [], true);
+  this.setViewFields('filterFields', options.filterFields || [], true);
+  this.refresh();
+}
+
+function createEmptyPivotView(engine) {
+  return {
+    engine: engine,
+    rows: [],
+    rowEntries: [],
+    columnEntries: [],
+    dataColumns: [],
+    filterFields: engine.filterFields.slice(),
+    rowFields: [],
+    columnFields: [],
+    valueFields: []
+  };
+}
+
+PivotEngine.prototype._createEvents = function(options) {
+  var names = [
+    'itemsSourceChanged',
+    'viewDefinitionChanged',
+    'updatingView',
+    'updatedView',
+    'progress',
+    'error'
+  ];
+  var i;
+  for (i = 0; i < names.length; i += 1) {
+    this[names[i]] = new PivotEvent();
+    if (typeof options[names[i]] === 'function') {
+      this[names[i]].addHandler(options[names[i]], this);
+    }
+  }
+};
+
+PivotEngine.prototype.on = function(name, handler) {
+  if (!this.events[name]) {
+    this.events[name] = [];
+  }
+  if (typeof handler === 'function') {
+    this.events[name].push(handler);
+  }
+  return this;
+};
+
+PivotEngine.prototype.off = function(name, handler) {
+  var handlers = this.events[name] || [];
+  var i;
+  for (i = handlers.length - 1; i >= 0; i -= 1) {
+    if (handlers[i] === handler) {
+      handlers.splice(i, 1);
+    }
+  }
+  return this;
+};
+
+PivotEngine.prototype.emit = function(name, args) {
+  var handlers = (this.events[name] || []).slice();
+  var event = this[name];
+  var i;
+  for (i = 0; i < handlers.length; i += 1) {
+    handlers[i](args || {});
+  }
+  if (event && typeof event.raise === 'function') {
+    event.raise(this, args || {});
+  }
+};
+
+PivotEngine.prototype.setFields = function(definitions, silent) {
+  var usedKeys = Object.create(null);
+  var definition;
+  var field;
+  var key;
+  var i;
+  this.fields = [];
+  for (i = 0; i < definitions.length; i += 1) {
+    definition = definitions[i] || {};
+    field = definition instanceof PivotField ? definition : new PivotField(
+      this,
+      definition.binding || '',
+      definition.header,
+      definition
+    );
+    field.engine = this;
+    key = String(field.key || field.binding || ('field' + i));
+    while (usedKeys[key]) {
+      key += '_' + (i + 1);
+    }
+    field.key = key;
+    usedKeys[key] = true;
+    this.fields.push(field);
+  }
+  if (!silent) {
+    this.refresh();
+  }
+};
+
+PivotEngine.prototype.generateFields = function() {
+  var sample = this._itemsSource.length ? this._itemsSource[0] : null;
+  var definitions = [];
+  var keys;
+  var i;
+  if (!sample || typeof sample !== 'object') {
+    return;
+  }
+  keys = Object.keys(sample);
+  for (i = 0; i < keys.length; i += 1) {
+    definitions.push({
+      key: keys[i],
+      binding: keys[i],
+      header: createHeader(keys[i]),
+      dataType: inferDataType(sample[keys[i]])
+    });
+  }
+  this.setFields(definitions, true);
+};
+
+PivotEngine.prototype.getField = function(reference) {
+  var text;
+  var i;
+  if (reference instanceof PivotField) {
+    return reference.engine === this ? reference : null;
+  }
+  if (reference && typeof reference === 'object') {
+    reference = reference.key || reference.header || reference.binding;
+  }
+  text = String(reference == null ? '' : reference);
+  for (i = 0; i < this.fields.length; i += 1) {
+    if (this.fields[i].key === text || this.fields[i].header === text || this.fields[i].binding === text) {
+      return this.fields[i];
+    }
+  }
+  return null;
+};
+
+PivotEngine.prototype.setViewFields = function(name, references, silent) {
+  var result = [];
+  var field;
+  var i;
+  references = Array.isArray(references) ? references : [];
+  for (i = 0; i < references.length; i += 1) {
+    field = this.getField(references[i]);
+    if (field && result.indexOf(field) < 0) {
+      result.push(field);
+    }
+  }
+  this[name] = result;
+  if (!silent) {
+    this.emit('viewDefinitionChanged', { property: name });
+    this.refresh();
+  }
+};
+
+PivotEngine.prototype.setItemsSource = function(itemsSource, silent) {
+  this._itemsSource = Array.isArray(itemsSource) ? itemsSource : [];
+  if (this.autoGenerateFields && !this.fields.length) {
+    this.generateFields();
+  }
+  if (!silent) {
+    this.emit('itemsSourceChanged', { itemsSource: this._itemsSource });
+    this.refresh();
+  }
+};
+
+PivotEngine.prototype.beginUpdate = function() {
+  this._updateLevel += 1;
+};
+
+PivotEngine.prototype.endUpdate = function() {
+  if (this._updateLevel > 0) {
+    this._updateLevel -= 1;
+  }
+  if (!this._updateLevel && this._pendingRefresh) {
+    this._pendingRefresh = false;
+    this.refresh();
+  }
+};
+
+PivotEngine.prototype.deferUpdate = function(callback) {
+  this.beginUpdate();
+  try {
+    callback();
+  } finally {
+    this.endUpdate();
+  }
+};
+
+PivotEngine.prototype.refresh = function() {
+  var view;
+  if (this._updateLevel) {
+    this._pendingRefresh = true;
+    return this.pivotView;
+  }
+  this.isUpdating = true;
+  this.emit('updatingView', {});
+  try {
+    view = this._buildPivotView();
+    this.pivotView = view;
+    this.emit('progress', { progress: 1 });
+    this.emit('updatedView', { pivotView: view });
+    return view;
+  } catch (error) {
+    this.emit('error', { error: error });
+    throw error;
+  } finally {
+    this.isUpdating = false;
+  }
+};
+
+PivotEngine.prototype._buildPivotView = function() {
+  var rowEntryMap = new Map();
+  var columnEntryMap = new Map();
+  var accumulatorMap = new Map();
+  var filteredItems = [];
+  var rowEntries;
+  var columnEntries;
+  var dataColumns = [];
+  var rows = [];
+  var item;
+  var rowPath;
+  var columnPath;
+  var rowPaths;
+  var columnPaths;
+  var rowKey;
+  var columnKey;
+  var accumulatorKey;
+  var accumulator;
+  var field;
+  var row;
+  var dataColumn;
+  var i;
+  var r;
+  var c;
+  var v;
+  for (i = 0; i < this._itemsSource.length; i += 1) {
+    item = this._itemsSource[i];
+    if (!this._itemMatchesFilters(item)) {
+      continue;
+    }
+    filteredItems.push(item);
+    rowPath = this.rowFields.map(function(rowField) {
+      return rowField.getItemValue(item);
+    });
+    columnPath = this.columnFields.map(function(columnField) {
+      return columnField.getItemValue(item);
+    });
+    rowPaths = createAggregatePaths(rowPath, this.showRowTotals);
+    columnPaths = createAggregatePaths(columnPath, this.showColumnTotals);
+    for (r = 0; r < rowPaths.length; r += 1) {
+      rowKey = createPathKey(rowPaths[r]);
+      if (!rowEntryMap.has(rowKey)) {
+        rowEntryMap.set(rowKey, createEntry(rowPaths[r], this.rowFields.length));
+      }
+      for (c = 0; c < columnPaths.length; c += 1) {
+        columnKey = createPathKey(columnPaths[c]);
+        if (!columnEntryMap.has(columnKey)) {
+          columnEntryMap.set(columnKey, createEntry(columnPaths[c], this.columnFields.length));
+        }
+        for (v = 0; v < this.valueFields.length; v += 1) {
+          field = this.valueFields[v];
+          accumulatorKey = rowKey + '\u001f' + columnKey + '\u001f' + field.key;
+          accumulator = accumulatorMap.get(accumulatorKey);
+          if (!accumulator) {
+            accumulator = createAccumulator();
+            accumulatorMap.set(accumulatorKey, accumulator);
+          }
+          accumulateValue(accumulator, field.getItemValue(item), field.aggregate);
+        }
+      }
+    }
+  }
+  if (!this.rowFields.length && !rowEntryMap.size) {
+    rowEntryMap.set(createPathKey([]), createEntry([], 0));
+  }
+  if (!this.columnFields.length && !columnEntryMap.size) {
+    columnEntryMap.set(createPathKey([]), createEntry([], 0));
+  }
+  rowEntries = Array.from(rowEntryMap.values());
+  columnEntries = Array.from(columnEntryMap.values());
+  rowEntries.sort(this._createEntryComparer(this.rowFields));
+  columnEntries.sort(this._createEntryComparer(this.columnFields));
+  for (c = 0; c < columnEntries.length; c += 1) {
+    for (v = 0; v < this.valueFields.length; v += 1) {
+      dataColumns.push({
+        binding: '__pivot_value_' + c + '_' + v,
+        entry: columnEntries[c],
+        valueField: this.valueFields[v],
+        columnEntryIndex: c,
+        valueFieldIndex: v
+      });
+    }
+  }
+  for (r = 0; r < rowEntries.length; r += 1) {
+    row = {};
+    Object.defineProperty(row, '__pivotMeta', {
+      configurable: true,
+      enumerable: false,
+      value: rowEntries[r]
+    });
+    for (i = 0; i < this.rowFields.length; i += 1) {
+      row['__pivot_row_' + i] = i < rowEntries[r].path.length ? rowEntries[r].path[i] : null;
+    }
+    for (c = 0; c < dataColumns.length; c += 1) {
+      dataColumn = dataColumns[c];
+      accumulatorKey = rowEntries[r].key + '\u001f' + dataColumn.entry.key + '\u001f' + dataColumn.valueField.key;
+      row[dataColumn.binding] = finalizeAccumulator(
+        accumulatorMap.get(accumulatorKey),
+        dataColumn.valueField.aggregate
+      );
+      if (row[dataColumn.binding] == null && this.showZeros) {
+        row[dataColumn.binding] = 0;
+      }
+    }
+    rows.push(row);
+  }
+  this._filteredItems = filteredItems;
+  return {
+    engine: this,
+    rows: rows,
+    rowEntries: rowEntries,
+    columnEntries: columnEntries,
+    dataColumns: dataColumns,
+    rowFields: this.rowFields.slice(),
+    columnFields: this.columnFields.slice(),
+    valueFields: this.valueFields.slice(),
+    filterFields: this.filterFields.slice(),
+    sourceCount: this._itemsSource.length,
+    filteredCount: filteredItems.length
+  };
+};
+
+function createEntry(path, fieldCount) {
+  return {
+    key: createPathKey(path),
+    path: path.slice(),
+    level: path.length,
+    isSubtotal: path.length > 0 && path.length < fieldCount,
+    isGrandTotal: fieldCount > 0 && path.length === 0,
+    isLeaf: path.length === fieldCount
+  };
+}
+
+PivotEngine.prototype._createEntryComparer = function(fields) {
+  var totalsBeforeData = this.totalsBeforeData;
+  return function(left, right) {
+    return compareEntries(left, right, fields, totalsBeforeData);
+  };
+};
+
+PivotEngine.prototype._itemMatchesFilters = function(item) {
+  var i;
+  for (i = 0; i < this.fields.length; i += 1) {
+    if (!matchesFieldFilter(this.fields[i], item)) {
+      return false;
+    }
+  }
+  return true;
+};
+
+PivotEngine.prototype.getDetail = function(row, column) {
+  var rowEntry = row && row.__pivotMeta ? row.__pivotMeta : row;
+  var columnEntry = column && column.entry ? column.entry : column;
+  var source = this._filteredItems || [];
+  var result = [];
+  var item;
+  var i;
+  if (!rowEntry || !columnEntry) {
+    return result;
+  }
+  for (i = 0; i < source.length; i += 1) {
+    item = source[i];
+    if (pathMatches(item, this.rowFields, rowEntry.path) &&
+      pathMatches(item, this.columnFields, columnEntry.path)) {
+      result.push(item);
+    }
+  }
+  return result;
+};
+
+PivotEngine.prototype.getKeys = function(row, column) {
+  var rowEntry = row && row.__pivotMeta ? row.__pivotMeta : row;
+  var columnEntry = column && column.entry ? column.entry : column;
+  return {
+    rowKey: {
+      fields: this.rowFields.map(function(field) { return field.key; }).slice(0, rowEntry ? rowEntry.path.length : 0),
+      values: rowEntry ? rowEntry.path.slice() : []
+    },
+    columnKey: {
+      fields: this.columnFields.map(function(field) { return field.key; }).slice(0, columnEntry ? columnEntry.path.length : 0),
+      values: columnEntry ? columnEntry.path.slice() : []
+    }
+  };
+};
+
+PivotEngine.prototype.removeField = function(reference) {
+  var field = this.getField(reference);
+  var lists = ['rowFields', 'columnFields', 'valueFields', 'filterFields'];
+  var index;
+  var i;
+  if (!field) {
+    return false;
+  }
+  for (i = 0; i < lists.length; i += 1) {
+    index = this[lists[i]].indexOf(field);
+    if (index >= 0) {
+      this[lists[i]].splice(index, 1);
+    }
+  }
+  this.emit('viewDefinitionChanged', { property: 'fields', field: field });
+  this.refresh();
+  return true;
+};
+
+Object.defineProperties(PivotEngine.prototype, {
+  itemsSource: {
+    get: function() {
+      return this._itemsSource;
+    },
+    set: function(value) {
+      this.setItemsSource(value);
+    }
+  },
+  viewDefinition: {
+    get: function() {
+      return {
+        fields: this.fields.map(copyDefinitionField),
+        rowFields: this.rowFields.map(function(field) { return field.key; }),
+        columnFields: this.columnFields.map(function(field) { return field.key; }),
+        valueFields: this.valueFields.map(function(field) { return field.key; }),
+        filterFields: this.filterFields.map(function(field) { return field.key; }),
+        showRowTotals: this.showRowTotals,
+        showColumnTotals: this.showColumnTotals,
+        totalsBeforeData: this.totalsBeforeData,
+        showZeros: this.showZeros
+      };
+    },
+    set: function(definition) {
+      definition = definition || {};
+      this.beginUpdate();
+      try {
+        if (Array.isArray(definition.fields)) {
+          this.setFields(definition.fields, true);
+        }
+        this.setViewFields('rowFields', definition.rowFields || [], true);
+        this.setViewFields('columnFields', definition.columnFields || [], true);
+        this.setViewFields('valueFields', definition.valueFields || [], true);
+        this.setViewFields('filterFields', definition.filterFields || [], true);
+        this.showRowTotals = normalizeTotals(definition.showRowTotals, this.showRowTotals);
+        this.showColumnTotals = normalizeTotals(definition.showColumnTotals, this.showColumnTotals);
+        this.totalsBeforeData = definition.totalsBeforeData === true;
+        this.showZeros = definition.showZeros === true;
+        this._pendingRefresh = true;
+      } finally {
+        this.endUpdate();
+      }
+      this.emit('viewDefinitionChanged', { property: 'viewDefinition' });
+    }
+  }
+});
+
+PivotEngine.prototype.formatFieldValue = function(field, value) {
+  var date;
+  if (value == null) {
+    return '';
+  }
+  if (field && field.dataType === 'date') {
+    date = normalizeDate(value);
+    return date ? date.toLocaleDateString() : String(value);
+  }
+  return String(value);
+};
+
+PivotEngine.prototype.dispose = function() {
+  var name;
+  for (name in this.events) {
+    if (Object.prototype.hasOwnProperty.call(this.events, name)) {
+      this.events[name].length = 0;
+    }
+  }
+  ['itemsSourceChanged', 'viewDefinitionChanged', 'updatingView', 'updatedView', 'progress', 'error'].forEach(function(name) {
+    if (this[name]) {
+      this[name].handlers.length = 0;
+    }
+  }, this);
+  this._itemsSource = [];
+  this._filteredItems = [];
+  this.pivotView = createEmptyPivotView(this);
+};
+
+function createPivotGridFactory(FabGrid, PivotEngine) {
+  var baseApplyLocaleToDom = FabGrid.prototype.applyLocaleToDom;
+  var baseCreateBodyCell = FabGrid.prototype.createBodyCell;
+  var baseCreateDom = FabGrid.prototype.createDom;
+  var baseDispose = FabGrid.prototype.dispose;
+  var baseGetHeaderHeight = FabGrid.prototype.getHeaderHeight;
+  var baseHandleClick = FabGrid.prototype.handleClick;
+  var baseHandleContextMenu = FabGrid.prototype.handleContextMenu;
+  var baseHandleDblClick = FabGrid.prototype.handleDblClick;
+  var baseHandleKeyDown = FabGrid.prototype.handleKeyDown;
+  var baseHandlePointerDown = FabGrid.prototype.handlePointerDown;
+  var baseRenderHeaders = FabGrid.prototype.renderHeaders;
+  var baseSetItemsSource = FabGrid.prototype.setItemsSource;
+  var baseSetLocale = FabGrid.prototype.setLocale;
+
+  function assign(target, source) {
+    var key;
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        target[key] = source[key];
+      }
+    }
+    return target;
+  }
+
+  function closestByClass(target, className, boundary) {
+    var node = target && target.nodeType === 1 ? target : target ? target.parentElement : null;
+    while (node) {
+      if (node.classList && node.classList.contains(className)) {
+        return node;
+      }
+      if (node === boundary) {
+        break;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  function isStrictDescendant(entry, parentKey, entriesByKey) {
+    var parent = entriesByKey[parentKey];
+    var i;
+    if (!parent || entry.path.length <= parent.path.length) {
+      return false;
+    }
+    for (i = 0; i < parent.path.length; i += 1) {
+      if (entry.path[i] !== parent.path[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function isHiddenByCollapsedEntry(entry, collapsed, entriesByKey) {
+    var key;
+    for (key in collapsed) {
+      if (collapsed[key] && isStrictDescendant(entry, key, entriesByKey)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function getNumberDigits(format, fallback) {
+    var match = String(format || '').match(/^[ncp](\d+)$/i);
+    return match ? Math.max(0, Number(match[1])) : fallback;
+  }
+
+  function formatPivotValue(value, field, locale) {
+    var format = String(field && field.format || '');
+    var type = format.charAt(0).toLowerCase();
+    var digits;
+    var options;
+    if (value == null || value === '') {
+      return '';
+    }
+    if (typeof value !== 'number') {
+      return String(value);
+    }
+    if (type === 'p') {
+      digits = getNumberDigits(format, 0);
+      return new Intl.NumberFormat(locale || undefined, {
+        style: 'percent',
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      }).format(value);
+    }
+    digits = getNumberDigits(format, type === 'c' ? 2 : 0);
+    options = {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits
+    };
+    if (type === 'c') {
+      options.style = 'currency';
+      options.currency = field.currency || 'USD';
+    }
+    return new Intl.NumberFormat(locale || undefined, options).format(value);
+  }
+
+  function pivotValuesEqual(left, right) {
+    if (left instanceof Date && right instanceof Date) {
+      return left.getTime() === right.getTime();
+    }
+    return left === right || (typeof left === 'number' && typeof right === 'number' && isNaN(left) && isNaN(right));
+  }
+
+  function createPivotGroupKey(path) {
+    return JSON.stringify(path.map(function(value) {
+      if (value instanceof Date) return ['date', value.getTime()];
+      if (value === null) return ['null', null];
+      if (value === undefined) return ['undefined', null];
+      if (typeof value === 'number' && isNaN(value)) return ['nan', null];
+      return [typeof value, value];
+    }));
+  }
+
+  function createMenuItem(action, label, iconClass, active) {
+    var item = document.createElement('button');
+    var icon = document.createElement('span');
+    var text = document.createElement('span');
+    item.type = 'button';
+    item.className = 'fg-top-left-menu-item' + (active ? ' fg-top-left-menu-item-active' : '');
+    item.setAttribute('role', 'menuitem');
+    item.setAttribute('data-action', action);
+    icon.className = 'fg-top-left-menu-icon' + (iconClass ? ' ' + iconClass : '');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = active ? '✓' : '';
+    text.className = 'fg-top-left-menu-label';
+    text.textContent = label;
+    item.appendChild(icon);
+    item.appendChild(text);
+    return item;
+  }
+
+  function PivotGrid(element, options) {
+    var sourceOptions = options || {};
+    var engine = sourceOptions.engine || sourceOptions.itemsSource || null;
+    var baseOptions = assign({}, sourceOptions);
+    this._pivotConstructing = true;
+    this._pivotEngine = null;
+    this._pivotView = null;
+    this._pivotDataHeaderLevelCount = 1;
+    this._pivotHeaderLevelCount = 1;
+    this._pivotHeaderRowHeight = Math.max(24, Number(sourceOptions.pivotHeaderHeight || sourceOptions.headerHeight) || 32);
+    this._pivotRowCollapsed = Object.create(null);
+    this._pivotColumnCollapsed = Object.create(null);
+    this._pivotRowEntriesByKey = Object.create(null);
+    this._pivotColumnEntriesByKey = Object.create(null);
+    this._pivotRowGroups = [];
+    this._pivotContext = null;
+    this._pivotDetailGrid = null;
+    this._pivotUpdatedHandler = this._handlePivotUpdated.bind(this);
+    baseOptions.itemsSource = [];
+    baseOptions.columns = [];
+    baseOptions.allowEditing = false;
+    baseOptions.editOnSelect = false;
+    baseOptions.allowFiltering = false;
+    baseOptions.showSearchRow = false;
+    baseOptions.showColumnChooser = false;
+    baseOptions.showRowHeaders = false;
+    baseOptions.allowSorting = false;
+    baseOptions.allowDragging = 'None';
+    baseOptions.allowPinning = false;
+    baseOptions.pagination = false;
+    baseOptions.frozenColumns = 0;
+    baseOptions.copyHeaders = sourceOptions.copyHeaders || 'All';
+    baseOptions.selectionMode = sourceOptions.selectionMode || 'CellRange';
+    FabGrid.call(this, element, baseOptions);
+    this._pivotConstructing = false;
+    if (engine) {
+      this.setPivotEngine(engine);
+    }
+  }
+
+  PivotGrid.prototype = Object.create(FabGrid.prototype);
+  PivotGrid.prototype.constructor = PivotGrid;
+
+  PivotGrid.prototype.createDom = function() {
+    var overlay;
+    var dialog;
+    var header;
+    var title;
+    var close;
+    var body;
+    baseCreateDom.call(this);
+    this.root.classList.add('fg-pivot-grid');
+    overlay = document.createElement('div');
+    dialog = document.createElement('div');
+    header = document.createElement('div');
+    title = document.createElement('strong');
+    close = document.createElement('button');
+    body = document.createElement('div');
+    overlay.className = 'fg-pivot-detail-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
+    dialog.className = 'fg-pivot-detail-dialog';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    header.className = 'fg-pivot-detail-header';
+    title.className = 'fg-pivot-detail-title';
+    close.className = 'fg-pivot-detail-close';
+    close.type = 'button';
+    close.textContent = '×';
+    body.className = 'fg-pivot-detail-body';
+    header.appendChild(title);
+    header.appendChild(close);
+    dialog.appendChild(header);
+    dialog.appendChild(body);
+    overlay.appendChild(dialog);
+    this.root.appendChild(overlay);
+    this.pivotDetailOverlay = overlay;
+    this.pivotDetailDialog = dialog;
+    this.pivotDetailTitle = title;
+    this.pivotDetailClose = close;
+    this.pivotDetailBody = body;
+    this.addEventListener(this.headerFrozen, 'change', this._handlePivotFilterFieldChange.bind(this));
+    this.applyLocaleToDom();
+  };
+
+  PivotGrid.prototype.applyLocaleToDom = function() {
+    baseApplyLocaleToDom.call(this);
+    if (this.pivotDetailDialog) {
+      this.pivotDetailDialog.setAttribute('aria-label', this.getText('pivot.detailTitle'));
+    }
+    if (this.pivotDetailClose) {
+      this.pivotDetailClose.setAttribute('aria-label', this.getText('pivot.closeDetail'));
+      this.pivotDetailClose.title = this.getText('pivot.closeDetail');
+    }
+  };
+
+  PivotGrid.prototype.setItemsSource = function(value, silent) {
+    if (this._pivotConstructing) {
+      return baseSetItemsSource.call(this, value, silent);
+    }
+    return this.setPivotEngine(value, silent);
+  };
+
+  PivotGrid.prototype.setLocale = function(locale, messages, silent) {
+    baseSetLocale.call(this, locale, messages, silent);
+    if (!this._pivotConstructing && this._pivotEngine) {
+      this._applyPivotView(silent === true);
+    }
+    return this;
+  };
+
+  PivotGrid.prototype.setPivotEngine = function(engine, silent) {
+    if (!(engine instanceof PivotEngine)) {
+      throw new TypeError('PivotGrid itemsSource must be a fabui.pivot.PivotEngine instance.');
+    }
+    if (this._pivotEngine === engine) {
+      return this;
+    }
+    if (this._pivotEngine && this._pivotEngine.updatedView) {
+      this._pivotEngine.updatedView.removeHandler(this._pivotUpdatedHandler, this);
+    }
+    this._pivotEngine = engine;
+    engine.updatedView.addHandler(this._pivotUpdatedHandler, this);
+    this._applyPivotView(silent === true);
+    return this;
+  };
+
+  PivotGrid.prototype._handlePivotUpdated = function() {
+    this._applyPivotView(false);
+  };
+
+  PivotGrid.prototype._applyPivotView = function(silent) {
+    var view = this._pivotEngine ? this._pivotEngine.pivotView : null;
+    var rowEntries;
+    var columnEntries;
+    var visibleRows = [];
+    var visibleDataColumns = [];
+    var columns = [];
+    var self = this;
+    var field;
+    var dataColumn;
+    var i;
+    this._pivotView = view;
+    this._pivotRowEntriesByKey = Object.create(null);
+    this._pivotColumnEntriesByKey = Object.create(null);
+    this._pivotRowGroups = [];
+    if (!view) {
+      baseSetItemsSource.call(this, [], true);
+      FabGrid.prototype.setColumns.call(this, [], true);
+      if (!silent) this.refresh();
+      return;
+    }
+    rowEntries = view.rowEntries;
+    columnEntries = view.columnEntries;
+    for (i = 0; i < rowEntries.length; i += 1) {
+      this._pivotRowEntriesByKey[rowEntries[i].key] = rowEntries[i];
+    }
+    for (i = 0; i < rowEntries.length; i += 1) {
+      if (!isHiddenByCollapsedEntry(rowEntries[i], this._pivotRowCollapsed, this._pivotRowEntriesByKey)) {
+        visibleRows.push(view.rows[i]);
+      }
+    }
+    for (i = 0; i < columnEntries.length; i += 1) {
+      this._pivotColumnEntriesByKey[columnEntries[i].key] = columnEntries[i];
+    }
+    for (i = 0; i < view.dataColumns.length; i += 1) {
+      dataColumn = view.dataColumns[i];
+      if (!isHiddenByCollapsedEntry(dataColumn.entry, this._pivotColumnCollapsed, this._pivotColumnEntriesByKey)) {
+        visibleDataColumns.push(dataColumn);
+      }
+    }
+    for (i = 0; i < view.rowFields.length; i += 1) {
+      field = view.rowFields[i];
+      columns.push({
+        binding: '__pivot_row_' + i,
+        header: this.options.showRowFieldHeaders === false ? '' : field.header,
+        width: field.width,
+        minWidth: 72,
+        align: field.align || 'left',
+        dataType: field.dataType,
+        readOnly: true,
+        isReadOnly: true,
+        _pivotRowField: field,
+        _pivotRowFieldIndex: i,
+        formatter: createRowFieldFormatter(this, field, i)
+      });
+    }
+    for (i = 0; i < visibleDataColumns.length; i += 1) {
+      dataColumn = visibleDataColumns[i];
+      field = dataColumn.valueField;
+      columns.push({
+        binding: dataColumn.binding,
+        header: field.header,
+        width: field.width,
+        minWidth: 72,
+        align: field.align || 'right',
+        dataType: field.dataType || 'number',
+        format: field.format,
+        readOnly: true,
+        isReadOnly: true,
+        _pivotDataColumn: dataColumn,
+        formatter: function(value, item, column) {
+          return formatPivotValue(value, column._pivotDataColumn.valueField, self.locale);
+        }
+      });
+    }
+    this._pivotRowGroups = this._buildPivotRowGroups(visibleRows, view.rowFields.length);
+    this._pivotDataHeaderLevelCount = this._getPivotDataHeaderLevelCount();
+    this._pivotHeaderLevelCount = this._getPivotHeaderLevelCount();
+    this.options.frozenColumns = view.rowFields.length;
+    FabGrid.prototype.setColumns.call(this, columns, true);
+    baseSetItemsSource.call(this, visibleRows, true);
+    this.syncHeaderLayout();
+    if (!silent) {
+      this.refresh();
+    }
+  };
+
+  function createRowFieldFormatter(grid, field, fieldIndex) {
+    return function(value, item) {
+      var entry = item && item.__pivotMeta;
+      if (!entry) {
+        return value == null ? '' : String(value);
+      }
+      if (entry.isGrandTotal) {
+        return fieldIndex === 0 ? grid.getText('pivot.grandTotal') : '';
+      }
+      if (entry.isSubtotal && fieldIndex === entry.path.length) {
+        return grid.getText('pivot.total');
+      }
+      return fieldIndex < entry.path.length ? grid._pivotEngine.formatFieldValue(field, value) : '';
+    };
+  }
+
+  PivotGrid.prototype._buildPivotRowGroups = function(rows, fieldCount) {
+    var groups = [];
+    var rowGroups;
+    var current;
+    var entry;
+    var key;
+    var fieldIndex;
+    var rowIndex;
+    rows = rows || [];
+    for (fieldIndex = 0; fieldIndex < fieldCount; fieldIndex += 1) {
+      rowGroups = [];
+      current = null;
+      for (rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+        entry = rows[rowIndex] && rows[rowIndex].__pivotMeta;
+        if (!entry || entry.isGrandTotal || entry.path.length <= fieldIndex) {
+          current = null;
+          continue;
+        }
+        key = createPivotGroupKey(entry.path.slice(0, fieldIndex + 1));
+        if (!current || current.key !== key) {
+          current = {
+            key: key,
+            fieldIndex: fieldIndex,
+            start: rowIndex,
+            end: rowIndex,
+            toggleKey: null
+          };
+        } else {
+          current.end = rowIndex;
+        }
+        if (entry.isSubtotal && entry.path.length === fieldIndex + 1) {
+          current.toggleKey = entry.key;
+        }
+        rowGroups[rowIndex] = current;
+      }
+      groups[fieldIndex] = rowGroups;
+    }
+    return groups;
+  };
+
+  PivotGrid.prototype._getPivotDataHeaderLevelCount = function() {
+    var columnFieldCount = this._pivotView ? this._pivotView.columnFields.length : 0;
+    var valueFieldCount = this._pivotView ? this._pivotView.valueFields.length : 0;
+    return Math.max(1, columnFieldCount + (valueFieldCount > 1 || columnFieldCount === 0 ? 1 : 0));
+  };
+
+  PivotGrid.prototype._getPivotHeaderLevelCount = function() {
+    var filterFieldCount = this._pivotView ? this._pivotView.filterFields.length : 0;
+    return Math.max(this._pivotDataHeaderLevelCount || 1, filterFieldCount + (filterFieldCount ? 1 : 0));
+  };
+
+  PivotGrid.prototype.getHeaderHeight = function() {
+    if (!this._pivotView) {
+      return baseGetHeaderHeight.call(this);
+    }
+    return this._pivotHeaderLevelCount * this._pivotHeaderRowHeight;
+  };
+
+  PivotGrid.prototype.getHeaderTitleHeight = function() {
+    return this.getHeaderHeight();
+  };
+
+  PivotGrid.prototype.renderHeaders = function(colRange) {
+    var frozenFragment;
+    var scrollFragment;
+    var dataColumns;
+    var groups;
+    var column;
+    var cell;
+    var i;
+    var level;
+    var dataLevelOffset;
+    var hasFilterFields;
+    var rowFieldTop;
+    if (!this._pivotView) {
+      baseRenderHeaders.call(this, colRange);
+      return;
+    }
+    this.headerFrozen.innerHTML = '';
+    this.headerFrozenRight.innerHTML = '';
+    this.headerCanvas.innerHTML = '';
+    frozenFragment = document.createDocumentFragment();
+    scrollFragment = document.createDocumentFragment();
+    hasFilterFields = this._pivotView.filterFields.length > 0;
+    rowFieldTop = hasFilterFields ? (this._pivotHeaderLevelCount - 1) * this._pivotHeaderRowHeight : 0;
+    if (hasFilterFields && this.frozenWidth > 0) {
+      for (level = 0; level < this._pivotView.filterFields.length; level += 1) {
+        frozenFragment.appendChild(this._createPivotFilterFieldHeader(
+          this._pivotView.filterFields[level],
+          level
+        ));
+      }
+    }
+    for (i = 0; i < this.frozenColumns; i += 1) {
+      column = this.visibleColumns[i];
+      cell = this._createPivotHeaderCell({
+        label: column.header,
+        left: column._left,
+        top: rowFieldTop,
+        width: column._width,
+        height: hasFilterFields ? this._pivotHeaderRowHeight : this.getHeaderHeight(),
+        col: i,
+        className: 'fg-pivot-row-field-header',
+        field: column._pivotRowField
+      });
+      frozenFragment.appendChild(cell);
+    }
+    dataColumns = this.visibleColumns.slice(this.frozenColumns, this.scrollableColumnEnd);
+    dataLevelOffset = this._pivotHeaderLevelCount - this._pivotDataHeaderLevelCount;
+    for (level = 0; level < this._pivotDataHeaderLevelCount; level += 1) {
+      groups = this._createPivotHeaderGroups(dataColumns, level, level + dataLevelOffset);
+      for (i = 0; i < groups.length; i += 1) {
+        if (groups[i].endCol < colRange.start || groups[i].startCol >= colRange.end) {
+          continue;
+        }
+        scrollFragment.appendChild(this._createPivotHeaderCell(groups[i]));
+      }
+    }
+    this.headerFrozen.appendChild(frozenFragment);
+    this.headerCanvas.appendChild(scrollFragment);
+  };
+
+  PivotGrid.prototype._createPivotFilterFieldHeader = function(field, level) {
+    var cell = document.createElement('div');
+    var title = document.createElement('span');
+    var label = document.createElement('span');
+    var select = this._createPivotFilterFieldSelect(field);
+    cell.className = 'fg-header-cell fg-pivot-header-cell fg-pivot-filter-field-header';
+    cell.style.left = '0px';
+    cell.style.top = (level * this._pivotHeaderRowHeight) + 'px';
+    cell.style.width = this.frozenWidth + 'px';
+    cell.style.height = this._pivotHeaderRowHeight + 'px';
+    cell.setAttribute('data-pivot-field', field.key);
+    cell.setAttribute('role', 'columnheader');
+    cell.title = field.header;
+    title.className = 'fg-header-title fg-pivot-header-title';
+    title.style.height = this._pivotHeaderRowHeight + 'px';
+    label.className = 'fg-header-label fg-pivot-filter-field-label';
+    label.textContent = field.header;
+    title.appendChild(label);
+    title.appendChild(select);
+    cell.appendChild(title);
+    return cell;
+  };
+
+  PivotGrid.prototype._createPivotFilterFieldSelect = function(field) {
+    var select = document.createElement('select');
+    var all = document.createElement('option');
+    var source = this._pivotEngine ? this._pivotEngine.itemsSource : [];
+    var filterValues = field.filter && Array.isArray(field.filter.values) ? field.filter.values : null;
+    var hasSingleFilter = !!(filterValues && filterValues.length === 1);
+    var current = hasSingleFilter ? filterValues[0] : undefined;
+    var values = [];
+    var value;
+    var option;
+    var filtered;
+    var exists;
+    var i;
+    var j;
+    select.className = 'fg-pivot-filter-field-select';
+    select.setAttribute('data-pivot-field', field.key);
+    select.setAttribute('aria-label', this.getText('pivot.panel.filterField', { field: field.header }));
+    all.value = '';
+    all.textContent = this.getText('pivot.panel.allValues');
+    all._pivotAllValues = true;
+    all.selected = !field.filter;
+    select.appendChild(all);
+    if (field.filter && !hasSingleFilter) {
+      filtered = document.createElement('option');
+      filtered.value = '__pivot_filtered__';
+      filtered.textContent = this.getText('pivot.filteredValues');
+      filtered._pivotKeepFilter = true;
+      filtered.selected = true;
+      select.appendChild(filtered);
+    }
+    for (i = 0; i < source.length && values.length < 200; i += 1) {
+      value = field.getItemValue(source[i]);
+      exists = false;
+      for (j = 0; j < values.length; j += 1) {
+        if (pivotValuesEqual(values[j], value)) {
+          exists = true;
+          break;
+        }
+      }
+      if (!exists) {
+        values.push(value);
+      }
+    }
+    values.sort(function(left, right) {
+      return String(left == null ? '' : left).localeCompare(String(right == null ? '' : right), undefined, { numeric: true });
+    });
+    for (i = 0; i < values.length; i += 1) {
+      option = document.createElement('option');
+      option.value = String(i + 1);
+      option.textContent = this._pivotEngine.formatFieldValue(field, values[i]) || this.getText('filter.blankValue');
+      option._pivotFilterValue = values[i];
+      option.selected = hasSingleFilter && pivotValuesEqual(current, values[i]);
+      select.appendChild(option);
+    }
+    return select;
+  };
+
+  PivotGrid.prototype._handlePivotFilterFieldChange = function(event) {
+    var select = event.target;
+    var selected;
+    var field;
+    if (!select || !select.classList || !select.classList.contains('fg-pivot-filter-field-select') || !this._pivotEngine) {
+      return;
+    }
+    selected = select.selectedOptions && select.selectedOptions[0];
+    field = this._pivotEngine.getField(select.getAttribute('data-pivot-field'));
+    if (!field || this._pivotEngine.filterFields.indexOf(field) < 0 || !selected || selected._pivotKeepFilter) {
+      return;
+    }
+    field.filter = selected._pivotAllValues ? null : { values: [selected._pivotFilterValue] };
+    this._pivotEngine.emit('viewDefinitionChanged', { property: 'filter', field: field });
+    this._pivotEngine.refresh();
+  };
+
+  PivotGrid.prototype._createPivotHeaderGroups = function(columns, level, topLevel) {
+    var groups = [];
+    var current = null;
+    var descriptor;
+    var column;
+    var i;
+    for (i = 0; i < columns.length; i += 1) {
+      column = columns[i];
+      descriptor = this._getPivotHeaderDescriptor(column, level);
+      if (!current || current.key !== descriptor.key) {
+        current = {
+          key: descriptor.key,
+          label: descriptor.label,
+          left: column._left - this.frozenWidth,
+          top: (topLevel == null ? level : topLevel) * this._pivotHeaderRowHeight,
+          width: column._width,
+          height: this._pivotHeaderRowHeight,
+          col: column._viewIndex,
+          startCol: column._viewIndex,
+          endCol: column._viewIndex,
+          className: 'fg-pivot-column-header',
+          entry: descriptor.entry,
+          field: descriptor.field,
+          toggle: descriptor.toggle
+        };
+        groups.push(current);
+      } else {
+        current.width += column._width;
+        current.endCol = column._viewIndex;
+      }
+    }
+    return groups;
+  };
+
+  PivotGrid.prototype._getPivotHeaderDescriptor = function(column, level) {
+    var dataColumn = column._pivotDataColumn;
+    var entry = dataColumn.entry;
+    var columnFields = this._pivotView.columnFields;
+    var hasValueLevel = this._pivotView.valueFields.length > 1 || columnFields.length === 0;
+    var field = level < columnFields.length ? columnFields[level] : dataColumn.valueField;
+    var label = '';
+    var key;
+    var toggle = false;
+    if (level < columnFields.length) {
+      if (entry.isGrandTotal) {
+        label = level === 0 ? this.getText('pivot.grandTotal') : '';
+      } else if (level < entry.path.length) {
+        label = this._pivotEngine.formatFieldValue(field, entry.path[level]);
+      } else if (entry.isSubtotal && level === entry.path.length) {
+        label = this.getText('pivot.total');
+        toggle = this.options.collapsibleSubtotals !== false;
+      }
+      key = 'axis:' + level + ':' + JSON.stringify(entry.path.slice(0, Math.min(level + 1, entry.path.length))) +
+        ':' + (entry.isSubtotal ? 'subtotal' : entry.isGrandTotal ? 'grand' : 'leaf') + ':' + label;
+    } else if (hasValueLevel) {
+      label = dataColumn.valueField.header;
+      key = 'value:' + dataColumn.binding;
+    } else {
+      label = dataColumn.valueField.header;
+      key = 'value:' + dataColumn.binding;
+    }
+    return {
+      key: key,
+      label: label,
+      entry: entry,
+      field: field,
+      toggle: toggle
+    };
+  };
+
+  PivotGrid.prototype._createPivotHeaderCell = function(options) {
+    var cell = document.createElement('div');
+    var title = document.createElement('span');
+    var label = document.createElement('span');
+    var toggle;
+    var resize;
+    cell.className = 'fg-header-cell fg-pivot-header-cell ' + (options.className || '');
+    cell.style.left = options.left + 'px';
+    cell.style.top = options.top + 'px';
+    cell.style.width = options.width + 'px';
+    cell.style.height = options.height + 'px';
+    cell.setAttribute('data-col', options.col);
+    cell.setAttribute('role', 'columnheader');
+    if (options.field) {
+      cell.setAttribute('data-pivot-field', options.field.key);
+      cell.title = options.field.header;
+    }
+    title.className = 'fg-header-title fg-pivot-header-title';
+    title.style.height = options.height + 'px';
+    label.className = 'fg-header-label';
+    label.textContent = options.label || '';
+    if (options.toggle && options.entry) {
+      toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'fg-pivot-toggle fg-pivot-column-toggle';
+      toggle.setAttribute('data-pivot-key', options.entry.key);
+      toggle.setAttribute('aria-expanded', this._pivotColumnCollapsed[options.entry.key] ? 'false' : 'true');
+      toggle.setAttribute('aria-label', this.getText(
+        this._pivotColumnCollapsed[options.entry.key] ? 'pivot.expandGroup' : 'pivot.collapseGroup'
+      ));
+      toggle.textContent = this._pivotColumnCollapsed[options.entry.key] ? '+' : '−';
+      title.appendChild(toggle);
+    }
+    title.appendChild(label);
+    cell.appendChild(title);
+    if (this.options.allowResizing !== false && options.startCol === options.endCol) {
+      resize = document.createElement('span');
+      resize.className = 'fg-resize';
+      resize.setAttribute('data-resize-col', options.col);
+      cell.appendChild(resize);
+    }
+    if (typeof this.createFormatItemEventArgs === 'function') {
+      this.raiseFormatItem(this.createFormatItemEventArgs(this.columnHeaders, cell,
+        Math.floor(options.top / this._pivotHeaderRowHeight), options.col, {
+          column: this.visibleColumns[options.col] || null,
+          value: options.label
+        }));
+    }
+    return cell;
+  };
+
+  PivotGrid.prototype.createBodyCell = function(rowIndex, colIndex, pane, selectionRange) {
+    var cell = baseCreateBodyCell.call(this, rowIndex, colIndex, pane, selectionRange);
+    var item = this.view[rowIndex];
+    var entry = item && item.__pivotMeta;
+    var column = this.visibleColumns[colIndex];
+    var group;
+    var renderStart;
+    var renderEnd;
+    var label;
+    var toggle;
+    if (!cell || !entry || !column) {
+      return cell;
+    }
+    if (column._pivotRowField) {
+      cell.classList.add('fg-pivot-row-field-cell');
+      group = this._pivotRowGroups[column._pivotRowFieldIndex] &&
+        this._pivotRowGroups[column._pivotRowFieldIndex][rowIndex];
+      if (group && (group.end > group.start || group.toggleKey)) {
+        renderStart = Math.max(group.start, this.rowRange ? this.rowRange.start : group.start);
+        renderEnd = Math.min(group.end, this.rowRange ? this.rowRange.end - 1 : group.end);
+        if (rowIndex !== renderStart) {
+          cell.classList.add('fg-pivot-row-merged-covered');
+          cell.style.visibility = 'hidden';
+        } else {
+          cell.classList.add('fg-pivot-row-merged-cell');
+          cell.style.height = ((renderEnd - renderStart + 1) * this.options.rowHeight) + 'px';
+          cell.style.zIndex = '2';
+          cell.setAttribute('aria-rowspan', group.end - group.start + 1);
+          label = document.createElement('span');
+          label.className = 'fg-pivot-row-merged-label';
+          while (cell.firstChild) {
+            label.appendChild(cell.firstChild);
+          }
+          if (group.toggleKey && this.options.collapsibleSubtotals !== false) {
+            toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'fg-pivot-toggle fg-pivot-row-toggle';
+            toggle.setAttribute('data-pivot-key', group.toggleKey);
+            toggle.setAttribute('aria-expanded', this._pivotRowCollapsed[group.toggleKey] ? 'false' : 'true');
+            toggle.setAttribute('aria-label', this.getText(
+              this._pivotRowCollapsed[group.toggleKey] ? 'pivot.expandGroup' : 'pivot.collapseGroup'
+            ));
+            toggle.textContent = this._pivotRowCollapsed[group.toggleKey] ? '+' : '−';
+            cell.appendChild(toggle);
+          }
+          cell.appendChild(label);
+        }
+      }
+    }
+    if (entry.isSubtotal || entry.isGrandTotal ||
+      (column._pivotDataColumn && (column._pivotDataColumn.entry.isSubtotal || column._pivotDataColumn.entry.isGrandTotal))) {
+      cell.classList.add('fg-pivot-total-cell');
+    }
+    return cell;
+  };
+
+  PivotGrid.prototype.handlePointerDown = function(event) {
+    if (closestByClass(event.target, 'fg-pivot-row-toggle', this.root) ||
+        closestByClass(event.target, 'fg-pivot-column-toggle', this.root)) {
+      return;
+    }
+    baseHandlePointerDown.call(this, event);
+  };
+
+  PivotGrid.prototype.handleClick = function(event) {
+    var detailDialog = closestByClass(event.target, 'fg-pivot-detail-dialog', this.root);
+    var rowToggle = closestByClass(event.target, 'fg-pivot-row-toggle', this.root);
+    var columnToggle = closestByClass(event.target, 'fg-pivot-column-toggle', this.root);
+    var rowHeader = closestByClass(event.target, 'fg-pivot-row-field-header', this.root);
+    if (closestByClass(event.target, 'fg-pivot-filter-field-select', this.root)) {
+      return;
+    }
+    if (closestByClass(event.target, 'fg-pivot-detail-close', this.root) || event.target === this.pivotDetailOverlay) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.hideDetail();
+      return;
+    }
+    if (detailDialog) {
+      return;
+    }
+    if (rowToggle) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.toggleRowSubtotal(rowToggle.getAttribute('data-pivot-key'));
+      return;
+    }
+    if (columnToggle) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.toggleColumnSubtotal(columnToggle.getAttribute('data-pivot-key'));
+      return;
+    }
+    if (rowHeader && this._pivotEngine) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.togglePivotFieldSort(rowHeader.getAttribute('data-pivot-field'));
+      return;
+    }
+    baseHandleClick.call(this, event);
+  };
+
+  PivotGrid.prototype.handleDblClick = function(event) {
+    var dialog = closestByClass(event.target, 'fg-pivot-detail-dialog', this.root);
+    var cell = closestByClass(event.target, 'fg-cell', this.root);
+    var row;
+    var col;
+    if (dialog) {
+      return;
+    }
+    if (cell && this.options.showDetailOnDoubleClick !== false) {
+      row = Number(cell.getAttribute('data-row'));
+      col = Number(cell.getAttribute('data-col'));
+      if (this.showDetail(row, col)) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+    }
+    baseHandleDblClick.call(this, event);
+  };
+
+  PivotGrid.prototype.handleKeyDown = function(event) {
+    if (event.key === 'Escape' && this.isDetailOpen()) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.hideDetail();
+      return;
+    }
+    if (event.key === 'Escape' && this.isTopLeftMenuOpen()) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.hideTopLeftMenu();
+      return;
+    }
+    baseHandleKeyDown.call(this, event);
+  };
+
+  PivotGrid.prototype.handleContextMenu = function(event) {
+    var hit;
+    if (this.options.customContextMenu === false) {
+      baseHandleContextMenu.call(this, event);
+      return;
+    }
+    hit = this.hitTest(event);
+    if (!hit || (hit.cellType !== FabGrid.CellType.Cell && hit.cellType !== FabGrid.CellType.ColumnHeader)) {
+      this.hideTopLeftMenu();
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this._pivotContext = hit;
+    this.showTopLeftMenu(event.clientX, event.clientY);
+  };
+
+  PivotGrid.prototype.renderTopLeftMenu = function() {
+    var context = this._pivotContext;
+    var column = context && context.column;
+    var field = column && (column._pivotRowField || column._pivotDataColumn && column._pivotDataColumn.valueField);
+    var entry = context && context.cellType === FabGrid.CellType.Cell && this.view[context.row] ? this.view[context.row].__pivotMeta :
+      column && column._pivotDataColumn ? column._pivotDataColumn.entry : null;
+    var fragment = document.createDocumentFragment();
+    var aggregate;
+    var aggregates = ['Sum', 'Count', 'Average', 'Min', 'Max'];
+    var i;
+    this.topLeftMenu.innerHTML = '';
+    if (context && context.cellType === FabGrid.CellType.Cell && column && column._pivotDataColumn) {
+      fragment.appendChild(createMenuItem('pivot-detail', this.getText('pivot.showDetail'), 'icon-refwin'));
+    }
+    if (entry && entry.isSubtotal) {
+      fragment.appendChild(createMenuItem(
+        context.cellType === FabGrid.CellType.Cell ? 'pivot-toggle-row' : 'pivot-toggle-column',
+        this.getText((context.cellType === FabGrid.CellType.Cell ? this._pivotRowCollapsed : this._pivotColumnCollapsed)[entry.key] ?
+          'pivot.expandGroup' : 'pivot.collapseGroup'),
+        this._pivotRowCollapsed[entry.key] || this._pivotColumnCollapsed[entry.key] ? 'icon-expand' : 'icon-collapse'
+      ));
+    }
+    if (column && column._pivotRowField) {
+      fragment.appendChild(createMenuItem('pivot-sort', this.getText(
+        column._pivotRowField.descending ? 'pivot.sortAscending' : 'pivot.sortDescending'
+      ), 'icon-sort'));
+    }
+    if (column && column._pivotDataColumn) {
+      for (i = 0; i < aggregates.length; i += 1) {
+        aggregate = aggregates[i];
+        fragment.appendChild(createMenuItem(
+          'pivot-aggregate-' + aggregate.toLowerCase(),
+          this.getText('pivot.aggregate') + ': ' + this.getText('pivot.aggregates.' + aggregate.toLowerCase()),
+          'icon-measure',
+          field.aggregate === aggregate
+        ));
+      }
+    }
+    if (field) {
+      fragment.appendChild(createMenuItem('pivot-remove-field', this.getText('pivot.removeField'), 'icon-clear'));
+    }
+    fragment.appendChild(createMenuItem('pivot-export-excel', this.getText('topLeftMenu.exportExcel'), 'icon-excel'));
+    fragment.appendChild(createMenuItem('pivot-export-csv', this.getText('topLeftMenu.exportCsv'), 'icon-export'));
+    this.topLeftMenu.appendChild(fragment);
+  };
+
+  PivotGrid.prototype.handleTopLeftMenuClick = function(event) {
+    var item = closestByClass(event.target, 'fg-top-left-menu-item', this.topLeftMenu);
+    var action;
+    var context = this._pivotContext;
+    var column = context && context.column;
+    var field = column && (column._pivotRowField || column._pivotDataColumn && column._pivotDataColumn.valueField);
+    var entry = context && context.cellType === FabGrid.CellType.Cell && this.view[context.row] ? this.view[context.row].__pivotMeta :
+      column && column._pivotDataColumn ? column._pivotDataColumn.entry : null;
+    if (!item) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    action = item.getAttribute('data-action');
+    this.hideTopLeftMenu();
+    if (action === 'pivot-detail') {
+      this.showDetail(context.row, context.viewCol);
+    } else if (action === 'pivot-toggle-row' && entry) {
+      this.toggleRowSubtotal(entry.key);
+    } else if (action === 'pivot-toggle-column' && entry) {
+      this.toggleColumnSubtotal(entry.key);
+    } else if (action === 'pivot-sort' && field) {
+      this.togglePivotFieldSort(field.key);
+    } else if (action.indexOf('pivot-aggregate-') === 0 && field) {
+      field.aggregate = action.slice('pivot-aggregate-'.length).replace(/^./, function(character) {
+        return character.toUpperCase();
+      });
+      this._pivotEngine.refresh();
+    } else if (action === 'pivot-remove-field' && field) {
+      this._pivotEngine.removeField(field);
+    } else if (action === 'pivot-export-excel') {
+      this.exportExcel('pivot.xlsx');
+    } else if (action === 'pivot-export-csv') {
+      this.exportCsv('pivot.csv');
+    }
+  };
+
+  PivotGrid.prototype.togglePivotFieldSort = function(fieldReference) {
+    var field = this._pivotEngine && this._pivotEngine.getField(fieldReference);
+    if (!field) {
+      return false;
+    }
+    field.descending = !field.descending;
+    this._pivotEngine.refresh();
+    return true;
+  };
+
+  PivotGrid.prototype.toggleRowSubtotal = function(key) {
+    if (!this._pivotRowEntriesByKey[key]) {
+      return false;
+    }
+    this._pivotRowCollapsed[key] = !this._pivotRowCollapsed[key];
+    this._applyPivotView(false);
+    return true;
+  };
+
+  PivotGrid.prototype.toggleColumnSubtotal = function(key) {
+    if (!this._pivotColumnEntriesByKey[key]) {
+      return false;
+    }
+    this._pivotColumnCollapsed[key] = !this._pivotColumnCollapsed[key];
+    this._applyPivotView(false);
+    return true;
+  };
+
+  PivotGrid.prototype.expandAll = function() {
+    this._pivotRowCollapsed = Object.create(null);
+    this._pivotColumnCollapsed = Object.create(null);
+    this._applyPivotView(false);
+  };
+
+  PivotGrid.prototype.collapseAll = function() {
+    var key;
+    this._pivotRowCollapsed = Object.create(null);
+    this._pivotColumnCollapsed = Object.create(null);
+    for (key in this._pivotRowEntriesByKey) {
+      if (this._pivotRowEntriesByKey[key].isSubtotal) {
+        this._pivotRowCollapsed[key] = true;
+      }
+    }
+    for (key in this._pivotColumnEntriesByKey) {
+      if (this._pivotColumnEntriesByKey[key].isSubtotal) {
+        this._pivotColumnCollapsed[key] = true;
+      }
+    }
+    this._applyPivotView(false);
+  };
+
+  PivotGrid.prototype.getCellKeys = function(row, col) {
+    var item = this.view[row];
+    var column = this.visibleColumns[col];
+    if (!item || !column || !column._pivotDataColumn) {
+      return null;
+    }
+    return this._pivotEngine.getKeys(item, column._pivotDataColumn.entry);
+  };
+
+  PivotGrid.prototype.showDetail = function(row, col) {
+    var item = this.view[row];
+    var column = this.visibleColumns[col];
+    var detail;
+    var columns;
+    var self = this;
+    if (!item || !column || !column._pivotDataColumn || !this._pivotEngine) {
+      return false;
+    }
+    detail = this._pivotEngine.getDetail(item, column._pivotDataColumn.entry);
+    columns = this._pivotEngine.fields.filter(function(field) {
+      return field.visible !== false && field.binding;
+    }).map(function(field) {
+      return {
+        binding: field.binding,
+        header: field.header,
+        width: field.width,
+        dataType: field.dataType,
+        format: field.format,
+        align: field.align,
+        readOnly: true
+      };
+    });
+    this.hideDetail();
+    this.pivotDetailTitle.textContent = this.getText('pivot.detailTitle') + ' · ' +
+      this.getText('pivot.detailCount', { count: detail.length });
+    this.pivotDetailOverlay.style.display = 'flex';
+    this.pivotDetailOverlay.setAttribute('aria-hidden', 'false');
+    this._pivotDetailGrid = new FabGrid(this.pivotDetailBody, {
+      itemsSource: detail,
+      columns: columns,
+      allowEditing: false,
+      allowFiltering: true,
+      showSearchRow: false,
+      showRowHeaders: true,
+      selectionMode: 'CellRange',
+      locale: this.locale,
+      messages: this.options.messages
+    });
+    window.setTimeout(function() {
+      if (self.pivotDetailClose) {
+        self.pivotDetailClose.focus();
+      }
+    }, 0);
+    return true;
+  };
+
+  PivotGrid.prototype.hideDetail = function() {
+    if (this._pivotDetailGrid) {
+      this._pivotDetailGrid.dispose();
+      this._pivotDetailGrid = null;
+    }
+    if (this.pivotDetailBody) {
+      this.pivotDetailBody.innerHTML = '';
+    }
+    if (this.pivotDetailOverlay) {
+      this.pivotDetailOverlay.style.display = 'none';
+      this.pivotDetailOverlay.setAttribute('aria-hidden', 'true');
+    }
+  };
+
+  PivotGrid.prototype.isDetailOpen = function() {
+    return !!(this.pivotDetailOverlay && this.pivotDetailOverlay.style.display === 'flex');
+  };
+
+  PivotGrid.prototype.dispose = function() {
+    this.hideDetail();
+    if (this._pivotEngine && this._pivotEngine.updatedView) {
+      this._pivotEngine.updatedView.removeHandler(this._pivotUpdatedHandler, this);
+    }
+    this._pivotEngine = null;
+    this._pivotRowGroups = [];
+    baseDispose.call(this);
+  };
+
+  Object.defineProperties(PivotGrid.prototype, {
+    engine: {
+      get: function() {
+        return this._pivotEngine;
+      }
+    },
+    itemsSource: {
+      get: function() {
+        return this._pivotEngine;
+      },
+      set: function(value) {
+        this.setPivotEngine(value);
+      }
+    },
+    collapsibleSubtotals: {
+      get: function() {
+        return this.options.collapsibleSubtotals !== false;
+      },
+      set: function(value) {
+        this.options.collapsibleSubtotals = value !== false;
+        this.render();
+      }
+    },
+    showDetailOnDoubleClick: {
+      get: function() {
+        return this.options.showDetailOnDoubleClick !== false;
+      },
+      set: function(value) {
+        this.options.showDetailOnDoubleClick = value !== false;
+      }
+    }
+  });
+
+  PivotGrid.PivotEngine = PivotEngine;
+  return PivotGrid;
+}
+
+function resolveHostElement(element) {
+  if (typeof element === 'string') {
+    return typeof document === 'undefined' ? null : document.querySelector(element);
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function getMessageValue(messages, path) {
+  var parts = String(path || '').split('.');
+  var value = messages;
+  var i;
+  for (i = 0; i < parts.length; i += 1) {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+    value = value[parts[i]];
+  }
+  return typeof value === 'string' ? value : null;
+}
+
+function formatMessage(text, data) {
+  return String(text || '').replace(/\{([^}]+)\}/g, function(match, key) {
+    return data && data[key] != null ? String(data[key]) : match;
+  });
+}
+
+function closestWithAttribute(target, attribute, boundary) {
+  var node = target && target.nodeType === 1 ? target : target ? target.parentElement : null;
+  while (node) {
+    if (node.hasAttribute && node.hasAttribute(attribute)) {
+      return node;
+    }
+    if (node === boundary) {
+      break;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
+function createButton(action, label, text) {
+  var button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'fg-pivot-panel-action';
+  button.setAttribute('data-action', action);
+  button.setAttribute('aria-label', label);
+  button.title = label;
+  button.textContent = text;
+  return button;
+}
+
+function createAggregateMenuItem(value, label, active, fieldKey) {
+  var item = document.createElement('button');
+  var icon = document.createElement('span');
+  var text = document.createElement('span');
+  item.type = 'button';
+  item.className = 'fg-top-left-menu-item' + (active ? ' fg-top-left-menu-item-active' : '');
+  item.setAttribute('role', 'menuitemradio');
+  item.setAttribute('aria-checked', active ? 'true' : 'false');
+  item.setAttribute('data-action', 'set-aggregate');
+  item.setAttribute('data-aggregate', value);
+  item.setAttribute('data-field-key', fieldKey);
+  icon.className = 'fg-top-left-menu-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = active ? '✓' : '';
+  text.className = 'fg-top-left-menu-label';
+  text.textContent = label;
+  item.appendChild(icon);
+  item.appendChild(text);
+  return item;
+}
+
+function createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, FabGrid) {
+  var areaDefinitions = [
+    { name: 'filterFields', labelKey: 'pivot.panel.filters' },
+    { name: 'columnFields', labelKey: 'pivot.panel.columns' },
+    { name: 'rowFields', labelKey: 'pivot.panel.rows' },
+    { name: 'valueFields', labelKey: 'pivot.panel.values' }
+  ];
+
+  function PivotPanel(element, options) {
+    var host = resolveHostElement(element);
+    options = options || {};
+    if (!host) {
+      throw new TypeError('PivotPanel host element was not found.');
+    }
+    Control.call(this);
+    this.hostElement = host;
+    this.options = options;
+    this.locale = options.locale || 'en';
+    this.messages = options.messages || null;
+    this.restrictDragging = options.restrictDragging === true;
+    this._engine = null;
+    this._dragFieldKey = null;
+    this._dragSourceArea = null;
+    this._dragTargetArea = null;
+    this._dragTargetIndex = Infinity;
+    this._dropIndicator = null;
+    this._aggregateMenuFieldKey = null;
+    this._updatedHandler = this.refresh.bind(this);
+    this._createDom();
+    this._bindEvents();
+    registerControl(host, this);
+    if (options.itemsSource || options.engine) {
+      this.setItemsSource(options.itemsSource || options.engine);
+    } else {
+      this.refresh();
+    }
+  }
+
+  PivotPanel.prototype = Object.create(Control.prototype);
+  PivotPanel.prototype.constructor = PivotPanel;
+
+  PivotPanel.prototype._createDom = function() {
+    var header = document.createElement('div');
+    var availableTitle = document.createElement('div');
+    var available = document.createElement('div');
+    var areas = document.createElement('div');
+    var aggregateMenu = document.createElement('div');
+    var section;
+    var title;
+    var list;
+    var i;
+    this.hostElement.innerHTML = '';
+    this.hostElement.classList.add('fg-root', 'fg-pivot-panel');
+    this.hostElement.setAttribute('role', 'region');
+    if (!this.hostElement.hasAttribute('tabindex')) {
+      this.hostElement.setAttribute('tabindex', '0');
+    }
+    header.className = 'fg-pivot-panel-header';
+    availableTitle.className = 'fg-pivot-panel-section-title';
+    available.className = 'fg-pivot-panel-list fg-pivot-panel-fields';
+    available.setAttribute('data-area', 'fields');
+    available.setAttribute('role', 'listbox');
+    header.appendChild(availableTitle);
+    header.appendChild(available);
+    areas.className = 'fg-pivot-panel-areas';
+    this.areaLists = { fields: available };
+    this.areaTitles = { fields: availableTitle };
+    for (i = 0; i < areaDefinitions.length; i += 1) {
+      section = document.createElement('section');
+      title = document.createElement('div');
+      list = document.createElement('div');
+      section.className = 'fg-pivot-panel-section';
+      title.className = 'fg-pivot-panel-section-title';
+      list.className = 'fg-pivot-panel-list fg-pivot-panel-drop-list';
+      list.setAttribute('data-area', areaDefinitions[i].name);
+      list.setAttribute('role', 'listbox');
+      section.appendChild(title);
+      section.appendChild(list);
+      areas.appendChild(section);
+      this.areaLists[areaDefinitions[i].name] = list;
+      this.areaTitles[areaDefinitions[i].name] = title;
+    }
+    this.hostElement.appendChild(header);
+    this.hostElement.appendChild(areas);
+    aggregateMenu.className = 'fg-top-left-menu fg-pivot-panel-aggregate-menu';
+    aggregateMenu.setAttribute('role', 'menu');
+    aggregateMenu.setAttribute('aria-hidden', 'true');
+    this.hostElement.appendChild(aggregateMenu);
+    this.availableFields = available;
+    this.areasElement = areas;
+    this.aggregateMenu = aggregateMenu;
+    this.applyLocaleToDom();
+  };
+
+  PivotPanel.prototype._bindEvents = function() {
+    this.addEventListener(this.hostElement, 'change', this._handleChange.bind(this));
+    this.addEventListener(this.hostElement, 'click', this._handleClick.bind(this));
+    this.addEventListener(this.hostElement, 'contextmenu', this._handleContextMenu.bind(this));
+    this.addEventListener(this.hostElement, 'dragstart', this._handleDragStart.bind(this));
+    this.addEventListener(this.hostElement, 'dragover', this._handleDragOver.bind(this));
+    this.addEventListener(this.hostElement, 'dragleave', this._handleDragLeave.bind(this));
+    this.addEventListener(this.hostElement, 'drop', this._handleDrop.bind(this));
+    this.addEventListener(this.hostElement, 'dragend', this._clearDragState.bind(this));
+    this.addEventListener(this.hostElement, 'keydown', this._handleKeyDown.bind(this));
+    this.addEventListener(document, 'pointerdown', this._handleDocumentPointerDown.bind(this));
+  };
+
+  PivotPanel.prototype.getText = function(path, data) {
+    var locales = FabGrid.locales || {};
+    var localeName = this.locale || 'en';
+    var baseName = localeName.split('-')[0];
+    var text = getMessageValue(this.messages, path) ||
+      getMessageValue(locales[localeName], path) ||
+      getMessageValue(locales[baseName], path) ||
+      getMessageValue(locales.en, path) || path;
+    return formatMessage(text, data);
+  };
+
+  PivotPanel.prototype.applyLocaleToDom = function() {
+    var i;
+    this.hostElement.setAttribute('aria-label', this.getText('pivot.panel.ariaLabel'));
+    this.aggregateMenu.setAttribute('aria-label', this.getText('pivot.panel.aggregateMenu'));
+    this.areaTitles.fields.textContent = this.getText('pivot.panel.fields');
+    this.areaLists.fields.setAttribute('aria-label', this.getText('pivot.panel.fields'));
+    for (i = 0; i < areaDefinitions.length; i += 1) {
+      this.areaTitles[areaDefinitions[i].name].textContent = this.getText(areaDefinitions[i].labelKey);
+      this.areaLists[areaDefinitions[i].name].setAttribute('aria-label', this.getText(areaDefinitions[i].labelKey));
+    }
+  };
+
+  PivotPanel.prototype.setLocale = function(locale, messages) {
+    this.locale = locale || 'en';
+    if (messages !== undefined) {
+      this.messages = messages;
+    }
+    this.applyLocaleToDom();
+    this.refresh();
+    return this;
+  };
+
+  PivotPanel.prototype.setItemsSource = function(engine) {
+    if (!(engine instanceof PivotEngine)) {
+      throw new TypeError('PivotPanel itemsSource must be a fabui.pivot.PivotEngine instance.');
+    }
+    if (this._engine === engine) {
+      return this;
+    }
+    if (this._engine && this._engine.updatedView) {
+      this._engine.updatedView.removeHandler(this._updatedHandler, this);
+    }
+    this._engine = engine;
+    engine.updatedView.addHandler(this._updatedHandler, this);
+    this.refresh();
+    return this;
+  };
+
+  PivotPanel.prototype._getAssignedArea = function(field) {
+    var i;
+    var index;
+    if (!this._engine) {
+      return null;
+    }
+    for (i = 0; i < areaDefinitions.length; i += 1) {
+      index = this._engine[areaDefinitions[i].name].indexOf(field);
+      if (index >= 0) {
+        return areaDefinitions[i].name;
+      }
+    }
+    return null;
+  };
+
+  PivotPanel.prototype._createFieldItem = function(field) {
+    var item = document.createElement('div');
+    var label = document.createElement('label');
+    var checkbox = document.createElement('input');
+    var type = document.createElement('span');
+    var text = document.createElement('span');
+    item.className = 'fg-pivot-panel-field';
+    item.draggable = true;
+    item.setAttribute('data-field-key', field.key);
+    item.setAttribute('data-area-item', 'fields');
+    item.setAttribute('role', 'option');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'fg-pivot-panel-field-check';
+    checkbox.checked = !!this._getAssignedArea(field);
+    checkbox.setAttribute('data-field-key', field.key);
+    type.className = 'fg-pivot-panel-field-type';
+    type.textContent = field.dataType === 'number' ? '#' : field.dataType === 'date' ? '▣' : 'A';
+    type.setAttribute('aria-hidden', 'true');
+    text.className = 'fg-pivot-panel-field-label';
+    text.textContent = field.header;
+    label.appendChild(checkbox);
+    label.appendChild(type);
+    label.appendChild(text);
+    item.appendChild(label);
+    return item;
+  };
+
+  PivotPanel.prototype._createAreaItem = function(field, area) {
+    var item = document.createElement('div');
+    var drag = document.createElement('span');
+    var label = document.createElement('span');
+    var actions = document.createElement('span');
+    item.className = 'fg-pivot-panel-item' + (area === 'valueFields' ? ' fg-pivot-panel-value-item' : '');
+    item.draggable = true;
+    item.setAttribute('data-field-key', field.key);
+    item.setAttribute('data-area-item', area);
+    item.setAttribute('role', 'option');
+    drag.className = 'fg-pivot-panel-drag';
+    drag.textContent = '⋮⋮';
+    drag.setAttribute('aria-hidden', 'true');
+    label.className = 'fg-pivot-panel-item-label';
+    label.textContent = field.header;
+    label.title = field.header;
+    item.appendChild(drag);
+    item.appendChild(label);
+    actions.className = 'fg-pivot-panel-item-actions';
+    actions.appendChild(createButton('remove', this.getText('pivot.panel.removeField'), '×'));
+    item.appendChild(actions);
+    return item;
+  };
+
+  PivotPanel.prototype._renderArea = function(area) {
+    var list = this.areaLists[area];
+    var fields = this._engine ? this._engine[area] : [];
+    var empty;
+    var i;
+    list.innerHTML = '';
+    if (!fields.length) {
+      empty = document.createElement('div');
+      empty.className = 'fg-pivot-panel-empty';
+      empty.textContent = this.getText('pivot.panel.dropFields');
+      list.appendChild(empty);
+      return;
+    }
+    for (i = 0; i < fields.length; i += 1) {
+      list.appendChild(this._createAreaItem(fields[i], area));
+    }
+  };
+
+  PivotPanel.prototype.refresh = function() {
+    var i;
+    this.hideAggregateMenu();
+    this.availableFields.innerHTML = '';
+    if (this._engine) {
+      for (i = 0; i < this._engine.fields.length; i += 1) {
+        this.availableFields.appendChild(this._createFieldItem(this._engine.fields[i]));
+      }
+    }
+    if (!this.availableFields.children.length) {
+      this.availableFields.innerHTML = '<div class="fg-pivot-panel-empty">' +
+        this.getText('pivot.panel.noFields') + '</div>';
+    }
+    for (i = 0; i < areaDefinitions.length; i += 1) {
+      this._renderArea(areaDefinitions[i].name);
+    }
+    return this;
+  };
+
+  PivotPanel.prototype._getAreaKeys = function(area) {
+    return this._engine[area].map(function(field) {
+      return field.key;
+    });
+  };
+
+  PivotPanel.prototype._applyAreas = function(areas, property) {
+    var i;
+    if (!this._engine) {
+      return;
+    }
+    for (i = 0; i < areaDefinitions.length; i += 1) {
+      this._engine.setViewFields(areaDefinitions[i].name, areas[areaDefinitions[i].name], true);
+    }
+    this._engine.emit('viewDefinitionChanged', { property: property || 'fields' });
+    this._engine.refresh();
+  };
+
+  PivotPanel.prototype.moveField = function(fieldReference, targetArea, targetIndex) {
+    var field = this._engine && this._engine.getField(fieldReference);
+    var areas = {};
+    var keys;
+    var index;
+    var i;
+    if (!field || !this.areaLists[targetArea]) {
+      return false;
+    }
+    if (targetArea !== 'fields' && this.restrictDragging &&
+      ((targetArea === 'valueFields' && field.dataType !== 'number') ||
+      ((targetArea === 'rowFields' || targetArea === 'columnFields') && field.dataType === 'number'))) {
+      return false;
+    }
+    for (i = 0; i < areaDefinitions.length; i += 1) {
+      keys = this._getAreaKeys(areaDefinitions[i].name).filter(function(key) {
+        return key !== field.key;
+      });
+      areas[areaDefinitions[i].name] = keys;
+    }
+    if (targetArea !== 'fields') {
+      keys = areas[targetArea];
+      index = Math.max(0, Math.min(keys.length, Number(targetIndex)));
+      if (!isFinite(index)) {
+        index = keys.length;
+      }
+      keys.splice(index, 0, field.key);
+    }
+    if (targetArea !== 'filterFields') {
+      field.filter = null;
+    }
+    this._applyAreas(areas, targetArea);
+    return true;
+  };
+
+  PivotPanel.prototype.removeField = function(fieldReference, area) {
+    var field = this._engine && this._engine.getField(fieldReference);
+    var areas = {};
+    var i;
+    if (!field || !this.areaLists[area] || area === 'fields') {
+      return false;
+    }
+    for (i = 0; i < areaDefinitions.length; i += 1) {
+      areas[areaDefinitions[i].name] = this._getAreaKeys(areaDefinitions[i].name);
+    }
+    areas[area] = areas[area].filter(function(key) { return key !== field.key; });
+    if (area === 'filterFields') {
+      field.filter = null;
+    }
+    this._applyAreas(areas, area);
+    return true;
+  };
+
+  PivotPanel.prototype._handleChange = function(event) {
+    var fieldKey = event.target.getAttribute('data-field-key');
+    var field;
+    if (event.target.classList.contains('fg-pivot-panel-field-check')) {
+      field = this._engine && this._engine.getField(fieldKey);
+      if (event.target.checked && field) {
+        this.moveField(field, field.dataType === 'number' ? 'valueFields' : 'rowFields', Infinity);
+      } else if (field) {
+        this.moveField(field, 'fields', 0);
+      }
+    }
+  };
+
+  PivotPanel.prototype._handleClick = function(event) {
+    var actionElement = closestWithAttribute(event.target, 'data-action', this.hostElement);
+    var item;
+    var action;
+    var area;
+    var fieldKey;
+    if (!actionElement || actionElement.tagName === 'SELECT') {
+      return;
+    }
+    item = closestWithAttribute(actionElement, 'data-field-key', this.hostElement);
+    if (!item) {
+      return;
+    }
+    event.preventDefault();
+    action = actionElement.getAttribute('data-action');
+    area = item.getAttribute('data-area-item');
+    fieldKey = item.getAttribute('data-field-key');
+    if (action === 'set-aggregate') {
+      this.setAggregate(fieldKey, actionElement.getAttribute('data-aggregate'));
+      this.hideAggregateMenu();
+    } else if (action === 'remove') {
+      this.removeField(fieldKey, area);
+    }
+  };
+
+  PivotPanel.prototype.setAggregate = function(fieldReference, aggregate) {
+    var field = this._engine && this._engine.getField(fieldReference);
+    var values = ['Sum', 'Count', 'Average', 'Min', 'Max'];
+    if (!field || values.indexOf(aggregate) < 0 || this._engine.valueFields.indexOf(field) < 0) {
+      return false;
+    }
+    if (field.aggregate === aggregate) {
+      return true;
+    }
+    field.aggregate = aggregate;
+    this._engine.emit('viewDefinitionChanged', { property: 'aggregate', field: field });
+    this._engine.refresh();
+    return true;
+  };
+
+  PivotPanel.prototype._handleContextMenu = function(event) {
+    var item = closestWithAttribute(event.target, 'data-field-key', this.hostElement);
+    var area = item && item.getAttribute('data-area-item');
+    var field = item && this._engine ? this._engine.getField(item.getAttribute('data-field-key')) : null;
+    if (!field || area !== 'valueFields') {
+      this.hideAggregateMenu();
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.showAggregateMenu(field, event.clientX, event.clientY);
+  };
+
+  PivotPanel.prototype.showAggregateMenu = function(fieldReference, clientX, clientY) {
+    var field = this._engine && this._engine.getField(fieldReference);
+    var values = ['Sum', 'Count', 'Average', 'Min', 'Max'];
+    var title;
+    var hostRect;
+    var left;
+    var top;
+    var i;
+    if (!field || this._engine.valueFields.indexOf(field) < 0) {
+      return false;
+    }
+    this.aggregateMenu.innerHTML = '';
+    title = document.createElement('div');
+    title.className = 'fg-pivot-panel-menu-title';
+    title.textContent = field.header;
+    title.title = field.header;
+    this.aggregateMenu.appendChild(title);
+    for (i = 0; i < values.length; i += 1) {
+      this.aggregateMenu.appendChild(createAggregateMenuItem(
+        values[i],
+        this.getText('pivot.aggregates.' + values[i].toLowerCase()),
+        field.aggregate === values[i],
+        field.key
+      ));
+    }
+    this._aggregateMenuFieldKey = field.key;
+    this.aggregateMenu.setAttribute('aria-label', this.getText('pivot.panel.aggregateField', { field: field.header }));
+    this.aggregateMenu.style.display = 'block';
+    this.aggregateMenu.setAttribute('aria-hidden', 'false');
+    hostRect = this.hostElement.getBoundingClientRect();
+    left = Number(clientX) - hostRect.left;
+    top = Number(clientY) - hostRect.top;
+    if (!isFinite(left)) left = 0;
+    if (!isFinite(top)) top = 0;
+    left = Math.max(0, Math.min(left, this.hostElement.clientWidth - this.aggregateMenu.offsetWidth));
+    top = Math.max(0, Math.min(top, this.hostElement.clientHeight - this.aggregateMenu.offsetHeight));
+    this.aggregateMenu.style.left = left + 'px';
+    this.aggregateMenu.style.top = top + 'px';
+    this.hostElement.focus({ preventScroll: true });
+    return true;
+  };
+
+  PivotPanel.prototype.hideAggregateMenu = function() {
+    if (this.aggregateMenu) {
+      this.aggregateMenu.style.display = 'none';
+      this.aggregateMenu.setAttribute('aria-hidden', 'true');
+    }
+    this._aggregateMenuFieldKey = null;
+  };
+
+  PivotPanel.prototype.isAggregateMenuOpen = function() {
+    return !!(this.aggregateMenu && this.aggregateMenu.style.display === 'block');
+  };
+
+  PivotPanel.prototype._handleDocumentPointerDown = function(event) {
+    if (this.isAggregateMenuOpen() && !this.aggregateMenu.contains(event.target)) {
+      this.hideAggregateMenu();
+    }
+  };
+
+  PivotPanel.prototype._handleDragStart = function(event) {
+    var item = closestWithAttribute(event.target, 'data-field-key', this.hostElement);
+    if (!item) {
+      return;
+    }
+    this._dragFieldKey = item.getAttribute('data-field-key');
+    this._dragSourceArea = item.getAttribute('data-area-item');
+    item.classList.add('fg-pivot-panel-dragging');
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', this._dragFieldKey);
+    }
+  };
+
+  PivotPanel.prototype._handleDragOver = function(event) {
+    var list = closestWithAttribute(event.target, 'data-area', this.hostElement);
+    var area;
+    if (!list || !this._dragFieldKey) {
+      return;
+    }
+    event.preventDefault();
+    area = list.getAttribute('data-area');
+    this._showDropIndicator(list, area, event.clientY);
+    list.classList.add('fg-pivot-panel-drop-active');
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  PivotPanel.prototype._handleDragLeave = function(event) {
+    var list = closestWithAttribute(event.target, 'data-area', this.hostElement);
+    if (list && (!event.relatedTarget || !list.contains(event.relatedTarget))) {
+      list.classList.remove('fg-pivot-panel-drop-active');
+      if (this._dragTargetArea === list.getAttribute('data-area')) {
+        this._clearDropIndicator();
+      }
+    }
+  };
+
+  PivotPanel.prototype._showDropIndicator = function(list, area, clientY) {
+    var items;
+    var candidates = [];
+    var indicator;
+    var anchor = null;
+    var index;
+    var rect;
+    var i;
+    this._clearDropIndicator();
+    this._dragTargetArea = area;
+    if (area === 'fields') {
+      this._dragTargetIndex = Infinity;
+      return Infinity;
+    }
+    items = list.querySelectorAll('[data-area-item="' + area + '"]');
+    for (i = 0; i < items.length; i += 1) {
+      if (items[i].getAttribute('data-field-key') !== this._dragFieldKey) {
+        candidates.push(items[i]);
+      }
+    }
+    index = candidates.length;
+    for (i = 0; i < candidates.length; i += 1) {
+      rect = candidates[i].getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) {
+        index = i;
+        anchor = candidates[i];
+        break;
+      }
+    }
+    indicator = document.createElement('div');
+    indicator.className = 'fg-pivot-panel-insert-line';
+    indicator.setAttribute('aria-hidden', 'true');
+    if (anchor) {
+      list.insertBefore(indicator, anchor);
+    } else {
+      list.appendChild(indicator);
+    }
+    this._dropIndicator = indicator;
+    this._dragTargetIndex = index;
+    return index;
+  };
+
+  PivotPanel.prototype._clearDropIndicator = function() {
+    if (this._dropIndicator && this._dropIndicator.parentNode) {
+      this._dropIndicator.parentNode.removeChild(this._dropIndicator);
+    }
+    this._dropIndicator = null;
+    this._dragTargetArea = null;
+    this._dragTargetIndex = Infinity;
+  };
+
+  PivotPanel.prototype._handleDrop = function(event) {
+    var list = closestWithAttribute(event.target, 'data-area', this.hostElement);
+    var area;
+    var index = Infinity;
+    if (!list || !this._dragFieldKey) {
+      return;
+    }
+    event.preventDefault();
+    area = list.getAttribute('data-area');
+    if (area !== 'fields') {
+      index = this._dragTargetArea === area ? this._dragTargetIndex :
+        this._showDropIndicator(list, area, event.clientY);
+    }
+    this.moveField(this._dragFieldKey, area, index);
+    this._clearDragState();
+  };
+
+  PivotPanel.prototype._handleKeyDown = function(event) {
+    if (event.key === 'Escape' && this.isAggregateMenuOpen()) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.hideAggregateMenu();
+      return;
+    }
+    if (event.key === 'Escape' && this._dragFieldKey) {
+      event.preventDefault();
+      this._clearDragState();
+    }
+  };
+
+  PivotPanel.prototype._clearDragState = function() {
+    var active = this.hostElement.querySelectorAll('.fg-pivot-panel-dragging, .fg-pivot-panel-drop-active');
+    var i;
+    this._clearDropIndicator();
+    for (i = 0; i < active.length; i += 1) {
+      active[i].classList.remove('fg-pivot-panel-dragging', 'fg-pivot-panel-drop-active');
+    }
+    this._dragFieldKey = null;
+    this._dragSourceArea = null;
+  };
+
+  PivotPanel.prototype.dispose = function() {
+    if (this._engine && this._engine.updatedView) {
+      this._engine.updatedView.removeHandler(this._updatedHandler, this);
+    }
+    this.removeEventListener();
+    unregisterControl(this.hostElement, this);
+    this.hostElement.innerHTML = '';
+    this.hostElement.classList.remove('fg-root', 'fg-pivot-panel');
+    this._engine = null;
+  };
+
+  Object.defineProperties(PivotPanel.prototype, {
+    itemsSource: {
+      get: function() { return this._engine; },
+      set: function(value) { this.setItemsSource(value); }
+    },
+    engine: {
+      get: function() { return this._engine; },
+      set: function(value) { this.setItemsSource(value); }
+    },
+    fields: { get: function() { return this._engine ? this._engine.fields : []; } },
+    filterFields: { get: function() { return this._engine ? this._engine.filterFields : []; } },
+    rowFields: { get: function() { return this._engine ? this._engine.rowFields : []; } },
+    columnFields: { get: function() { return this._engine ? this._engine.columnFields : []; } },
+    valueFields: { get: function() { return this._engine ? this._engine.valueFields : []; } },
+    isViewDefined: {
+      get: function() {
+        return !!(this._engine && this._engine.valueFields.length &&
+          (this._engine.rowFields.length || this._engine.columnFields.length));
+      }
+    },
+    viewDefinition: {
+      get: function() {
+        return this._engine ? JSON.stringify(this._engine.viewDefinition) : '';
+      },
+      set: function(value) {
+        var definition = typeof value === 'string' ? JSON.parse(value) : value;
+        if (this._engine) {
+          this._engine.viewDefinition = definition;
+        }
+      }
+    }
+  });
+
+  return PivotPanel;
+}
+
 var editorDefinitions = createEditorDefinitions();
 var Chart = createChartFactory();
 var FabGrid = createFabGridFactory(editorDefinitions);
+var PivotGrid = createPivotGridFactory(FabGrid, PivotEngine);
+var PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, FabGrid);
+var pivotNamespace = {
+  PivotAggregate: PivotAggregate,
+  PivotEngine: PivotEngine,
+  PivotField: PivotField,
+  PivotGrid: PivotGrid,
+  PivotPanel: PivotPanel,
+  PivotShowTotals: PivotShowTotals
+};
 var fabui = {
   version: "2026.7.16",
   editorDefinitions: editorDefinitions,
   Control: Control,
   Chart: Chart,
   FabGrid: FabGrid,
+  pivot: pivotNamespace,
   CellType: CellType,
   FabGridLocales: FabGrid.locales
 };
@@ -16073,6 +18741,43 @@ var fabui = {
     exportBusyText: 'Exporting Excel...',
     workingText: 'Working...',
     loadMsg: 'Processing, please wait...',
+    pivot: {
+      grandTotal: 'Grand Total',
+      total: 'Total',
+      expandGroup: 'Expand group',
+      collapseGroup: 'Collapse group',
+      showDetail: 'Show detail',
+      detailTitle: 'Detail records',
+      detailCount: '{count} records',
+      closeDetail: 'Close detail',
+      sortAscending: 'Sort ascending',
+      sortDescending: 'Sort descending',
+      aggregate: 'Aggregate',
+      removeField: 'Remove field',
+      filteredValues: 'Filtered',
+      panel: {
+        ariaLabel: 'Pivot view settings',
+        fields: 'Fields',
+        filters: 'Filters',
+        rows: 'Rows',
+        columns: 'Columns',
+        values: 'Values',
+        allValues: 'All',
+        filterField: 'Filter {field}',
+        aggregateMenu: 'Value aggregation settings',
+        aggregateField: 'Set aggregation for {field}',
+        dropFields: 'Drag fields here',
+        noFields: 'No fields available',
+        removeField: 'Remove field'
+      },
+      aggregates: {
+        sum: 'Sum',
+        count: 'Count',
+        average: 'Average',
+        min: 'Minimum',
+        max: 'Maximum'
+      }
+    },
     pagination: {
       ariaLabel: 'Pagination',
       pageSize: 'Page size',
@@ -16183,6 +18888,43 @@ var fabui = {
     exportBusyText: '匯出 Excel 中...',
     workingText: '處理中...',
     loadMsg: '正在處理，請稍候...',
+    pivot: {
+      grandTotal: '總計',
+      total: '小計',
+      expandGroup: '展開群組',
+      collapseGroup: '收合群組',
+      showDetail: '查看明細',
+      detailTitle: '明細資料',
+      detailCount: '共 {count} 筆',
+      closeDetail: '關閉明細',
+      sortAscending: '升冪排序',
+      sortDescending: '降冪排序',
+      aggregate: '彙總方式',
+      removeField: '移除欄位',
+      filteredValues: '已篩選',
+      panel: {
+        ariaLabel: 'Pivot View 設定',
+        fields: '欄位',
+        filters: '篩選',
+        rows: '列',
+        columns: '欄',
+        values: '數值',
+        allValues: '全部',
+        filterField: '篩選「{field}」',
+        aggregateMenu: '數值彙總設定',
+        aggregateField: '設定「{field}」彙總函數',
+        dropFields: '拖曳欄位到這裡',
+        noFields: '沒有可用欄位',
+        removeField: '移除欄位'
+      },
+      aggregates: {
+        sum: '加總',
+        count: '筆數',
+        average: '平均',
+        min: '最小值',
+        max: '最大值'
+      }
+    },
     pagination: {
       ariaLabel: '分頁導覽',
       pageSize: '每頁筆數',
@@ -16293,6 +19035,43 @@ var fabui = {
     exportBusyText: '正在导出 Excel...',
     workingText: '处理中...',
     loadMsg: '正在处理，请稍候...',
+    pivot: {
+      grandTotal: '总计',
+      total: '小计',
+      expandGroup: '展开群组',
+      collapseGroup: '折叠群组',
+      showDetail: '查看明细',
+      detailTitle: '明细数据',
+      detailCount: '共 {count} 条',
+      closeDetail: '关闭明细',
+      sortAscending: '升序排序',
+      sortDescending: '降序排序',
+      aggregate: '汇总方式',
+      removeField: '移除字段',
+      filteredValues: '已筛选',
+      panel: {
+        ariaLabel: 'Pivot View 设置',
+        fields: '字段',
+        filters: '筛选',
+        rows: '行',
+        columns: '列',
+        values: '数值',
+        allValues: '全部',
+        filterField: '筛选“{field}”',
+        aggregateMenu: '数值汇总设置',
+        aggregateField: '设置“{field}”汇总函数',
+        dropFields: '拖动字段到这里',
+        noFields: '没有可用字段',
+        removeField: '移除字段'
+      },
+      aggregates: {
+        sum: '求和',
+        count: '计数',
+        average: '平均',
+        min: '最小值',
+        max: '最大值'
+      }
+    },
     pagination: {
       ariaLabel: '分页导航',
       pageSize: '每页条数',

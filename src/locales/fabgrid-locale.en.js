@@ -13,6 +13,43 @@
     exportBusyText: 'Exporting Excel...',
     workingText: 'Working...',
     loadMsg: 'Processing, please wait...',
+    pivot: {
+      grandTotal: 'Grand Total',
+      total: 'Total',
+      expandGroup: 'Expand group',
+      collapseGroup: 'Collapse group',
+      showDetail: 'Show detail',
+      detailTitle: 'Detail records',
+      detailCount: '{count} records',
+      closeDetail: 'Close detail',
+      sortAscending: 'Sort ascending',
+      sortDescending: 'Sort descending',
+      aggregate: 'Aggregate',
+      removeField: 'Remove field',
+      filteredValues: 'Filtered',
+      panel: {
+        ariaLabel: 'Pivot view settings',
+        fields: 'Fields',
+        filters: 'Filters',
+        rows: 'Rows',
+        columns: 'Columns',
+        values: 'Values',
+        allValues: 'All',
+        filterField: 'Filter {field}',
+        aggregateMenu: 'Value aggregation settings',
+        aggregateField: 'Set aggregation for {field}',
+        dropFields: 'Drag fields here',
+        noFields: 'No fields available',
+        removeField: 'Remove field'
+      },
+      aggregates: {
+        sum: 'Sum',
+        count: 'Count',
+        average: 'Average',
+        min: 'Minimum',
+        max: 'Maximum'
+      }
+    },
     pagination: {
       ariaLabel: 'Pagination',
       pageSize: 'Page size',

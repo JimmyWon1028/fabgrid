@@ -1,0 +1,245 @@
+.fg-root.fg-pivot-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+  min-height: 420px;
+  overflow: hidden;
+  border: 1px solid var(--fg-border-strong);
+  background: var(--fg-cell-bg);
+  color: var(--fg-cell-text);
+  font-family: helvetica, tahoma, verdana, sans-serif;
+  font-size: 14px;
+}
+
+.fg-pivot-panel-header {
+  display: flex;
+  flex: 0 0 38%;
+  min-height: 150px;
+  flex-direction: column;
+  border-bottom: 1px solid var(--fg-border-strong);
+}
+
+.fg-pivot-panel-areas {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fg-pivot-panel-section {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--fg-border);
+  border-bottom: 1px solid var(--fg-border);
+}
+
+.fg-pivot-panel-section:nth-child(2n) {
+  border-right: 0;
+}
+
+.fg-pivot-panel-section-title {
+  display: flex;
+  flex: 0 0 30px;
+  align-items: center;
+  height: 30px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--fg-border);
+  background: var(--fg-header-bg);
+  color: var(--fg-header-text);
+  font-weight: 600;
+}
+
+.fg-pivot-panel-list {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 52px;
+  overflow: auto;
+  padding: 4px;
+  background: var(--fg-cell-bg);
+  transition: background-color .12s ease, box-shadow .12s ease;
+}
+
+.fg-pivot-panel-fields {
+  display: grid;
+  align-content: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fg-pivot-panel-field,
+.fg-pivot-panel-item {
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+}
+
+.fg-pivot-panel-field:hover,
+.fg-pivot-panel-item:hover {
+  border-color: var(--fg-border);
+  background: var(--fg-cell-hover-bg);
+}
+
+.fg-pivot-panel-field label {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 30px;
+  gap: 6px;
+  padding: 0 6px;
+  cursor: pointer;
+}
+
+.fg-pivot-panel-field-check {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.fg-pivot-panel-field-type {
+  display: inline-flex;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-right: 1px solid var(--fg-border);
+  color: var(--fg-header-text);
+  font-size: 11px;
+}
+
+.fg-pivot-panel-field-label,
+.fg-pivot-panel-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-panel-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 3px;
+  padding: 2px 3px;
+  border-color: var(--fg-border);
+  background: var(--fg-header-bg);
+  color: var(--fg-header-text);
+  cursor: grab;
+}
+
+.fg-pivot-panel-item:last-child {
+  margin-bottom: 0;
+}
+
+.fg-pivot-panel-drag {
+  flex: 0 0 14px;
+  color: var(--fg-header-text);
+  font-size: 10px;
+  letter-spacing: -3px;
+}
+
+.fg-pivot-panel-item-label {
+  flex: 1 1 auto;
+}
+
+.fg-pivot-panel-value-item .fg-pivot-panel-item-label {
+  font-weight: 600;
+}
+
+.fg-pivot-panel-aggregate-menu {
+  z-index: 48;
+}
+
+.fg-pivot-panel-menu-title {
+  overflow: hidden;
+  min-height: 32px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #d8d8d8;
+  background: var(--fg-header-bg);
+  color: var(--fg-header-text);
+  font-weight: 600;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-panel-item-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.fg-pivot-panel-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--fg-border);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.fg-pivot-panel-action:hover,
+.fg-pivot-panel-action:focus-visible {
+  background: var(--fg-selected-bg);
+  color: var(--fg-cell-text);
+  outline: none;
+}
+
+.fg-pivot-panel-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 8px;
+  color: var(--fg-header-text);
+  font-style: italic;
+  text-align: center;
+}
+
+.fg-pivot-panel-drop-active {
+  background: var(--fg-selected-bg);
+  box-shadow: inset 0 0 0 2px var(--fg-selected-border);
+}
+
+.fg-pivot-panel-dragging {
+  opacity: .45;
+}
+
+.fg-pivot-panel-insert-line {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 2px;
+  height: 2px;
+  margin: 1px 2px 2px;
+  border-radius: 1px;
+  background: var(--fg-selected-border);
+  box-shadow: 0 0 0 1px var(--fg-cell-bg);
+  pointer-events: none;
+}
+
+.fg-pivot-panel-insert-line::before {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg-selected-border);
+  content: '';
+}
+
+@media (max-width: 920px) {
+  .fg-root.fg-pivot-panel {
+    min-height: 520px;
+  }
+
+  .fg-pivot-panel-fields {
+    grid-template-columns: 1fr;
+  }
+}

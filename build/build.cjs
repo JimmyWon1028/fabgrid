@@ -21,7 +21,10 @@ const javascriptSources = [
   'grid/fabgrid-selection.js',
   'grid/fabgrid-editor-runtime.js',
   'editor/editor-definitions.js',
-  'grid/fabgrid.js'
+  'grid/fabgrid.js',
+  'pivot/pivot-engine.js',
+  'pivot/pivot-grid.js',
+  'pivot/pivot-panel.js'
 ];
 const localeSources = [
   'locales/fabgrid-locale.en.js',
@@ -30,7 +33,7 @@ const localeSources = [
 ];
 
 function banner(name) {
-  return '/*! FabUI ' + name + ' | FabGrid-only pure JavaScript bundle */\n';
+  return '/*! FabUI ' + name + ' | Pure JavaScript UI bundle */\n';
 }
 
 function stripExports(source) {
@@ -146,6 +149,13 @@ function createJavascriptBundle() {
     'global.fabui.Control = Control;\n' +
     'global.fabui.Chart = createChartFactory();\n' +
     'global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);\n' +
+    'global.fabui.pivot = {};\n' +
+    'global.fabui.pivot.PivotAggregate = PivotAggregate;\n' +
+    'global.fabui.pivot.PivotEngine = PivotEngine;\n' +
+    'global.fabui.pivot.PivotField = PivotField;\n' +
+    'global.fabui.pivot.PivotGrid = createPivotGridFactory(global.fabui.FabGrid, PivotEngine);\n' +
+    'global.fabui.pivot.PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.FabGrid);\n' +
+    'global.fabui.pivot.PivotShowTotals = PivotShowTotals;\n' +
     'global.fabui.CellType = CellType;\n' +
     'global.fabui.FabGridLocales = global.fabui.FabGrid.locales;\n' +
     '}(typeof window !== "undefined" ? window : this));\n' + locales;
@@ -170,12 +180,23 @@ function createEsmJavascriptBundle() {
     'var editorDefinitions = createEditorDefinitions();\n' +
     'var Chart = createChartFactory();\n' +
     'var FabGrid = createFabGridFactory(editorDefinitions);\n' +
+    'var PivotGrid = createPivotGridFactory(FabGrid, PivotEngine);\n' +
+    'var PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, FabGrid);\n' +
+    'var pivotNamespace = {\n' +
+    '  PivotAggregate: PivotAggregate,\n' +
+    '  PivotEngine: PivotEngine,\n' +
+    '  PivotField: PivotField,\n' +
+    '  PivotGrid: PivotGrid,\n' +
+    '  PivotPanel: PivotPanel,\n' +
+    '  PivotShowTotals: PivotShowTotals\n' +
+    '};\n' +
     'var fabui = {\n' +
     '  version: ' + JSON.stringify(buildVersion) + ',\n' +
     '  editorDefinitions: editorDefinitions,\n' +
     '  Control: Control,\n' +
     '  Chart: Chart,\n' +
     '  FabGrid: FabGrid,\n' +
+    '  pivot: pivotNamespace,\n' +
     '  CellType: CellType,\n' +
     '  FabGridLocales: FabGrid.locales\n' +
     '};\n' + locales + '\n' +
@@ -216,6 +237,15 @@ function verifyBuildOutput() {
   }
   if (javascript.indexOf('global.fabui.Chart = createChartFactory()') < 0) {
     throw new Error('FabUI Chart is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.pivot.PivotGrid = createPivotGridFactory') < 0) {
+    throw new Error('FabUI PivotGrid is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.pivot.PivotPanel = createPivotPanelFactory') < 0) {
+    throw new Error('FabUI PivotPanel is missing from the JavaScript bundle.');
+  }
+  if (/global\.fabui\.(?:PivotAggregate|PivotEngine|PivotField|PivotGrid|PivotPanel|PivotShowTotals)\s*=/.test(javascript)) {
+    throw new Error('Pivot APIs must only be published through fabui.pivot.');
   }
   if (javascript.indexOf('global.fabui.Control = Control') < 0) {
     throw new Error('FabUI Control is missing from the JavaScript bundle.');

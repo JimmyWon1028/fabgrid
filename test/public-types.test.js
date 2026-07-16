@@ -8,3 +8,222 @@ test('FabUI publishes Row and GroupRow through FabGrid only', function() {
   assert.equal(Object.getPrototypeOf(fabui.FabGrid.GroupRow.prototype), fabui.FabGrid.Row.prototype);
   assert.equal(fabui.grid, undefined);
 });
+
+test('FabUI publishes PivotGrid and its data model', function() {
+  assert.equal(typeof fabui.pivot.PivotEngine, 'function');
+  assert.equal(typeof fabui.pivot.PivotField, 'function');
+  assert.equal(typeof fabui.pivot.PivotGrid, 'function');
+  assert.equal(typeof fabui.pivot.PivotPanel, 'function');
+  assert.equal(Object.getPrototypeOf(fabui.pivot.PivotGrid.prototype), fabui.FabGrid.prototype);
+  assert.equal(Object.getPrototypeOf(fabui.pivot.PivotPanel.prototype), fabui.Control.prototype);
+  assert.equal(fabui.pivot.PivotAggregate.Sum, 'Sum');
+  assert.equal(fabui.pivot.PivotShowTotals.Subtotals, 'Subtotals');
+  assert.equal(fabui.PivotEngine, undefined);
+  assert.equal(fabui.PivotGrid, undefined);
+});
+
+test('PivotPanel moves fields between view areas through the shared engine', function() {
+  var engine = new fabui.pivot.PivotEngine({
+    itemsSource: [{ region: 'North', sales: 10, cost: 4 }],
+    fields: [
+      { binding: 'region', header: 'Region' },
+      { binding: 'sales', header: 'Sales', dataType: 'number' },
+      { binding: 'cost', header: 'Cost', dataType: 'number' }
+    ],
+    rowFields: ['region'],
+    valueFields: ['sales', 'cost']
+  });
+  var panel = Object.create(fabui.pivot.PivotPanel.prototype);
+
+  panel._engine = engine;
+  panel.restrictDragging = false;
+  panel.areaLists = {
+    fields: {},
+    filterFields: {},
+    rowFields: {},
+    columnFields: {},
+    valueFields: {}
+  };
+
+  assert.equal(panel.moveField('region', 'columnFields', 0), true);
+  assert.deepEqual(engine.rowFields.map(function(field) { return field.key; }), []);
+  assert.deepEqual(engine.columnFields.map(function(field) { return field.key; }), ['Region']);
+  assert.equal(panel.moveField('cost', 'valueFields', 0), true);
+  assert.deepEqual(engine.valueFields.map(function(field) { return field.key; }), ['Cost', 'Sales']);
+  assert.equal(panel.setAggregate('sales', 'Average'), true);
+  assert.equal(engine.getField('sales').aggregate, 'Average');
+  assert.equal(typeof panel.viewDefinition, 'string');
+});
+
+test('PivotPanel drag indicator reports the insertion index without counting the dragged field', function() {
+  var panel = Object.create(fabui.pivot.PivotPanel.prototype);
+  var originalDocument = globalThis.document;
+  var insertedBefore = null;
+  var appended = null;
+  var removed = null;
+  var items = [
+    createItem('sales', 0),
+    createItem('downloads', 30),
+    createItem('revenue', 60)
+  ];
+  var list = {
+    querySelectorAll: function() { return items; },
+    insertBefore: function(node, anchor) {
+      insertedBefore = anchor;
+      node.parentNode = list;
+    },
+    appendChild: function(node) {
+      appended = node;
+      node.parentNode = list;
+    },
+    removeChild: function(node) {
+      removed = node;
+      node.parentNode = null;
+    }
+  };
+
+  function createItem(key, top) {
+    return {
+      getAttribute: function(name) { return name === 'data-field-key' ? key : null; },
+      getBoundingClientRect: function() { return { top: top, height: 30 }; }
+    };
+  }
+
+  globalThis.document = {
+    createElement: function() {
+      return {
+        className: '',
+        parentNode: null,
+        setAttribute: function() {}
+      };
+    }
+  };
+  panel._dragFieldKey = 'sales';
+  panel._dragTargetArea = null;
+  panel._dragTargetIndex = Infinity;
+  panel._dropIndicator = null;
+
+  try {
+    assert.equal(panel._showDropIndicator(list, 'valueFields', 35), 0);
+    assert.equal(insertedBefore, items[1]);
+    panel._clearDropIndicator();
+    assert.equal(removed !== null, true);
+    assert.equal(panel._showDropIndicator(list, 'valueFields', 88), 2);
+    assert.equal(appended, panel._dropIndicator);
+  } finally {
+    panel._clearDropIndicator();
+    globalThis.document = originalDocument;
+  }
+});
+
+test('PivotGrid closes its context menu with Escape', function() {
+  var grid = Object.create(fabui.pivot.PivotGrid.prototype);
+  var hidden = false;
+  var prevented = false;
+  var stopped = false;
+
+  grid.isDetailOpen = function() { return false; };
+  grid.isTopLeftMenuOpen = function() { return true; };
+  grid.hideTopLeftMenu = function() { hidden = true; };
+  grid.handleKeyDown({
+    key: 'Escape',
+    preventDefault: function() { prevented = true; },
+    stopPropagation: function() { stopped = true; }
+  });
+
+  assert.equal(hidden, true);
+  assert.equal(prevented, true);
+  assert.equal(stopped, true);
+});
+
+test('PivotGrid mirrors filter fields above row field headers and applies their selected value', function() {
+  var engine = new fabui.pivot.PivotEngine({
+    itemsSource: [
+      { quarter: 'Q1', region: 'North', platform: 'Web', sales: 10 },
+      { quarter: 'Q1', region: 'South', platform: 'Web', sales: 20 }
+    ],
+    fields: [
+      { binding: 'quarter', header: 'Quarter' },
+      { binding: 'region', header: 'Region' },
+      { binding: 'platform', header: 'Platform' },
+      { binding: 'sales', header: 'Sales', dataType: 'number' }
+    ],
+    rowFields: ['quarter'],
+    columnFields: ['platform'],
+    valueFields: ['sales'],
+    filterFields: ['region']
+  });
+  var grid = Object.create(fabui.pivot.PivotGrid.prototype);
+
+  grid._pivotEngine = engine;
+  grid._pivotView = engine.pivotView;
+  grid._pivotDataHeaderLevelCount = grid._getPivotDataHeaderLevelCount();
+  assert.deepEqual(engine.pivotView.filterFields.map(function(field) { return field.key; }), ['Region']);
+  assert.equal(grid._getPivotHeaderLevelCount(), 2);
+
+  grid._handlePivotFilterFieldChange({
+    target: {
+      classList: { contains: function(name) { return name === 'fg-pivot-filter-field-select'; } },
+      getAttribute: function(name) { return name === 'data-pivot-field' ? 'region' : null; },
+      selectedOptions: [{ _pivotFilterValue: 'North' }]
+    }
+  });
+
+  assert.deepEqual(engine.getField('region').filter, { values: ['North'] });
+  assert.equal(engine.pivotView.filteredCount, 1);
+});
+
+test('PivotGrid merges repeated row field values into collapsible group spans', function() {
+  var engine = new fabui.pivot.PivotEngine({
+    itemsSource: [
+      { quarter: 'Q1', agent: 'Amy', sales: 10 },
+      { quarter: 'Q1', agent: 'Ben', sales: 20 },
+      { quarter: 'Q2', agent: 'Cindy', sales: 30 }
+    ],
+    fields: [
+      { binding: 'quarter', header: 'Quarter' },
+      { binding: 'agent', header: 'Agent' },
+      { binding: 'sales', header: 'Sales', dataType: 'number' }
+    ],
+    rowFields: ['quarter', 'agent'],
+    valueFields: ['sales'],
+    showRowTotals: fabui.pivot.PivotShowTotals.Subtotals
+  });
+  var grid = Object.create(fabui.pivot.PivotGrid.prototype);
+  var groups = grid._buildPivotRowGroups(engine.pivotView.rows, 2);
+  var q1Group = groups[0][0];
+  var q2Group = groups[0][3];
+
+  assert.equal(q1Group.start, 0);
+  assert.equal(q1Group.end, 2);
+  assert.equal(groups[0][1], q1Group);
+  assert.equal(groups[0][2], q1Group);
+  assert.equal(q1Group.toggleKey, engine.pivotView.rowEntries[2].key);
+  assert.equal(q2Group.start, 3);
+  assert.equal(q2Group.end, 4);
+  assert.equal(q2Group.toggleKey, engine.pivotView.rowEntries[4].key);
+  assert.equal(groups[1][0].start, 0);
+  assert.equal(groups[1][0].end, 0);
+  assert.equal(groups[1][2], undefined);
+});
+
+test('PivotGrid keeps subtotal toggles out of the cell range pointer flow', function() {
+  var grid = Object.create(fabui.pivot.PivotGrid.prototype);
+  var root = {
+    nodeType: 1,
+    classList: { contains: function() { return false; } },
+    parentElement: null
+  };
+  var toggle = {
+    nodeType: 1,
+    classList: {
+      contains: function(name) { return name === 'fg-pivot-row-toggle'; }
+    },
+    parentElement: root
+  };
+
+  grid.root = root;
+  assert.doesNotThrow(function() {
+    grid.handlePointerDown({ target: toggle, button: 0 });
+  });
+});

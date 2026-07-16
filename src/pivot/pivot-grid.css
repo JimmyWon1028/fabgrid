@@ -1,0 +1,224 @@
+.fg-root.fg-pivot-grid {
+  --fg-pivot-total-bg: color-mix(in srgb, var(--fg-header-bg) 72%, var(--fg-cell-bg));
+  --fg-pivot-detail-backdrop: rgb(15 23 42 / 28%);
+}
+
+.fg-pivot-grid .fg-pivot-header-cell {
+  justify-content: center;
+  border-bottom: 1px dotted var(--fg-border);
+  background-color: var(--fg-header-bg);
+  color: var(--fg-header-text);
+}
+
+.fg-pivot-grid .fg-pivot-header-title {
+  width: 100%;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px;
+}
+
+.fg-pivot-grid .fg-pivot-row-field-header .fg-pivot-header-title {
+  justify-content: flex-start;
+  cursor: pointer;
+}
+
+.fg-pivot-grid .fg-pivot-filter-field-header {
+  z-index: 2;
+  justify-content: stretch;
+  border-right: 1px solid var(--fg-border-strong);
+}
+
+.fg-pivot-grid .fg-pivot-filter-field-header .fg-pivot-header-title {
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 3px 6px;
+}
+
+.fg-pivot-grid .fg-pivot-filter-field-label {
+  flex: 0 1 auto;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-grid .fg-pivot-filter-field-select {
+  flex: 1 1 auto;
+  min-width: 58px;
+  height: 24px;
+  padding: 0 22px 0 6px;
+  border: 1px solid var(--fg-border-strong);
+  border-radius: 2px;
+  background: var(--fg-cell-bg);
+  color: var(--fg-cell-text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.fg-pivot-grid .fg-pivot-filter-field-select:focus {
+  border-color: var(--fg-selected-border);
+  outline: 1px solid var(--fg-selected-border);
+}
+
+.fg-pivot-grid .fg-pivot-row-field-header .fg-header-label::after {
+  display: inline-block;
+  margin-left: 5px;
+  color: var(--fg-header-text);
+  content: "↕";
+  font-size: 11px;
+  opacity: .65;
+}
+
+.fg-pivot-grid .fg-pivot-row-field-cell {
+  justify-content: flex-start;
+  background-color: var(--fg-cell-bg);
+}
+
+.fg-pivot-grid .fg-pivot-row-merged-cell {
+  z-index: 2;
+  align-items: center;
+  gap: 4px;
+  border-bottom-style: solid;
+  background-color: var(--fg-cell-bg);
+}
+
+.fg-pivot-grid .fg-pivot-row-merged-label {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-grid .fg-pivot-row-merged-covered {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.fg-pivot-grid .fg-pivot-row-merged-cell .fg-pivot-row-toggle {
+  flex: 0 0 18px;
+}
+
+.fg-pivot-grid .fg-pivot-total-cell {
+  background-color: var(--fg-pivot-total-bg);
+  font-weight: 600;
+}
+
+.fg-pivot-grid .fg-pivot-total-cell.fg-selected,
+.fg-pivot-grid .fg-pivot-total-cell.fg-range-selected {
+  background-color: var(--fg-selected-bg);
+}
+
+.fg-pivot-toggle {
+  display: inline-flex;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--fg-border-strong);
+  border-radius: 2px;
+  background: var(--fg-cell-bg);
+  color: var(--fg-cell-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fg-pivot-toggle:hover,
+.fg-pivot-toggle:focus-visible {
+  border-color: var(--fg-selected-border);
+  outline: 1px solid var(--fg-selected-border);
+}
+
+.fg-pivot-column-toggle {
+  background: var(--fg-header-bg);
+  color: var(--fg-header-text);
+}
+
+.fg-pivot-detail-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--fg-pivot-detail-backdrop);
+}
+
+.fg-pivot-detail-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(900px, 94%);
+  height: min(560px, 88%);
+  overflow: hidden;
+  border: 1px solid var(--fg-border-strong);
+  border-radius: 4px;
+  background: var(--fg-cell-bg);
+  box-shadow: 0 12px 32px rgb(15 23 42 / 28%);
+  color: var(--fg-cell-text);
+}
+
+.fg-pivot-detail-header {
+  display: flex;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--fg-border-strong);
+  background: var(--fg-header-bg);
+  color: var(--fg-header-text);
+}
+
+.fg-pivot-detail-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-detail-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fg-pivot-detail-close:hover,
+.fg-pivot-detail-close:focus-visible {
+  border-color: var(--fg-border-strong);
+  background: var(--fg-selected-bg);
+  outline: none;
+}
+
+.fg-pivot-detail-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.fg-pivot-detail-body > .fg-root {
+  min-height: 0;
+  border: 0;
+}
+
+@supports not (color: color-mix(in srgb, white, black)) {
+  .fg-root.fg-pivot-grid {
+    --fg-pivot-total-bg: #f4f4f4;
+  }
+}

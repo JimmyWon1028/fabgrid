@@ -13,6 +13,43 @@
     exportBusyText: '匯出 Excel 中...',
     workingText: '處理中...',
     loadMsg: '正在處理，請稍候...',
+    pivot: {
+      grandTotal: '總計',
+      total: '小計',
+      expandGroup: '展開群組',
+      collapseGroup: '收合群組',
+      showDetail: '查看明細',
+      detailTitle: '明細資料',
+      detailCount: '共 {count} 筆',
+      closeDetail: '關閉明細',
+      sortAscending: '升冪排序',
+      sortDescending: '降冪排序',
+      aggregate: '彙總方式',
+      removeField: '移除欄位',
+      filteredValues: '已篩選',
+      panel: {
+        ariaLabel: 'Pivot View 設定',
+        fields: '欄位',
+        filters: '篩選',
+        rows: '列',
+        columns: '欄',
+        values: '數值',
+        allValues: '全部',
+        filterField: '篩選「{field}」',
+        aggregateMenu: '數值彙總設定',
+        aggregateField: '設定「{field}」彙總函數',
+        dropFields: '拖曳欄位到這裡',
+        noFields: '沒有可用欄位',
+        removeField: '移除欄位'
+      },
+      aggregates: {
+        sum: '加總',
+        count: '筆數',
+        average: '平均',
+        min: '最小值',
+        max: '最大值'
+      }
+    },
     pagination: {
       ariaLabel: '分頁導覽',
       pageSize: '每頁筆數',

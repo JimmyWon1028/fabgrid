@@ -4,7 +4,7 @@
 
 # FabGrid
 
-FabUI 提供 pure JavaScript FabGrid 與 SVG Chart。FabGrid 支援雙向 virtualization、凍結欄、TreeGrid、排序、搜尋、編輯、群組、分頁與 JSON / CSV / Excel 匯入匯出；Chart 支援直條圖、橫條圖、折線圖與圓餅圖。
+FabUI 提供 pure JavaScript FabGrid、PivotPanel／PivotGrid 與 SVG Chart。FabGrid 支援雙向 virtualization、凍結欄、TreeGrid、排序、搜尋、編輯、群組、分頁與 JSON / CSV / Excel 匯入匯出；PivotPanel 可互動定義 View，PivotGrid 提供多階列／欄彙總、父層列值疊合、小計、總計、展開收合與明細追溯；Chart 支援直條圖、橫條圖、折線圖與圓餅圖。
 
 ## 文件與 Demo
 
@@ -13,7 +13,11 @@ FabUI 提供 pure JavaScript FabGrid 與 SVG Chart。FabGrid 支援雙向 virtua
 - [線上 Grid / Grid 拖曳 Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-grid.html)
 - [線上 Grid / TreeGrid 拖曳 Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-treegrid.html)
 - [線上 Chart Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-chart.html)
+- [線上 PivotGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/pivot.html)
+- PivotGrid 本機 Demo：[正式 build-mode](./demo/pivot.html) 與 [source-mode 開發版](./demo/dev-pivot.html)。
+- 兩個 PivotGrid Demo 都使用單畫面 RWD 工作區，支援隱藏／開啟定義 Panel，以及共用的全部疊合／全部展開按鈕；正式版只引用 `dist` bundle，畫面四周保留 10px。
 - [FabGrid API 操作手冊](./docs/fabgrid-api.md)：完整的建構選項、欄位設定、方法、事件、遠端資料協定與匯出說明。
+- [PivotGrid API 操作手冊](./docs/pivotgrid-api.md)
 - [Chart API 操作手冊](./docs/chart-api.md)
 - [Vue 2 Wrapper API](./docs/vue-api.md)
 - [jQuery Wrapper API](./docs/jquery-api.md)
@@ -82,6 +86,9 @@ jQuery Demo 分成以下兩層：
 
 ## 主要能力
 
+- `fabui.pivot.PivotEngine` 使用 `rowFields`、`columnFields`、`valueFields` 與 `filterFields` 將本機 Array 建立為 Pivot view；支援 Sum、Count、Average、Min、Max、日期 Year／Quarter／Month／Day groupBy、小計、總計、總計位置與 viewDefinition。
+- `fabui.pivot.PivotPanel` 提供 Fields、Filters、Rows、Columns、Values 區域，支援勾選、拖放排序、插入橫線提示、移除、filter field 配置、數值欄位右鍵 aggregate 設定與 JSON 字串 `viewDefinition` 儲存／還原；Filters 只顯示欄位，內容選擇位於 PivotGrid 左上角，四個 View 區域皆不顯示上下移動按鈕。
+- `fabui.pivot.PivotGrid` 繼承 FabGrid 的雙向 virtualization、CellRange、clipboard、匯出、Control lifecycle 與 theme style；提供多層欄標頭、固定 row fields、左上角同步 filter field 內容選擇器、重複父層列值疊合、單擊列／欄 subtotal 展開收合、全部群組展開／疊合、dimension 排序、右鍵 aggregate 設定與雙擊原始明細。父層收合後只保留該群組小計列。
 - 固定列高與欄寬的雙向 virtualization，適合大量資料。
 - `childItemsPath` TreeGrid 模式、節點收合／展開、階層鍵盤導覽、同層排序、保留祖先路徑的篩選，以及收合／篩選後維持原始列號。
 - `allowDragging: 'Rows'` 支援一般 Grid 列重排、跨 Grid 移動、跨 Grid 移入 TreeGrid，以及 TreeGrid `before`／`inside`／`after` 節點上下階；開發範例為 `demo/dev-grid-grid.html` 與 `demo/dev-grid-treegrid.html`，其他範例為 `demo/grid-grid.html`、`demo/grid-grid-vue2.html`、`demo/grid-treegrid.html` 與 `demo/grid-treegrid-vue2.html`。
@@ -105,7 +112,7 @@ jQuery Demo 分成以下兩層：
 
 ## 套件與原始碼結構
 
-`fabui` 是最上層 namespace，目前公開 `fabui.FabGrid`、`fabui.Chart` 與必要的 `fabui.Control`、`fabui.CellType`、`fabui.editorDefinitions`、`fabui.FabGridLocales`。Row 類型只由 `fabui.FabGrid.Row` 與 `fabui.FabGrid.GroupRow` 公開。其他表單控件保留在原始碼中，尚未列入發佈 bundle，規劃請見 [TODO](./TODO.md)。
+`fabui` 是最上層 namespace，目前公開 `fabui.FabGrid`、`fabui.pivot`、`fabui.Chart` 與必要的 `fabui.Control`、`fabui.CellType`、`fabui.editorDefinitions`、`fabui.FabGridLocales`。Pivot 類別與列舉統一由 `fabui.pivot.PivotPanel`、`fabui.pivot.PivotGrid`、`fabui.pivot.PivotEngine`、`fabui.pivot.PivotField`、`fabui.pivot.PivotAggregate`、`fabui.pivot.PivotShowTotals` 取得；頂層不重複公開。Row 類型只由 `fabui.FabGrid.Row` 與 `fabui.FabGrid.GroupRow` 公開。其他表單控件保留在原始碼中，尚未列入發佈 bundle，規劃請見 [TODO](./TODO.md)。
 
 可透過 `fabui.version` 取得發佈日期版本，格式為 `YYYY.M.D`，例如 `2026.7.11`。每次執行 build 時會依本機當天日期自動產生。
 
@@ -121,6 +128,11 @@ src/grid/fabgrid-data.js            Data view、remote、pagination 與 grouping
 src/grid/fabgrid-tree.js            TreeGrid 可視列、狀態與互動
 src/grid/fabgrid-drag.js            Row drag 與跨 Grid drop
 src/grid/fabgrid-export.js          CSV 與 Excel 匯出
+src/pivot/pivot-engine.js           Pivot 欄位、分組、彙總與 view definition
+src/pivot/pivot-panel.js            Pivot View 欄位配置與儲存還原 UI
+src/pivot/pivot-panel.css           沿用 FabGrid theme variables 的 PivotPanel 樣式
+src/pivot/pivot-grid.js             PivotGrid lifecycle、多層標頭與互動
+src/pivot/pivot-grid.css            沿用 FabGrid CSS variables 的 Pivot 樣式
 src/editor/                         共用 editor 定義
 ```
 

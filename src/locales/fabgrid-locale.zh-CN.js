@@ -13,6 +13,43 @@
     exportBusyText: '正在导出 Excel...',
     workingText: '处理中...',
     loadMsg: '正在处理，请稍候...',
+    pivot: {
+      grandTotal: '总计',
+      total: '小计',
+      expandGroup: '展开群组',
+      collapseGroup: '折叠群组',
+      showDetail: '查看明细',
+      detailTitle: '明细数据',
+      detailCount: '共 {count} 条',
+      closeDetail: '关闭明细',
+      sortAscending: '升序排序',
+      sortDescending: '降序排序',
+      aggregate: '汇总方式',
+      removeField: '移除字段',
+      filteredValues: '已筛选',
+      panel: {
+        ariaLabel: 'Pivot View 设置',
+        fields: '字段',
+        filters: '筛选',
+        rows: '行',
+        columns: '列',
+        values: '数值',
+        allValues: '全部',
+        filterField: '筛选“{field}”',
+        aggregateMenu: '数值汇总设置',
+        aggregateField: '设置“{field}”汇总函数',
+        dropFields: '拖动字段到这里',
+        noFields: '没有可用字段',
+        removeField: '移除字段'
+      },
+      aggregates: {
+        sum: '求和',
+        count: '计数',
+        average: '平均',
+        min: '最小值',
+        max: '最大值'
+      }
+    },
     pagination: {
       ariaLabel: '分页导航',
       pageSize: '每页条数',
