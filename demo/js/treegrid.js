@@ -29,7 +29,7 @@
     allowEditing: false,
     allowSorting: true,
     allowResizing: true,
-    alternatingRows: true,
+    alternatingRowStep: 1,
     frozenColumns: 1,
     showSearchRow: true,
     locale: 'zh-TW'

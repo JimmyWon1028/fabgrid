@@ -24,6 +24,7 @@
 - 開發測試優先使用 source-mode `demo/dev-grid.html`，直接引用公開入口 `src/fabui.js` 與 `src/fabui.css`；build-mode 主 Demo 固定為 `demo/grid.html`。內部模組仍放在各自目錄。修改 source 後要同步更新 query version，避免瀏覽器快取造成誤判。
 - 新增任何核心 UI 文字時，必須同步補齊 `en`、`zh-TW`、`zh-CN` locale key；demo-only 文字若會隨語言切換，也要放進 demo locale pack，不要寫死單一語言。
 - popup menu 樣式要維持一致：左側 icon 欄、icon 後分隔線、緊湊列高與清楚 hover/active 狀態；後續新增 popup menu 時沿用目前 filter menu 的視覺規則。
+- 所有既有與未來新增的 popup 都必須支援按 `Escape` 關閉；關閉只負責收起 popup，不得隱含套用、清除或提交尚未確認的內容。
 - 工作進度記錄放在 `worklogs/YYYY-MM-DD.md`，固定使用 `## 完成進度` 標題；功能契約改動時，同步更新 README 與本文件。
 - Excel 預設匯出完整欄位集合，隱藏欄位必須保留資料並在工作表標記為 hidden；只有明確傳入 `visibleOnly === true` 時才只匯出可見欄位。
 - Excel 匯出使用目前 grid `view`。群組啟用時必須保留 group row、群組 aggregate 顯示格式與收合狀態。
@@ -85,14 +86,23 @@ fabgrid-jquery
 - `childItemsPath` TreeGrid、節點收合／展開、同層排序、篩選祖先路徑、收合／篩選後維持原始列號與階層鍵盤導覽。
 - `allowDragging: 'Rows'` 的本機資料列拖曳、跨 Grid move、TreeGrid `before`／`inside`／`after` 節點重排與上下階；循環階層必須被拒絕。
 - 左上角列頭 cell 右鍵功能表，提供搜尋列切換、清除所有篩選、「列號」下層顯示模式、Excel／CSV 匯出與 Grid fullscreen。
-- 單一 cell、列選取、多選列、clipboard copy 與鍵盤導覽；active cell 邊框預設為 2px，`setRowHeaderWidth(width)` 可在 runtime 調整列號欄寬並自動 refresh。
+- `selectionMode` 支援 `Cell` 與連續矩形 `CellRange`；後者支援滑鼠拖曳、`Shift + Click`、`Shift + 方向鍵`與 TSV clipboard copy。CellRange 雙擊必須由同一資料格的連續 pointer 操作成立，`pointercancel` 不得觸發雙擊，完成 pointer 選取後不得再由 click 重複套用 selection 或 render。`highlightActiveRow` 預設為 `true`，只控制 active row 背景，不得隱含改變多選列；active cell 邊框預設為 2px，`setRowHeaderWidth(width)` 可在 runtime 調整列號欄寬並自動 refresh。
+- `alternatingRowStep` 預設為 `1`；`false` 關閉交替列背景，正整數依指定列數為一組切換交替色。
+- `formatItem.addHandler((g, e) => {})` 使用 `fabui.CellType` 數值列舉與相容 panel；Header、Footer、Data Cell、Row Header 的事件參數必須由單一共用流程建立，不得在各 renderer 重複定義。
+- Column `cellTemplate` 使用 Wijmo-compatible `string | function | null` 契約；函式簽名為 `(ctx, cell)`，context 包含 `col`、`row`、`item`、`value`、`text`，回傳 HTML 字串或直接修改 cell 並回傳 `null`。Template 只影響 body cell 顯示，不得改變 editor、clipboard 或 export 的原始資料契約。Function callback 執行前後必須合併 cell inline style：`cell.style = customStyle` 只疊加自訂視覺樣式並保護 Grid 定位／尺寸，`cell.style = null` 還原 callback 前的 Grid 樣式。
+- `g.rows` 與 `selectedRows` 回傳 `fabui.FabGrid.Row`／`fabui.FabGrid.GroupRow` instance；`GroupRow` 繼承 `Row`，群組 header 與 group footer 都必須是 `GroupRow`；不得另外公開 `fabui.grid` namespace。
+- `fabui.Control.getControl(elementOrSelector)` 由 host element registry 取得 FabGrid instance；FabGrid 建立時登記、`dispose()` 時解除，找不到時回傳 `null`。
+- FabGrid 繼承 `fabui.Control` 的 `addEventListener()`／`removeEventListener()`；managed DOM listeners 必須在 `dispose()` 自動解除。欄位拖曳、欄寬調整、CellRange、捲軸與資料列拖曳所需的 document pointer listener 必須只在互動期間綁定，結束、取消或 dispose 時立即解除，不得讓每個 Grid 常駐全域 pointermove／pointerup listener。`hitTest()` 使用 `fabui.CellType` 與 panel 區分資料 cell、Header、Search Row、列頭與 Footer；Search Row 屬於 `ColumnHeader` 並提供 `isSearchRow: true`。
 - 欄位拖曳、欄寬調整、雙擊 header 分隔線 AutoFit、欄位顯示切換、footer aggregate。
 - CSV 與 Excel 匯出，以及 Excel hidden columns、格式、凍結窗格與 autoFilter。
+- JSON API 使用 `getJson(options)`、`exportJson(filename, options)` 與 `importJson(source)`；預設匯出完整 `itemsSource` 以保留 TreeGrid 階層，只有 `viewOnly === true` 才匯出排除合成群組列的目前 view。
 - `textbox`、`numberbox`、`datebox`、`combobox`、`color` grid editor；`color` 支援 hex 與標準 CSS 顏色名稱，名稱提交後保留原文字；standalone 控件仍不由 core bundle 公開。
 - 欄位搜尋列遇到 `datebox`、`combobox`、`color` editor 時沿用對應下拉 panel；搜尋輸入只建立 filter，不執行 cell validation。
 - Header 漏斗採互斥的兩套欄位篩選：`showSearchRow: true` 使用原 Search Row 運算子，`false` 使用 Excel-like 值篩選；每次切換模式先清除另一套欄位條件，右下角 Quick Search 保留。
+- Filterable Header 文字必須垂直置中，漏斗 icon 疊在右上方；icon 必須維持獨立且高於文字的 hit area，點擊只開啟篩選選單，不得觸發排序或欄位拖曳；Header 右邊界的 resize handle 必須高於 filter icon，確保拖曳調寬與雙擊 AutoFit 可用。
 - `allowFiltering` 是 Search Row 與 Excel-like 欄位篩選的共用開關；設為 `false` 時必須隱藏兩套欄位篩選 UI、清除兩套欄位條件，但保留右下角 Quick Search。
 - Excel-like 篩選 popup 開啟時按 `Escape` 必須只關閉 popup，不可套用或清除尚未提交的篩選草稿。
+- 左上角欄位選擇器 popup 必須支援按 `Escape` 與點擊 popup 外部關閉；點擊 popup 內部或觸發按鈕不得誤關閉。
 - Grid popup 由欄位 Header Row 的右鍵操作開啟，不再由左上角列頭 cell 開啟；Search Row 與資料列不觸發此 popup。
 - `en`、`zh-TW`、`zh-CN` locale 與多組 theme。
 
@@ -345,13 +355,17 @@ Demo 應該顯示有助於觀察效能的 runtime stats：
 src/grid/fabgrid-data.js    binding、資料比較、remote、pagination、grouping、aggregate
 src/grid/fabgrid-drag.js    row pointer drag、跨 Grid drop、TreeGrid drop 協調
 src/grid/fabgrid-editor.js  grid editor mask、caret 與 validation helpers
+src/grid/fabgrid-editor-runtime.js  cell editing、editor panel 與 validation lifecycle
 src/grid/fabgrid-export.js  CSV、XML 與 Excel 共用序列化工具
+src/grid/fabgrid-filter-ui.js  Search Row、Excel-like filter、column chooser 與 popup UI
+src/grid/fabgrid-selection.js  selection、keyboard、clipboard、column drag／resize
 src/grid/fabgrid-tree.js    TreeGrid 可視列、節點狀態與互動
+src/grid/fabgrid-view.js    layout、scrollbar、雙向 virtualization 與 rendering
 src/grid/fabgrid.css        FabGrid 核心樣式
 src/fabui.icon.css          FabUI icon 樣式入口
 ```
 
-FabGrid 專用程式統一放在 `src/grid/`；只有確認可由其他 FabUI 元件共用的定義才放在 Grid 目錄外。`src/grid/fabgrid.js` 保留 FabGrid lifecycle、DOM、事件與流程協調，且不得改變公開 API。
+FabGrid 專用程式統一放在 `src/grid/`；只有確認可由其他 FabUI 元件共用的定義才放在 Grid 目錄外。`src/grid/fabgrid.js` 保留 factory、公共 API、事件、DOM lifecycle 與模組安裝協調，且不得改變公開 API；view、filter UI、selection 與 editor runtime 由各自領域模組負責。
 
 建議模組邊界：
 

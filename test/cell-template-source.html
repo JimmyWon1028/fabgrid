@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>FabGrid Source Cell Template Test</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260716-cell-range-v2">
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+    }
+
+    #grid {
+      width: 720px;
+      height: 320px;
+    }
+
+    .cell-template-value {
+      color: #047857;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <button id="apply-runtime-template" type="button">Apply runtime template</button>
+  <div id="grid"></div>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260716-column-chooser-close-v4';
+
+    const rows = [
+      { id: 1, name: 'Alpha', amount: 4200, status: 'Open' },
+      { id: 2, name: 'Beta', amount: 1800, status: 'Closed' }
+    ];
+
+    const grid = new fabui.FabGrid('#grid', {
+      itemsSource: rows,
+      columns: [
+        {
+          binding: 'id',
+          header: 'ID',
+          width: 80,
+          cellTemplate: '<strong class="cell-template-id">${text}</strong>'
+        },
+        {
+          binding: 'name',
+          header: 'Name',
+          width: 180,
+          cellTemplate: (ctx) => `<span class="cell-template-name">${ctx.row.index}:${ctx.text}</span>`
+        },
+        {
+          binding: 'amount',
+          header: 'Amount',
+          width: 160,
+          cellTemplate: (ctx, cell) => {
+            cell.setAttribute('data-cell-template-style', ctx.item.name);
+            cell.style = ctx.row.index === 0 ?
+              'background-color: rgb(255, 230, 138); color: rgb(4, 120, 87); left: -500px; width: 1px;' :
+              null;
+            return `NT$ ${ctx.value}`;
+          }
+        },
+        {
+          binding: 'status',
+          header: 'Status',
+          width: 120,
+          cellTemplate: (ctx, cell) => {
+            cell.classList.add('cell-template-direct');
+            cell.innerHTML = `<span class="cell-template-value">${ctx.text}</span>`;
+            return null;
+          }
+        }
+      ]
+    });
+
+    document.querySelector('#apply-runtime-template').addEventListener('click', () => {
+      grid.columns[1].cellTemplate = (ctx) => `<em class="cell-template-runtime">${ctx.text}</em>`;
+    });
+
+    window.cellTemplateSourceTest = { fabui, grid };
+  </script>
+</body>
+</html>

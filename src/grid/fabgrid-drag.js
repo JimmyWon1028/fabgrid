@@ -24,10 +24,27 @@ export function installFabGridDrag(FabGrid, context) {
     this._boundRowDragClick = bind(this, this.handleRowDragClick);
     this.root.addEventListener('pointerdown', this._boundRowPointerDown);
     this.root.addEventListener('click', this._boundRowDragClick, true);
+    rowDragGrids.push(this);
+  };
+
+  FabGrid.prototype.bindActiveRowDragEvents = function() {
+    if (this.activeRowDragEventsBound) {
+      return;
+    }
     document.addEventListener('pointermove', this._boundRowPointerMove);
     document.addEventListener('pointerup', this._boundRowPointerUp);
     document.addEventListener('pointercancel', this._boundRowPointerCancel);
-    rowDragGrids.push(this);
+    this.activeRowDragEventsBound = true;
+  };
+
+  FabGrid.prototype.unbindActiveRowDragEvents = function() {
+    if (!this.activeRowDragEventsBound) {
+      return;
+    }
+    document.removeEventListener('pointermove', this._boundRowPointerMove);
+    document.removeEventListener('pointerup', this._boundRowPointerUp);
+    document.removeEventListener('pointercancel', this._boundRowPointerCancel);
+    this.activeRowDragEventsBound = false;
   };
 
   FabGrid.prototype.unbindRowDragEvents = function() {
@@ -37,9 +54,7 @@ export function installFabGridDrag(FabGrid, context) {
     }
     this.root.removeEventListener('pointerdown', this._boundRowPointerDown);
     this.root.removeEventListener('click', this._boundRowDragClick, true);
-    document.removeEventListener('pointermove', this._boundRowPointerMove);
-    document.removeEventListener('pointerup', this._boundRowPointerUp);
-    document.removeEventListener('pointercancel', this._boundRowPointerCancel);
+    this.unbindActiveRowDragEvents();
     this.clearRowDropIndicator();
     if (activeRowDrag && activeRowDrag.sourceGrid === this) {
       this.finishRowPointerDrag(activeRowDrag);
@@ -93,6 +108,7 @@ export function installFabGridDrag(FabGrid, context) {
       target: null
     };
     this.rowDragState = activeRowDrag;
+    this.bindActiveRowDragEvents();
   };
 
   FabGrid.prototype.getRowDragText = function(item) {
@@ -315,6 +331,7 @@ export function installFabGridDrag(FabGrid, context) {
     if (state && state.sourceGrid) {
       state.sourceGrid.root.classList.remove('fg-row-dragging');
       state.sourceGrid.rowDragState = null;
+      state.sourceGrid.unbindActiveRowDragEvents();
     }
     document.body.classList.remove('fg-row-drag-document');
     activeRowDrag = null;

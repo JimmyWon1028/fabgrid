@@ -62,7 +62,7 @@
       showSearchRow: false,
       frozenColumns: 1,
       rowHeaderWidth: 44,
-      alternatingRows: true
+      alternatingRowStep: 1
     });
 
     treeGrid = new root.fabui.FabGrid('#dragTargetTree', {
@@ -78,7 +78,7 @@
       showSearchRow: false,
       frozenColumns: 1,
       rowHeaderWidth: 44,
-      alternatingRows: true
+      alternatingRowStep: 1
     });
 
     poolGrid.on('draggedRow', handleDraggedRow);

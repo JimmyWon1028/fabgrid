@@ -212,7 +212,7 @@ const app = new Vue({
         allowResizing: true,
         allowEditing: false,
         editOnSelect: false,
-        alternatingRows: true,
+        alternatingRowStep: 1,
         formatCell: formatLookupCell,
       },
       stats: {
@@ -259,7 +259,7 @@ const app = new Vue({
         allowEditing: false,
         editOnSelect: false,
         allowResizing: true,
-        alternatingRows: true,
+        alternatingRowStep: 1,
         observeItemsSource: true,
         headerToggleKey: "f4",
         formatCell: formatDemoCell,

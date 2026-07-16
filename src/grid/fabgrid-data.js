@@ -750,16 +750,28 @@ export function installFabGridData(FabGrid, context) {
   };
 
   FabGrid.prototype.handleObservedItemsSourceChange = function() {
-    if (this.disposed || this._suppressObservedItemChange || this._handlingObservedItemChange) {
+    var grid = this;
+    var enqueue;
+    if (this.disposed || this._suppressObservedItemChange || this._handlingObservedItemChange || this._observedItemsChangeQueued) {
       return;
     }
-    this._handlingObservedItemChange = true;
-    try {
-      this.applyView();
-      this.refresh();
-    } finally {
-      this._handlingObservedItemChange = false;
-    }
+    this._observedItemsChangeQueued = true;
+    enqueue = typeof queueMicrotask === 'function' ? queueMicrotask : function(callback) {
+      Promise.resolve().then(callback);
+    };
+    enqueue(function() {
+      grid._observedItemsChangeQueued = false;
+      if (grid.disposed || grid._suppressObservedItemChange || grid._handlingObservedItemChange) {
+        return;
+      }
+      grid._handlingObservedItemChange = true;
+      try {
+        grid.applyView();
+        grid.refresh();
+      } finally {
+        grid._handlingObservedItemChange = false;
+      }
+    });
   };
 
   FabGrid.prototype.setFilter = function(predicate) {
@@ -1069,6 +1081,7 @@ export function installFabGridData(FabGrid, context) {
       this.dataView = rows;
       this.view = this.createGroupedView(rows);
     }
+    this._rowCollection = null;
     this.refreshInvalidItemRows();
     this.restoreSelectionState(selectionState);
     this.clampSelection();

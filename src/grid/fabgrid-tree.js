@@ -511,12 +511,14 @@ export function installFabGridTree(FabGrid, context) {
       return false;
     }
     this.selection.row = rowIndex;
+    this.selectionAnchor = { row: rowIndex, col: this.selection.col };
     this.rowSelection = rowIndex;
     this.setTreeItemCollapsed(item, nextCollapsed);
     this.applyView();
     nextRow = this.view.indexOf(item);
     if (nextRow >= 0) {
       this.selection.row = nextRow;
+      this.selectionAnchor = { row: nextRow, col: this.selection.col };
       this.rowSelection = nextRow;
     }
     this.clampSelection();

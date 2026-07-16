@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>FabGrid Source Hit Test</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260716-selection-pointer-v3">
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+    }
+
+    #grid {
+      width: 720px;
+      height: 320px;
+    }
+  </style>
+</head>
+<body>
+  <div id="grid"></div>
+  <div id="dispose-grid" hidden></div>
+  <pre id="result">pending</pre>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260716-selection-pointer-v3';
+
+    const rows = [
+      { id: 1, name: 'Alpha', amount: 4200 },
+      { id: 2, name: 'Beta', amount: 1800 }
+    ];
+    const grid = new fabui.FabGrid('#grid', {
+      showSearchRow: true,
+      isReadOnly: true,
+      selectionMode: 'CellRange',
+      itemsSource: rows,
+      columns: [
+        { binding: 'id', header: 'ID', width: 80 },
+        { binding: 'name', header: 'Name', width: 180 },
+        { binding: 'amount', header: 'Amount', width: 160 }
+      ]
+    });
+    let dblClickCount = 0;
+    let lastDblClickHit = null;
+
+    grid.addEventListener(grid.hostElement, 'dblclick', (event) => {
+      dblClickCount += 1;
+      lastDblClickHit = grid.hitTest(event);
+      console.log('grid dblclick', dblClickCount, lastDblClickHit);
+      grid.hostElement.setAttribute('data-dblclick-count', String(dblClickCount));
+      grid.hostElement.setAttribute('data-dblclick-cell-type', String(lastDblClickHit.cellType));
+      grid.hostElement.setAttribute('data-dblclick-panel-match', String(lastDblClickHit.panel === grid.cells));
+      grid.hostElement.setAttribute('data-dblclick-row', String(lastDblClickHit.row));
+      grid.hostElement.setAttribute('data-dblclick-col', String(lastDblClickHit.col));
+    });
+
+    const dataCell = grid.hostElement.querySelector('.fg-cell[data-row="0"][data-col="1"]');
+    const searchInput = grid.hostElement.querySelector('.fg-header-search-input[data-col="1"]');
+    const dataHit = grid.hitTest(dataCell);
+    const searchHit = grid.hitTest(searchInput);
+    grid.hostElement.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+
+    const disposeGrid = new fabui.FabGrid('#dispose-grid', {
+      itemsSource: [{ id: 1 }],
+      columns: [{ binding: 'id' }]
+    });
+    const disposeHost = disposeGrid.hostElement;
+    let disposeCount = 0;
+    disposeGrid.addEventListener(disposeHost, 'dblclick', () => {
+      disposeCount += 1;
+    });
+    disposeHost.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    disposeGrid.dispose();
+    disposeHost.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+
+    document.querySelector('#result').textContent = JSON.stringify({
+      inheritsControl: grid instanceof fabui.Control,
+      managedDblClickCount: dblClickCount,
+      disposeCount,
+      data: {
+        cellType: dataHit.cellType,
+        expectedCellType: fabui.CellType.Cell,
+        row: dataHit.row,
+        col: dataHit.col,
+        isSearchRow: dataHit.isSearchRow
+      },
+      search: {
+        cellType: searchHit.cellType,
+        expectedCellType: fabui.CellType.ColumnHeader,
+        row: searchHit.row,
+        col: searchHit.col,
+        isSearchRow: searchHit.isSearchRow
+      }
+    }, null, 2);
+
+    window.hitTestSourceTest = {
+      fabui,
+      grid,
+      getDblClickCount: () => dblClickCount,
+      getLastDblClickHit: () => lastDblClickHit
+    };
+  </script>
+</body>
+</html>

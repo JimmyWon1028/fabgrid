@@ -106,7 +106,7 @@ function createBaseGridOptions() {
     showSearchRow: false,
     frozenColumns: 1,
     rowHeaderWidth: 44,
-    alternatingRows: true,
+    alternatingRowStep: 1,
   };
 }
 

@@ -24,6 +24,8 @@
 <body>
   <div id="grid"></div>
   <div id="largeGrid" style="width: 900px; height: 420px; margin-top: 20px;"></div>
+  <div id="headerLayoutGrid" style="position: absolute; left: -10000px; width: 240px; height: 90px; min-height: 90px;"></div>
+  <div id="cellTemplateGrid" style="position: absolute; left: -10000px; width: 420px; height: 90px; min-height: 90px;"></div>
   <div id="chartSmoke" style="width: 480px; height: 280px;"></div>
   <pre id="result">pending</pre>
   <script src="../dist/fabui.min.js"></script>
@@ -175,13 +177,62 @@
           footerHeight: 28,
           columns: columns(50),
           itemsSource: rows(5000),
-          alternatingRows: true,
+          alternatingRowStep: 1,
           formatCell: function(args) {
             if (args.column.binding === 'amount' && Number(args.value) > 1000) {
               args.cell.style.color = '#047857';
               args.cell.style.backgroundColor = '#eef6ff';
             }
           }
+        });
+        var headerLayoutGrid = new fabui.FabGrid('#headerLayoutGrid', {
+          headerHeight: 34,
+          columns: [
+            { binding: 'wide', header: '應付金額', width: 120, align: 'right' },
+            { binding: 'narrow', header: '文字日期', width: 70 }
+          ],
+          itemsSource: [{ wide: 6700, narrow: '2026/07/02' }]
+        });
+        var cellTemplateGrid = new fabui.FabGrid('#cellTemplateGrid', {
+          showSearchRow: true,
+          columns: [
+            {
+              binding: 'id',
+              width: 80,
+              cellTemplate: '<strong data-cell-template-string="${row.index}">${text}</strong>'
+            },
+            {
+              binding: 'name',
+              width: 140,
+              cellTemplate: function(ctx) {
+                return '<span data-cell-template-function="' + ctx.col.binding + '">' + ctx.text + '</span>';
+              }
+            },
+            {
+              binding: 'amount',
+              width: 120,
+              cellTemplate: function(ctx, cell) {
+                cell.setAttribute('data-cell-template-style', ctx.item.name);
+                cell.style = ctx.row.index === 0 ?
+                  'background-color: rgb(255, 230, 138); color: rgb(4, 120, 87); left: -500px; width: 1px;' :
+                  null;
+                return 'NT$ ' + ctx.value;
+              }
+            },
+            {
+              binding: 'status',
+              width: 100,
+              cellTemplate: function(ctx, cell) {
+                cell.setAttribute('data-cell-template-direct', ctx.item.name);
+                cell.textContent = ctx.text;
+                return null;
+              }
+            }
+          ],
+          itemsSource: [
+            { id: 1, name: 'Alpha', amount: 4200, status: 'Open' },
+            { id: 2, name: 'Beta', amount: 1800, status: 'Closed' }
+          ]
         });
         var copiedText = '';
         var scrollPositionBeforeSearch;
@@ -194,6 +245,7 @@
           formatItem: 0,
           selectionChanged: 0
         };
+        var formatItemTypes = {};
         grid.on('cellCopied', function(event) {
           copiedText = event.text;
         });
@@ -212,8 +264,9 @@
         grid.copied.addHandler(function() {
           wijmoEvents.copied += 1;
         });
-        grid.formatItem.addHandler(function() {
+        grid.formatItem.addHandler(function(sender, args) {
           wijmoEvents.formatItem += 1;
+          formatItemTypes[args.panel.cellType] = (formatItemTypes[args.panel.cellType] || 0) + 1;
         });
         grid.selectionChanged.addHandler(function() {
           wijmoEvents.selectionChanged += 1;
@@ -223,6 +276,154 @@
             cell.setAttribute('data-item-formatter', '1');
           }
         };
+        var filterHeader = document.querySelector('.fg-header-cell[data-col="1"]');
+        var filterHeaderLabel = filterHeader ? filterHeader.querySelector('.fg-header-label') : null;
+        var filterHeaderIcon = filterHeader ? filterHeader.querySelector('.fg-filter-icon') : null;
+        var filterHeaderTitle = filterHeader ? filterHeader.querySelector('.fg-header-title') : null;
+        var filterHeaderLabelRect = filterHeaderLabel ? filterHeaderLabel.getBoundingClientRect() : null;
+        var filterHeaderTitleRect = filterHeaderTitle ? filterHeaderTitle.getBoundingClientRect() : null;
+        var filterHeaderRect = filterHeader ? filterHeader.getBoundingClientRect() : null;
+        var filterHeaderTextVerticallyCenteredWorks = filterHeaderLabelRect && filterHeaderTitleRect &&
+          Math.abs(
+            (filterHeaderLabelRect.top + filterHeaderLabelRect.height / 2) -
+            (filterHeaderTitleRect.top + filterHeaderTitleRect.height / 2)
+          ) <= 1;
+        var rightAlignedFilterHeader = document.querySelector('.fg-header-cell[data-col="2"]');
+        var rightAlignedFilterLabel = rightAlignedFilterHeader ?
+          rightAlignedFilterHeader.querySelector('.fg-header-label') : null;
+        var rightAlignedFilterIcon = rightAlignedFilterHeader ?
+          rightAlignedFilterHeader.querySelector('.fg-filter-icon') : null;
+        var rightAlignedFilterLabelRect = rightAlignedFilterLabel ?
+          rightAlignedFilterLabel.getBoundingClientRect() : null;
+        var rightAlignedFilterIconRect = rightAlignedFilterIcon ?
+          rightAlignedFilterIcon.getBoundingClientRect() : null;
+        var filterHeaderTextClearsIconWorks = !!(
+          rightAlignedFilterLabelRect &&
+          rightAlignedFilterIconRect &&
+          rightAlignedFilterLabelRect.right <= rightAlignedFilterIconRect.left
+        );
+        var narrowFilterHeader = headerLayoutGrid.hostElement.querySelector('.fg-header-cell[data-col="1"]');
+        var narrowFilterTitle = narrowFilterHeader ? narrowFilterHeader.querySelector('.fg-header-title') : null;
+        var narrowFilterLabel = narrowFilterHeader ? narrowFilterHeader.querySelector('.fg-header-label') : null;
+        var narrowFilterIcon = narrowFilterHeader ? narrowFilterHeader.querySelector('.fg-filter-icon') : null;
+        var narrowFilterLabelRect = narrowFilterLabel ? narrowFilterLabel.getBoundingClientRect() : null;
+        var narrowFilterIconRect = narrowFilterIcon ? narrowFilterIcon.getBoundingClientRect() : null;
+        var narrowFilterTextUsesIconSpaceWorks = !!(
+          narrowFilterTitle &&
+          narrowFilterLabel &&
+          narrowFilterLabelRect &&
+          narrowFilterIconRect &&
+          narrowFilterTitle.classList.contains('fg-header-title-filter-narrow') &&
+          narrowFilterLabel.scrollWidth <= narrowFilterLabel.clientWidth &&
+          narrowFilterLabelRect.right > narrowFilterIconRect.left
+        );
+        var stringTemplateCell = cellTemplateGrid.hostElement.querySelector('[data-cell-template-string="0"]');
+        var functionTemplateCell = cellTemplateGrid.hostElement.querySelector('[data-cell-template-function="name"]');
+        var directTemplateCell = cellTemplateGrid.hostElement.querySelector('[data-cell-template-direct="Alpha"]');
+        var styledTemplateCell = cellTemplateGrid.hostElement.querySelector('[data-cell-template-style="Alpha"]');
+        var resetTemplateCell = cellTemplateGrid.hostElement.querySelector('[data-cell-template-style="Beta"]');
+        var cellTemplateWorks = !!(
+          stringTemplateCell &&
+          stringTemplateCell.textContent === '1' &&
+          functionTemplateCell &&
+          functionTemplateCell.textContent === 'Alpha' &&
+          directTemplateCell &&
+          directTemplateCell.textContent === 'Open'
+        );
+        var cellTemplateStyleMergeWorks = !!(
+          styledTemplateCell &&
+          styledTemplateCell.textContent === 'NT$ 4200' &&
+          styledTemplateCell.style.left !== '-500px' &&
+          styledTemplateCell.style.width === '120px' &&
+          styledTemplateCell.style.backgroundColor === 'rgb(255, 230, 138)' &&
+          styledTemplateCell.style.color === 'rgb(4, 120, 87)' &&
+          resetTemplateCell &&
+          resetTemplateCell.textContent === 'NT$ 1800' &&
+          resetTemplateCell.style.left !== '' &&
+          resetTemplateCell.style.width === '120px' &&
+          resetTemplateCell.style.backgroundColor === ''
+        );
+        var cellTemplateDataUntouchedWorks = cellTemplateGrid.itemsSource[0].amount === 4200 &&
+          cellTemplateGrid.itemsSource[1].amount === 1800;
+        var columnChooserTrigger = grid.hostElement.querySelector('.fg-column-chooser-trigger');
+        columnChooserTrigger.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        grid.root.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'Escape',
+          bubbles: true,
+          cancelable: true
+        }));
+        var columnChooserEscapeWorks = !grid.isColumnChooserOpen();
+        columnChooserTrigger.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        var columnChooserCheck = grid.columnChooser.querySelector('.fg-column-chooser-check');
+        columnChooserCheck.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
+        var columnChooserInsidePointerWorks = grid.isColumnChooserOpen();
+        document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
+        var columnChooserOutsidePointerWorks = !grid.isColumnChooserOpen();
+        var dataHitTest = cellTemplateGrid.hitTest(styledTemplateCell);
+        var searchHitTest = cellTemplateGrid.hitTest(
+          cellTemplateGrid.hostElement.querySelector('.fg-header-search-input')
+        );
+        var hitTestWorks = !!(
+          dataHitTest &&
+          dataHitTest.cellType === fabui.CellType.Cell &&
+          dataHitTest.panel === cellTemplateGrid.cells &&
+          dataHitTest.row === 0 &&
+          dataHitTest.col === 2 &&
+          searchHitTest &&
+          searchHitTest.cellType === fabui.CellType.ColumnHeader &&
+          searchHitTest.panel === cellTemplateGrid.columnHeaders &&
+          searchHitTest.isSearchRow === true
+        );
+        var managedDblClickCount = 0;
+        var managedDblClickHandler = function() {
+          managedDblClickCount += 1;
+        };
+        var managedEventHost = cellTemplateGrid.hostElement;
+        cellTemplateGrid.addEventListener(managedEventHost, 'dblclick', managedDblClickHandler);
+        managedEventHost.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        var managedDomEventWorks = managedDblClickCount === 1 && cellTemplateGrid instanceof fabui.Control;
+        headerLayoutGrid.dispose();
+        if (headerLayoutGrid.hostElement.parentNode) {
+          headerLayoutGrid.hostElement.parentNode.removeChild(headerLayoutGrid.hostElement);
+        }
+        cellTemplateGrid.dispose();
+        managedEventHost.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        var managedDomEventDisposeWorks = managedDblClickCount === 1;
+        if (cellTemplateGrid.hostElement.parentNode) {
+          cellTemplateGrid.hostElement.parentNode.removeChild(cellTemplateGrid.hostElement);
+        }
+        var headerResizeHitTarget = filterHeaderRect ? document.elementFromPoint(
+          filterHeaderRect.right - 2,
+          filterHeaderRect.top + filterHeaderRect.height / 2
+        ) : null;
+        var headerResizeHitAreaWorks = !!(headerResizeHitTarget &&
+          headerResizeHitTarget.classList.contains('fg-resize'));
+        if (filterHeaderIcon) {
+          filterHeaderIcon.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        }
+        var dynamicFilterMenuRect = grid.filterMenu.getBoundingClientRect();
+        var dynamicFilterList = grid.filterMenu.querySelector('.fg-excel-filter-value-list');
+        var dynamicFilterListRect = dynamicFilterList ? dynamicFilterList.getBoundingClientRect() : null;
+        var dynamicFilterRootRect = grid.root.getBoundingClientRect();
+        var dynamicFilterVisibleBottom = Math.min(dynamicFilterRootRect.bottom, window.innerHeight - 8);
+        var dynamicFilterBottomShadowSpace = dynamicFilterVisibleBottom - dynamicFilterMenuRect.bottom;
+        var excelFilterPopupAlignsHeaderLeftWorks = !!(
+          filterHeaderRect &&
+          Math.abs(dynamicFilterMenuRect.left - filterHeaderRect.left) <= 1
+        );
+        var excelFilterPopupBottomShadowWorks =
+          dynamicFilterBottomShadowSpace >= 11 &&
+          window.getComputedStyle(grid.filterMenu).boxShadow !== 'none';
+        var excelFilterPopupDynamicHeightWorks = !!(
+          dynamicFilterListRect &&
+          dynamicFilterListRect.height > 151 &&
+          dynamicFilterMenuRect.bottom <= dynamicFilterVisibleBottom + 1 &&
+          dynamicFilterMenuRect.top >= Math.max(dynamicFilterRootRect.top, 8) - 1
+        );
+        var filterIconClickDoesNotSortWorks = grid.getSortStates().length === 0 &&
+          grid.filterMenuColumn === grid.visibleColumns[1] &&
+          grid.isFilterMenuOpen();
+        grid.hideFilterMenu();
         var originalRows = grid.itemsSource;
         var replacementRows = rows(12);
         grid.itemsSource = replacementRows;
@@ -1750,11 +1951,23 @@
                   window.fabui.editorDefinitions === window.fabui.FabGrid.editorDefinitions &&
                   typeof window.FabGrid === 'undefined' &&
                   typeof window.FabGridLocales === 'undefined',
+                controlLookupWorks: typeof window.fabui.Control === 'function' &&
+                  window.fabui.Control.getControl('#grid') === grid &&
+                  grid.hostElement === document.getElementById('grid'),
                 coreBundleOnlyWorks: ['TextBox', 'NumberBox', 'DateBox', 'ComboBox', 'Tabs'].every(function(name) {
                   return typeof window.fabui[name] === 'undefined';
                 }),
+                filterHeaderTextVerticallyCenteredWorks: filterHeaderTextVerticallyCenteredWorks,
+                filterHeaderTextClearsIconWorks: filterHeaderTextClearsIconWorks,
+                narrowFilterTextUsesIconSpaceWorks: narrowFilterTextUsesIconSpaceWorks,
+                excelFilterPopupDynamicHeightWorks: excelFilterPopupDynamicHeightWorks,
+                excelFilterPopupAlignsHeaderLeftWorks: excelFilterPopupAlignsHeaderLeftWorks,
+                excelFilterPopupBottomShadowWorks: excelFilterPopupBottomShadowWorks,
+                filterIconClickDoesNotSortWorks: filterIconClickDoesNotSortWorks,
+                headerResizeHitAreaWorks: headerResizeHitAreaWorks,
                 dangerousBindingBlocked: safetyResult.dangerousBindingBlocked,
                 specialGroupKeyWorks: safetyResult.specialGroupKeyWorks,
+                rowTypesWork: safetyResult.rowTypesWork,
                 headerSearchEnterAlignmentWorks: headerSearchAlignmentResult.alignmentWorks,
                 headerSearchContainerScrollWorks: headerSearchAlignmentResult.containerScrollWorks,
                 paginationInitialPageWorks: paginationResult.initialPageWorks,
@@ -1813,7 +2026,31 @@
                 macFnHorizontalHotKeysWork: macFnHorizontalHotKeysWork,
                 multiSelectColumnHiddenWorks: multiSelectColumnHiddenWorks,
                 collectionViewAliasWorks: grid.collectionView === grid.view,
-                rowsAliasWorks: grid.rows === grid.view,
+                rowsCompatibilityWorks: grid.rows[0] &&
+                  grid.rows[0].dataItem === grid.view[0] &&
+                  grid.rows[0] instanceof fabui.FabGrid.Row &&
+                  !(grid.rows[0] instanceof fabui.FabGrid.GroupRow) &&
+                  typeof fabui.grid === 'undefined',
+                formatItemCellTypesWork: fabui.CellType.Cell === 1 &&
+                  fabui.CellType.ColumnHeader === 2 &&
+                  fabui.CellType.ColumnFooter === 5 &&
+                  formatItemTypes[fabui.CellType.Cell] > 0 &&
+                  formatItemTypes[fabui.CellType.ColumnHeader] > 0 &&
+                  formatItemTypes[fabui.CellType.ColumnFooter] > 0,
+                cellTemplateWorks: cellTemplateWorks,
+                cellTemplateStyleMergeWorks: cellTemplateStyleMergeWorks,
+                cellTemplateDataUntouchedWorks: cellTemplateDataUntouchedWorks,
+                columnChooserEscapeWorks: columnChooserEscapeWorks,
+                columnChooserInsidePointerWorks: columnChooserInsidePointerWorks,
+                columnChooserOutsidePointerWorks: columnChooserOutsidePointerWorks,
+                hitTestWorks: hitTestWorks,
+                managedDomEventWorks: managedDomEventWorks,
+                managedDomEventDisposeWorks: managedDomEventDisposeWorks,
+                jsonApiWorks: typeof grid.getJson === 'function' &&
+                  typeof grid.exportJson === 'function' &&
+                  typeof grid.importJson === 'function' &&
+                  JSON.parse(grid.getJson()).length === grid.itemsSource.length,
+                jsonViewOnlyWorks: JSON.parse(grid.getJson({ viewOnly: true })).length === grid.view.length,
                 getColumnWorks: grid.getColumn('amount') === grid.visibleColumns[2],
                 isReadOnlyAliasWorks: grid.isReadOnly === false,
                 itemFormatterAliasWorks: document.querySelector('[data-item-formatter="1"]') !== null,
@@ -1824,7 +2061,7 @@
                 selectedItemsAliasWorks: grid.selectedItems.length === 1 && grid.selectedItems[0].amount === 123456,
                 selectedRowsAliasWorks: grid.selectedRows.length === 1 && grid.selectedRows[0].dataItem.amount === 123456,
                 selectedRangesAliasWorks: grid.selectedRanges.length === 1 && grid.selectedRanges[0].row === 0,
-                alternatingRowsAliasWorks: grid.alternatingRows === true,
+                alternatingRowStepWorks: grid.alternatingRowStep === 1,
                 frozenRightColumnsAliasWorks: grid.frozenRightColumns === 1,
                 alternatingRowCells: alternatingRowCellsBeforeSearch,
                 alternatingRowHeaderCells: alternatingRowHeaderCellsBeforeSearch,
@@ -2223,12 +2460,18 @@
         result = {
           dangerousBindingBlocked: safetyGrid.setCellData(1, 0, true) === false &&
             Object.prototype[prototypeProperty] === undefined,
-          specialGroupKeyWorks: false
+          specialGroupKeyWorks: false,
+          rowTypesWork: false
         };
         groupRows = safetyGrid.view.filter(function(row) {
           return safetyGrid.isRowGroup(row);
         });
         result.specialGroupKeyWorks = groupRows.length === 1 && groupRows[0].count === 2;
+        result.rowTypesWork = safetyGrid.rows.some(function(row) {
+          return row instanceof fabui.FabGrid.GroupRow && row instanceof fabui.FabGrid.Row;
+        }) && safetyGrid.rows.some(function(row) {
+          return row instanceof fabui.FabGrid.Row && !(row instanceof fabui.FabGrid.GroupRow);
+        });
         safetyGrid.dispose();
         host.remove();
         delete Object.prototype[prototypeProperty];

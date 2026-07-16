@@ -11,6 +11,7 @@ var GRID_EVENTS = [
   'itemsSourceChanged',
   'loadedRows',
   'filterChanged',
+  'formatItem',
   'draggedRow',
   'draggingRow',
   'rowHeaderModeChanged',
@@ -24,6 +25,9 @@ var OPTION_PROPS = [
   'allowSorting',
   'allowResizing',
   'activeCellBorder',
+  'alternatingRowStep',
+  'highlightActiveRow',
+  'selectionMode',
   'frozenColumns',
   'frozenRightColumns',
   'isReadOnly',
@@ -47,7 +51,8 @@ var COLUMN_PROPS = [
   'isReadOnly',
   'visible',
   'editor',
-  'formatter'
+  'formatter',
+  'cellTemplate'
 ];
 
 function toKebabCase(value) {
@@ -94,7 +99,8 @@ function createFabGridVue(Vue, fabui) {
       isReadOnly: Boolean,
       visible: { type: Boolean, default: true },
       editor: [String, Object],
-      formatter: Function
+      formatter: Function,
+      cellTemplate: [String, Function]
     },
     created: function() {
       this.fabGridContext.registerColumn(this);
@@ -120,6 +126,9 @@ function createFabGridVue(Vue, fabui) {
       allowSorting: { type: Boolean, default: undefined },
       allowResizing: { type: Boolean, default: undefined },
       activeCellBorder: { type: Number, default: undefined },
+      alternatingRowStep: { type: [Boolean, Number], default: undefined },
+      highlightActiveRow: { type: Boolean, default: undefined },
+      selectionMode: { type: String, default: undefined },
       frozenColumns: { type: Number, default: undefined },
       frozenRightColumns: { type: Number, default: undefined },
       isReadOnly: { type: Boolean, default: undefined },
@@ -176,6 +185,18 @@ function createFabGridVue(Vue, fabui) {
       activeCellBorder: function(value) {
         if (!this.control || value === undefined) return;
         this.control.activeCellBorder = value;
+      },
+      alternatingRowStep: function(value) {
+        if (!this.control || value === undefined) return;
+        this.control.alternatingRowStep = value;
+      },
+      highlightActiveRow: function(value) {
+        if (!this.control || value === undefined) return;
+        this.control.highlightActiveRow = value;
+      },
+      selectionMode: function(value) {
+        if (!this.control || value === undefined) return;
+        this.control.selectionMode = value;
       },
       frozenColumns: function(value) {
         if (!this.control || value === undefined) return;

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>FabGrid Source Selection Test</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260716-cell-range-v2">
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+    }
+
+    #grid {
+      width: 720px;
+      height: 360px;
+    }
+  </style>
+</head>
+<body>
+  <div id="grid"></div>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260716-column-chooser-close-v4';
+
+    const rows = Array.from({ length: 40 }, function(_, index) {
+      return {
+        id: index + 1,
+        name: 'Row ' + (index + 1),
+        amount: (index + 1) * 10,
+        status: index % 2 ? 'Open' : 'Closed'
+      };
+    });
+
+    const grid = new fabui.FabGrid('#grid', {
+      selectionMode: 'CellRange',
+      highlightActiveRow: false,
+      itemsSource: rows,
+      columns: [
+        { binding: 'id', header: 'ID', width: 80 },
+        { binding: 'name', header: 'Name', width: 180 },
+        { binding: 'amount', header: 'Amount', width: 140 },
+        { binding: 'status', header: 'Status', width: 140 }
+      ]
+    });
+
+    window.selectionSourceTest = { fabui, grid };
+  </script>
+</body>
+</html>

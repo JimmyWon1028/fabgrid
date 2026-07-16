@@ -40,6 +40,10 @@ $("#grid").fabgrid("refresh");
 $("#grid").fabgrid("select", 10, 2);
 $("#grid").fabgrid("setItemsSource", nextRows);
 $("#grid").fabgrid("exportExcel", "report.xlsx");
+$("#grid").fabgrid("exportJson", "report.json", { space: 2 });
+
+var json = $("#grid").fabgrid("getJson");
+await $("#grid").fabgrid("importJson", json);
 ```
 
 完整 Demo 的 jQuery adapter 位於 `demo/js/grid-jquery.js`。Grid 初始化、公開方法與事件綁定均透過 `$.fn.fabgrid` 與 jQuery events 執行；共用 `grid.js` 只負責 Demo 流程。
@@ -57,6 +61,8 @@ $("#grid").fabgrid("option", "locale", "zh-TW");
 $("#grid").fabgrid("option", {
   frozenColumns: 2,
   rowHeaderWidth: 80,
+  selectionMode: "CellRange",
+  highlightActiveRow: false,
   allowEditing: false,
 });
 ```
@@ -66,6 +72,10 @@ $("#grid").fabgrid("option", {
 目前會優先呼叫正式 setter 的動態設定包括 `itemsSource`、`columns`、`locale`、左右凍結欄、列號模式、列號欄寬、footer、搜尋列、列群組、編輯模式、多選、頁碼、每頁筆數與 header 顯示模式。
 
 再次傳入 options 不會建立第二個 instance，而是更新既有 instance。
+
+## Columns
+
+`columns` 直接沿用 core 欄位契約，包含 `cellTemplate: string | function | null`。Function template 簽名為 `(ctx, cell)`，可回傳 HTML 字串，或直接修改 cell 並回傳 `null`。
 
 ## 事件
 

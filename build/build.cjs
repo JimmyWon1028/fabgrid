@@ -8,12 +8,18 @@ const distDir = path.join(root, 'dist');
 const buildDate = new Date();
 const buildVersion = buildDate.getFullYear() + '.' + (buildDate.getMonth() + 1) + '.' + buildDate.getDate();
 const javascriptSources = [
+  'core/control.js',
   'chart/chart.js',
+  'grid/fabgrid-types.js',
   'grid/fabgrid-data.js',
   'grid/fabgrid-tree.js',
   'grid/fabgrid-drag.js',
   'grid/fabgrid-editor.js',
   'grid/fabgrid-export.js',
+  'grid/fabgrid-view.js',
+  'grid/fabgrid-filter-ui.js',
+  'grid/fabgrid-selection.js',
+  'grid/fabgrid-editor-runtime.js',
   'editor/editor-definitions.js',
   'grid/fabgrid.js'
 ];
@@ -30,6 +36,7 @@ function banner(name) {
 function stripExports(source) {
   return source
     .replace(/import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?/g, '')
+    .replace(/export\s+(var|let|const)\s+/g, '$1 ')
     .replace(/export function ([A-Za-z_$][\w$]*)/g, 'function $1');
 }
 
@@ -136,8 +143,10 @@ function createJavascriptBundle() {
     'global.fabui = global.fabui || {};\n' +
     'global.fabui.version = ' + JSON.stringify(buildVersion) + ';\n' +
     'global.fabui.editorDefinitions = createEditorDefinitions();\n' +
+    'global.fabui.Control = Control;\n' +
     'global.fabui.Chart = createChartFactory();\n' +
     'global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);\n' +
+    'global.fabui.CellType = CellType;\n' +
     'global.fabui.FabGridLocales = global.fabui.FabGrid.locales;\n' +
     '}(typeof window !== "undefined" ? window : this));\n' + locales;
 }
@@ -164,8 +173,10 @@ function createEsmJavascriptBundle() {
     'var fabui = {\n' +
     '  version: ' + JSON.stringify(buildVersion) + ',\n' +
     '  editorDefinitions: editorDefinitions,\n' +
+    '  Control: Control,\n' +
     '  Chart: Chart,\n' +
     '  FabGrid: FabGrid,\n' +
+    '  CellType: CellType,\n' +
     '  FabGridLocales: FabGrid.locales\n' +
     '};\n' + locales + '\n' +
     'export { fabui };\n' +
@@ -206,6 +217,9 @@ function verifyBuildOutput() {
   if (javascript.indexOf('global.fabui.Chart = createChartFactory()') < 0) {
     throw new Error('FabUI Chart is missing from the JavaScript bundle.');
   }
+  if (javascript.indexOf('global.fabui.Control = Control') < 0) {
+    throw new Error('FabUI Control is missing from the JavaScript bundle.');
+  }
   if (javascript.indexOf('function downloadBlob(') < 0) {
     throw new Error('FabGrid export download helper is missing from the JavaScript bundle.');
   }
@@ -214,6 +228,18 @@ function verifyBuildOutput() {
   }
   if (javascript.indexOf('function installFabGridDrag(') < 0) {
     throw new Error('FabGrid row drag module is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('function installFabGridView(') < 0 || javascript.indexOf('function createGridPanel(') < 0) {
+    throw new Error('FabGrid view or compatibility type module is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.CellType = CellType') < 0) {
+    throw new Error('FabUI CellType is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('FabGrid.Row = Row') < 0 || javascript.indexOf('FabGrid.GroupRow = GroupRow') < 0) {
+    throw new Error('FabGrid Row types are missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.grid =') >= 0) {
+    throw new Error('FabUI grid namespace must not be published.');
   }
   verifyCssAssets(cssFile);
   verifyCssAssets(path.join(distDir, 'fabui.min.css'));

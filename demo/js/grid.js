@@ -218,7 +218,7 @@
       allowEditing: settings.editMode,
       editOnSelect: settings.editMode,
       allowResizing: true,
-      alternatingRows: true,
+      alternatingRowStep: 1,
       headerToggleKey: "f4",
       formatCell: formatDemoCell,
     };
@@ -597,7 +597,6 @@
         binding: "dlvdt",
         header: "文字日期",
         width: 120,
-        minWidth: 100,
         dataType: "string",
         editor: "datebox",
         readOnly: false,
@@ -618,7 +617,7 @@
         binding: "amount",
         header: "應付金額",
         width: 140,
-        minWidth: 90,
+        // minWidth: 90,
         align: "right",
         color: "blue",
         dataType: "number",
@@ -728,7 +727,7 @@
         editOnSelect: false,
         itemsSource: window.FabGridDemoData.lookupRows,
         columns: createLookupColumns(controls.language.value),
-        alternatingRows: true,
+        alternatingRowStep: 1,
         formatCell: function (cellArgs) {
           if (
             cellArgs.column.binding === "status" &&

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>FabGrid Source Hit Test</title>
+  <link rel="stylesheet" href="../dist/fabui.css?v=20260716-column-chooser-close-v4">
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+    }
+
+    #grid {
+      width: 720px;
+      height: 320px;
+    }
+  </style>
+</head>
+<body>
+  <div id="grid"></div>
+  <div id="dispose-grid" hidden></div>
+  <pre id="result">pending</pre>
+  <script src="../dist/fabui.min.js"></script>
+  <script>
+    const rows = [
+      { id: 1, name: 'Alpha', amount: 4200 },
+      { id: 2, name: 'Beta', amount: 1800 }
+    ];
+    const grid = new fabui.FabGrid('#grid', {
+      // showSearchRow: true,
+      isReadOnly: true,
+      itemsSource: rows,
+      columns: [
+        { binding: 'id', header: 'ID', width: 80 },
+        { binding: 'name', header: 'Name', width: 180 },
+        { binding: 'amount', header: 'Amount', width: 160 }
+      ]
+    });
+    let dblClickCount = 0;
+    let lastDblClickHit = null;
+
+    grid.addEventListener(grid.hostElement, 'dblclick', (e) => {
+      dblClickCount += 1;
+      lastDblClickHit = grid.hitTest(e);
+      console.log('grid dblclick', e);
+    });
+  </script>
+</body>
+</html>

@@ -41,3 +41,36 @@ test('flat row helpers reorder, insert and remove items', function() {
   assert.equal(grid.removeRowItem(a, true), true);
   assert.deepEqual(grid.source, [c, x, b]);
 });
+
+test('row drag document handlers are bound only while a pointer drag is active', function() {
+  var grid = createGrid([], 'Rows');
+  var originalDocument = globalThis.document;
+  var added = [];
+  var removed = [];
+
+  globalThis.document = {
+    addEventListener: function(name, handler) { added.push([name, handler]); },
+    removeEventListener: function(name, handler) { removed.push([name, handler]); }
+  };
+  try {
+    grid._boundRowPointerMove = function() {};
+    grid._boundRowPointerUp = function() {};
+    grid._boundRowPointerCancel = function() {};
+
+    grid.bindActiveRowDragEvents();
+    grid.bindActiveRowDragEvents();
+    assert.equal(added.length, 3);
+    assert.equal(grid.activeRowDragEventsBound, true);
+
+    grid.unbindActiveRowDragEvents();
+    grid.unbindActiveRowDragEvents();
+    assert.equal(removed.length, 3);
+    assert.equal(grid.activeRowDragEventsBound, false);
+  } finally {
+    if (originalDocument === undefined) {
+      delete globalThis.document;
+    } else {
+      globalThis.document = originalDocument;
+    }
+  }
+});

@@ -83,9 +83,19 @@ server.listen(port, '127.0.0.1', async function() {
       !result.chartPieWorks ||
       !result.chartDisposeWorks ||
       !result.hasFabGrid ||
+      !result.controlLookupWorks ||
       !result.coreBundleOnlyWorks ||
+      !result.filterHeaderTextVerticallyCenteredWorks ||
+      !result.filterHeaderTextClearsIconWorks ||
+      !result.narrowFilterTextUsesIconSpaceWorks ||
+      !result.excelFilterPopupDynamicHeightWorks ||
+      !result.excelFilterPopupAlignsHeaderLeftWorks ||
+      !result.excelFilterPopupBottomShadowWorks ||
+      !result.filterIconClickDoesNotSortWorks ||
+      !result.headerResizeHitAreaWorks ||
       !result.dangerousBindingBlocked ||
       !result.specialGroupKeyWorks ||
+      !result.rowTypesWork ||
       !result.headerSearchEnterAlignmentWorks ||
       !result.headerSearchContainerScrollWorks ||
       !result.paginationInitialPageWorks ||
@@ -144,7 +154,19 @@ server.listen(port, '127.0.0.1', async function() {
       !result.macFnHorizontalHotKeysWork ||
       !result.multiSelectColumnHiddenWorks ||
       !result.collectionViewAliasWorks ||
-      !result.rowsAliasWorks ||
+      !result.rowsCompatibilityWorks ||
+      !result.formatItemCellTypesWork ||
+      !result.cellTemplateWorks ||
+      !result.cellTemplateStyleMergeWorks ||
+      !result.cellTemplateDataUntouchedWorks ||
+      !result.columnChooserEscapeWorks ||
+      !result.columnChooserInsidePointerWorks ||
+      !result.columnChooserOutsidePointerWorks ||
+      !result.hitTestWorks ||
+      !result.managedDomEventWorks ||
+      !result.managedDomEventDisposeWorks ||
+      !result.jsonApiWorks ||
+      !result.jsonViewOnlyWorks ||
       !result.getColumnWorks ||
       !result.isReadOnlyAliasWorks ||
       !result.itemFormatterAliasWorks ||
@@ -155,7 +177,7 @@ server.listen(port, '127.0.0.1', async function() {
       !result.selectedItemsAliasWorks ||
       !result.selectedRowsAliasWorks ||
       !result.selectedRangesAliasWorks ||
-      !result.alternatingRowsAliasWorks ||
+      !result.alternatingRowStepWorks ||
       !result.frozenRightColumnsAliasWorks ||
       result.alternatingRowCells < 1 ||
       result.alternatingRowHeaderCells < 1 ||

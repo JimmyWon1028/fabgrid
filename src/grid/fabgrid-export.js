@@ -30,6 +30,38 @@ export function csvEscape(value) {
   return text;
 }
 
+export function normalizeJsonRows(value) {
+  var parsed = value;
+  if (typeof parsed === 'string') {
+    parsed = JSON.parse(parsed);
+  }
+  if (Array.isArray(parsed)) {
+    return parsed;
+  }
+  if (parsed && Array.isArray(parsed.rows)) {
+    return parsed.rows;
+  }
+  if (parsed && Array.isArray(parsed.itemsSource)) {
+    return parsed.itemsSource;
+  }
+  throw new TypeError('FabGrid JSON data must be an array or an object containing a rows or itemsSource array.');
+}
+
+export function readJsonSource(source) {
+  if (typeof Blob !== 'undefined' && source instanceof Blob) {
+    if (typeof source.text === 'function') {
+      return source.text();
+    }
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function() { resolve(reader.result); };
+      reader.onerror = function() { reject(reader.error || new Error('Unable to read the JSON file.')); };
+      reader.readAsText(source);
+    });
+  }
+  return Promise.resolve(source);
+}
+
 export function getExcelColumnName(index) {
   var name = '';
   var number = index;
@@ -144,6 +176,30 @@ export function installFabGridExport(FabGrid, context) {
     var csv = this.getCsv(visibleOnly);
     var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     downloadBlob(blob, filename || 'fabgrid.csv');
+  };
+
+  FabGrid.prototype.getJson = function(options) {
+    var rows;
+    options = options || {};
+    rows = options.viewOnly === true ? this.view.filter(function(row) {
+      return !this.isRowGroup(row) && !this.isRowGroupFooter(row);
+    }, this) : this.source;
+    return JSON.stringify(rows || [], options.replacer == null ? null : options.replacer, options.space == null ? 0 : options.space);
+  };
+
+  FabGrid.prototype.exportJson = function(filename, options) {
+    var json = this.getJson(options);
+    var blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+    downloadBlob(blob, filename || 'fabgrid.json');
+  };
+
+  FabGrid.prototype.importJson = function(source) {
+    var grid = this;
+    return readJsonSource(source).then(function(value) {
+      var rows = normalizeJsonRows(value);
+      grid.setItemsSource(rows);
+      return true;
+    });
   };
 
   FabGrid.prototype.getExcelBlob = function(visibleOnly) {

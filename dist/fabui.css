@@ -326,7 +326,15 @@
   align-items: center;
   justify-content: flex-start;
   overflow: hidden;
-  padding: 0 24px 0 10px;
+  padding: 0 10px;
+}
+
+.fg-header-title-filterable {
+  padding: 0 24px 0 6px;
+}
+
+.fg-header-title-filter-narrow {
+  padding-right: 6px;
 }
 
 .fg-header-label {
@@ -481,17 +489,19 @@
 .fg-filter-icon {
   position: absolute;
   top: 5px;
-  right: 4px;
+  right: 0;
   bottom: 0;
-  width: 10px;
+  z-index: 3;
+  width: 18px;
   color: #cfcfcf;
   cursor: default;
+  pointer-events: auto;
 }
 
 .fg-filter-icon::before {
   position: absolute;
   top: 0;
-  left: 0;
+  left: 4px;
   width: 0;
   height: 0;
   border-top: 5px solid currentColor;
@@ -503,7 +513,7 @@
 .fg-filter-icon::after {
   position: absolute;
   top: 5px;
-  left: 4px;
+  left: 8px;
   width: 2px;
   height: 5px;
   background: currentColor;
@@ -541,7 +551,7 @@
   position: absolute;
   top: 0;
   right: -6px;
-  z-index: 2;
+  z-index: 4;
   width: 12px;
   height: 100%;
   touch-action: none;
@@ -1304,12 +1314,56 @@
   text-align: center;
 }
 
+.fg-root .fg-cell.fg-range-selected,
+.fg-root .fg-cell.fg-range-selected:hover,
+.fg-root .fg-cell.fg-range-selected.fg-row-hovered,
+.fg-root .fg-cell.fg-range-selected.fg-row-selected {
+  background: var(--fg-selected-bg);
+}
+
+.fg-cell.fg-range-top {
+  border-top: 1px solid var(--fg-selected-border);
+}
+
+.fg-cell.fg-range-bottom {
+  border-bottom: 1px solid var(--fg-selected-border);
+}
+
+.fg-cell.fg-range-left {
+  border-left: 1px solid var(--fg-selected-border);
+}
+
+.fg-cell.fg-range-right {
+  border-right: 1px solid var(--fg-selected-border);
+}
+
+/* Keep the active cell border from adding to the range perimeter. */
+.fg-cell.fg-range-selected.fg-selected.fg-range-top {
+  border-top: 0;
+}
+
+.fg-cell.fg-range-selected.fg-selected.fg-range-bottom {
+  border-bottom: 1px dotted var(--fg-border);
+}
+
+.fg-cell.fg-range-selected.fg-selected.fg-range-left {
+  border-left: 0;
+}
+
+.fg-cell.fg-range-selected.fg-selected.fg-range-right {
+  border-right: 1px dotted var(--fg-border);
+}
+
 .fg-selected {
   z-index: 3;
   background: var(--fg-row-hover-bg);
   color: var(--fg-cell-text);
   outline: none;
   box-shadow: inset 0 0 0 var(--fg-active-cell-border) var(--fg-selected-border);
+}
+
+.fg-root .fg-cell.fg-range-selected.fg-selected {
+  background: var(--fg-selected-bg);
 }
 
 .fg-cell-invalid::after {
@@ -1646,13 +1700,15 @@
   width: 322px;
   min-width: 280px;
   max-width: calc(100% - 8px);
+  overflow: hidden;
   border-radius: 3px;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.2);
 }
 
 .fg-excel-filter {
   display: flex;
-  min-height: 280px;
+  height: 100%;
+  min-height: 0;
   flex-direction: column;
 }
 
@@ -1676,8 +1732,10 @@
 
 .fg-excel-filter-pane {
   flex: 1 1 auto;
-  min-height: 220px;
+  display: flex;
+  min-height: 0;
   padding: 10px;
+  flex-direction: column;
 }
 
 .fg-excel-filter-search {
@@ -1722,6 +1780,8 @@
 }
 
 .fg-excel-filter-value-list {
+  flex: 1 1 151px;
+  min-height: 0;
   height: 151px;
   overflow: auto;
   border: 1px solid #d5d5d5;
@@ -1739,6 +1799,7 @@
 }
 
 .fg-excel-filter-footer {
+  flex: 0 0 auto;
   display: flex;
   justify-content: flex-end;
   gap: 8px;

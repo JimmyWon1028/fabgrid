@@ -11,6 +11,8 @@ import {
   mergeExcelStyle,
   normalizeExcelAlign,
   normalizeExcelStyle,
+  normalizeJsonRows,
+  readJsonSource,
   xmlEscape
 } from '../src/grid/fabgrid-export.js';
 
@@ -18,6 +20,14 @@ test('CSV values escape delimiters, quotes and line breaks', function() {
   assert.equal(csvEscape('plain'), 'plain');
   assert.equal(csvEscape('a,b'), '"a,b"');
   assert.equal(csvEscape('a"b'), '"a""b"');
+});
+
+test('JSON rows accept arrays and supported envelope objects', async function() {
+  assert.deepEqual(normalizeJsonRows('[{"id":1}]'), [{ id: 1 }]);
+  assert.deepEqual(normalizeJsonRows({ rows: [{ id: 2 }] }), [{ id: 2 }]);
+  assert.deepEqual(normalizeJsonRows({ itemsSource: [{ id: 3 }] }), [{ id: 3 }]);
+  assert.equal(await readJsonSource(new Blob(['[{"id":4}]'])), '[{"id":4}]');
+  assert.throws(function() { normalizeJsonRows('{"id":1}'); }, /must be an array/);
 });
 
 test('XLSX package contains all required workbook files', function() {

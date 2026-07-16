@@ -47,6 +47,9 @@ Browser bundle 會自動執行 `Vue.use(fabuiVue)`。
 | `allowSorting` | `Boolean` | 是否允許排序。 |
 | `allowResizing` | `Boolean` | 是否允許調整欄寬。 |
 | `activeCellBorder` | `Number` | Active cell 與 cell editor 邊框寬度，單位為 px。 |
+| `alternatingRowStep` | `Boolean\|Number` | `false` 關閉交替色；正整數控制每幾列切換一次背景，預設為 `1`。 |
+| `selectionMode` | `String` | `Cell` 或 `CellRange`。`CellRange` 支援滑鼠拖曳與 Shift 延伸。 |
+| `highlightActiveRow` | `Boolean` | 是否顯示 active row 背景，預設為 `true`。 |
 | `frozenColumns` | `Number` | 左側凍結欄數。 |
 | `frozenRightColumns` | `Number` | 右側凍結欄數。 |
 | `isReadOnly` | `Boolean` | 唯讀模式。 |
@@ -74,6 +77,7 @@ Browser bundle 會自動執行 `Vue.use(fabuiVue)`。
 | `items-source-changed` | `itemsSourceChanged` |
 | `loaded-rows` | `loadedRows` |
 | `filter-changed` | `filterChanged` |
+| `format-item` | `formatItem`；參數包含 `panel`、`cell`、`row`、`col`、`item`、`column` 與 `value`。 |
 
 ## Component ref
 
@@ -87,8 +91,10 @@ Vue component ref 公開：
 | `select(row, col)` | 選取 cell。 |
 | `scrollIntoView(row, col)` | 捲動到指定 cell。 |
 
+JSON API 由底層 `control` 呼叫：`control.getJson(options)`、`control.exportJson(filename, options)` 與 `control.importJson(source)`。
+
 ## FabGridColumn
 
-宣告式欄位支援 `binding`、`header`、`width`、`minWidth`、`align`、`dataType`、`format`、`isReadOnly`、`visible`、`editor`、`formatter`。
+宣告式欄位支援 `binding`、`header`、`width`、`minWidth`、`align`、`dataType`、`format`、`isReadOnly`、`visible`、`editor`、`formatter`、`cellTemplate`。`cellTemplate` 可傳入 String 或 Function；function 簽名為 `(ctx, cell)`，由 core 負責 rendering。
 
 若同時提供 `columns` prop 與 `FabGridColumn`，以 `columns` prop 為準。Wrapper 不提供 Vue cell slot，避免 Vue 接管大量 virtualized cells。

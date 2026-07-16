@@ -32,8 +32,9 @@ test('Vue wrapper forwards filter changed events', function() {
 });
 
 test('Vue wrapper normalizes declarative column props', function() {
-  assert.deepEqual(normalizeColumnProps({ binding: 'amount', width: 120, visible: true, ignored: 'x' }), {
-    binding: 'amount', width: 120, visible: true
+  var cellTemplate = function(ctx) { return ctx.text; };
+  assert.deepEqual(normalizeColumnProps({ binding: 'amount', width: 120, visible: true, cellTemplate: cellTemplate, ignored: 'x' }), {
+    binding: 'amount', width: 120, visible: true, cellTemplate: cellTemplate
   });
 });
 
@@ -44,7 +45,7 @@ test('Vue wrapper gives columns prop precedence over declared columns', function
     gridOptions: { rowHeight: 31 },
     getDeclaredColumns: function() { return [{ binding: 'name' }]; }
   };
-  ['allowEditing', 'allowFiltering', 'allowSorting', 'allowResizing', 'frozenColumns', 'frozenRightColumns', 'isReadOnly', 'locale', 'pagination', 'pager', 'remote', 'url', 'method', 'loader'].forEach(function(name) {
+  ['allowEditing', 'allowFiltering', 'allowSorting', 'allowResizing', 'alternatingRowStep', 'frozenColumns', 'frozenRightColumns', 'isReadOnly', 'locale', 'pagination', 'pager', 'remote', 'url', 'method', 'loader'].forEach(function(name) {
     vm[name] = undefined;
   });
   assert.deepEqual(createGridOptions(vm), {
@@ -52,6 +53,20 @@ test('Vue wrapper gives columns prop precedence over declared columns', function
     itemsSource: vm.itemsSource,
     columns: vm.columns
   });
+});
+
+test('Vue wrapper forwards cell selection options', function() {
+  var vm = {
+    itemsSource: [],
+    columns: [],
+    gridOptions: {},
+    selectionMode: 'CellRange',
+    highlightActiveRow: false,
+    getDeclaredColumns: function() { return []; }
+  };
+
+  assert.equal(createGridOptions(vm).selectionMode, 'CellRange');
+  assert.equal(createGridOptions(vm).highlightActiveRow, false);
 });
 
 test('Vue wrapper routes allowFiltering grid options through the core setter', function() {
