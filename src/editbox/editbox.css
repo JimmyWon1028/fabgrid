@@ -1,9 +1,9 @@
-@import "../fabui.icon.css?v=20260717-editbox-v19";
-@import "../textbox/textbox.css?v=20260717-editbox-v19";
-@import "../numberbox/numberbox.css?v=20260717-editbox-v19";
-@import "../datebox/datebox.css?v=20260717-editbox-v19";
-@import "../combobox/combobox.css?v=20260717-editbox-v19";
-@import "./color-editbox.css?v=20260717-editbox-v19";
+@import "../fabui.icon.css?v=20260717-editbox-v20";
+@import "./text-editbox.css?v=20260717-editbox-v20";
+@import "./number-editbox.css?v=20260717-editbox-v20";
+@import "./date-editbox.css?v=20260717-editbox-v20";
+@import "./combo-editbox.css?v=20260717-editbox-v20";
+@import "./color-editbox.css?v=20260717-editbox-v20";
 
 .fui-editbox-demo-note {
   color: var(--fg-muted, #666);
