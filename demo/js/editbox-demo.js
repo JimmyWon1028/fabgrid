@@ -54,7 +54,7 @@
     boxes.status = new EditBox('#edit-status', {
       editor: 'combobox',
       width: 280,
-      editable: false,
+      editable: true,
       limitToList: true,
       showValueInList: true,
       data: [
