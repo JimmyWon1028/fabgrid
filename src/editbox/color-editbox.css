@@ -41,7 +41,7 @@
   min-height: 190px;
   max-height: 238px;
   padding: 6px;
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid var(--fui-control-border, #95b8e7);
   background: var(--fui-control-bg, #fff);
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);

@@ -40,7 +40,7 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
 
   var defaults = {
     iconWidth: 28,
-    panelWidth: 414,
+    panelWidth: 420,
     locale: 'en',
     openColorText: null,
     saturationText: null,
@@ -262,7 +262,7 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
     panel.className = 'fui-colorbox-panel';
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-label', this._options.openColorText);
-    panel.style.width = cssSize(this._options.panelWidth, 414);
+    panel.style.width = cssSize(this._options.panelWidth, 420);
     palette.className = 'fui-colorbox-palette';
     palette.setAttribute('role', 'listbox');
     this._options.palette.forEach(function(color) {
