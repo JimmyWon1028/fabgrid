@@ -401,7 +401,7 @@ server.listen(port, '127.0.0.1', async function() {
       throw new Error('Smoke assertions failed: theme dependencies are incomplete.');
     }
     const wrapperFiles = fs.readdirSync(path.join(root, 'dist', 'wrapper')).sort();
-    if (JSON.stringify(wrapperFiles) !== JSON.stringify(['fabgrid-jquery.min.js', 'fabgrid-vue.js', 'fabgrid-vue.min.js', 'vue.min.js'])) {
+    if (JSON.stringify(wrapperFiles) !== JSON.stringify(['fabeditbox-jquery.min.js', 'fabgrid-jquery.min.js', 'fabgrid-vue.js', 'fabgrid-vue.min.js', 'vue.min.js'])) {
       throw new Error('Smoke assertions failed: wrapper outputs are incomplete.');
     }
     console.log(JSON.stringify(result, null, 2));

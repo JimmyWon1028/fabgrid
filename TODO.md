@@ -87,6 +87,7 @@ Server-side Pivot／OLAP／SSAS 不列入目前產品範圍。
   - 共用視覺樣式以 TextBox 為基準，提供共用 value、state、event methods 與必要的日期／清單 methods。
   - FabGrid 與 EditBox 共用 `src/editbox/editbox-definitions.js`，不再維護重複 editor 定義。
   - 提供獨立 browser global／ES module build、CSS、API、測試與 source-mode／build-mode Demo。
+  - 提供獨立 `$.fn.fabeditbox` jQuery wrapper、types、API、測試與 Demo，不依賴 FabGrid core。
 - [ ] `Window`
   - 樣式、options、methods 與 events 定義參考 [jQuery EasyUI Window／Material Teal Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Window&theme=material-teal&dir=ltr&pitem=&sort=asc)。
 - [ ] `Panel`

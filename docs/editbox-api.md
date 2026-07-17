@@ -95,3 +95,6 @@ API 命名以 EasyUI TextBox 的共用 value、state、event methods 為基準�
 
 - [Source-mode 開發版](../demo/dev-editbox.html)
 - [獨立 build-mode 正式版](../demo/editbox.html)
+- [jQuery wrapper API](./editbox-jquery-api.md)
+- [jQuery source-mode 開發版](../demo/dev-editbox-jquery.html)
+- [jQuery build-mode 正式版](../demo/editbox-jquery.html)

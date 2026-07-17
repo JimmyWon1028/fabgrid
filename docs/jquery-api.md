@@ -2,6 +2,8 @@
 
 `fabgrid-jquery` 是 `fabui.FabGrid` 的薄型 jQuery adapter。它只負責 instance、方法、option、事件與生命週期轉接，不參與 cell rendering 或 virtualization。
 
+EditBox 使用不依賴 FabGrid core 的獨立 `$.fn.fabeditbox` wrapper，詳見 [EditBox jQuery Wrapper API](./editbox-jquery-api.md)。
+
 ## 載入與初始化
 
 Browser global build 依序載入 jQuery、FabUI 與 wrapper：
