@@ -15,6 +15,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
   };
 
   var comboDefaults = {
+    iconWidth: 28,
     valueField: 'value',
     textField: 'text',
     groupField: null,
@@ -193,7 +194,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
       icons.push({
         iconCls: 'fui-combobox-arrow',
         align: 'right',
-        width: this._options.iconWidth || 18,
+        width: this._options.iconWidth,
         title: this._options.openListText,
         onClick: function() { self.togglePanel(); }
       });
