@@ -1,6 +1,6 @@
 # EditBox API
 
-`fabui.EditBox` 是獨立的 pure JavaScript 編輯控件，以單一 class 取代原本分散的 TextBox、NumberBox、DateBox、ComboBox 公開入口。四種模式共用 TextBox 視覺基準與同一組 FabGrid editor definitions，但不會併入 FabGrid core bundle。
+`fabui.EditBox` 是獨立的 pure JavaScript 編輯控件，以單一 class 取代原本分散的 TextBox、NumberBox、DateBox、ComboBox 公開入口。textbox、numberbox、datebox、combobox、color 五種模式共用 TextBox 視覺基準與同一組 FabGrid editor definitions，但不會併入 FabGrid core bundle。
 
 ## 載入方式
 
@@ -43,8 +43,9 @@ import EditBox from './src/editbox/editbox.js';
 - `numberbox`：數字、最小值／最大值、精度、前後綴與千分位。
 - `datebox`：日期；`mask: '9999/99'` 或 `'9999-99'` 時自動使用年月選擇模式。
 - `combobox`：本機或遠端選項、單選或多選。
+- `color`：文字輸入支援 hex 與標準 CSS 顏色名稱；右側色塊按鈕開啟常用色盤，CSS 色名會保留原始文字。
 
-未設定 `editor` 時，`select` 自動使用 `combobox`，`input[type="number"]` 使用 `numberbox`，`input[type="date"]`／`input[type="month"]` 使用 `datebox`，其餘使用 `textbox`。
+未設定 `editor` 時，`select` 自動使用 `combobox`，`input[type="number"]` 使用 `numberbox`，`input[type="date"]`／`input[type="month"]` 使用 `datebox`，其餘使用 `textbox`。顏色欄使用 `editor: 'color'`；相容名稱 `colorbox` 也會正規化為 `color`。
 
 ## 共用 methods
 
@@ -65,10 +66,11 @@ import EditBox from './src/editbox/editbox.js';
 - NumberBox：`getNumber()`、`fix()`。
 - DateBox：`getDate()`、`setDate(date)`、`calendar()`、`panel()`、`showPanel()`、`hidePanel()`、`togglePanel()`、`cloneFrom(from)`、`fix()`。
 - ComboBox：`getData()`、`loadData(data)`、`reload()`、`getValues()`、`setValues(values)`、`select(value)`、`unselect(value)`、`scrollTo(value)`、`panel()`、`showPanel()`、`hidePanel()`、`togglePanel()`。
+- Color：`panel()`、`showPanel()`、`hidePanel()`、`togglePanel()`；`colors` 可自訂色盤陣列。
 
 ## 靜態 API
 
-- `EditBox.editorTypes`：目前公開的四種 editor 類型。
+- `EditBox.editorTypes`：目前公開的五種 editor 類型。
 - `EditBox.editorDefinitions`：與 FabGrid 共用的完整 editor definitions。
 - `EditBox.getEditorDefinition(name)`：依名稱取得 definition。
 - `EditBox.getControl(elementOrSelector)`：由原始 input／textarea／select 取得 EditBox instance；找不到時回傳 `null`。

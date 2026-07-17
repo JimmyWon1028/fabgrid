@@ -51,6 +51,11 @@
         { value: 'closed', text: '結束' }
       ]
     });
+    boxes.color = new EditBox('#edit-color', {
+      editor: 'color',
+      width: 280,
+      locale: 'zh-TW'
+    });
 
     render = function() {
       output.textContent = [
@@ -58,7 +63,8 @@
         '金額：' + text(boxes.amount.getValue()),
         '日期：' + text(boxes.date.getValue()),
         '年月：' + text(boxes.month.getValue()),
-        '狀態：' + text(boxes.status.getValue())
+        '狀態：' + text(boxes.status.getValue()),
+        '顏色：' + text(boxes.color.getValue())
       ].join('\n');
     };
 

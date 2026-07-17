@@ -11,7 +11,8 @@ test('EditBox exposes one class for all legacy Box editor types', function() {
     'textbox',
     'numberbox',
     'datebox',
-    'combobox'
+    'combobox',
+    'color'
   ]);
 });
 

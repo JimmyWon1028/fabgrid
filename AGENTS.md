@@ -52,7 +52,7 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 - FabGrid 位於 `fabui.FabGrid`；`src/fabui.js` 是入口，`src/grid/fabgrid.js` 是 Grid 子模組。
 - Chart 位於 `fabui.Chart`；使用 pure JavaScript SVG rendering，只支援直條圖、橫條圖、折線圖與圓餅圖，原始碼位於 `src/chart/` 並納入主 bundle。
 - PivotChart 位於 `fabui.pivot.PivotChart`；直接監聽共用 PivotEngine 的 `updatedView`，只負責將 Pivot view 轉成既有 `fabui.Chart` 的 categories／series，不得重新彙總原始資料或複製 Chart renderer。
-- `fabui.EditBox` 是 TextBox、NumberBox、DateBox、ComboBox 的單一公開替代 class，使用 `editor` 選項切換四種模式；原四個 class 只保留為 EditBox 內部實作，不得由 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 或 `dist/fabui.*` 公開。EditBox 使用獨立 entry、CSS 與 `dist/editbox.*`，不得併入 FabGrid core bundle。Tabs 仍只保留原始碼且不列入目前產品 roadmap。
+- `fabui.EditBox` 是 TextBox、NumberBox、DateBox、ComboBox 的單一公開替代 class，使用 `editor` 選項切換 textbox、numberbox、datebox、combobox、color 五種模式；原四個 Box class 只保留為 EditBox 內部實作，不得由 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 或 `dist/fabui.*` 公開。EditBox 使用獨立 entry、CSS 與 `dist/editbox.*`，不得併入 FabGrid core bundle。Tabs 仍只保留原始碼且不列入目前產品 roadmap。
 - `Window`、`Panel`、`Layout` 已列入後續元件 roadmap；樣式與 API 契約參考 jQuery EasyUI Material Teal，但不得加入 jQuery／EasyUI runtime 依賴。
 - 未來發佈任何 standalone 控件時，必須建立獨立 entry、CSS、demo、API 文件與驗證；不得併回 FabGrid core bundle。
 - 核心使用不綁定框架的 pure JavaScript。

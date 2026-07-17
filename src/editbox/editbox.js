@@ -1,10 +1,11 @@
-import { createEditorDefinitions } from './editbox-definitions.js?v=20260717-editbox-v8';
-import { createTextBoxFactory } from '../textbox/textbox.js?v=20260717-editbox-v8';
-import { createNumberBoxFactory } from '../numberbox/numberbox.js?v=20260717-editbox-v8';
-import { createDateBoxFactory } from '../datebox/datebox.js?v=20260717-editbox-v8';
-import { createComboBoxFactory } from '../combobox/combobox.js?v=20260717-editbox-v8';
+import { createEditorDefinitions } from './editbox-definitions.js?v=20260717-editbox-v9';
+import { createColorEditBoxFactory } from './color-editbox.js?v=20260717-editbox-v9';
+import { createTextBoxFactory } from '../textbox/textbox.js?v=20260717-editbox-v9';
+import { createNumberBoxFactory } from '../numberbox/numberbox.js?v=20260717-editbox-v9';
+import { createDateBoxFactory } from '../datebox/datebox.js?v=20260717-editbox-v9';
+import { createComboBoxFactory } from '../combobox/combobox.js?v=20260717-editbox-v9';
 
-var EDITOR_TYPES = ['textbox', 'numberbox', 'datebox', 'combobox'];
+var EDITOR_TYPES = ['textbox', 'numberbox', 'datebox', 'combobox', 'color'];
 
 function assign(target) {
   var index;
@@ -27,6 +28,7 @@ function resolveElement(element) {
 
 function normalizeEditorType(value) {
   var type = String(value == null ? '' : value).toLowerCase();
+  if (type === 'colorbox') type = 'color';
   return EDITOR_TYPES.indexOf(type) >= 0 ? type : '';
 }
 
@@ -54,11 +56,13 @@ export function createEditBoxFactory(editorDefinitions) {
   var NumberBox = createNumberBoxFactory(TextBox, definitions);
   var DateBox = createDateBoxFactory(TextBox, definitions);
   var ComboBox = createComboBoxFactory(TextBox, definitions);
+  var ColorEditBox = createColorEditBoxFactory(TextBox, definitions);
   var factories = {
     textbox: TextBox,
     numberbox: NumberBox,
     datebox: DateBox,
-    combobox: ComboBox
+    combobox: ComboBox,
+    color: ColorEditBox
   };
 
   function EditBox(element, options) {

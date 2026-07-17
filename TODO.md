@@ -83,7 +83,7 @@ Server-side Pivot／OLAP／SSAS 不列入目前產品範圍。
 以下元件已列入後續 roadmap，目前尚未由 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 或 `dist/fabui.*` 公開或編譯：
 
 - [x] `EditBox`
-  - 以單一 `fabui.EditBox` 整合 textbox、numberbox、datebox、combobox，原四個 class 僅保留為內部實作。
+  - 以單一 `fabui.EditBox` 整合 textbox、numberbox、datebox、combobox、color，原四個 Box class 僅保留為內部實作。
   - 共用視覺樣式以 TextBox 為基準，提供共用 value、state、event methods 與必要的日期／清單 methods。
   - FabGrid 與 EditBox 共用 `src/editbox/editbox-definitions.js`，不再維護重複 editor 定義。
   - 提供獨立 browser global／ES module build、CSS、API、測試與 source-mode／build-mode Demo。
