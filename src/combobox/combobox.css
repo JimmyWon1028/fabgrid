@@ -1,9 +1,9 @@
-.fui-combobox .fui-combobox-arrow {
+.fui-combobox-arrow {
   position: relative;
   background: var(--fui-control-trigger-bg, #e0ecff);
 }
 
-.fui-combobox .fui-combobox-arrow::before {
+.fui-combobox-arrow::before {
   content: '';
   position: absolute;
   top: 50%;
@@ -16,9 +16,10 @@
   border-left: 4px solid transparent;
 }
 
-.fui-combobox .fui-combobox-arrow:hover,
-.fui-combobox .fui-combobox-arrow:focus-visible,
-.fui-combobox-open .fui-combobox-arrow {
+.fui-combobox-arrow:hover,
+.fui-combobox-arrow:focus-visible,
+.fui-combobox-open .fui-combobox-arrow,
+.fui-colorbox-open .fui-combobox-arrow {
   background-color: var(--fui-control-hover, #eaf2ff);
 }
 

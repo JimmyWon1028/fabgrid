@@ -216,7 +216,7 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
 
     icons = Array.isArray(this._options.icons) ? this._options.icons.slice() : [];
     icons.push({
-      iconCls: 'fui-colorbox-trigger',
+      iconCls: 'fui-colorbox-trigger fui-combobox-arrow',
       align: 'right',
       width: this._options.iconWidth,
       title: this._options.openColorText,
@@ -546,6 +546,7 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
     this._updateColorPanelVisuals();
     this._panel.style.display = 'flex';
     this._panel.setAttribute('aria-hidden', 'false');
+    this._shell.classList.add('fui-colorbox-open');
     this._positionPanel();
     this._invoke('onShowPanel');
     this._emit('showPanel', { panel: this._panel });
@@ -557,6 +558,7 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
     this._panelVisible = false;
     this._panel.style.display = 'none';
     this._panel.setAttribute('aria-hidden', 'true');
+    this._shell.classList.remove('fui-colorbox-open');
     this._invoke('onHidePanel');
     this._emit('hidePanel', { panel: this._panel });
     return this;
