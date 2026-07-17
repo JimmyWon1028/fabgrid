@@ -20,7 +20,7 @@ function readCss(file, seen) {
   if (seen[absolute]) return '';
   seen[absolute] = true;
   source = fs.readFileSync(absolute, 'utf8');
-  return source.replace(/@import\s+["']([^"']+\.css)["'];?/g, function(match, request) {
+  return source.replace(/@import\s+["']([^"'?#]+\.css)(?:[?#][^"']*)?["'];?/g, function(match, request) {
     return readCss(path.resolve(path.dirname(absolute), request), seen);
   });
 }
@@ -76,6 +76,12 @@ fs.writeFileSync(path.join(distDir, 'editbox.css'), cssSource);
 fs.writeFileSync(
   path.join(distDir, 'editbox.min.css'),
   transform(cssSource, { loader: 'css', minify: true }) + '\n'
+);
+fs.mkdirSync(path.join(distDir, 'theme'), { recursive: true });
+fs.cpSync(
+  path.join(root, 'src', 'theme', 'images'),
+  path.join(distDir, 'theme', 'images'),
+  { recursive: true }
 );
 
 [
