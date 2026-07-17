@@ -66,6 +66,14 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   var toNumber = context.toNumber;
   var trimText = context.trimText;
 
+  function getEditorCssType(type) {
+    if (type === 'text') return 'textbox';
+    if (type === 'number') return 'numberbox';
+    if (type === 'date') return 'datebox';
+    if (type === 'combo') return 'combobox';
+    return type;
+  }
+
   FabGrid.prototype.startEditing = function(row, col, options) {
     var column = this.visibleColumns[col];
     var item = this.view[row];
@@ -161,7 +169,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     } else {
       button = document.createElement('button');
       button.type = 'button';
-      button.className = trimText('fg-editor-trigger fg-editor-trigger-' + type + (isDateLikeEditorType(type) ? ' icon-datebox' : ''));
+      button.className = trimText('fg-editor-trigger fg-editor-trigger-' + getEditorCssType(type) + (isDateLikeEditorType(type) ? ' icon-datebox' : ''));
       button.setAttribute('aria-label', this.getEditorTriggerLabel());
       button.style.width = '22px';
       fragment.appendChild(button);

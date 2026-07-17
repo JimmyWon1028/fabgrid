@@ -375,6 +375,12 @@ server.listen(port, '127.0.0.1', async function() {
       throw new Error('Smoke assertions failed: ' + JSON.stringify(result));
     }
     const expectedDistFiles = [
+      'editbox.css',
+      'editbox.esm.js',
+      'editbox.esm.min.js',
+      'editbox.js',
+      'editbox.min.css',
+      'editbox.min.js',
       'fabui.css',
       'fabui.esm.js',
       'fabui.esm.min.js',
