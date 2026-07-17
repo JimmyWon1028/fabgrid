@@ -4,7 +4,19 @@
 
 # FabGrid
 
-FabUI 提供 pure JavaScript FabGrid、獨立 EditBox、PivotPanel／PivotGrid／PivotChart、三合一 PivotWorkspace 與 SVG Chart。FabGrid 支援雙向 virtualization、凍結欄、TreeGrid、排序、搜尋、編輯、群組、分頁與 JSON / CSV / Excel 匯入匯出；EditBox 以單一 class 提供文字、數字、日期、清單與顏色編輯；PivotPanel 可互動定義 View，PivotGrid 顯示多階列／欄彙總，PivotChart 使用同一個 PivotEngine 將目前 View 顯示為直條圖、橫條圖、折線圖或圓餅圖。
+## FabGrid 介紹
+
+FabGrid 名稱中的 **Fab** 是 **Fabulous** 的縮寫，意思是「出色、令人驚豔」。這個名稱代表專案希望提供兼具效能、實用性與良好開發體驗的資料表元件。
+
+FabUI 是以 pure JavaScript 開發的前端 UI 元件庫，不依賴任何前端框架。主要元件包含 FabGrid、EditBox、Chart，以及 PivotPanel、PivotGrid、PivotChart 與 PivotWorkspace。
+
+FabGrid 是以效能為優先的資料表元件，透過水平與垂直 virtualization 處理大量資料。內建凍結欄、TreeGrid、排序、搜尋、編輯、群組、分頁、JSON 匯入匯出，以及 CSV、Excel 匯出等常用功能。
+
+EditBox 使用單一 class 提供文字、數字、日期、清單與顏色編輯，並可作為 FabGrid 的儲存格編輯器使用。
+
+Pivot 元件共用同一個 PivotEngine。PivotPanel 用來設定分析欄位，PivotGrid 顯示多階列／欄彙總，PivotChart 將分析結果呈現為直條圖、橫條圖、折線圖或圓餅圖。PivotWorkspace 則將這些元件整合成完整的資料分析工作區。
+
+Chart 是以 SVG 繪製的圖表元件，可獨立使用，也能與 FabGrid 或 PivotGrid 連動。
 
 ## 文件與 Demo
 
