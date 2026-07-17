@@ -112,7 +112,15 @@ var value = $('#amount').fabeditbox('getValue');
 <input class="fab-editbox"
   data-options="editor:'text',iconCls:'icon-search'"
   style="width:300px">
+
+<input class="fab-editbox"
+  data-options="editor:'text',iconCls:'icon-search',width:300">
+
+<input class="fab-editbox"
+  data-options="editor:'text',iconCls:'icon-search',width:'300px'">
 ```
+
+Browser global 依序載入 jQuery、`dist/editbox.min.js`、`dist/wrapper/fabeditbox-jquery.min.js` 後，會在 DOM ready 自動解析 `.fab-editbox`；動態加入的內容可呼叫 `fabuiEditBoxJQuery.parse(container)`。
 
 ## 主要能力
 
