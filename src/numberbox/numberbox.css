@@ -1,4 +1,5 @@
 /* NumberBox inherits the default TextBox theme. */
 .fui-numberbox .fui-textbox-text {
   ime-mode: disabled;
+  text-align: right;
 }
