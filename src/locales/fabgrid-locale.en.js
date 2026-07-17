@@ -24,6 +24,7 @@
       closeDetail: 'Close detail',
       sortAscending: 'Sort ascending',
       sortDescending: 'Sort descending',
+      clearSort: 'Clear sort',
       aggregate: 'Aggregate',
       removeField: 'Remove field',
       filteredValues: 'Filtered',
@@ -38,6 +39,9 @@
         filterField: 'Filter {field}',
         aggregateMenu: 'Value aggregation settings',
         aggregateField: 'Set aggregation for {field}',
+        sortMenu: 'Dimension sorting settings',
+        sortField: 'Set sorting for {field}',
+        sortDefault: 'Default order',
         dropFields: 'Drag fields here',
         noFields: 'No fields available',
         removeField: 'Remove field'

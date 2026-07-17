@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabUI PivotGrid 開發版</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260716-pivot-build-v12">
+  <link rel="stylesheet" href="../src/fabui.css?v=20260717-pivot-panel-sort-popup-v1">
   <style>
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -125,12 +125,12 @@
   </main>
 
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260716-pivot-build-v12';
+    import fabui from '../src/fabui.js?v=20260717-pivot-header-fullscreen-v1';
 
     window.fabui = fabui;
-    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260716-pivot-build-v12');
-    await import('../src/locales/fabgrid-locale.zh-CN.js?v=20260716-pivot-build-v12');
-    await import('../src/locales/fabgrid-locale.en.js?v=20260716-pivot-build-v12');
+    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260717-pivot-sort-tristate-v1');
+    await import('../src/locales/fabgrid-locale.zh-CN.js?v=20260717-pivot-sort-tristate-v1');
+    await import('../src/locales/fabgrid-locale.en.js?v=20260717-pivot-sort-tristate-v1');
 
     const regions = ['北區', '中區', '南區', '東區'];
     const platforms = ['Web', 'Mobile'];

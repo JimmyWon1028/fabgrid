@@ -37,6 +37,28 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     return null;
   }
 
+  function getPivotFieldSortDirection(field) {
+    var value = field ? field.sortDirection : 0;
+    var text;
+    if (value === 1 || value === -1) {
+      return value;
+    }
+    text = String(value == null ? '' : value).toLowerCase();
+    if (text === 'asc' || text === 'ascending') {
+      return 1;
+    }
+    if (text === 'desc' || text === 'descending') {
+      return -1;
+    }
+    return 0;
+  }
+
+  function getPivotSortMenuKey(field) {
+    var direction = getPivotFieldSortDirection(field);
+    return direction === 0 ? 'pivot.sortAscending' :
+      direction === 1 ? 'pivot.sortDescending' : 'pivot.clearSort';
+  }
+
   function isStrictDescendant(entry, parentKey, entriesByKey) {
     var parent = entriesByKey[parentKey];
     var i;
@@ -114,7 +136,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     }));
   }
 
-  function createMenuItem(action, label, iconClass, active) {
+  function createMenuItem(action, label, iconClass, active, disabled) {
     var item = document.createElement('button');
     var icon = document.createElement('span');
     var text = document.createElement('span');
@@ -122,6 +144,10 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     item.className = 'fg-top-left-menu-item' + (active ? ' fg-top-left-menu-item-active' : '');
     item.setAttribute('role', 'menuitem');
     item.setAttribute('data-action', action);
+    item.disabled = disabled === true;
+    if (disabled === true) {
+      item.setAttribute('aria-disabled', 'true');
+    }
     icon.className = 'fg-top-left-menu-icon' + (iconClass ? ' ' + iconClass : '');
     icon.setAttribute('aria-hidden', 'true');
     icon.textContent = active ? '✓' : '';
@@ -267,11 +293,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     var rowEntries;
     var columnEntries;
     var visibleRows = [];
-    var visibleDataColumns = [];
     var columns = [];
-    var self = this;
-    var field;
-    var dataColumn;
     var i;
     this._pivotView = view;
     this._pivotRowEntriesByKey = Object.create(null);
@@ -296,12 +318,25 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     for (i = 0; i < columnEntries.length; i += 1) {
       this._pivotColumnEntriesByKey[columnEntries[i].key] = columnEntries[i];
     }
-    for (i = 0; i < view.dataColumns.length; i += 1) {
-      dataColumn = view.dataColumns[i];
-      if (!isHiddenByCollapsedEntry(dataColumn.entry, this._pivotColumnCollapsed, this._pivotColumnEntriesByKey)) {
-        visibleDataColumns.push(dataColumn);
-      }
+    columns = this._createPivotColumns(view);
+    this._pivotRowGroups = this._buildPivotRowGroups(visibleRows, view.rowFields.length);
+    this._pivotDataHeaderLevelCount = this._getPivotDataHeaderLevelCount();
+    this._pivotHeaderLevelCount = this._getPivotHeaderLevelCount();
+    this.options.frozenColumns = view.rowFields.length;
+    FabGrid.prototype.setColumns.call(this, columns, true);
+    baseSetItemsSource.call(this, visibleRows, true);
+    this.syncHeaderLayout();
+    if (!silent) {
+      this.refresh();
     }
+  };
+
+  PivotGrid.prototype._createPivotColumns = function(view) {
+    var columns = [];
+    var self = this;
+    var field;
+    var dataColumn;
+    var i;
     for (i = 0; i < view.rowFields.length; i += 1) {
       field = view.rowFields[i];
       columns.push({
@@ -318,8 +353,8 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
         formatter: createRowFieldFormatter(this, field, i)
       });
     }
-    for (i = 0; i < visibleDataColumns.length; i += 1) {
-      dataColumn = visibleDataColumns[i];
+    for (i = 0; i < view.dataColumns.length; i += 1) {
+      dataColumn = view.dataColumns[i];
       field = dataColumn.valueField;
       columns.push({
         binding: dataColumn.binding,
@@ -329,6 +364,11 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
         align: field.align || 'right',
         dataType: field.dataType || 'number',
         format: field.format,
+        visible: !isHiddenByCollapsedEntry(
+          dataColumn.entry,
+          this._pivotColumnCollapsed,
+          this._pivotColumnEntriesByKey
+        ),
         readOnly: true,
         isReadOnly: true,
         _pivotDataColumn: dataColumn,
@@ -337,16 +377,20 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
         }
       });
     }
-    this._pivotRowGroups = this._buildPivotRowGroups(visibleRows, view.rowFields.length);
-    this._pivotDataHeaderLevelCount = this._getPivotDataHeaderLevelCount();
-    this._pivotHeaderLevelCount = this._getPivotHeaderLevelCount();
-    this.options.frozenColumns = view.rowFields.length;
-    FabGrid.prototype.setColumns.call(this, columns, true);
-    baseSetItemsSource.call(this, visibleRows, true);
-    this.syncHeaderLayout();
-    if (!silent) {
-      this.refresh();
-    }
+    return columns;
+  };
+
+  PivotGrid.prototype._getExcelExportRows = function() {
+    return this._pivotView && Array.isArray(this._pivotView.rows) ? this._pivotView.rows : (this.view || []);
+  };
+
+  PivotGrid.prototype._isExcelExportRowHidden = function(row) {
+    var entry = row && row.__pivotMeta;
+    return Boolean(entry && isHiddenByCollapsedEntry(
+      entry,
+      this._pivotRowCollapsed,
+      this._pivotRowEntriesByKey
+    ));
   };
 
   function createRowFieldFormatter(grid, field, fieldIndex) {
@@ -468,7 +512,9 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
         height: hasFilterFields ? this._pivotHeaderRowHeight : this.getHeaderHeight(),
         col: i,
         className: 'fg-pivot-row-field-header',
-        field: column._pivotRowField
+        field: column._pivotRowField,
+        sortable: Boolean(column._pivotRowField),
+        sortDirection: getPivotFieldSortDirection(column._pivotRowField)
       });
       frozenFragment.appendChild(cell);
     }
@@ -658,6 +704,9 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     var cell = document.createElement('div');
     var title = document.createElement('span');
     var label = document.createElement('span');
+    var sortWrap;
+    var sortOrder;
+    var sort;
     var toggle;
     var resize;
     cell.className = 'fg-header-cell fg-pivot-header-cell ' + (options.className || '');
@@ -688,6 +737,19 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
       title.appendChild(toggle);
     }
     title.appendChild(label);
+    if (options.sortable) {
+      sortWrap = document.createElement('span');
+      sortOrder = document.createElement('span');
+      sort = document.createElement('span');
+      sortWrap.className = 'fg-sort-wrap' + (options.sortDirection ? '' : ' fg-sort-wrap-none');
+      sortOrder.className = 'fg-sort-order';
+      sort.className = 'fg-sort' + (options.sortDirection === 1 ? ' fg-sort-asc' :
+        options.sortDirection === -1 ? ' fg-sort-desc' : ' fg-sort-none');
+      sort.setAttribute('aria-hidden', 'true');
+      sortWrap.appendChild(sortOrder);
+      sortWrap.appendChild(sort);
+      title.appendChild(sortWrap);
+    }
     cell.appendChild(title);
     if (this.options.allowResizing !== false && options.startCol === options.endCol) {
       resize = document.createElement('span');
@@ -884,7 +946,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     }
     if (column && column._pivotRowField) {
       fragment.appendChild(createMenuItem('pivot-sort', this.getText(
-        column._pivotRowField.descending ? 'pivot.sortAscending' : 'pivot.sortDescending'
+        getPivotSortMenuKey(column._pivotRowField)
       ), 'icon-sort'));
     }
     if (column && column._pivotDataColumn) {
@@ -903,6 +965,15 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     }
     fragment.appendChild(createMenuItem('pivot-export-excel', this.getText('topLeftMenu.exportExcel'), 'icon-excel'));
     fragment.appendChild(createMenuItem('pivot-export-csv', this.getText('topLeftMenu.exportCsv'), 'icon-export'));
+    if (context && context.cellType === FabGrid.CellType.ColumnHeader) {
+      fragment.appendChild(createMenuItem(
+        'pivot-fullscreen',
+        this.getText(this.isFullscreen() ? 'topLeftMenu.exitFullscreen' : 'topLeftMenu.fullscreen'),
+        'icon-fullscreen',
+        false,
+        !this.isFullscreenAvailable()
+      ));
+    }
     this.topLeftMenu.appendChild(fragment);
   };
 
@@ -940,15 +1011,19 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
       this.exportExcel('pivot.xlsx');
     } else if (action === 'pivot-export-csv') {
       this.exportCsv('pivot.csv');
+    } else if (action === 'pivot-fullscreen') {
+      this.toggleFullscreen();
     }
   };
 
   PivotGrid.prototype.togglePivotFieldSort = function(fieldReference) {
     var field = this._pivotEngine && this._pivotEngine.getField(fieldReference);
+    var direction;
     if (!field) {
       return false;
     }
-    field.descending = !field.descending;
+    direction = getPivotFieldSortDirection(field);
+    field.sortDirection = direction === 0 ? 1 : direction === 1 ? -1 : 0;
     this._pivotEngine.refresh();
     return true;
   };

@@ -24,6 +24,7 @@
       closeDetail: '關閉明細',
       sortAscending: '升冪排序',
       sortDescending: '降冪排序',
+      clearSort: '清除排序',
       aggregate: '彙總方式',
       removeField: '移除欄位',
       filteredValues: '已篩選',
@@ -38,6 +39,9 @@
         filterField: '篩選「{field}」',
         aggregateMenu: '數值彙總設定',
         aggregateField: '設定「{field}」彙總函數',
+        sortMenu: '維度排序設定',
+        sortField: '設定「{field}」排序',
+        sortDefault: '預設順序',
         dropFields: '拖曳欄位到這裡',
         noFields: '沒有可用欄位',
         removeField: '移除欄位'

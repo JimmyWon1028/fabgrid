@@ -24,6 +24,7 @@
       closeDetail: '关闭明细',
       sortAscending: '升序排序',
       sortDescending: '降序排序',
+      clearSort: '清除排序',
       aggregate: '汇总方式',
       removeField: '移除字段',
       filteredValues: '已筛选',
@@ -38,6 +39,9 @@
         filterField: '筛选“{field}”',
         aggregateMenu: '数值汇总设置',
         aggregateField: '设置“{field}”汇总函数',
+        sortMenu: '维度排序设置',
+        sortField: '设置“{field}”排序',
+        sortDefault: '默认顺序',
         dropFields: '拖动字段到这里',
         noFields: '没有可用字段',
         removeField: '移除字段'

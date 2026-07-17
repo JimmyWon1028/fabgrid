@@ -351,6 +351,19 @@ export function installFabGridView(FabGrid, context) {
     this.root.style.setProperty('--fg-scroll-linked-horizontal-distance', (-maxScrollLeft) + 'px');
   };
 
+  FabGrid.prototype.scheduleScrollLinkedHorizontalDistanceUpdate = function() {
+    var self = this;
+    if (!this.useScrollLinkedHorizontal || !this.bodyScroll || this.scrollLinkedHorizontalRaf || this.disposed) {
+      return;
+    }
+    this.scrollLinkedHorizontalRaf = requestAnimationFrame(function() {
+      self.scrollLinkedHorizontalRaf = 0;
+      if (!self.disposed) {
+        self.updateScrollLinkedHorizontalDistance();
+      }
+    });
+  };
+
   FabGrid.prototype.resetFixedPaneScrollOffset = function() {
     this.renderedScrollTop = this.bodyScroll ? this.bodyScroll.scrollTop : 0;
     this.frozenLayer.style.transform = '';
@@ -747,7 +760,6 @@ export function installFabGridView(FabGrid, context) {
 
     this.sizeLayer.style.width = Math.max(metrics.width, fixedLeftWidth + this.frozenWidth + this.scrollableWidth + this.frozenRightWidth) + 'px';
     this.sizeLayer.style.height = (totalHeight + footerHeight) + 'px';
-    this.updateScrollLinkedHorizontalDistance();
     this.rowHeaderTop.style.width = rowHeaderWidth + 'px';
     this.rowHeaderTop.style.height = this.getHeaderHeight() + 'px';
     this.rowHeaderTop.style.display = rowHeaderWidth > 0 ? 'flex' : 'none';
@@ -818,6 +830,11 @@ export function installFabGridView(FabGrid, context) {
     }
     this.updateVerticalScrollbar(metrics, totalHeight, bodyPaneBottom);
     this.updateHorizontalScrollbar();
+    // Read the final scroll width after all pane sizes have been committed.
+    this.updateScrollLinkedHorizontalDistance();
+    if (skipLayout !== true) {
+      this.scheduleScrollLinkedHorizontalDistanceUpdate();
+    }
 
     this.renderHeaders(colRange);
     this.renderFooter(colRange);

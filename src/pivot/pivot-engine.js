@@ -138,7 +138,11 @@ function getGroupedValue(value, groupBy) {
 }
 
 export function PivotField(engine, binding, header, options) {
+  var hasDescending;
+  var hasSortDirection;
   options = options || {};
+  hasDescending = Object.prototype.hasOwnProperty.call(options, 'descending');
+  hasSortDirection = Object.prototype.hasOwnProperty.call(options, 'sortDirection');
   this.engine = engine || null;
   this.binding = binding || options.binding || '';
   this.key = options.key || options.header || header || this.binding;
@@ -147,7 +151,18 @@ export function PivotField(engine, binding, header, options) {
   this.aggregate = normalizeAggregate(options.aggregate, this.dataType);
   this.format = options.format || '';
   this.align = options.align || (this.dataType === 'number' ? 'right' : 'left');
-  this.descending = options.descending === true;
+  this.sortDirection = hasSortDirection ? normalizePivotSortDirection(options.sortDirection) :
+    (hasDescending ? (options.descending === true ? -1 : 1) : 0);
+  Object.defineProperty(this, 'descending', {
+    configurable: true,
+    enumerable: true,
+    get: function() {
+      return normalizePivotSortDirection(this.sortDirection) === -1;
+    },
+    set: function(value) {
+      this.sortDirection = value === true ? -1 : 1;
+    }
+  });
   this.filter = options.filter || null;
   this.groupBy = options.groupBy || null;
   this.getValue = typeof options.getValue === 'function' ? options.getValue : null;
@@ -204,16 +219,70 @@ function comparePivotValues(left, right) {
   });
 }
 
-function compareEntries(left, right, fields, totalsBeforeData) {
+function normalizePivotSortDirection(value) {
+  var text;
+  if (value === 1 || value === -1) {
+    return value;
+  }
+  text = String(value == null ? '' : value).toLowerCase();
+  if (text === 'asc' || text === 'ascending') {
+    return 1;
+  }
+  if (text === 'desc' || text === 'descending') {
+    return -1;
+  }
+  return 0;
+}
+
+function getPivotFieldSortDirection(field) {
+  return field ? normalizePivotSortDirection(field.sortDirection) : 0;
+}
+
+function createEntryValueOrders(entries, fieldCount) {
+  var orders = [];
+  var entry;
+  var key;
+  var i;
+  var e;
+  for (i = 0; i < fieldCount; i += 1) {
+    orders.push(new Map());
+  }
+  for (e = 0; e < entries.length; e += 1) {
+    entry = entries[e];
+    for (i = 0; i < entry.path.length && i < fieldCount; i += 1) {
+      key = createPathKey([entry.path[i]]);
+      if (!orders[i].has(key)) {
+        orders[i].set(key, orders[i].size);
+      }
+    }
+  }
+  return orders;
+}
+
+function comparePivotValueOrder(left, right, order) {
+  var leftOrder = order && order.get(createPathKey([left]));
+  var rightOrder = order && order.get(createPathKey([right]));
+  if (leftOrder == null || rightOrder == null) {
+    return null;
+  }
+  return leftOrder - rightOrder;
+}
+
+function compareEntries(left, right, fields, totalsBeforeData, valueOrders) {
   var length = Math.min(left.path.length, right.path.length);
   var direction;
+  var orderCompared;
   var compared;
   var i;
   for (i = 0; i < length; i += 1) {
     compared = comparePivotValues(left.path[i], right.path[i]);
     if (compared) {
-      direction = fields[i] && fields[i].descending ? -1 : 1;
-      return compared * direction;
+      direction = getPivotFieldSortDirection(fields[i]);
+      if (direction) {
+        return compared * direction;
+      }
+      orderCompared = comparePivotValueOrder(left.path[i], right.path[i], valueOrders[i]);
+      return orderCompared == null ? compared : orderCompared;
     }
   }
   if (left.path.length === right.path.length) {
@@ -308,6 +377,7 @@ function copyDefinitionField(field) {
     aggregate: field.aggregate,
     format: field.format,
     align: field.align,
+    sortDirection: getPivotFieldSortDirection(field),
     descending: field.descending,
     filter: filter,
     groupBy: typeof field.groupBy === 'string' ? field.groupBy : null,
@@ -622,8 +692,8 @@ PivotEngine.prototype._buildPivotView = function() {
   }
   rowEntries = Array.from(rowEntryMap.values());
   columnEntries = Array.from(columnEntryMap.values());
-  rowEntries.sort(this._createEntryComparer(this.rowFields));
-  columnEntries.sort(this._createEntryComparer(this.columnFields));
+  rowEntries.sort(this._createEntryComparer(this.rowFields, rowEntries));
+  columnEntries.sort(this._createEntryComparer(this.columnFields, columnEntries));
   for (c = 0; c < columnEntries.length; c += 1) {
     for (v = 0; v < this.valueFields.length; v += 1) {
       dataColumns.push({
@@ -685,10 +755,11 @@ function createEntry(path, fieldCount) {
   };
 }
 
-PivotEngine.prototype._createEntryComparer = function(fields) {
+PivotEngine.prototype._createEntryComparer = function(fields, entries) {
   var totalsBeforeData = this.totalsBeforeData;
+  var valueOrders = createEntryValueOrders(entries || [], fields.length);
   return function(left, right) {
-    return compareEntries(left, right, fields, totalsBeforeData);
+    return compareEntries(left, right, fields, totalsBeforeData, valueOrders);
   };
 };
 

@@ -60,15 +60,6 @@
   outline: 1px solid var(--fg-selected-border);
 }
 
-.fg-pivot-grid .fg-pivot-row-field-header .fg-header-label::after {
-  display: inline-block;
-  margin-left: 5px;
-  color: var(--fg-header-text);
-  content: "↕";
-  font-size: 11px;
-  opacity: .65;
-}
-
 .fg-pivot-grid .fg-pivot-row-field-cell {
   justify-content: flex-start;
   background-color: var(--fg-cell-bg);

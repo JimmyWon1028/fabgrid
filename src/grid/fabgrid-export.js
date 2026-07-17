@@ -150,6 +150,14 @@ export function installFabGridExport(FabGrid, context) {
   exportContext = context || {};
   var getByBinding = context.getByBinding;
 
+  FabGrid.prototype._getExcelExportRows = function() {
+    return this.view || this.dataView;
+  };
+
+  FabGrid.prototype._isExcelExportRowHidden = function() {
+    return false;
+  };
+
   FabGrid.prototype.getCsv = function(visibleOnly) {
     var columns = visibleOnly === false ? this.columns : this.visibleColumns;
     var lines = [];
@@ -204,13 +212,18 @@ export function installFabGridExport(FabGrid, context) {
 
   FabGrid.prototype.getExcelBlob = function(visibleOnly) {
     var columns = visibleOnly === true ? this.visibleColumns : this.columns;
-    var files = createXlsxFiles(columns, this.view || this.dataView, {
+    var rows = this._getExcelExportRows();
+    var grid = this;
+    var files = createXlsxFiles(columns, rows, {
       frozenColumns: visibleOnly === true ? this.frozenColumns : this.getExcelFrozenColumnCount(),
       headerDisplayMode: this.getHeaderDisplayMode(),
       grid: this,
       formatCell: this.options.formatCell,
       excelCellStyle: this.options.excelCellStyle,
-      includeFooter: this.getFooterHeight() > 0
+      includeFooter: this.getFooterHeight() > 0,
+      isRowHidden: function(row, rowIndex) {
+        return grid._isExcelExportRowHidden(row, rowIndex);
+      }
     });
     return new Blob([createZip(files)], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -561,7 +574,8 @@ export function createWorksheetXml(columns, rows, options, registry) {
     if (options.grid && options.grid.isRowGroupFooter(row)) {
       continue;
     }
-    xml.push('<row r="' + (r + 2) + '">');
+    xml.push('<row r="' + (r + 2) + '"' +
+      (typeof options.isRowHidden === 'function' && options.isRowHidden(row, r) ? ' hidden="1"' : '') + '>');
     for (c = 0; c < columns.length; c += 1) {
       xml.push(createExcelCell(
         r + 2,

@@ -5,16 +5,16 @@ import {
   registerControl,
   unregisterControl
 } from './core/control.js?v=20260716-control-events-v3';
-import { createFabGridFactory } from './grid/fabgrid.js?v=20260716-selection-pointer-v3';
+import { createFabGridFactory } from './grid/fabgrid.js?v=20260717-pivot-excel-hidden-rows-v1';
 import { CellType } from './grid/fabgrid-types.js?v=20260716-row-types-v1';
 import {
   PivotAggregate,
   PivotEngine,
   PivotField,
   PivotShowTotals
-} from './pivot/pivot-engine.js?v=20260716-pivot-build-v2';
-import { createPivotGridFactory } from './pivot/pivot-grid.js?v=20260716-pivot-toggle-single-click-v4';
-import { createPivotPanelFactory } from './pivot/pivot-panel.js?v=20260716-pivot-panel-drag-only-v7';
+} from './pivot/pivot-engine.js?v=20260717-pivot-sort-tristate-v1';
+import { createPivotGridFactory } from './pivot/pivot-grid.js?v=20260717-pivot-header-fullscreen-v1';
+import { createPivotPanelFactory } from './pivot/pivot-panel.js?v=20260717-pivot-panel-sort-popup-v1';
 
 var editorDefinitions = createEditorDefinitions();
 var FabGrid = createFabGridFactory(editorDefinitions);

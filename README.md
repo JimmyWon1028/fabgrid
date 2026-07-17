@@ -87,8 +87,8 @@ jQuery Demo 分成以下兩層：
 ## 主要能力
 
 - `fabui.pivot.PivotEngine` 使用 `rowFields`、`columnFields`、`valueFields` 與 `filterFields` 將本機 Array 建立為 Pivot view；支援 Sum、Count、Average、Min、Max、日期 Year／Quarter／Month／Day groupBy、小計、總計、總計位置與 viewDefinition。
-- `fabui.pivot.PivotPanel` 提供 Fields、Filters、Rows、Columns、Values 區域，支援勾選、拖放排序、插入橫線提示、移除、filter field 配置、數值欄位右鍵 aggregate 設定與 JSON 字串 `viewDefinition` 儲存／還原；Filters 只顯示欄位，內容選擇位於 PivotGrid 左上角，四個 View 區域皆不顯示上下移動按鈕。
-- `fabui.pivot.PivotGrid` 繼承 FabGrid 的雙向 virtualization、CellRange、clipboard、匯出、Control lifecycle 與 theme style；提供多層欄標頭、固定 row fields、左上角同步 filter field 內容選擇器、重複父層列值疊合、單擊列／欄 subtotal 展開收合、全部群組展開／疊合、dimension 排序、右鍵 aggregate 設定與雙擊原始明細。父層收合後只保留該群組小計列。
+- `fabui.pivot.PivotPanel` 提供 Fields、Filters、Rows、Columns、Values 區域，支援勾選、拖放排序、插入橫線提示、移除、filter field 配置、Rows／Columns 右鍵預設／升冪／降冪排序、數值欄位右鍵 aggregate 設定與 JSON 字串 `viewDefinition` 儲存／還原；Filters 只顯示欄位，內容選擇位於 PivotGrid 左上角，四個 View 區域皆不顯示上下移動按鈕。
+- `fabui.pivot.PivotGrid` 繼承 FabGrid 的雙向 virtualization、CellRange、clipboard、匯出、Control lifecycle、Grid fullscreen 與 theme style；提供多層欄標頭、固定 row fields、左上角同步 filter field 內容選擇器、重複父層列值疊合、單擊列／欄 subtotal 展開收合、全部群組展開／疊合、dimension 預設／升冪／降冪三態排序、Header 右鍵全螢幕、右鍵 aggregate 設定與雙擊原始明細。預設排序不顯示符號並保留原始出現順序。父層收合後只保留該群組小計列；Excel 預設仍匯出疊合子欄與明細列，並分別維持 hidden column／hidden row 狀態。
 - 固定列高與欄寬的雙向 virtualization，適合大量資料。
 - `childItemsPath` TreeGrid 模式、節點收合／展開、階層鍵盤導覽、同層排序、保留祖先路徑的篩選，以及收合／篩選後維持原始列號。
 - `allowDragging: 'Rows'` 支援一般 Grid 列重排、跨 Grid 移動、跨 Grid 移入 TreeGrid，以及 TreeGrid `before`／`inside`／`after` 節點上下階；開發範例為 `demo/dev-grid-grid.html` 與 `demo/dev-grid-treegrid.html`，其他範例為 `demo/grid-grid.html`、`demo/grid-grid-vue2.html`、`demo/grid-treegrid.html` 與 `demo/grid-treegrid-vue2.html`。

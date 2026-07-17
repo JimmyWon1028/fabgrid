@@ -105,9 +105,45 @@ test('PivotEngine supports date grouping and descending dimension order', functi
   ]);
 });
 
+test('PivotEngine dimension sorting cycles natural, ascending, and descending order', function() {
+  var engine = new PivotEngine({
+    itemsSource: [
+      { region: 'North', sales: 10 },
+      { region: 'Central', sales: 20 },
+      { region: 'East', sales: 30 }
+    ],
+    fields: [
+      { binding: 'region', header: 'Region' },
+      { binding: 'sales', header: 'Sales', dataType: 'number' }
+    ],
+    rowFields: ['Region'],
+    valueFields: ['Sales'],
+    showRowTotals: 'None',
+    showColumnTotals: 'None'
+  });
+  var field = engine.getField('Region');
+
+  function values() {
+    return engine.pivotView.rowEntries.map(function(entry) { return entry.path[0]; });
+  }
+
+  assert.equal(field.sortDirection, 0);
+  assert.deepEqual(values(), ['North', 'Central', 'East']);
+  field.sortDirection = 1;
+  engine.refresh();
+  assert.deepEqual(values(), ['Central', 'East', 'North']);
+  field.sortDirection = -1;
+  engine.refresh();
+  assert.deepEqual(values(), ['North', 'East', 'Central']);
+  field.sortDirection = 0;
+  engine.refresh();
+  assert.deepEqual(values(), ['North', 'Central', 'East']);
+});
+
 test('PivotEngine viewDefinition can be serialized and restored', function() {
   var engine = createSalesEngine();
   engine.getField('Region').filter = { values: ['North'] };
+  engine.getField('Region').sortDirection = -1;
   var definition = JSON.parse(JSON.stringify(engine.viewDefinition));
   var restored = new PivotEngine({ itemsSource: engine.itemsSource });
 
@@ -116,6 +152,7 @@ test('PivotEngine viewDefinition can be serialized and restored', function() {
   assert.deepEqual(restored.columnFields.map(function(field) { return field.key; }), ['Channel']);
   assert.deepEqual(restored.valueFields.map(function(field) { return field.key; }), ['Sales', 'Orders']);
   assert.deepEqual(restored.getField('Region').filter, { values: ['North'] });
+  assert.equal(restored.getField('Region').sortDirection, -1);
   assert.equal(getCell(restored, [], [], 'Sales'), 30);
 });
 

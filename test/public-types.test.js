@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fabui from '../src/fabui.js';
+import {
+  createXlsxFiles,
+  getExcelColumnName
+} from '../src/grid/fabgrid-export.js?v=20260717-pivot-excel-hidden-rows-v1';
 
 test('FabUI publishes Row and GroupRow through FabGrid only', function() {
   assert.equal(typeof fabui.FabGrid.Row, 'function');
@@ -48,11 +52,81 @@ test('PivotPanel moves fields between view areas through the shared engine', fun
   assert.equal(panel.moveField('region', 'columnFields', 0), true);
   assert.deepEqual(engine.rowFields.map(function(field) { return field.key; }), []);
   assert.deepEqual(engine.columnFields.map(function(field) { return field.key; }), ['Region']);
+  assert.equal(panel.setSortDirection('region', 1), true);
+  assert.equal(engine.getField('region').sortDirection, 1);
   assert.equal(panel.moveField('cost', 'valueFields', 0), true);
   assert.deepEqual(engine.valueFields.map(function(field) { return field.key; }), ['Cost', 'Sales']);
   assert.equal(panel.setAggregate('sales', 'Average'), true);
   assert.equal(engine.getField('sales').aggregate, 'Average');
   assert.equal(typeof panel.viewDefinition, 'string');
+});
+
+test('PivotPanel opens the sorting popup from row and column field items', function() {
+  var engine = new fabui.pivot.PivotEngine({
+    itemsSource: [{ region: 'North', platform: 'Web', sales: 10 }],
+    fields: [
+      { binding: 'region', header: 'Region' },
+      { binding: 'platform', header: 'Platform' },
+      { binding: 'sales', header: 'Sales', dataType: 'number' }
+    ],
+    rowFields: ['region'],
+    columnFields: ['platform'],
+    valueFields: ['sales']
+  });
+  var panel = Object.create(fabui.pivot.PivotPanel.prototype);
+  var item = {
+    nodeType: 1,
+    parentElement: null,
+    hasAttribute: function(name) {
+      return name === 'data-field-key' || name === 'data-area-item';
+    },
+    getAttribute: function(name) {
+      if (name === 'data-field-key') return 'Region';
+      if (name === 'data-area-item') return 'rowFields';
+      return null;
+    }
+  };
+  var shownField = null;
+  var prevented = false;
+  var stopped = false;
+
+  panel._engine = engine;
+  panel.hostElement = {};
+  panel.hideAggregateMenu = function() {};
+  panel.hideSortMenu = function() {};
+  panel.showSortMenu = function(field) { shownField = field; };
+  panel._handleContextMenu({
+    target: item,
+    clientX: 20,
+    clientY: 30,
+    preventDefault: function() { prevented = true; },
+    stopPropagation: function() { stopped = true; }
+  });
+
+  assert.equal(shownField, engine.getField('Region'));
+  assert.equal(prevented, true);
+  assert.equal(stopped, true);
+});
+
+test('PivotPanel closes the sorting popup with Escape', function() {
+  var panel = Object.create(fabui.pivot.PivotPanel.prototype);
+  var hidden = false;
+  var prevented = false;
+  var stopped = false;
+
+  panel.isAggregateMenuOpen = function() { return false; };
+  panel.isSortMenuOpen = function() { return true; };
+  panel.hideAggregateMenu = function() {};
+  panel.hideSortMenu = function() { hidden = true; };
+  panel._handleKeyDown({
+    key: 'Escape',
+    preventDefault: function() { prevented = true; },
+    stopPropagation: function() { stopped = true; }
+  });
+
+  assert.equal(hidden, true);
+  assert.equal(prevented, true);
+  assert.equal(stopped, true);
 });
 
 test('PivotPanel drag indicator reports the insertion index without counting the dragged field', function() {
@@ -136,6 +210,38 @@ test('PivotGrid closes its context menu with Escape', function() {
   assert.equal(stopped, true);
 });
 
+test('PivotGrid routes its header fullscreen menu action through FabGrid', function() {
+  var grid = Object.create(fabui.pivot.PivotGrid.prototype);
+  var fullscreenCalls = 0;
+  var hidden = false;
+  var prevented = false;
+  var stopped = false;
+  var item = {
+    nodeType: 1,
+    classList: {
+      contains: function(name) { return name === 'fg-top-left-menu-item'; }
+    },
+    getAttribute: function(name) {
+      return name === 'data-action' ? 'pivot-fullscreen' : null;
+    }
+  };
+
+  grid.topLeftMenu = {};
+  grid._pivotContext = { cellType: fabui.CellType.ColumnHeader, column: null };
+  grid.hideTopLeftMenu = function() { hidden = true; };
+  grid.toggleFullscreen = function() { fullscreenCalls += 1; };
+  grid.handleTopLeftMenuClick({
+    target: item,
+    preventDefault: function() { prevented = true; },
+    stopPropagation: function() { stopped = true; }
+  });
+
+  assert.equal(fullscreenCalls, 1);
+  assert.equal(hidden, true);
+  assert.equal(prevented, true);
+  assert.equal(stopped, true);
+});
+
 test('PivotGrid mirrors filter fields above row field headers and applies their selected value', function() {
   var engine = new fabui.pivot.PivotEngine({
     itemsSource: [
@@ -171,6 +277,86 @@ test('PivotGrid mirrors filter fields above row field headers and applies their 
 
   assert.deepEqual(engine.getField('region').filter, { values: ['North'] });
   assert.equal(engine.pivotView.filteredCount, 1);
+});
+
+test('PivotGrid row field headers reuse the FabGrid sort indicators', function() {
+  var originalDocument = globalThis.document;
+  var grid = Object.create(fabui.pivot.PivotGrid.prototype);
+
+  function createElement(tagName) {
+    return {
+      tagName: tagName,
+      className: '',
+      style: {},
+      children: [],
+      attributes: {},
+      appendChild: function(child) {
+        this.children.push(child);
+        return child;
+      },
+      setAttribute: function(name, value) {
+        this.attributes[name] = String(value);
+      }
+    };
+  }
+
+  grid.options = { allowResizing: false };
+  grid._pivotColumnCollapsed = {};
+  grid.createFormatItemEventArgs = null;
+  globalThis.document = { createElement: createElement };
+
+  try {
+    [
+      { direction: 0, wrapClassName: 'fg-sort-wrap fg-sort-wrap-none', className: 'fg-sort fg-sort-none' },
+      { direction: 1, className: 'fg-sort fg-sort-asc' },
+      { direction: -1, className: 'fg-sort fg-sort-desc' }
+    ].forEach(function(expectation) {
+      var cell = grid._createPivotHeaderCell({
+        label: 'Quarter',
+        left: 0,
+        top: 0,
+        width: 120,
+        height: 30,
+        col: 0,
+        className: 'fg-pivot-row-field-header',
+        field: { key: 'quarter', header: 'Quarter' },
+        sortable: true,
+        sortDirection: expectation.direction
+      });
+      var title = cell.children[0];
+      var sortWrap = title.children[1];
+
+      assert.equal(sortWrap.className, expectation.wrapClassName || 'fg-sort-wrap');
+      assert.equal(sortWrap.children[0].className, 'fg-sort-order');
+      assert.equal(sortWrap.children[1].className, expectation.className);
+      assert.equal(sortWrap.children[1].attributes['aria-hidden'], 'true');
+    });
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
+test('PivotGrid row field sorting cycles default, ascending, descending, and default', function() {
+  var field = { key: 'quarter', sortDirection: 0 };
+  var refreshCount = 0;
+  var grid = Object.create(fabui.pivot.PivotGrid.prototype);
+
+  grid._pivotEngine = {
+    getField: function(reference) {
+      return reference === field.key ? field : null;
+    },
+    refresh: function() {
+      refreshCount += 1;
+    }
+  };
+
+  assert.equal(grid.togglePivotFieldSort(field.key), true);
+  assert.equal(field.sortDirection, 1);
+  assert.equal(grid.togglePivotFieldSort(field.key), true);
+  assert.equal(field.sortDirection, -1);
+  assert.equal(grid.togglePivotFieldSort(field.key), true);
+  assert.equal(field.sortDirection, 0);
+  assert.equal(refreshCount, 3);
 });
 
 test('PivotGrid merges repeated row field values into collapsible group spans', function() {
@@ -226,4 +412,89 @@ test('PivotGrid keeps subtotal toggles out of the cell range pointer flow', func
   assert.doesNotThrow(function() {
     grid.handlePointerDown({ target: toggle, button: 0 });
   });
+});
+
+test('PivotGrid exports collapsed child rows and columns and keeps them hidden', function() {
+  var engine = new fabui.pivot.PivotEngine({
+    itemsSource: [
+      { region: 'North', salesperson: 'Amy', platform: 'Mobile', product: 'A', sales: 10 },
+      { region: 'North', salesperson: 'Ben', platform: 'Mobile', product: 'B', sales: 20 },
+      { region: 'North', salesperson: 'Amy', platform: 'Web', product: 'A', sales: 30 }
+    ],
+    fields: [
+      { binding: 'region', header: 'Region' },
+      { binding: 'salesperson', header: 'Salesperson' },
+      { binding: 'platform', header: 'Platform' },
+      { binding: 'product', header: 'Product' },
+      { binding: 'sales', header: 'Sales', dataType: 'number', aggregate: 'Sum' }
+    ],
+    rowFields: ['region', 'salesperson'],
+    columnFields: ['platform', 'product'],
+    valueFields: ['sales'],
+    showRowTotals: fabui.pivot.PivotShowTotals.Subtotals,
+    showColumnTotals: fabui.pivot.PivotShowTotals.Subtotals
+  });
+  var view = engine.pivotView;
+  var subtotal = view.columnEntries.find(function(entry) {
+    return entry.isSubtotal && entry.path.length === 1;
+  });
+  var rowSubtotal = view.rowEntries.find(function(entry) {
+    return entry.isSubtotal && entry.path.length === 1;
+  });
+  var grid = Object.create(fabui.pivot.PivotGrid.prototype);
+  var columns;
+  var rows;
+  var hiddenColumns;
+  var hiddenRows;
+  var files;
+  var sheetXml;
+  var hiddenColumnCount;
+  var hiddenRowCount;
+  var hiddenRowXml;
+
+  grid._pivotEngine = engine;
+  grid._pivotView = view;
+  grid._pivotRowCollapsed = Object.create(null);
+  grid._pivotRowEntriesByKey = Object.create(null);
+  grid._pivotColumnCollapsed = Object.create(null);
+  grid._pivotColumnEntriesByKey = Object.create(null);
+  grid.options = { showRowFieldHeaders: true };
+  view.rowEntries.forEach(function(entry) {
+    grid._pivotRowEntriesByKey[entry.key] = entry;
+  });
+  view.columnEntries.forEach(function(entry) {
+    grid._pivotColumnEntriesByKey[entry.key] = entry;
+  });
+  assert.ok(subtotal);
+  assert.ok(rowSubtotal);
+  grid._pivotRowCollapsed[rowSubtotal.key] = true;
+  grid._pivotColumnCollapsed[subtotal.key] = true;
+
+  columns = grid._createPivotColumns(view);
+  rows = grid._getExcelExportRows();
+  hiddenColumns = columns.filter(function(column) { return column.visible === false; });
+  hiddenRows = rows.filter(function(row) { return grid._isExcelExportRowHidden(row); });
+  files = createXlsxFiles(columns, rows, {
+    isRowHidden: function(row, rowIndex) {
+      return grid._isExcelExportRowHidden(row, rowIndex);
+    }
+  });
+  sheetXml = files.find(function(file) { return file.name === 'xl/worksheets/sheet1.xml'; }).content;
+  hiddenColumnCount = (sheetXml.match(/<col [^>]* hidden="1"/g) || []).length;
+  hiddenRowCount = (sheetXml.match(/<row [^>]* hidden="1"/g) || []).length;
+  hiddenRowXml = (sheetXml.match(/<row [^>]* hidden="1"[^>]*>.*?<\/row>/g) || []).join('');
+
+  assert.equal(columns.length, view.rowFields.length + view.dataColumns.length);
+  assert.equal(rows.length, view.rows.length);
+  assert.ok(hiddenColumns.length > 0);
+  assert.ok(hiddenRows.length > 0);
+  assert.equal(hiddenColumnCount, hiddenColumns.length);
+  assert.equal(hiddenRowCount, hiddenRows.length);
+  assert.match(hiddenRowXml, /Amy|Ben/);
+  assert.match(hiddenRowXml, /<v>\d+<\/v>/);
+  assert.match(sheetXml, new RegExp('<dimension ref="A1:' + getExcelColumnName(columns.length)));
+  assert.equal(grid._isExcelExportRowHidden(view.rows[view.rowEntries.indexOf(rowSubtotal)]), false);
+  assert.equal(columns.filter(function(column) {
+    return column._pivotDataColumn && column._pivotDataColumn.entry.key === subtotal.key;
+  }).every(function(column) { return column.visible !== false; }), true);
 });

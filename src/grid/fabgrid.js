@@ -9,7 +9,7 @@ import {
   normalizeRemoteData,
   setByBinding
 } from './fabgrid-data.js';
-import { installFabGridExport } from './fabgrid-export.js';
+import { installFabGridExport } from './fabgrid-export.js?v=20260717-pivot-excel-hidden-rows-v1';
 import { installFabGridDrag } from './fabgrid-drag.js';
 import { installFabGridTree } from './fabgrid-tree.js';
 import {
@@ -25,7 +25,7 @@ import {
   isMaskValueIncludingLiterals
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
-import { installFabGridView } from './fabgrid-view.js?v=20260716-hit-test-v3';
+import { installFabGridView } from './fabgrid-view.js?v=20260717-scroll-linked-distance-v2';
 import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260716-column-chooser-close-v4';
 import { installFabGridSelection } from './fabgrid-selection.js?v=20260716-selection-pointer-v3';
 import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js';
@@ -217,6 +217,7 @@ export function createFabGridFactory(editorDefinitions) {
     this._validationItemIds = [];
     this.busy = false;
     this.raf = 0;
+    this.scrollLinkedHorizontalRaf = 0;
     this.disposed = false;
     this.resizeState = null;
     this.columnDragState = null;
@@ -1279,6 +1280,10 @@ export function createFabGridFactory(editorDefinitions) {
     unregisterControl(this.host, this);
     if (this.raf) {
       cancelAnimationFrame(this.raf);
+    }
+    if (this.scrollLinkedHorizontalRaf) {
+      cancelAnimationFrame(this.scrollLinkedHorizontalRaf);
+      this.scrollLinkedHorizontalRaf = 0;
     }
     if (this.headerSearchFocusRaf) {
       cancelAnimationFrame(this.headerSearchFocusRaf);

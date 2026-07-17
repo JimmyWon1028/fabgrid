@@ -405,6 +405,62 @@ test('scrolling inside the rendered overscan range avoids a full render', functi
   assert.equal(rendered, 0);
 });
 
+test('scroll-linked header distance uses refreshed scroll metrics after columns shrink', function() {
+  var FabGrid = createFabGridFactory({});
+  var propertyName = '';
+  var propertyValue = '';
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.useScrollLinkedHorizontal = true;
+  grid.bodyScroll = {
+    clientWidth: 1236,
+    scrollWidth: 1264
+  };
+  grid.root = {
+    style: {
+      setProperty: function(name, value) {
+        propertyName = name;
+        propertyValue = value;
+      }
+    }
+  };
+
+  grid.updateScrollLinkedHorizontalDistance();
+
+  assert.equal(propertyName, '--fg-scroll-linked-horizontal-distance');
+  assert.equal(propertyValue, '-28px');
+});
+
+test('scroll-linked header distance schedules one post-layout correction', function() {
+  var FabGrid = createFabGridFactory({});
+  var originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+  var callback = null;
+  var updates = 0;
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.useScrollLinkedHorizontal = true;
+  grid.bodyScroll = {};
+  grid.scrollLinkedHorizontalRaf = 0;
+  grid.disposed = false;
+  grid.updateScrollLinkedHorizontalDistance = function() { updates += 1; };
+  globalThis.requestAnimationFrame = function(handler) {
+    callback = handler;
+    return 7;
+  };
+
+  try {
+    grid.scheduleScrollLinkedHorizontalDistanceUpdate();
+    grid.scheduleScrollLinkedHorizontalDistanceUpdate();
+    assert.equal(grid.scrollLinkedHorizontalRaf, 7);
+    assert.equal(typeof callback, 'function');
+    callback();
+    assert.equal(grid.scrollLinkedHorizontalRaf, 0);
+    assert.equal(updates, 1);
+  } finally {
+    globalThis.requestAnimationFrame = originalRequestAnimationFrame;
+  }
+});
+
 test('refresh delegates layout work to render once', function() {
   var FabGrid = createFabGridFactory({});
   var layouts = 0;

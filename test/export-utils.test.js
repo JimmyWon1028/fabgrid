@@ -57,6 +57,22 @@ test('XLSX header row follows the current header display mode', function() {
   assert.doesNotMatch(bindingFiles[7].content, />訂單編號</);
 });
 
+test('XLSX rows can retain data while remaining hidden', function() {
+  var files = createXlsxFiles(
+    [{ binding: 'name', header: 'Name', width: 120 }],
+    [{ name: 'Visible' }, { name: 'Hidden detail' }],
+    {
+      isRowHidden: function(row, rowIndex) {
+        return rowIndex === 1;
+      }
+    }
+  );
+  var sheetXml = files[7].content;
+
+  assert.match(sheetXml, /<row r="3" hidden="1">/);
+  assert.equal((sheetXml.match(/<row /g) || []).length, 3);
+});
+
 test('Excel cell XML preserves numeric, boolean and text types', function() {
   assert.equal(createExcelCell(2, 1, 12.5, 'number', 3), '<c r="A2" s="3"><v>12.5</v></c>');
   assert.equal(createExcelCell(3, 2, 'Y', 'boolean', 0), '<c r="B3" t="b"><v>1</v></c>');
