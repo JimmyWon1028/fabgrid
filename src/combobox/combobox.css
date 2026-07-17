@@ -75,6 +75,16 @@
   color: var(--fui-control-selected-text, #000);
 }
 
+.fui-combobox-item-text {
+  min-width: 0;
+}
+
+.fui-combobox-item-value {
+  margin-left: 6px;
+  color: var(--fui-control-muted-text, #6b7280);
+  font-size: 12px;
+}
+
 .fui-combobox-item-disabled {
   cursor: default;
   opacity: 0.5;

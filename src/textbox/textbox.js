@@ -177,6 +177,7 @@ export function createTextBoxFactory(editorDefinitions) {
     var icons = Array.isArray(options.icons) ? options.icons.slice() : [];
     var index;
     var descriptor;
+    var iconClassName;
     var icon;
     var addon;
     this._iconElements = [];
@@ -197,10 +198,17 @@ export function createTextBoxFactory(editorDefinitions) {
       addon = descriptor.align === 'left' ? this._beforeAddon : this._afterAddon;
       icon = document.createElement('button');
       icon.type = 'button';
-      icon.className = 'fui-textbox-icon' + (descriptor.iconCls ? ' ' + descriptor.iconCls : '');
+      iconClassName = descriptor.iconCls || descriptor.className ||
+        descriptor.iconClass || descriptor.icon || '';
+      icon.className = 'fui-textbox-icon' + (iconClassName ? ' ' + iconClassName : '');
       icon.style.width = cssSize(descriptor.width || options.iconWidth, 18);
-      icon.setAttribute('aria-label', descriptor.title || 'TextBox icon ' + (index + 1));
+      icon.setAttribute(
+        'aria-label',
+        descriptor.ariaLabel || descriptor.label || descriptor.title ||
+          'TextBox icon ' + (index + 1)
+      );
       icon.title = descriptor.title || '';
+      icon.textContent = descriptor.text || '';
       icon.disabled = Boolean(descriptor.disabled);
       icon.__fabuiIcon = descriptor;
       icon.__fabuiIconIndex = index;
@@ -253,7 +261,7 @@ export function createTextBoxFactory(editorDefinitions) {
         self.clear();
         self.focus();
       }
-      callback = typeof descriptor.onClick === 'function' ? descriptor.onClick : descriptor.handler;
+      callback = descriptor.onClick || descriptor.click || descriptor.handler;
       if (typeof callback === 'function') {
         callback.call(self, event);
       }

@@ -18,6 +18,15 @@
       editor: 'textbox',
       width: 280,
       prompt: '請輸入姓名',
+      icons: [{
+        iconCls: 'icon-refwin',
+        title: '選擇參照',
+        ariaLabel: '選擇參照',
+        width: 28,
+        onClick: function() {
+          this.setValue('參照-001');
+        }
+      }],
       clearButton: true
     });
     boxes.amount = new EditBox('#edit-amount', {
@@ -45,6 +54,7 @@
       width: 280,
       editable: false,
       limitToList: true,
+      showValueInList: true,
       data: [
         { value: 'active', text: '啟用' },
         { value: 'paused', text: '暫停' },
@@ -54,7 +64,8 @@
     boxes.color = new EditBox('#edit-color', {
       editor: 'color',
       width: 280,
-      locale: 'zh-TW'
+      locale: 'zh-TW',
+      showAlpha: true
     });
 
     render = function() {

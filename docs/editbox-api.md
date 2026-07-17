@@ -45,7 +45,18 @@ import EditBox from './src/editbox/editbox.js';
 - `combobox`：本機或遠端選項、單選或多選。
 - `color`：文字輸入支援 hex 與標準 CSS 顏色名稱；右側色塊按鈕開啟常用色盤，CSS 色名會保留原始文字。
 
-未設定 `editor` 時，`select` 自動使用 `combobox`，`input[type="number"]` 使用 `numberbox`，`input[type="date"]`／`input[type="month"]` 使用 `datebox`，其餘使用 `textbox`。顏色欄使用 `editor: 'color'`；相容名稱 `colorbox` 也會正規化為 `color`。
+未設定 `editor` 時，`select` 自動使用 `combobox`，`input[type="number"]` 使用 `numberbox`，`input[type="date"]`／`input[type="month"]` 使用 `datebox`，`input[type="color"]` 使用 `color`，其餘使用 `textbox`。
+
+EditBox 與 FabGrid 接受相同 editor 別名：
+
+- `number`、`numeric` → `numberbox`
+- `date`、`calendar` → `datebox`
+- `combo`、`select`、`dropdown` → `combobox`
+- `colour`、`colorbox`、`colourbox` → `color`
+
+所有模式都可使用 `icons`。Icon descriptor 支援 `iconCls`／`className`／`iconClass`／`icon`、`width`、`text`、`title`、`ariaLabel`，以及 `onClick`／`click`／`handler`。
+
+Color popup 的預設樣式與 FabGrid editor 一致，包含 60 色 palette、飽和度／明度、色相與透明度控制。`palette` 可自訂色票，`colors` 保留為相容別名；`showAlpha: false` 可隱藏透明度控制並固定輸出六碼 hex。
 
 ## 共用 methods
 
@@ -66,7 +77,7 @@ import EditBox from './src/editbox/editbox.js';
 - NumberBox：`getNumber()`、`fix()`。
 - DateBox：`getDate()`、`setDate(date)`、`calendar()`、`panel()`、`showPanel()`、`hidePanel()`、`togglePanel()`、`cloneFrom(from)`、`fix()`。
 - ComboBox：`getData()`、`loadData(data)`、`reload()`、`getValues()`、`setValues(values)`、`select(value)`、`unselect(value)`、`scrollTo(value)`、`panel()`、`showPanel()`、`hidePanel()`、`togglePanel()`。
-- Color：`panel()`、`showPanel()`、`hidePanel()`、`togglePanel()`；`colors` 可自訂色盤陣列。
+- Color：`panel()`、`showPanel()`、`hidePanel()`、`togglePanel()`；支援 `palette`／`colors` 與 `showAlpha`。
 
 ## 靜態 API
 

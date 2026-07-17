@@ -1,9 +1,9 @@
-import { createEditorDefinitions } from './editbox-definitions.js?v=20260717-editbox-v9';
-import { createColorEditBoxFactory } from './color-editbox.js?v=20260717-editbox-v9';
-import { createTextBoxFactory } from '../textbox/textbox.js?v=20260717-editbox-v9';
-import { createNumberBoxFactory } from '../numberbox/numberbox.js?v=20260717-editbox-v9';
-import { createDateBoxFactory } from '../datebox/datebox.js?v=20260717-editbox-v9';
-import { createComboBoxFactory } from '../combobox/combobox.js?v=20260717-editbox-v9';
+import { createEditorDefinitions } from './editbox-definitions.js?v=20260717-editbox-v11';
+import { createColorEditBoxFactory } from './color-editbox.js?v=20260717-editbox-v11';
+import { createTextBoxFactory } from '../textbox/textbox.js?v=20260717-editbox-v11';
+import { createNumberBoxFactory } from '../numberbox/numberbox.js?v=20260717-editbox-v11';
+import { createDateBoxFactory } from '../datebox/datebox.js?v=20260717-editbox-v11';
+import { createComboBoxFactory } from '../combobox/combobox.js?v=20260717-editbox-v11';
 
 var EDITOR_TYPES = ['textbox', 'numberbox', 'datebox', 'combobox', 'color'];
 
@@ -28,12 +28,15 @@ function resolveElement(element) {
 
 function normalizeEditorType(value) {
   var type = String(value == null ? '' : value).toLowerCase();
-  if (type === 'colorbox') type = 'color';
+  if (type === 'number' || type === 'numeric') return 'numberbox';
+  if (type === 'date' || type === 'calendar') return 'datebox';
+  if (type === 'combo' || type === 'select' || type === 'dropdown') return 'combobox';
+  if (type === 'colour' || type === 'colorbox' || type === 'colourbox') return 'color';
   return EDITOR_TYPES.indexOf(type) >= 0 ? type : '';
 }
 
 function normalizeDefinitionName(value) {
-  return String(value == null ? '' : value).toLowerCase();
+  return normalizeEditorType(value) || String(value == null ? '' : value).toLowerCase();
 }
 
 function inferEditorType(element, options) {
@@ -47,6 +50,7 @@ function inferEditorType(element, options) {
   inputType = element && element.getAttribute ? String(element.getAttribute('type') || '').toLowerCase() : '';
   if (inputType === 'number') return 'numberbox';
   if (inputType === 'date' || inputType === 'month') return 'datebox';
+  if (inputType === 'color') return 'color';
   return 'textbox';
 }
 

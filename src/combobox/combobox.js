@@ -40,6 +40,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
     hasDownArrow: true,
     selectOnNavigation: true,
     showItemIcon: false,
+    showValueInList: false,
     limitToList: false,
     delay: 200,
     locale: 'en',
@@ -94,7 +95,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
     var options = {};
     var stringNames = ['valueField', 'textField', 'groupField', 'groupPosition', 'mode', 'method', 'url', 'separator', 'panelAlign', 'panelValign'];
     var numberNames = ['panelWidth', 'panelHeight', 'panelMinWidth', 'panelMaxWidth', 'panelMinHeight', 'panelMaxHeight', 'delay'];
-    var booleanNames = ['multiple', 'multiline', 'hasDownArrow', 'selectOnNavigation', 'showItemIcon', 'limitToList'];
+    var booleanNames = ['multiple', 'multiline', 'hasDownArrow', 'selectOnNavigation', 'showItemIcon', 'showValueInList', 'limitToList'];
     var index;
     var value;
     for (index = 0; index < stringNames.length; index += 1) {
@@ -479,6 +480,8 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
       var groupElement;
       var item;
       var icon;
+      var text;
+      var code;
       var output;
       var value = String(row[self._options.valueField]);
       if (group != null && group !== lastGroup) {
@@ -510,7 +513,21 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
         output = self._options.formatter.call(self._source, row);
         self._appendFormatted(item, output);
       } else {
-        item.appendChild(document.createTextNode(String(row[self._options.textField] == null ? '' : row[self._options.textField])));
+        text = String(row[self._options.textField] == null ? '' : row[self._options.textField]);
+        code = String(row[self._options.valueField] == null ? '' : row[self._options.valueField]);
+        if (self._options.showValueInList && code && code !== text) {
+          output = document.createElement('span');
+          output.className = 'fui-combobox-item-text';
+          output.textContent = text;
+          item.appendChild(output);
+          output = document.createElement('span');
+          output.className = 'fui-combobox-item-value';
+          output.textContent = '(' + code + ')';
+          item.appendChild(output);
+          item.setAttribute('aria-label', text + ' (' + code + ')');
+        } else {
+          item.appendChild(document.createTextNode(text));
+        }
       }
       self._panel.appendChild(item);
     });
