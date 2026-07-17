@@ -160,7 +160,9 @@ function createJavascriptBundle() {
     'global.fabui.pivot.PivotField = PivotField;\n' +
     'global.fabui.pivot.PivotGrid = createPivotGridFactory(global.fabui.FabGrid, PivotEngine);\n' +
     'global.fabui.pivot.PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.FabGrid);\n' +
+    'global.fabui.pivot.PivotSlicer = createPivotSlicerFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.FabGrid);\n' +
     'global.fabui.pivot.PivotWorkspace = createPivotWorkspaceFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.pivot.PivotPanel, global.fabui.pivot.PivotGrid, global.fabui.pivot.PivotChart, global.fabui.FabGrid);\n' +
+    'global.fabui.pivot.PivotShowAs = PivotShowAs;\n' +
     'global.fabui.pivot.PivotShowTotals = PivotShowTotals;\n' +
     'global.fabui.CellType = CellType;\n' +
     'global.fabui.FabGridLocales = global.fabui.FabGrid.locales;\n' +
@@ -189,6 +191,7 @@ function createEsmJavascriptBundle() {
     'var PivotChart = createPivotChartFactory(Control, registerControl, unregisterControl, PivotEngine, Chart, FabGrid);\n' +
     'var PivotGrid = createPivotGridFactory(FabGrid, PivotEngine);\n' +
     'var PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, FabGrid);\n' +
+    'var PivotSlicer = createPivotSlicerFactory(Control, registerControl, unregisterControl, PivotEngine, FabGrid);\n' +
     'var PivotWorkspace = createPivotWorkspaceFactory(Control, registerControl, unregisterControl, PivotEngine, PivotPanel, PivotGrid, PivotChart, FabGrid);\n' +
     'var pivotNamespace = {\n' +
     '  PivotAggregate: PivotAggregate,\n' +
@@ -197,7 +200,9 @@ function createEsmJavascriptBundle() {
     '  PivotField: PivotField,\n' +
     '  PivotGrid: PivotGrid,\n' +
     '  PivotPanel: PivotPanel,\n' +
+    '  PivotShowAs: PivotShowAs,\n' +
     '  PivotShowTotals: PivotShowTotals,\n' +
+    '  PivotSlicer: PivotSlicer,\n' +
     '  PivotWorkspace: PivotWorkspace\n' +
     '};\n' +
     'var fabui = {\n' +

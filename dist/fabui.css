@@ -2734,6 +2734,7 @@
   color: var(--fg-header-text);
   font-size: 10px;
   letter-spacing: -3px;
+  touch-action: none;
 }
 
 .fg-pivot-panel-item-label {
@@ -2745,8 +2746,80 @@
 }
 
 .fg-pivot-panel-aggregate-menu,
-.fg-pivot-panel-sort-menu {
+.fg-pivot-panel-sort-menu,
+.fg-pivot-panel-filter-menu {
   z-index: 48;
+}
+
+.fg-pivot-panel-aggregate-menu {
+  max-height: min(520px, calc(100% - 8px));
+  overflow: auto;
+}
+
+.fg-pivot-panel-filter-menu {
+  width: 250px;
+  max-width: calc(100% - 8px);
+  max-height: min(420px, calc(100% - 8px));
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fg-pivot-panel-filter-search {
+  flex: 0 0 30px;
+  min-width: 0;
+  height: 30px;
+  margin: 6px;
+  padding: 0 7px;
+  border: 1px solid var(--fg-border-strong);
+  background: var(--fg-cell-bg);
+  color: var(--fg-cell-text);
+  font: inherit;
+}
+
+.fg-pivot-panel-filter-select-all,
+.fg-pivot-panel-filter-value {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.fg-pivot-panel-filter-select-all {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--fg-border);
+  border-bottom: 1px solid var(--fg-border);
+  background: var(--fg-header-bg);
+}
+
+.fg-pivot-panel-filter-values {
+  flex: 1 1 auto;
+  min-height: 72px;
+  overflow: auto;
+  padding: 3px;
+}
+
+.fg-pivot-panel-filter-value:hover {
+  background: var(--fg-cell-hover-bg);
+}
+
+.fg-pivot-panel-filter-footer {
+  display: flex;
+  flex: 0 0 38px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 4px 6px;
+  border-top: 1px solid var(--fg-border);
+  background: var(--fg-header-bg);
+}
+
+.fg-pivot-panel-filter-footer .fg-pivot-panel-action {
+  width: auto;
+  min-width: 58px;
+  padding: 0 10px;
+  border: 1px solid var(--fg-border-strong);
 }
 
 .fg-pivot-panel-menu-title {
@@ -2840,6 +2913,101 @@
   .fg-pivot-panel-fields {
     grid-template-columns: 1fr;
   }
+}
+
+.fg-root.fg-pivot-slicer {
+  display: flex;
+  min-width: 180px;
+  min-height: 220px;
+  overflow: hidden;
+  flex-direction: column;
+  border: 1px solid var(--fg-border-strong);
+  background: var(--fg-cell-bg);
+  color: var(--fg-cell-text);
+  font-family: helvetica, tahoma, verdana, sans-serif;
+  font-size: 14px;
+}
+
+.fg-pivot-slicer-title {
+  display: flex;
+  flex: 0 0 32px;
+  align-items: center;
+  min-width: 0;
+  padding: 0 9px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--fg-border);
+  background: var(--fg-header-bg);
+  color: var(--fg-header-text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-slicer-search {
+  flex: 0 0 30px;
+  min-width: 0;
+  height: 30px;
+  margin: 6px;
+  padding: 0 7px;
+  border: 1px solid var(--fg-border-strong);
+  background: var(--fg-cell-bg);
+  color: var(--fg-cell-text);
+  font: inherit;
+}
+
+.fg-pivot-slicer-select-all,
+.fg-pivot-slicer-value {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.fg-pivot-slicer-select-all {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--fg-border);
+  border-bottom: 1px solid var(--fg-border);
+  background: var(--fg-header-bg);
+}
+
+.fg-pivot-slicer-values {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 3px;
+}
+
+.fg-pivot-slicer-value:hover {
+  background: var(--fg-cell-hover-bg);
+}
+
+.fg-pivot-slicer-footer {
+  display: flex;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 4px 6px;
+  border-top: 1px solid var(--fg-border);
+  background: var(--fg-header-bg);
+}
+
+.fg-pivot-slicer-footer button {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--fg-border-strong);
+  background: var(--fg-cell-bg);
+  color: var(--fg-cell-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.fg-pivot-slicer-footer button:hover,
+.fg-pivot-slicer-footer button:focus-visible {
+  border-color: var(--fg-selected-border);
+  outline: none;
 }
 
 .fg-root.fg-pivot-workspace {
@@ -2952,6 +3120,28 @@
   margin-left: auto;
   align-items: center;
   gap: 7px;
+}
+
+.fg-pivot-workspace-progress {
+  max-width: 190px;
+  overflow: hidden;
+  color: var(--fg-header-text);
+  font-size: 12px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-workspace-updating .fg-pivot-workspace-progress {
+  color: var(--fg-selected-border);
+}
+
+.fg-pivot-workspace-error .fg-pivot-workspace-progress {
+  color: #b42318;
+}
+
+.fg-pivot-workspace-cancel {
+  flex: 0 0 auto;
 }
 
 .fg-pivot-workspace-control {

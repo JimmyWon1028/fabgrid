@@ -16252,8 +16252,19 @@ var PivotAggregate = Object.freeze({
   Sum: 'Sum',
   Count: 'Count',
   Average: 'Average',
+  WeightedAverage: 'WeightedAverage',
   Min: 'Min',
   Max: 'Max'
+});
+
+var PivotShowAs = Object.freeze({
+  NoCalculation: 'NoCalculation',
+  PercentOfGrandTotal: 'PercentOfGrandTotal',
+  PercentOfRowTotal: 'PercentOfRowTotal',
+  PercentOfColumnTotal: 'PercentOfColumnTotal',
+  DifferenceFromPrevious: 'DifferenceFromPrevious',
+  PercentDifferenceFromPrevious: 'PercentDifferenceFromPrevious',
+  RunningTotal: 'RunningTotal'
 });
 
 var PivotShowTotals = Object.freeze({
@@ -16335,6 +16346,9 @@ function normalizeAggregate(value, dataType) {
   var text = String(value || '').toLowerCase();
   if (text === 'count') return PivotAggregate.Count;
   if (text === 'average' || text === 'avg') return PivotAggregate.Average;
+  if (text === 'weightedaverage' || text === 'weighted average' || text === 'weightedavg') {
+    return PivotAggregate.WeightedAverage;
+  }
   if (text === 'min') return PivotAggregate.Min;
   if (text === 'max') return PivotAggregate.Max;
   if (text === 'sum') return PivotAggregate.Sum;
@@ -16415,7 +16429,12 @@ function PivotField(engine, binding, header, options) {
   });
   this.filter = options.filter || null;
   this.groupBy = options.groupBy || null;
-  this.getValue = typeof options.getValue === 'function' ? options.getValue : null;
+  this.getValue = typeof options.getValue === 'function' ? options.getValue :
+    (typeof options.calculate === 'function' ? options.calculate : null);
+  this.calculate = this.getValue;
+  this.weightBinding = options.weightBinding || '';
+  this.getWeight = typeof options.getWeight === 'function' ? options.getWeight : null;
+  this.showAs = normalizeShowAs(options.showAs);
   this.width = Math.max(48, Number(options.width) || (this.dataType === 'number' ? 112 : 132));
   this.visible = options.visible !== false;
 }
@@ -16424,6 +16443,24 @@ PivotField.prototype.getItemValue = function(item) {
   var value = this.getValue ? this.getValue(item) : getPivotBindingValue(item, this.binding);
   return getGroupedValue(value, this.groupBy);
 };
+
+PivotField.prototype.getWeightValue = function(item) {
+  if (this.getWeight) {
+    return this.getWeight(item);
+  }
+  return this.weightBinding ? getPivotBindingValue(item, this.weightBinding) : 1;
+};
+
+function normalizeShowAs(value) {
+  var text = String(value || '').replace(/[\s_-]+/g, '').toLowerCase();
+  if (text === 'percentofgrandtotal') return PivotShowAs.PercentOfGrandTotal;
+  if (text === 'percentofrowtotal') return PivotShowAs.PercentOfRowTotal;
+  if (text === 'percentofcolumntotal') return PivotShowAs.PercentOfColumnTotal;
+  if (text === 'differencefromprevious') return PivotShowAs.DifferenceFromPrevious;
+  if (text === 'percentdifferencefromprevious') return PivotShowAs.PercentDifferenceFromPrevious;
+  if (text === 'runningtotal') return PivotShowAs.RunningTotal;
+  return PivotShowAs.NoCalculation;
+}
 
 function createAggregatePaths(path, totals) {
   var result = [path.slice()];
@@ -16537,13 +16574,16 @@ function createAccumulator() {
     count: 0,
     numericCount: 0,
     sum: 0,
+    weightedSum: 0,
+    weightSum: 0,
     min: null,
     max: null
   };
 }
 
-function accumulateValue(accumulator, value, aggregate) {
+function accumulateValue(accumulator, value, aggregate, weight) {
   var number;
+  var numericWeight;
   if (value == null || value === '') {
     return;
   }
@@ -16553,6 +16593,14 @@ function accumulateValue(accumulator, value, aggregate) {
     if (!isNaN(number)) {
       accumulator.sum += number;
       accumulator.numericCount += 1;
+    }
+  }
+  if (aggregate === PivotAggregate.WeightedAverage) {
+    number = Number(value);
+    numericWeight = Number(weight);
+    if (!isNaN(number) && !isNaN(numericWeight)) {
+      accumulator.weightedSum += number * numericWeight;
+      accumulator.weightSum += numericWeight;
     }
   }
   if (accumulator.min == null || comparePivotValues(value, accumulator.min) < 0) {
@@ -16570,6 +16618,9 @@ function finalizeAccumulator(accumulator, aggregate) {
   if (aggregate === PivotAggregate.Count) return accumulator.count;
   if (aggregate === PivotAggregate.Average) {
     return accumulator.numericCount ? accumulator.sum / accumulator.numericCount : null;
+  }
+  if (aggregate === PivotAggregate.WeightedAverage) {
+    return accumulator.weightSum ? accumulator.weightedSum / accumulator.weightSum : null;
   }
   if (aggregate === PivotAggregate.Min) return accumulator.min;
   if (aggregate === PivotAggregate.Max) return accumulator.max;
@@ -16627,9 +16678,21 @@ function copyDefinitionField(field) {
     descending: field.descending,
     filter: filter,
     groupBy: typeof field.groupBy === 'string' ? field.groupBy : null,
+    weightBinding: field.weightBinding,
+    showAs: field.showAs,
     width: field.width,
     visible: field.visible
   };
+}
+
+function createPivotAbortError() {
+  var error = new Error('Pivot refresh was cancelled.');
+  error.name = 'AbortError';
+  return error;
+}
+
+function schedulePivotBatch(callback) {
+  return setTimeout(callback, 0);
 }
 
 function PivotEngine(options) {
@@ -16637,6 +16700,10 @@ function PivotEngine(options) {
   this.events = {};
   this._updateLevel = 0;
   this._pendingRefresh = false;
+  this._asyncRefreshToken = null;
+  this._asyncRefreshSequence = 0;
+  this._disposed = false;
+  this.asyncBatchSize = Math.max(1, Math.floor(Number(options.asyncBatchSize) || 1000));
   this._itemsSource = Array.isArray(options.itemsSource) ? options.itemsSource : [];
   this.autoGenerateFields = options.autoGenerateFields !== false;
   this.showRowTotals = normalizeTotals(options.showRowTotals, PivotShowTotals.GrandTotals);
@@ -16853,12 +16920,26 @@ PivotEngine.prototype.endUpdate = function() {
 };
 
 PivotEngine.prototype.deferUpdate = function(callback) {
+  var result;
+  var self = this;
   this.beginUpdate();
   try {
-    callback();
-  } finally {
+    result = callback();
+  } catch (error) {
     this.endUpdate();
+    throw error;
   }
+  if (result && typeof result.then === 'function') {
+    return result.then(function(value) {
+      self.endUpdate();
+      return value;
+    }, function(error) {
+      self.endUpdate();
+      throw error;
+    });
+  }
+  this.endUpdate();
+  return result;
 };
 
 PivotEngine.prototype.refresh = function() {
@@ -16867,6 +16948,7 @@ PivotEngine.prototype.refresh = function() {
     this._pendingRefresh = true;
     return this.pivotView;
   }
+  this.cancelRefresh();
   this.isUpdating = true;
   this.emit('updatingView', {});
   try {
@@ -16883,16 +16965,114 @@ PivotEngine.prototype.refresh = function() {
   }
 };
 
+PivotEngine.prototype.refreshAsync = function(options) {
+  var self = this;
+  var token;
+  var state;
+  var batchSize;
+  var total;
+  options = options || {};
+  if (this._updateLevel) {
+    this._pendingRefresh = true;
+    return Promise.resolve(this.pivotView);
+  }
+  this.cancelRefresh();
+  batchSize = Math.max(1, Math.floor(Number(options.batchSize) || this.asyncBatchSize));
+  total = this._itemsSource.length;
+  token = {
+    id: this._asyncRefreshSequence += 1,
+    cancelled: false
+  };
+  this._asyncRefreshToken = token;
+  this.isUpdating = true;
+  this.emit('updatingView', { async: true, total: total });
+  state = this._createPivotBuildState();
+  return new Promise(function(resolve, reject) {
+    function finishError(error) {
+      if (self._asyncRefreshToken === token) {
+        self._asyncRefreshToken = null;
+        self.isUpdating = false;
+      }
+      if (error && error.name !== 'AbortError') {
+        self.emit('error', { error: error, async: true });
+      }
+      reject(error);
+    }
+
+    function runBatch() {
+      var end;
+      var progress;
+      var view;
+      if (token.cancelled || self._disposed) {
+        finishError(createPivotAbortError());
+        return;
+      }
+      try {
+        end = Math.min(total, state.index + batchSize);
+        while (state.index < end) {
+          self._accumulatePivotItem(state, self._itemsSource[state.index]);
+          state.index += 1;
+        }
+        progress = total ? state.index / total : 1;
+        self.emit('progress', {
+          async: true,
+          progress: progress,
+          processed: state.index,
+          total: total
+        });
+        if (state.index < total) {
+          schedulePivotBatch(runBatch);
+          return;
+        }
+        view = self._finalizePivotBuildState(state);
+        if (token.cancelled || self._disposed) {
+          finishError(createPivotAbortError());
+          return;
+        }
+        self.pivotView = view;
+        if (self._asyncRefreshToken === token) {
+          self._asyncRefreshToken = null;
+          self.isUpdating = false;
+        }
+        self.emit('updatedView', { pivotView: view, async: true });
+        resolve(view);
+      } catch (error) {
+        finishError(error);
+      }
+    }
+
+    schedulePivotBatch(runBatch);
+  });
+};
+
+PivotEngine.prototype.cancelRefresh = function() {
+  if (!this._asyncRefreshToken) {
+    return false;
+  }
+  this._asyncRefreshToken.cancelled = true;
+  return true;
+};
+
 PivotEngine.prototype._buildPivotView = function() {
-  var rowEntryMap = new Map();
-  var columnEntryMap = new Map();
-  var accumulatorMap = new Map();
-  var filteredItems = [];
-  var rowEntries;
-  var columnEntries;
-  var dataColumns = [];
-  var rows = [];
-  var item;
+  var state = this._createPivotBuildState();
+  while (state.index < this._itemsSource.length) {
+    this._accumulatePivotItem(state, this._itemsSource[state.index]);
+    state.index += 1;
+  }
+  return this._finalizePivotBuildState(state);
+};
+
+PivotEngine.prototype._createPivotBuildState = function() {
+  return {
+    index: 0,
+    rowEntryMap: new Map(),
+    columnEntryMap: new Map(),
+    accumulatorMap: new Map(),
+    filteredItems: []
+  };
+};
+
+PivotEngine.prototype._accumulatePivotItem = function(state, item) {
   var rowPath;
   var columnPath;
   var rowPaths;
@@ -16902,49 +17082,70 @@ PivotEngine.prototype._buildPivotView = function() {
   var accumulatorKey;
   var accumulator;
   var field;
+  var r;
+  var c;
+  var v;
+  if (!this._itemMatchesFilters(item)) {
+    return;
+  }
+  state.filteredItems.push(item);
+  rowPath = this.rowFields.map(function(rowField) {
+    return rowField.getItemValue(item);
+  });
+  columnPath = this.columnFields.map(function(columnField) {
+    return columnField.getItemValue(item);
+  });
+  rowPaths = createAggregatePaths(rowPath, this.showRowTotals);
+  columnPaths = createAggregatePaths(columnPath, this.showColumnTotals);
+  for (r = 0; r < rowPaths.length; r += 1) {
+    rowKey = createPivotPathKey(rowPaths[r]);
+    if (!state.rowEntryMap.has(rowKey)) {
+      state.rowEntryMap.set(rowKey, createEntry(rowPaths[r], this.rowFields.length));
+    }
+    for (c = 0; c < columnPaths.length; c += 1) {
+      columnKey = createPivotPathKey(columnPaths[c]);
+      if (!state.columnEntryMap.has(columnKey)) {
+        state.columnEntryMap.set(columnKey, createEntry(columnPaths[c], this.columnFields.length));
+      }
+      for (v = 0; v < this.valueFields.length; v += 1) {
+        field = this.valueFields[v];
+        accumulatorKey = rowKey + '\u001f' + columnKey + '\u001f' + field.key;
+        accumulator = state.accumulatorMap.get(accumulatorKey);
+        if (!accumulator) {
+          accumulator = createAccumulator();
+          state.accumulatorMap.set(accumulatorKey, accumulator);
+        }
+        accumulateValue(
+          accumulator,
+          field.getItemValue(item),
+          field.aggregate,
+          field.getWeightValue(item)
+        );
+      }
+    }
+  }
+};
+
+PivotEngine.prototype._finalizePivotBuildState = function(state) {
+  var rowEntryMap = new Map();
+  var columnEntryMap = new Map();
+  var accumulatorMap = new Map();
+  var filteredItems = [];
+  var rowEntries;
+  var columnEntries;
+  var dataColumns = [];
+  var rows = [];
+  var accumulatorKey;
   var row;
   var dataColumn;
   var i;
   var r;
   var c;
   var v;
-  for (i = 0; i < this._itemsSource.length; i += 1) {
-    item = this._itemsSource[i];
-    if (!this._itemMatchesFilters(item)) {
-      continue;
-    }
-    filteredItems.push(item);
-    rowPath = this.rowFields.map(function(rowField) {
-      return rowField.getItemValue(item);
-    });
-    columnPath = this.columnFields.map(function(columnField) {
-      return columnField.getItemValue(item);
-    });
-    rowPaths = createAggregatePaths(rowPath, this.showRowTotals);
-    columnPaths = createAggregatePaths(columnPath, this.showColumnTotals);
-    for (r = 0; r < rowPaths.length; r += 1) {
-      rowKey = createPivotPathKey(rowPaths[r]);
-      if (!rowEntryMap.has(rowKey)) {
-        rowEntryMap.set(rowKey, createEntry(rowPaths[r], this.rowFields.length));
-      }
-      for (c = 0; c < columnPaths.length; c += 1) {
-        columnKey = createPivotPathKey(columnPaths[c]);
-        if (!columnEntryMap.has(columnKey)) {
-          columnEntryMap.set(columnKey, createEntry(columnPaths[c], this.columnFields.length));
-        }
-        for (v = 0; v < this.valueFields.length; v += 1) {
-          field = this.valueFields[v];
-          accumulatorKey = rowKey + '\u001f' + columnKey + '\u001f' + field.key;
-          accumulator = accumulatorMap.get(accumulatorKey);
-          if (!accumulator) {
-            accumulator = createAccumulator();
-            accumulatorMap.set(accumulatorKey, accumulator);
-          }
-          accumulateValue(accumulator, field.getItemValue(item), field.aggregate);
-        }
-      }
-    }
-  }
+  rowEntryMap = state.rowEntryMap;
+  columnEntryMap = state.columnEntryMap;
+  accumulatorMap = state.accumulatorMap;
+  filteredItems = state.filteredItems;
   if (!this.rowFields.length && !rowEntryMap.size) {
     rowEntryMap.set(createPivotPathKey([]), createEntry([], 0));
   }
@@ -16989,6 +17190,7 @@ PivotEngine.prototype._buildPivotView = function() {
     }
     rows.push(row);
   }
+  applyShowAsValues(rows, rowEntries, dataColumns);
   this._filteredItems = filteredItems;
   return {
     engine: this,
@@ -17004,6 +17206,86 @@ PivotEngine.prototype._buildPivotView = function() {
     filteredCount: filteredItems.length
   };
 };
+
+function dividePivotValue(value, total) {
+  value = Number(value);
+  total = Number(total);
+  if (!isFinite(value) || !isFinite(total) || total === 0) {
+    return null;
+  }
+  return value / total;
+}
+
+function applyShowAsValues(rows, rowEntries, dataColumns) {
+  var rawRows = rows.map(function(row) {
+    var copy = {};
+    dataColumns.forEach(function(column) {
+      copy[column.binding] = row[column.binding];
+    });
+    return copy;
+  });
+  var grandRowIndex = rowEntries.findIndex(function(entry) {
+    return entry.path.length === 0;
+  });
+  var rowTotalColumns = Object.create(null);
+  var previousByField;
+  var runningByField;
+  var column;
+  var field;
+  var rawValue;
+  var previous;
+  var running;
+  var r;
+  var c;
+  for (c = 0; c < dataColumns.length; c += 1) {
+    column = dataColumns[c];
+    if (column.entry.path.length === 0) {
+      rowTotalColumns[column.valueField.key] = column;
+    }
+  }
+  for (r = 0; r < rows.length; r += 1) {
+    previousByField = Object.create(null);
+    runningByField = Object.create(null);
+    for (c = 0; c < dataColumns.length; c += 1) {
+      column = dataColumns[c];
+      field = column.valueField;
+      rawValue = rawRows[r][column.binding];
+      if (field.showAs === PivotShowAs.PercentOfGrandTotal) {
+        rows[r][column.binding] = grandRowIndex >= 0 && rowTotalColumns[field.key] ?
+          dividePivotValue(rawValue, rawRows[grandRowIndex][rowTotalColumns[field.key].binding]) : null;
+      } else if (field.showAs === PivotShowAs.PercentOfRowTotal) {
+        rows[r][column.binding] = rowTotalColumns[field.key] ?
+          dividePivotValue(rawValue, rawRows[r][rowTotalColumns[field.key].binding]) : null;
+      } else if (field.showAs === PivotShowAs.PercentOfColumnTotal) {
+        rows[r][column.binding] = grandRowIndex >= 0 ?
+          dividePivotValue(rawValue, rawRows[grandRowIndex][column.binding]) : null;
+      } else if (field.showAs === PivotShowAs.DifferenceFromPrevious) {
+        if (!column.entry.isLeaf) {
+          continue;
+        }
+        previous = previousByField[field.key];
+        rows[r][column.binding] = previous == null || rawValue == null ? null :
+          Number(rawValue) - Number(previous);
+      } else if (field.showAs === PivotShowAs.PercentDifferenceFromPrevious) {
+        if (!column.entry.isLeaf) {
+          continue;
+        }
+        previous = previousByField[field.key];
+        rows[r][column.binding] = previous == null || rawValue == null ? null :
+          dividePivotValue(Number(rawValue) - Number(previous), previous);
+      } else if (field.showAs === PivotShowAs.RunningTotal) {
+        if (!column.entry.isLeaf) {
+          continue;
+        }
+        running = Number(runningByField[field.key]) || 0;
+        running += Number(rawValue) || 0;
+        runningByField[field.key] = running;
+        rows[r][column.binding] = running;
+      }
+      previousByField[field.key] = rawValue;
+    }
+  }
+}
 
 function createEntry(path, fieldCount) {
   return {
@@ -17156,6 +17438,8 @@ PivotEngine.prototype.formatFieldValue = function(field, value, locale) {
 
 PivotEngine.prototype.dispose = function() {
   var name;
+  this._disposed = true;
+  this.cancelRefresh();
   for (name in this.events) {
     if (Object.prototype.hasOwnProperty.call(this.events, name)) {
       this.events[name].length = 0;
@@ -19286,6 +19570,37 @@ function createSortMenuItem(value, label, active, fieldKey) {
   return item;
 }
 
+function createShowAsMenuItem(value, label, active, fieldKey) {
+  var item = document.createElement('button');
+  var icon = document.createElement('span');
+  var text = document.createElement('span');
+  item.type = 'button';
+  item.className = 'fg-top-left-menu-item' + (active ? ' fg-top-left-menu-item-active' : '');
+  item.setAttribute('role', 'menuitemradio');
+  item.setAttribute('aria-checked', active ? 'true' : 'false');
+  item.setAttribute('data-action', 'set-show-as');
+  item.setAttribute('data-show-as', value);
+  item.setAttribute('data-field-key', fieldKey);
+  icon.className = 'fg-top-left-menu-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = active ? '✓' : '';
+  text.className = 'fg-top-left-menu-label';
+  text.textContent = label;
+  item.appendChild(icon);
+  item.appendChild(text);
+  return item;
+}
+
+function getPivotPanelValueKey(value) {
+  if (value instanceof Date) {
+    return 'date:' + value.toISOString();
+  }
+  if (typeof value === 'number' && isNaN(value)) {
+    return 'number:NaN';
+  }
+  return typeof value + ':' + String(value);
+}
+
 function createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, FabGrid) {
   var areaDefinitions = [
     { name: 'filterFields', labelKey: 'pivot.panel.filters' },
@@ -19314,8 +19629,14 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     this._dropIndicator = null;
     this._aggregateMenuFieldKey = null;
     this._sortMenuFieldKey = null;
+    this._filterMenuFieldKey = null;
+    this._filterMenuValues = [];
+    this._filterDraftKeys = Object.create(null);
+    this._touchDragState = null;
     this._documentPointerDownBound = false;
     this._documentPointerDownHandler = this._handleDocumentPointerDown.bind(this);
+    this._touchPointerMoveHandler = this._handleTouchPointerMove.bind(this);
+    this._touchPointerUpHandler = this._handleTouchPointerUp.bind(this);
     this._updatedHandler = this.refresh.bind(this);
     this._createDom();
     this._bindEvents();
@@ -19337,6 +19658,7 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     var areas = document.createElement('div');
     var aggregateMenu = document.createElement('div');
     var sortMenu = document.createElement('div');
+    var filterMenu = document.createElement('div');
     var section;
     var title;
     var list;
@@ -19382,15 +19704,22 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     sortMenu.setAttribute('role', 'menu');
     sortMenu.setAttribute('aria-hidden', 'true');
     this.hostElement.appendChild(sortMenu);
+    filterMenu.className = 'fg-top-left-menu fg-pivot-panel-filter-menu';
+    filterMenu.setAttribute('role', 'dialog');
+    filterMenu.setAttribute('aria-modal', 'false');
+    filterMenu.setAttribute('aria-hidden', 'true');
+    this.hostElement.appendChild(filterMenu);
     this.availableFields = available;
     this.areasElement = areas;
     this.aggregateMenu = aggregateMenu;
     this.sortMenu = sortMenu;
+    this.filterMenu = filterMenu;
     this.applyLocaleToDom();
   };
 
   PivotPanel.prototype._bindEvents = function() {
     this.addEventListener(this.hostElement, 'change', this._handleChange.bind(this));
+    this.addEventListener(this.hostElement, 'input', this._handleInput.bind(this));
     this.addEventListener(this.hostElement, 'click', this._handleClick.bind(this));
     this.addEventListener(this.hostElement, 'contextmenu', this._handleContextMenu.bind(this));
     this.addEventListener(this.hostElement, 'dragstart', this._handleDragStart.bind(this));
@@ -19398,6 +19727,7 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     this.addEventListener(this.hostElement, 'dragleave', this._handleDragLeave.bind(this));
     this.addEventListener(this.hostElement, 'drop', this._handleDrop.bind(this));
     this.addEventListener(this.hostElement, 'dragend', this._clearDragState.bind(this));
+    this.addEventListener(this.hostElement, 'pointerdown', this._handleTouchPointerDown.bind(this));
     this.addEventListener(this.hostElement, 'keydown', this._handleKeyDown.bind(this));
   };
 
@@ -19417,6 +19747,7 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     this.hostElement.setAttribute('aria-label', this.getText('pivot.panel.ariaLabel'));
     this.aggregateMenu.setAttribute('aria-label', this.getText('pivot.panel.aggregateMenu'));
     this.sortMenu.setAttribute('aria-label', this.getText('pivot.panel.sortMenu'));
+    this.filterMenu.setAttribute('aria-label', this.getText('pivot.panel.filterMenu'));
     this.areaTitles.fields.textContent = this.getText('pivot.panel.fields');
     this.areaLists.fields.setAttribute('aria-label', this.getText('pivot.panel.fields'));
     for (i = 0; i < areaDefinitions.length; i += 1) {
@@ -19512,6 +19843,9 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     item.appendChild(drag);
     item.appendChild(label);
     actions.className = 'fg-pivot-panel-item-actions';
+    if (area === 'filterFields') {
+      actions.appendChild(createButton('filter', this.getText('pivot.panel.editFilter'), '⌕'));
+    }
     actions.appendChild(createButton('remove', this.getText('pivot.panel.removeField'), '×'));
     item.appendChild(actions);
     return item;
@@ -19539,6 +19873,7 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     var i;
     this.hideAggregateMenu();
     this.hideSortMenu();
+    this.hideFilterMenu();
     this.availableFields.innerHTML = '';
     if (this._engine) {
       for (i = 0; i < this._engine.fields.length; i += 1) {
@@ -19628,7 +19963,17 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
 
   PivotPanel.prototype._handleChange = function(event) {
     var fieldKey = event.target.getAttribute('data-field-key');
+    var filterKey = event.target.getAttribute('data-filter-value-key');
     var field;
+    if (filterKey) {
+      this._filterDraftKeys[filterKey] = event.target.checked;
+      this._renderFilterMenuValues();
+      return;
+    }
+    if (event.target.hasAttribute('data-filter-select-all')) {
+      this._setVisibleFilterDraft(event.target.checked);
+      return;
+    }
     if (event.target.classList.contains('fg-pivot-panel-field-check')) {
       field = this._engine && this._engine.getField(fieldKey);
       if (event.target.checked && field) {
@@ -19636,6 +19981,12 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
       } else if (field) {
         this.moveField(field, 'fields', 0);
       }
+    }
+  };
+
+  PivotPanel.prototype._handleInput = function(event) {
+    if (event.target.classList.contains('fg-pivot-panel-filter-search')) {
+      this._renderFilterMenuValues();
     }
   };
 
@@ -19648,28 +19999,45 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     if (!actionElement || actionElement.tagName === 'SELECT') {
       return;
     }
+    action = actionElement.getAttribute('data-action');
+    if (action === 'filter-apply') {
+      event.preventDefault();
+      this.applyFilterMenu();
+      return;
+    }
+    if (action === 'filter-cancel') {
+      event.preventDefault();
+      this.hideFilterMenu();
+      return;
+    }
     item = closestWithAttribute(actionElement, 'data-field-key', this.hostElement);
     if (!item) {
       return;
     }
     event.preventDefault();
-    action = actionElement.getAttribute('data-action');
     area = item.getAttribute('data-area-item');
     fieldKey = item.getAttribute('data-field-key');
     if (action === 'set-aggregate') {
       this.setAggregate(fieldKey, actionElement.getAttribute('data-aggregate'));
+      this.hideAggregateMenu();
+    } else if (action === 'set-show-as') {
+      this.setShowAs(fieldKey, actionElement.getAttribute('data-show-as'));
       this.hideAggregateMenu();
     } else if (action === 'set-sort-direction') {
       this.setSortDirection(fieldKey, Number(actionElement.getAttribute('data-sort-direction')));
       this.hideSortMenu();
     } else if (action === 'remove') {
       this.removeField(fieldKey, area);
+    } else if (action === 'filter') {
+      this.hideAggregateMenu();
+      this.hideSortMenu();
+      this.showFilterMenu(fieldKey, actionElement);
     }
   };
 
   PivotPanel.prototype.setAggregate = function(fieldReference, aggregate) {
     var field = this._engine && this._engine.getField(fieldReference);
-    var values = ['Sum', 'Count', 'Average', 'Min', 'Max'];
+    var values = ['Sum', 'Count', 'Average', 'WeightedAverage', 'Min', 'Max'];
     if (!field || values.indexOf(aggregate) < 0 || this._engine.valueFields.indexOf(field) < 0) {
       return false;
     }
@@ -19693,6 +20061,29 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     }
     field.sortDirection = normalized;
     this._engine.emit('viewDefinitionChanged', { property: 'sortDirection', field: field });
+    this._engine.refresh();
+    return true;
+  };
+
+  PivotPanel.prototype.setShowAs = function(fieldReference, showAs) {
+    var field = this._engine && this._engine.getField(fieldReference);
+    var values = [
+      'NoCalculation',
+      'PercentOfGrandTotal',
+      'PercentOfRowTotal',
+      'PercentOfColumnTotal',
+      'DifferenceFromPrevious',
+      'PercentDifferenceFromPrevious',
+      'RunningTotal'
+    ];
+    if (!field || values.indexOf(showAs) < 0 || this._engine.valueFields.indexOf(field) < 0) {
+      return false;
+    }
+    if (field.showAs === showAs) {
+      return true;
+    }
+    field.showAs = showAs;
+    this._engine.emit('viewDefinitionChanged', { property: 'showAs', field: field });
     this._engine.refresh();
     return true;
   };
@@ -19721,8 +20112,18 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
 
   PivotPanel.prototype.showAggregateMenu = function(fieldReference, clientX, clientY) {
     var field = this._engine && this._engine.getField(fieldReference);
-    var values = ['Sum', 'Count', 'Average', 'Min', 'Max'];
+    var values = ['Sum', 'Count', 'Average', 'WeightedAverage', 'Min', 'Max'];
+    var showAsValues = [
+      'NoCalculation',
+      'PercentOfGrandTotal',
+      'PercentOfRowTotal',
+      'PercentOfColumnTotal',
+      'DifferenceFromPrevious',
+      'PercentDifferenceFromPrevious',
+      'RunningTotal'
+    ];
     var title;
+    var showAsTitle;
     var hostRect;
     var left;
     var top;
@@ -19741,6 +20142,18 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
         values[i],
         this.getText('pivot.aggregates.' + values[i].toLowerCase()),
         field.aggregate === values[i],
+        field.key
+      ));
+    }
+    showAsTitle = document.createElement('div');
+    showAsTitle.className = 'fg-pivot-panel-menu-title';
+    showAsTitle.textContent = this.getText('pivot.panel.showAs');
+    this.aggregateMenu.appendChild(showAsTitle);
+    for (i = 0; i < showAsValues.length; i += 1) {
+      this.aggregateMenu.appendChild(createShowAsMenuItem(
+        showAsValues[i],
+        this.getText('pivot.showAs.' + showAsValues[i].replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()),
+        field.showAs === showAsValues[i],
         field.key
       ));
     }
@@ -19838,8 +20251,172 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     return !!(this.sortMenu && this.sortMenu.style.display === 'block');
   };
 
+  PivotPanel.prototype.showFilterMenu = function(fieldReference, trigger) {
+    var field = this._engine && this._engine.getField(fieldReference);
+    var selected;
+    var title;
+    var search;
+    var selectAllLabel;
+    var selectAll;
+    var selectAllText;
+    var values;
+    var footer;
+    var cancel;
+    var apply;
+    var hostRect;
+    var triggerRect;
+    var left;
+    var top;
+    var i;
+    if (!field || this._engine.filterFields.indexOf(field) < 0) {
+      return false;
+    }
+    this._filterMenuFieldKey = field.key;
+    this._filterMenuValues = getPivotSlicerValues(this._engine, field);
+    selected = field.filter && Array.isArray(field.filter.values) ?
+      field.filter.values : this._filterMenuValues;
+    this._filterDraftKeys = Object.create(null);
+    for (i = 0; i < selected.length; i += 1) {
+      this._filterDraftKeys[getPivotPanelValueKey(selected[i])] = true;
+    }
+    this.filterMenu.innerHTML = '';
+    title = document.createElement('div');
+    title.className = 'fg-pivot-panel-menu-title';
+    title.textContent = field.header;
+    search = document.createElement('input');
+    search.type = 'search';
+    search.className = 'fg-pivot-panel-filter-search';
+    search.placeholder = this.getText('pivot.panel.searchValues');
+    selectAllLabel = document.createElement('label');
+    selectAllLabel.className = 'fg-pivot-panel-filter-select-all';
+    selectAll = document.createElement('input');
+    selectAll.type = 'checkbox';
+    selectAll.setAttribute('data-filter-select-all', '');
+    selectAllText = document.createElement('span');
+    selectAllText.textContent = this.getText('pivot.panel.selectAll');
+    selectAllLabel.appendChild(selectAll);
+    selectAllLabel.appendChild(selectAllText);
+    values = document.createElement('div');
+    values.className = 'fg-pivot-panel-filter-values';
+    values.setAttribute('role', 'listbox');
+    values.setAttribute('aria-multiselectable', 'true');
+    footer = document.createElement('div');
+    footer.className = 'fg-pivot-panel-filter-footer';
+    cancel = createButton('filter-cancel', this.getText('pivot.panel.cancel'), this.getText('pivot.panel.cancel'));
+    apply = createButton('filter-apply', this.getText('pivot.panel.apply'), this.getText('pivot.panel.apply'));
+    footer.appendChild(cancel);
+    footer.appendChild(apply);
+    this.filterMenu.appendChild(title);
+    this.filterMenu.appendChild(search);
+    this.filterMenu.appendChild(selectAllLabel);
+    this.filterMenu.appendChild(values);
+    this.filterMenu.appendChild(footer);
+    this.filterMenuSearch = search;
+    this.filterMenuSelectAll = selectAll;
+    this.filterMenuValuesElement = values;
+    this._renderFilterMenuValues();
+    this.filterMenu.style.display = 'flex';
+    this.filterMenu.setAttribute('aria-hidden', 'false');
+    hostRect = this.hostElement.getBoundingClientRect();
+    triggerRect = trigger && trigger.getBoundingClientRect ? trigger.getBoundingClientRect() : hostRect;
+    left = triggerRect.left - hostRect.left;
+    top = triggerRect.bottom - hostRect.top;
+    left = Math.max(0, Math.min(left, this.hostElement.clientWidth - this.filterMenu.offsetWidth));
+    top = Math.max(0, Math.min(top, this.hostElement.clientHeight - this.filterMenu.offsetHeight));
+    this.filterMenu.style.left = left + 'px';
+    this.filterMenu.style.top = top + 'px';
+    this._syncDocumentMenuPointerListener();
+    search.focus({ preventScroll: true });
+    return true;
+  };
+
+  PivotPanel.prototype._renderFilterMenuValues = function() {
+    var field = this._engine && this._engine.getField(this._filterMenuFieldKey);
+    var search;
+    var value;
+    var key;
+    var text;
+    var label;
+    var input;
+    var visibleCount = 0;
+    var selectedCount = 0;
+    var i;
+    if (!field || !this.filterMenuValuesElement) {
+      return;
+    }
+    search = String(this.filterMenuSearch.value || '').toLowerCase();
+    this.filterMenuValuesElement.innerHTML = '';
+    for (i = 0; i < this._filterMenuValues.length; i += 1) {
+      value = this._filterMenuValues[i];
+      key = getPivotPanelValueKey(value);
+      text = this._engine.formatFieldValue(field, value, this.locale) || this.getText('pivot.panel.blankValue');
+      if (search && text.toLowerCase().indexOf(search) < 0) {
+        continue;
+      }
+      label = document.createElement('label');
+      label.className = 'fg-pivot-panel-filter-value';
+      label.setAttribute('role', 'option');
+      input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = this._filterDraftKeys[key] === true;
+      input.setAttribute('data-filter-value-key', key);
+      label.setAttribute('aria-selected', input.checked ? 'true' : 'false');
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(text));
+      this.filterMenuValuesElement.appendChild(label);
+      visibleCount += 1;
+      if (input.checked) selectedCount += 1;
+    }
+    this.filterMenuSelectAll.checked = visibleCount > 0 && selectedCount === visibleCount;
+    this.filterMenuSelectAll.indeterminate = selectedCount > 0 && selectedCount < visibleCount;
+  };
+
+  PivotPanel.prototype._setVisibleFilterDraft = function(selected) {
+    var inputs = this.filterMenuValuesElement ?
+      this.filterMenuValuesElement.querySelectorAll('input[data-filter-value-key]') : [];
+    var i;
+    for (i = 0; i < inputs.length; i += 1) {
+      this._filterDraftKeys[inputs[i].getAttribute('data-filter-value-key')] = selected;
+    }
+    this._renderFilterMenuValues();
+  };
+
+  PivotPanel.prototype.applyFilterMenu = function() {
+    var field = this._engine && this._engine.getField(this._filterMenuFieldKey);
+    var selected;
+    if (!field) {
+      return false;
+    }
+    selected = this._filterMenuValues.filter(function(value) {
+      return this._filterDraftKeys[getPivotPanelValueKey(value)] === true;
+    }, this);
+    field.filter = selected.length === this._filterMenuValues.length ? null : { values: selected };
+    this.hideFilterMenu();
+    this._engine.emit('viewDefinitionChanged', { property: 'filter', field: field });
+    this._engine.refresh();
+    return true;
+  };
+
+  PivotPanel.prototype.hideFilterMenu = function() {
+    if (this.filterMenu) {
+      this.filterMenu.style.display = 'none';
+      this.filterMenu.setAttribute('aria-hidden', 'true');
+    }
+    this._filterMenuFieldKey = null;
+    this._filterMenuValues = [];
+    this._filterDraftKeys = Object.create(null);
+    this.filterMenuSearch = null;
+    this.filterMenuSelectAll = null;
+    this.filterMenuValuesElement = null;
+    this._syncDocumentMenuPointerListener();
+  };
+
+  PivotPanel.prototype.isFilterMenuOpen = function() {
+    return !!(this.filterMenu && this.filterMenu.style.display === 'flex');
+  };
+
   PivotPanel.prototype._syncDocumentMenuPointerListener = function() {
-    var shouldBind = this.isAggregateMenuOpen() || this.isSortMenuOpen();
+    var shouldBind = this.isAggregateMenuOpen() || this.isSortMenuOpen() || this.isFilterMenuOpen();
     if (shouldBind && !this._documentPointerDownBound) {
       this.addEventListener(document, 'pointerdown', this._documentPointerDownHandler);
       this._documentPointerDownBound = true;
@@ -19855,6 +20432,9 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     }
     if (this.isSortMenuOpen() && !this.sortMenu.contains(event.target)) {
       this.hideSortMenu();
+    }
+    if (this.isFilterMenuOpen() && !this.filterMenu.contains(event.target)) {
+      this.hideFilterMenu();
     }
   };
 
@@ -19966,17 +20546,84 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
   };
 
   PivotPanel.prototype._handleKeyDown = function(event) {
-    if (event.key === 'Escape' && (this.isAggregateMenuOpen() || this.isSortMenuOpen())) {
+    if (event.key === 'Escape' &&
+        (this.isAggregateMenuOpen() || this.isSortMenuOpen() || this.isFilterMenuOpen())) {
       event.preventDefault();
       event.stopPropagation();
-      this.hideAggregateMenu();
-      this.hideSortMenu();
+      if (this.isAggregateMenuOpen()) this.hideAggregateMenu();
+      if (this.isSortMenuOpen()) this.hideSortMenu();
+      if (this.isFilterMenuOpen()) this.hideFilterMenu();
       return;
     }
     if (event.key === 'Escape' && this._dragFieldKey) {
       event.preventDefault();
       this._clearDragState();
     }
+  };
+
+  PivotPanel.prototype._handleTouchPointerDown = function(event) {
+    var dragHandle;
+    var item;
+    if (event.pointerType !== 'touch' && event.pointerType !== 'pen') {
+      return;
+    }
+    dragHandle = event.target.closest ? event.target.closest('.fg-pivot-panel-drag') : null;
+    item = dragHandle && closestWithAttribute(dragHandle, 'data-field-key', this.hostElement);
+    if (!item) {
+      return;
+    }
+    event.preventDefault();
+    this._dragFieldKey = item.getAttribute('data-field-key');
+    this._dragSourceArea = item.getAttribute('data-area-item');
+    this._touchDragState = {
+      pointerId: event.pointerId
+    };
+    item.classList.add('fg-pivot-panel-dragging');
+    document.addEventListener('pointermove', this._touchPointerMoveHandler, false);
+    document.addEventListener('pointerup', this._touchPointerUpHandler, false);
+    document.addEventListener('pointercancel', this._touchPointerUpHandler, false);
+  };
+
+  PivotPanel.prototype._handleTouchPointerMove = function(event) {
+    var target;
+    var list;
+    var area;
+    if (!this._touchDragState ||
+        (this._touchDragState.pointerId != null && event.pointerId !== this._touchDragState.pointerId)) {
+      return;
+    }
+    event.preventDefault();
+    target = document.elementFromPoint(event.clientX, event.clientY);
+    list = closestWithAttribute(target, 'data-area', this.hostElement);
+    if (!list) {
+      this._clearDropIndicator();
+      return;
+    }
+    area = list.getAttribute('data-area');
+    this._showDropIndicator(list, area, event.clientY);
+    list.classList.add('fg-pivot-panel-drop-active');
+  };
+
+  PivotPanel.prototype._handleTouchPointerUp = function(event) {
+    var area;
+    var index;
+    if (!this._touchDragState ||
+        (this._touchDragState.pointerId != null && event.pointerId !== this._touchDragState.pointerId)) {
+      return;
+    }
+    if (event.type !== 'pointercancel' && this._dragTargetArea) {
+      area = this._dragTargetArea;
+      index = area === 'fields' ? Infinity : this._dragTargetIndex;
+      this.moveField(this._dragFieldKey, area, index);
+    }
+    this._clearDragState();
+  };
+
+  PivotPanel.prototype._unbindTouchDragListeners = function() {
+    document.removeEventListener('pointermove', this._touchPointerMoveHandler, false);
+    document.removeEventListener('pointerup', this._touchPointerUpHandler, false);
+    document.removeEventListener('pointercancel', this._touchPointerUpHandler, false);
+    this._touchDragState = null;
   };
 
   PivotPanel.prototype._clearDragState = function() {
@@ -19988,6 +20635,7 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     }
     this._dragFieldKey = null;
     this._dragSourceArea = null;
+    this._unbindTouchDragListeners();
   };
 
   PivotPanel.prototype.dispose = function() {
@@ -19996,6 +20644,8 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     }
     this.hideAggregateMenu();
     this.hideSortMenu();
+    this.hideFilterMenu();
+    this._unbindTouchDragListeners();
     this.removeEventListener();
     unregisterControl(this.hostElement, this);
     this.hostElement.innerHTML = '';
@@ -20037,6 +20687,360 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
   });
 
   return PivotPanel;
+}
+
+
+function resolvePivotSlicerHostElement(element) {
+  if (typeof element === 'string') {
+    return typeof document === 'undefined' ? null : document.querySelector(element);
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function getPivotSlicerMessageValue(source, path) {
+  var value = source;
+  var parts = String(path || '').split('.');
+  var i;
+  for (i = 0; i < parts.length; i += 1) {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+    value = value[parts[i]];
+  }
+  return typeof value === 'string' ? value : null;
+}
+
+function getPivotSlicerValueKey(value) {
+  if (value instanceof Date) {
+    return 'date:' + value.toISOString();
+  }
+  if (typeof value === 'number' && isNaN(value)) {
+    return 'number:NaN';
+  }
+  return typeof value + ':' + String(value);
+}
+
+function formatPivotSlicerValue(field, value, locale) {
+  if (value == null || value === '') {
+    return '(blank)';
+  }
+  if (field && field.engine && typeof field.engine.formatFieldValue === 'function') {
+    return field.engine.formatFieldValue(field, value, locale);
+  }
+  return String(value);
+}
+
+function getPivotSlicerValues(engine, field) {
+  var values = [];
+  var seen = Object.create(null);
+  var source = engine && Array.isArray(engine.itemsSource) ? engine.itemsSource : [];
+  var value;
+  var key;
+  var i;
+  if (!field) {
+    return values;
+  }
+  for (i = 0; i < source.length; i += 1) {
+    value = field.getItemValue(source[i]);
+    key = getPivotSlicerValueKey(value);
+    if (!seen[key]) {
+      seen[key] = true;
+      values.push(value);
+    }
+  }
+  return values;
+}
+
+function createPivotSlicerFactory(
+  Control,
+  registerControl,
+  unregisterControl,
+  PivotEngine,
+  FabGrid
+) {
+  function PivotSlicer(element, options) {
+    var host = resolvePivotSlicerHostElement(element);
+    options = options || {};
+    if (!host) {
+      throw new TypeError('PivotSlicer host element was not found.');
+    }
+    Control.call(this);
+    this.hostElement = host;
+    this.options = options;
+    this.locale = options.locale || 'en';
+    this.messages = options.messages || null;
+    this.showSearch = options.showSearch !== false;
+    this.deferApply = options.deferApply !== false;
+    this._engine = null;
+    this._field = null;
+    this._draftKeys = Object.create(null);
+    this._values = [];
+    this._updatedHandler = this.refresh.bind(this);
+    this._createDom();
+    this._bindEvents();
+    registerControl(host, this);
+    if (options.engine || options.itemsSource) {
+      this.setItemsSource(options.engine || options.itemsSource);
+    }
+    if (options.field != null) {
+      this.setField(options.field);
+    } else {
+      this.refresh();
+    }
+  }
+
+  PivotSlicer.prototype = Object.create(Control.prototype);
+  PivotSlicer.prototype.constructor = PivotSlicer;
+
+  PivotSlicer.prototype._createDom = function() {
+    this.hostElement.innerHTML = '';
+    this.hostElement.classList.add('fg-root', 'fg-pivot-slicer');
+    this.hostElement.setAttribute('role', 'group');
+    this.titleElement = document.createElement('div');
+    this.titleElement.className = 'fg-pivot-slicer-title';
+    this.searchInput = document.createElement('input');
+    this.searchInput.type = 'search';
+    this.searchInput.className = 'fg-pivot-slicer-search';
+    this.selectAllLabel = document.createElement('label');
+    this.selectAllLabel.className = 'fg-pivot-slicer-select-all';
+    this.selectAllInput = document.createElement('input');
+    this.selectAllInput.type = 'checkbox';
+    this.selectAllText = document.createElement('span');
+    this.selectAllLabel.appendChild(this.selectAllInput);
+    this.selectAllLabel.appendChild(this.selectAllText);
+    this.valuesElement = document.createElement('div');
+    this.valuesElement.className = 'fg-pivot-slicer-values';
+    this.valuesElement.setAttribute('role', 'listbox');
+    this.valuesElement.setAttribute('aria-multiselectable', 'true');
+    this.footerElement = document.createElement('div');
+    this.footerElement.className = 'fg-pivot-slicer-footer';
+    this.applyButton = document.createElement('button');
+    this.applyButton.type = 'button';
+    this.applyButton.setAttribute('data-action', 'apply');
+    this.clearButton = document.createElement('button');
+    this.clearButton.type = 'button';
+    this.clearButton.setAttribute('data-action', 'clear');
+    this.footerElement.appendChild(this.clearButton);
+    this.footerElement.appendChild(this.applyButton);
+    this.hostElement.appendChild(this.titleElement);
+    this.hostElement.appendChild(this.searchInput);
+    this.hostElement.appendChild(this.selectAllLabel);
+    this.hostElement.appendChild(this.valuesElement);
+    this.hostElement.appendChild(this.footerElement);
+    this.applyLocaleToDom();
+  };
+
+  PivotSlicer.prototype._bindEvents = function() {
+    this.addEventListener(this.searchInput, 'input', this._renderValues.bind(this));
+    this.addEventListener(this.selectAllInput, 'change', this._handleSelectAll.bind(this));
+    this.addEventListener(this.valuesElement, 'change', this._handleValueChange.bind(this));
+    this.addEventListener(this.footerElement, 'click', this._handleAction.bind(this));
+  };
+
+  PivotSlicer.prototype.getText = function(path) {
+    var locales = FabGrid.locales || {};
+    var localeName = this.locale || 'en';
+    var baseName = localeName.split('-')[0];
+    return getPivotSlicerMessageValue(this.messages, path) ||
+      getPivotSlicerMessageValue(locales[localeName], path) ||
+      getPivotSlicerMessageValue(locales[baseName], path) ||
+      getPivotSlicerMessageValue(locales.en, path) || path;
+  };
+
+  PivotSlicer.prototype.applyLocaleToDom = function() {
+    this.hostElement.setAttribute('aria-label', this.getText('pivot.slicer.ariaLabel'));
+    this.searchInput.placeholder = this.getText('pivot.slicer.search');
+    this.selectAllText.textContent = this.getText('pivot.slicer.selectAll');
+    this.applyButton.textContent = this.getText('pivot.slicer.apply');
+    this.clearButton.textContent = this.getText('pivot.slicer.clear');
+  };
+
+  PivotSlicer.prototype.setLocale = function(locale, messages) {
+    this.locale = locale || 'en';
+    if (messages !== undefined) {
+      this.messages = messages;
+    }
+    this.applyLocaleToDom();
+    this.refresh();
+    return this;
+  };
+
+  PivotSlicer.prototype.setItemsSource = function(engine) {
+    if (!(engine instanceof PivotEngine)) {
+      throw new TypeError('PivotSlicer itemsSource must be a fabui.pivot.PivotEngine instance.');
+    }
+    if (this._engine === engine) {
+      return this;
+    }
+    if (this._engine && this._engine.updatedView) {
+      this._engine.updatedView.removeHandler(this._updatedHandler, this);
+    }
+    this._engine = engine;
+    this._engine.updatedView.addHandler(this._updatedHandler, this);
+    if (this._field) {
+      this._field = this._engine.getField(this._field.key);
+    }
+    this.refresh();
+    return this;
+  };
+
+  PivotSlicer.prototype.setField = function(reference) {
+    this._field = this._engine ? this._engine.getField(reference) : reference;
+    if (reference != null && !this._field) {
+      throw new TypeError('PivotSlicer field was not found in the PivotEngine.');
+    }
+    this.refresh();
+    return this;
+  };
+
+  PivotSlicer.prototype._syncDraftFromField = function() {
+    var selected = this._field && this._field.filter && Array.isArray(this._field.filter.values) ?
+      this._field.filter.values : this._values;
+    var keys = Object.create(null);
+    var i;
+    for (i = 0; i < selected.length; i += 1) {
+      keys[getPivotSlicerValueKey(selected[i])] = true;
+    }
+    this._draftKeys = keys;
+  };
+
+  PivotSlicer.prototype.refresh = function() {
+    this._values = getPivotSlicerValues(this._engine, this._field);
+    this._syncDraftFromField();
+    this.titleElement.textContent = this._field ? this._field.header : this.getText('pivot.slicer.noField');
+    this.searchInput.style.display = this.showSearch ? '' : 'none';
+    this._renderValues();
+    return this;
+  };
+
+  PivotSlicer.prototype._renderValues = function() {
+    var search = String(this.searchInput.value || '').toLowerCase();
+    var value;
+    var key;
+    var label;
+    var input;
+    var text;
+    var visibleCount = 0;
+    var selectedCount = 0;
+    var i;
+    this.valuesElement.innerHTML = '';
+    for (i = 0; i < this._values.length; i += 1) {
+      value = this._values[i];
+      key = getPivotSlicerValueKey(value);
+      text = formatPivotSlicerValue(this._field, value, this.locale);
+      if (search && text.toLowerCase().indexOf(search) < 0) {
+        continue;
+      }
+      label = document.createElement('label');
+      label.className = 'fg-pivot-slicer-value';
+      label.setAttribute('role', 'option');
+      input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = this._draftKeys[key] === true;
+      input.setAttribute('data-value-key', key);
+      label.setAttribute('aria-selected', input.checked ? 'true' : 'false');
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(text));
+      this.valuesElement.appendChild(label);
+      visibleCount += 1;
+      if (input.checked) selectedCount += 1;
+    }
+    this.selectAllInput.checked = visibleCount > 0 && selectedCount === visibleCount;
+    this.selectAllInput.indeterminate = selectedCount > 0 && selectedCount < visibleCount;
+    this.applyButton.style.display = this.deferApply ? '' : 'none';
+  };
+
+  PivotSlicer.prototype._handleSelectAll = function() {
+    var inputs = this.valuesElement.querySelectorAll('input[data-value-key]');
+    var checked = this.selectAllInput.checked;
+    var i;
+    for (i = 0; i < inputs.length; i += 1) {
+      this._draftKeys[inputs[i].getAttribute('data-value-key')] = checked;
+    }
+    this._renderValues();
+    if (!this.deferApply) {
+      this.apply();
+    }
+  };
+
+  PivotSlicer.prototype._handleValueChange = function(event) {
+    var key = event.target.getAttribute('data-value-key');
+    if (!key) return;
+    this._draftKeys[key] = event.target.checked;
+    this._renderValues();
+    if (!this.deferApply) {
+      this.apply();
+    }
+  };
+
+  PivotSlicer.prototype._handleAction = function(event) {
+    var action = event.target.getAttribute('data-action');
+    if (action === 'apply') {
+      this.apply();
+    } else if (action === 'clear') {
+      this.clear();
+    }
+  };
+
+  PivotSlicer.prototype.apply = function() {
+    var selected = this._values.filter(function(value) {
+      return this._draftKeys[getPivotSlicerValueKey(value)] === true;
+    }, this);
+    if (!this._engine || !this._field) {
+      return false;
+    }
+    this._field.filter = selected.length === this._values.length ? null : { values: selected };
+    this._engine.emit('viewDefinitionChanged', { property: 'filter', field: this._field });
+    this._engine.refresh();
+    return true;
+  };
+
+  PivotSlicer.prototype.clear = function() {
+    if (!this._engine || !this._field) {
+      return false;
+    }
+    this._field.filter = null;
+    this._syncDraftFromField();
+    this._engine.emit('viewDefinitionChanged', { property: 'filter', field: this._field });
+    this._engine.refresh();
+    return true;
+  };
+
+  PivotSlicer.prototype.dispose = function() {
+    if (this._engine && this._engine.updatedView) {
+      this._engine.updatedView.removeHandler(this._updatedHandler, this);
+    }
+    this.removeEventListener();
+    unregisterControl(this.hostElement, this);
+    this.hostElement.innerHTML = '';
+    this.hostElement.classList.remove('fg-root', 'fg-pivot-slicer');
+    this._engine = null;
+    this._field = null;
+  };
+
+  Object.defineProperties(PivotSlicer.prototype, {
+    engine: {
+      get: function() { return this._engine; },
+      set: function(value) { this.setItemsSource(value); }
+    },
+    itemsSource: {
+      get: function() { return this._engine; },
+      set: function(value) { this.setItemsSource(value); }
+    },
+    field: {
+      get: function() { return this._field; },
+      set: function(value) { this.setField(value); }
+    },
+    selectedValues: {
+      get: function() {
+        return this._values.filter(function(value) {
+          return this._draftKeys[getPivotSlicerValueKey(value)] === true;
+        }, this);
+      }
+    }
+  });
+
+  return PivotSlicer;
 }
 
 function resolvePivotWorkspaceHostElement(element) {
@@ -20144,7 +21148,8 @@ function getEngineOptions(options) {
     'showColumnTotals',
     'totalsBeforeData',
     'showZeros',
-    'autoGenerateFields'
+    'autoGenerateFields',
+    'asyncBatchSize'
   ];
   var i;
   for (i = 0; i < names.length; i += 1) {
@@ -20332,6 +21337,7 @@ function createPivotWorkspaceFactory(
     this._createDom();
     this._createChildren();
     this._createControls();
+    this._bindEngineEvents();
     this._bindEvents();
     this._observeSize();
     registerControl(host, this);
@@ -20413,6 +21419,16 @@ function createPivotWorkspaceFactory(
     var chartTypes = ['Column', 'Bar', 'Line', 'Pie'];
     var i;
     var option;
+    this.progressElement = document.createElement('span');
+    this.progressElement.className = 'fg-pivot-workspace-progress';
+    this.progressElement.setAttribute('role', 'status');
+    this.progressElement.setAttribute('aria-live', 'polite');
+    this.cancelRefreshButton = document.createElement('button');
+    this.cancelRefreshButton.type = 'button';
+    this.cancelRefreshButton.className = 'fg-pivot-workspace-control fg-pivot-workspace-cancel';
+    this.cancelRefreshButton.style.display = 'none';
+    this.gridPane.actions.appendChild(this.progressElement);
+    this.gridPane.actions.appendChild(this.cancelRefreshButton);
     if (this.options.showControls === false) {
       return;
     }
@@ -20449,6 +21465,9 @@ function createPivotWorkspaceFactory(
     this.addEventListener(this.chartSplitter, 'pointerdown', this._handleSplitterPointerDown.bind(this));
     this.addEventListener(this.panelSplitter, 'keydown', this._handleSplitterKeyDown.bind(this));
     this.addEventListener(this.chartSplitter, 'keydown', this._handleSplitterKeyDown.bind(this));
+    this.addEventListener(this.cancelRefreshButton, 'click', function() {
+      this.cancelRefresh();
+    }.bind(this));
     if (this.panelToggleButton) {
       this.addEventListener(this.panelToggleButton, 'click', function() {
         this.setPanelVisible(!this._panelVisible);
@@ -20479,6 +21498,64 @@ function createPivotWorkspaceFactory(
     this.addEventListener(document, 'keydown', this._handleFullscreenKeyDown.bind(this), true);
   };
 
+  PivotWorkspace.prototype._bindEngineEvents = function() {
+    if (!this._engine) {
+      return;
+    }
+    this._engineUpdatingHandler = this._handleEngineUpdating.bind(this);
+    this._engineProgressHandler = this._handleEngineProgress.bind(this);
+    this._engineUpdatedHandler = this._handleEngineUpdated.bind(this);
+    this._engineErrorHandler = this._handleEngineError.bind(this);
+    this._engine.updatingView.addHandler(this._engineUpdatingHandler, this);
+    this._engine.progress.addHandler(this._engineProgressHandler, this);
+    this._engine.updatedView.addHandler(this._engineUpdatedHandler, this);
+    this._engine.error.addHandler(this._engineErrorHandler, this);
+  };
+
+  PivotWorkspace.prototype._unbindEngineEvents = function() {
+    if (!this._engine) {
+      return;
+    }
+    if (this._engineUpdatingHandler) {
+      this._engine.updatingView.removeHandler(this._engineUpdatingHandler, this);
+      this._engine.progress.removeHandler(this._engineProgressHandler, this);
+      this._engine.updatedView.removeHandler(this._engineUpdatedHandler, this);
+      this._engine.error.removeHandler(this._engineErrorHandler, this);
+    }
+    this._engineUpdatingHandler = null;
+    this._engineProgressHandler = null;
+    this._engineUpdatedHandler = null;
+    this._engineErrorHandler = null;
+  };
+
+  PivotWorkspace.prototype._handleEngineUpdating = function(sender, args) {
+    this.hostElement.classList.add('fg-pivot-workspace-updating');
+    this.progressElement.textContent = args && args.async ?
+      this.getText('pivot.workspace.progress').replace('{progress}', '0') : '';
+    this.cancelRefreshButton.style.display = args && args.async ? '' : 'none';
+  };
+
+  PivotWorkspace.prototype._handleEngineProgress = function(sender, args) {
+    var progress = Math.round(Math.max(0, Math.min(1, Number(args && args.progress) || 0)) * 100);
+    this.progressElement.textContent = this.getText('pivot.workspace.progress')
+      .replace('{progress}', String(progress));
+  };
+
+  PivotWorkspace.prototype._handleEngineUpdated = function() {
+    this.hostElement.classList.remove('fg-pivot-workspace-updating', 'fg-pivot-workspace-error');
+    this.progressElement.textContent = '';
+    this.cancelRefreshButton.style.display = 'none';
+  };
+
+  PivotWorkspace.prototype._handleEngineError = function(sender, args) {
+    var error = args && args.error;
+    this.hostElement.classList.remove('fg-pivot-workspace-updating');
+    this.hostElement.classList.add('fg-pivot-workspace-error');
+    this.progressElement.textContent = this.getText('pivot.workspace.error') +
+      (error && error.message ? ': ' + error.message : '');
+    this.cancelRefreshButton.style.display = 'none';
+  };
+
   PivotWorkspace.prototype._observeSize = function() {
     var self = this;
     if (typeof ResizeObserver === 'function') {
@@ -20507,6 +21584,8 @@ function createPivotWorkspaceFactory(
     this.panelPane.title.textContent = this.options.panelTitle || this.getText('pivot.workspace.panelTitle');
     this.gridPane.title.textContent = this.options.gridTitle || this.getText('pivot.workspace.gridTitle');
     this.chartPane.title.textContent = this.options.chartTitle || this.getText('pivot.workspace.chartTitle');
+    this.cancelRefreshButton.textContent = this.getText('pivot.workspace.cancel');
+    this.cancelRefreshButton.setAttribute('aria-label', this.getText('pivot.workspace.cancel'));
     this.panelSplitter.setAttribute('aria-label', this.getText('pivot.workspace.panelSplitter'));
     this.chartSplitter.setAttribute('aria-label', this.getText('pivot.workspace.chartSplitter'));
     this._syncVisibilityControls();
@@ -20969,10 +22048,12 @@ function createPivotWorkspaceFactory(
     if (this._engine === engine) {
       return this;
     }
+    this._unbindEngineEvents();
     this._engine = engine;
     this.panel.setItemsSource(engine);
     this.grid.setPivotEngine(engine);
     this.chart.setItemsSource(engine);
+    this._bindEngineEvents();
     return this;
   };
 
@@ -20987,11 +22068,26 @@ function createPivotWorkspaceFactory(
     return this;
   };
 
+  PivotWorkspace.prototype.refreshAsync = function(options) {
+    return this._engine.refreshAsync(options);
+  };
+
+  PivotWorkspace.prototype.cancelRefresh = function() {
+    var cancelled = this._engine && this._engine.cancelRefresh();
+    if (cancelled) {
+      this.hostElement.classList.remove('fg-pivot-workspace-updating');
+      this.progressElement.textContent = this.getText('pivot.workspace.cancelled');
+      this.cancelRefreshButton.style.display = 'none';
+    }
+    return cancelled;
+  };
+
   PivotWorkspace.prototype.dispose = function() {
     if (this._disposed) {
       return;
     }
     this._disposed = true;
+    this._unbindEngineEvents();
     this._endSplitterDrag(false);
     this._setFallbackFullscreen(null);
     if (this._resizeObserver) {
@@ -21026,7 +22122,9 @@ function createPivotWorkspaceFactory(
       'fg-pivot-workspace-panel-hidden',
       'fg-pivot-workspace-chart-hidden',
       'fg-pivot-workspace-headers-hidden',
-      'fg-pivot-workspace-resizing'
+      'fg-pivot-workspace-resizing',
+      'fg-pivot-workspace-updating',
+      'fg-pivot-workspace-error'
     );
     this._engine = null;
     this.panel = null;
@@ -21037,6 +22135,8 @@ function createPivotWorkspaceFactory(
     this.chartTypeSelect = null;
     this.gridFullscreenButton = null;
     this.chartFullscreenButton = null;
+    this.progressElement = null;
+    this.cancelRefreshButton = null;
   };
 
   Object.defineProperties(PivotWorkspace.prototype, {
@@ -21095,7 +22195,9 @@ global.fabui.pivot.PivotEngine = PivotEngine;
 global.fabui.pivot.PivotField = PivotField;
 global.fabui.pivot.PivotGrid = createPivotGridFactory(global.fabui.FabGrid, PivotEngine);
 global.fabui.pivot.PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.FabGrid);
+global.fabui.pivot.PivotSlicer = createPivotSlicerFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.FabGrid);
 global.fabui.pivot.PivotWorkspace = createPivotWorkspaceFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.pivot.PivotPanel, global.fabui.pivot.PivotGrid, global.fabui.pivot.PivotChart, global.fabui.FabGrid);
+global.fabui.pivot.PivotShowAs = PivotShowAs;
 global.fabui.pivot.PivotShowTotals = PivotShowTotals;
 global.fabui.CellType = CellType;
 global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
@@ -21158,6 +22260,10 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
         chartFullscreen: 'Pivot Chart fullscreen',
         exitFullscreen: 'Exit fullscreen',
         chartType: 'Chart type',
+        progress: 'Aggregating {progress}%',
+        cancel: 'Cancel',
+        cancelled: 'Aggregation cancelled',
+        error: 'Aggregation failed',
         chartTypes: {
           column: 'Column',
           bar: 'Bar',
@@ -21179,6 +22285,14 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
         sortMenu: 'Dimension sorting settings',
         sortField: 'Set sorting for {field}',
         sortDefault: 'Default order',
+        filterMenu: 'Pivot field filter',
+        editFilter: 'Edit filter',
+        searchValues: 'Search values',
+        selectAll: 'Select all',
+        blankValue: '(blank)',
+        apply: 'Apply',
+        cancel: 'Cancel',
+        showAs: 'Show values as',
         dropFields: 'Drag fields here',
         noFields: 'No fields available',
         removeField: 'Remove field'
@@ -21187,8 +22301,26 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
         sum: 'Sum',
         count: 'Count',
         average: 'Average',
+        weightedaverage: 'Weighted average',
         min: 'Minimum',
         max: 'Maximum'
+      },
+      showAs: {
+        'no-calculation': 'No calculation',
+        'percent-of-grand-total': '% of grand total',
+        'percent-of-row-total': '% of row total',
+        'percent-of-column-total': '% of column total',
+        'difference-from-previous': 'Difference from previous',
+        'percent-difference-from-previous': '% difference from previous',
+        'running-total': 'Running total'
+      },
+      slicer: {
+        ariaLabel: 'Pivot slicer',
+        search: 'Search values',
+        selectAll: 'Select all',
+        apply: 'Apply',
+        clear: 'Clear',
+        noField: 'Select a field'
       }
     },
     pagination: {
@@ -21344,6 +22476,10 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
         chartFullscreen: 'Pivot 圖表全螢幕',
         exitFullscreen: '離開全螢幕',
         chartType: '圖形類型',
+        progress: '彙總中 {progress}%',
+        cancel: '取消',
+        cancelled: '已取消彙總',
+        error: '彙總失敗',
         chartTypes: {
           column: '直條圖',
           bar: '橫條圖',
@@ -21365,6 +22501,14 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
         sortMenu: '維度排序設定',
         sortField: '設定「{field}」排序',
         sortDefault: '預設順序',
+        filterMenu: 'Pivot 欄位篩選',
+        editFilter: '編輯篩選',
+        searchValues: '搜尋內容',
+        selectAll: '全部選取',
+        blankValue: '（空白）',
+        apply: '套用',
+        cancel: '取消',
+        showAs: '值顯示方式',
         dropFields: '拖曳欄位到這裡',
         noFields: '沒有可用欄位',
         removeField: '移除欄位'
@@ -21373,8 +22517,26 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
         sum: '加總',
         count: '筆數',
         average: '平均',
+        weightedaverage: '加權平均',
         min: '最小值',
         max: '最大值'
+      },
+      showAs: {
+        'no-calculation': '不計算',
+        'percent-of-grand-total': '總計百分比',
+        'percent-of-row-total': '列總計百分比',
+        'percent-of-column-total': '欄總計百分比',
+        'difference-from-previous': '與前一項差異',
+        'percent-difference-from-previous': '與前一項差異百分比',
+        'running-total': '累計'
+      },
+      slicer: {
+        ariaLabel: 'Pivot 交叉分析篩選器',
+        search: '搜尋內容',
+        selectAll: '全部選取',
+        apply: '套用',
+        clear: '清除',
+        noField: '請選擇欄位'
       }
     },
     pagination: {
@@ -21530,6 +22692,10 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
         chartFullscreen: 'Pivot 图表全屏',
         exitFullscreen: '退出全屏',
         chartType: '图形类型',
+        progress: '汇总中 {progress}%',
+        cancel: '取消',
+        cancelled: '已取消汇总',
+        error: '汇总失败',
         chartTypes: {
           column: '柱形图',
           bar: '条形图',
@@ -21551,6 +22717,14 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
         sortMenu: '维度排序设置',
         sortField: '设置“{field}”排序',
         sortDefault: '默认顺序',
+        filterMenu: 'Pivot 字段筛选',
+        editFilter: '编辑筛选',
+        searchValues: '搜索内容',
+        selectAll: '全部选择',
+        blankValue: '（空白）',
+        apply: '应用',
+        cancel: '取消',
+        showAs: '值显示方式',
         dropFields: '拖动字段到这里',
         noFields: '没有可用字段',
         removeField: '移除字段'
@@ -21559,8 +22733,26 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
         sum: '求和',
         count: '计数',
         average: '平均',
+        weightedaverage: '加权平均',
         min: '最小值',
         max: '最大值'
+      },
+      showAs: {
+        'no-calculation': '不计算',
+        'percent-of-grand-total': '总计百分比',
+        'percent-of-row-total': '行总计百分比',
+        'percent-of-column-total': '列总计百分比',
+        'difference-from-previous': '与前一项差异',
+        'percent-difference-from-previous': '与前一项差异百分比',
+        'running-total': '累计'
+      },
+      slicer: {
+        ariaLabel: 'Pivot 切片器',
+        search: '搜索内容',
+        selectAll: '全部选择',
+        apply: '应用',
+        clear: '清除',
+        noField: '请选择字段'
       }
     },
     pagination: {
