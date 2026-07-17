@@ -45,6 +45,20 @@ Wrapper 支援 `.fab-editbox`、`data-options` 與 inline width／height：
 >
 ```
 
+以下三種寬度寫法等效且都受支援：
+
+```html
+<input class="fab-editbox"
+  data-options="editor:'text',iconCls:'icon-search'"
+  style="width:300px">
+
+<input class="fab-editbox"
+  data-options="editor:'text',iconCls:'icon-search',width:300">
+
+<input class="fab-editbox"
+  data-options="editor:'text',iconCls:'icon-search',width:'300px'">
+```
+
 Browser global wrapper 會在 DOM ready 時自動解析 `.fab-editbox`。也可手動解析動態加入的內容：
 
 ```js

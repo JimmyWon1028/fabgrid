@@ -143,26 +143,38 @@ test('FabEditBox jQuery safely parses EasyUI-style data-options', function() {
 
 test('FabEditBox jQuery parses declarative elements and inline dimensions', function() {
   var $ = createJQueryStub();
-  var element = {
-    className: 'fab-editbox',
-    style: { width: '300px' },
-    getAttribute: function(name) {
-      return name === 'data-options' ?
-        "editor:'text',iconCls:'icon-search'" :
-        null;
-    }
-  };
+  function createElement(dataOptions, styleWidth) {
+    return {
+      className: 'fab-editbox',
+      style: { width: styleWidth || '' },
+      getAttribute: function(name) {
+        return name === 'data-options' ? dataOptions : null;
+      }
+    };
+  }
+  var styleElement = createElement(
+    "editor:'text',iconCls:'icon-search'",
+    '300px'
+  );
+  var numberElement = createElement(
+    "editor:'text',iconCls:'icon-search',width:300"
+  );
+  var stringElement = createElement(
+    "editor:'text',iconCls:'icon-search',width:'300px'"
+  );
   var context = {
     querySelectorAll: function() {
-      return [element];
+      return [styleElement, numberElement, stringElement];
     }
   };
   var adapter = createFabEditBoxJQuery($, { EditBox: FakeEditBox });
   adapter.parse(context);
-  assert.equal($(element).fabeditbox('option', 'editor'), 'text');
-  assert.equal($(element).fabeditbox('option', 'iconCls'), 'icon-search');
-  assert.equal($(element).fabeditbox('option', 'width'), '300px');
-  assert.deepEqual($(element).fabeditbox('option', 'icons'), [{
+  assert.equal($(styleElement).fabeditbox('option', 'editor'), 'text');
+  assert.equal($(styleElement).fabeditbox('option', 'iconCls'), 'icon-search');
+  assert.equal($(styleElement).fabeditbox('option', 'width'), '300px');
+  assert.equal($(numberElement).fabeditbox('option', 'width'), 300);
+  assert.equal($(stringElement).fabeditbox('option', 'width'), '300px');
+  assert.deepEqual($(styleElement).fabeditbox('option', 'icons'), [{
     iconCls: 'icon-search',
     align: 'right',
     width: undefined
