@@ -1,8 +1,8 @@
-import { createEditorDefinitions } from './editbox-definitions.js?v=20260717-editbox-v2';
-import { createTextBoxFactory } from '../textbox/textbox.js?v=20260717-editbox-v2';
-import { createNumberBoxFactory } from '../numberbox/numberbox.js?v=20260717-editbox-v2';
-import { createDateBoxFactory } from '../datebox/datebox.js?v=20260717-editbox-v2';
-import { createComboBoxFactory } from '../combobox/combobox.js?v=20260717-editbox-v2';
+import { createEditorDefinitions } from './editbox-definitions.js?v=20260717-editbox-v6';
+import { createTextBoxFactory } from '../textbox/textbox.js?v=20260717-editbox-v6';
+import { createNumberBoxFactory } from '../numberbox/numberbox.js?v=20260717-editbox-v6';
+import { createDateBoxFactory } from '../datebox/datebox.js?v=20260717-editbox-v6';
+import { createComboBoxFactory } from '../combobox/combobox.js?v=20260717-editbox-v6';
 
 var EDITOR_TYPES = ['textbox', 'numberbox', 'datebox', 'combobox'];
 

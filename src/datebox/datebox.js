@@ -33,6 +33,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
   };
 
   var dateDefaults = {
+    iconWidth: 28,
     panelWidth: 250,
     panelHeight: 'auto',
     locale: 'en',
@@ -225,7 +226,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     icons.push({
       iconCls: 'icon-datebox fui-datebox-trigger',
       align: 'right',
-      width: userOptions.iconWidth || 18,
+      width: this._options.iconWidth,
       title: 'Calendar',
       onClick: function() {
         self.togglePanel();
