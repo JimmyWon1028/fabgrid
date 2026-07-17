@@ -13,6 +13,9 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
       currentText: 'Today',
       closeText: 'Close',
       okText: 'Ok',
+      yearText: 'Year',
+      previousYearText: 'Previous year',
+      nextYearText: 'Next year',
       weeks: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
       months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     },
@@ -20,6 +23,9 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
       currentText: '今天',
       closeText: '關閉',
       okText: '確定',
+      yearText: '年份',
+      previousYearText: '上一年',
+      nextYearText: '下一年',
       weeks: ['日', '一', '二', '三', '四', '五', '六'],
       months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
     },
@@ -27,6 +33,9 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
       currentText: '今天',
       closeText: '关闭',
       okText: '确定',
+      yearText: '年份',
+      previousYearText: '上一年',
+      nextYearText: '下一年',
       weeks: ['日', '一', '二', '三', '四', '五', '六'],
       months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
     }
@@ -43,6 +52,9 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     currentText: null,
     closeText: null,
     okText: null,
+    yearText: null,
+    previousYearText: null,
+    nextYearText: null,
     weeks: null,
     months: null,
     buttons: null,
@@ -222,6 +234,9 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'currentText')) this._options.currentText = locale.currentText;
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'closeText')) this._options.closeText = locale.closeText;
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'okText')) this._options.okText = locale.okText;
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'yearText')) this._options.yearText = locale.yearText;
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'previousYearText')) this._options.previousYearText = locale.previousYearText;
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'nextYearText')) this._options.nextYearText = locale.nextYearText;
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'weeks')) this._options.weeks = locale.weeks.slice();
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'months')) this._options.months = locale.months.slice();
     this._normalizeCalendarOptions();
@@ -383,7 +398,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
       if (!event.target.closest('input')) event.preventDefault();
     };
     this._onPanelClick = function(event) {
-      if (!self._calendar.contains(event.target)) self._handleCalendarClick(event);
+      if (event.target.closest('[data-button-index]')) self._handleCalendarClick(event);
     };
     this._onDocumentMouseDown = function(event) {
       if (self._panelVisible && !self._panel.contains(event.target) && !self._field.contains(event.target)) self.hidePanel();
@@ -428,7 +443,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     var button;
     var date;
     var valid;
-    this._calendarTitle.textContent = this._options.calendarMode === 'months' ? String(year) : this._options.months[month] + ' ' + year;
+    this._calendarTitle.textContent = this._options.months[month] + ' ' + year;
     table.setAttribute('role', 'grid');
     if (this._options.showWeek) {
       cell = document.createElement('th');
@@ -502,6 +517,8 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
   DateBox.prototype._renderMonthMenu = function() {
     var yearRow = document.createElement('div');
     var yearInput = document.createElement('input');
+    var previousYear = document.createElement('button');
+    var nextYear = document.createElement('button');
     var grid = document.createElement('div');
     var index;
     var button;
@@ -509,8 +526,18 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     yearInput.className = 'fui-calendar-menu-year';
     yearInput.type = 'number';
     yearInput.value = this._viewDate.getFullYear();
-    yearInput.setAttribute('aria-label', 'Year');
+    yearInput.setAttribute('aria-label', this._options.yearText);
+    previousYear.type = 'button';
+    previousYear.className = 'fui-calendar-menu-year-nav fui-calendar-menu-prevyear';
+    previousYear.setAttribute('aria-label', this._options.previousYearText);
+    previousYear.setAttribute('data-year-offset', '-1');
+    nextYear.type = 'button';
+    nextYear.className = 'fui-calendar-menu-year-nav fui-calendar-menu-nextyear';
+    nextYear.setAttribute('aria-label', this._options.nextYearText);
+    nextYear.setAttribute('data-year-offset', '1');
+    yearRow.appendChild(previousYear);
     yearRow.appendChild(yearInput);
+    yearRow.appendChild(nextYear);
     grid.className = 'fui-calendar-menu-months';
     for (index = 0; index < 12; index += 1) {
       button = document.createElement('button');
@@ -556,12 +583,24 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
 
   DateBox.prototype._handleCalendarClick = function(event) {
     var nav = event.target.closest('[data-month-offset]');
+    var yearNav = event.target.closest('[data-year-offset]');
     var day = event.target.closest('[data-date]');
     var month = event.target.closest('[data-month]');
     var footer = event.target.closest('[data-button-index]');
     var yearInput;
     var date;
     var descriptor;
+    if (yearNav) {
+      yearInput = this._calendarMenu.querySelector('.fui-calendar-menu-year');
+      this._viewDate = new Date(
+        (parseInt(yearInput.value, 10) || this._viewDate.getFullYear()) +
+          Number(yearNav.getAttribute('data-year-offset')),
+        this._viewDate.getMonth(),
+        1
+      );
+      this._renderCalendar();
+      return;
+    }
     if (nav) {
       this._moveMonth(Number(nav.getAttribute('data-month-offset')));
       return;

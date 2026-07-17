@@ -97,11 +97,6 @@
 .fui-calendar-nextmonth { right: 30px; }
 .fui-calendar-nextyear { right: 10px; }
 
-.fui-calendar-month-mode .fui-calendar-prevmonth,
-.fui-calendar-month-mode .fui-calendar-nextmonth {
-  display: none;
-}
-
 .fui-calendar-prevyear::before,
 .fui-calendar-prevyear::after,
 .fui-calendar-prevmonth::before {
@@ -212,8 +207,13 @@
 .fui-calendar-menu[hidden] { display: none; }
 
 .fui-calendar-menu-year-row {
-  padding: 5px 0 12px;
-  text-align: center;
+  display: grid;
+  grid-template-columns: 28px 80px 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 44px;
+  padding: 0 0 8px;
 }
 
 .fui-calendar-menu-year {
@@ -229,14 +229,53 @@
   text-align: center;
 }
 
+.fui-calendar-menu-year-nav {
+  position: relative;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--fui-control-radius, 5px);
+  background: transparent;
+  cursor: pointer;
+}
+
+.fui-calendar-menu-year-nav:hover,
+.fui-calendar-menu-year-nav:focus-visible {
+  background: var(--fui-control-hover, #eaf2ff);
+}
+
+.fui-calendar-menu-year-nav::before {
+  content: '';
+  position: absolute;
+  top: 9px;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid var(--fui-control-icon, #555);
+  border-left: 2px solid var(--fui-control-icon, #555);
+}
+
+.fui-calendar-menu-prevyear::before {
+  left: 11px;
+  transform: rotate(-45deg);
+}
+
+.fui-calendar-menu-nextyear::before {
+  right: 11px;
+  transform: rotate(135deg);
+}
+
 .fui-calendar-menu-months {
   display: grid;
+  height: calc(100% - 44px);
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px 4px;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 4px;
 }
 
 .fui-calendar-menu-month {
-  height: 34px;
+  min-height: 38px;
   padding: 0 2px;
   border: 0;
   border-radius: var(--fui-control-radius, 5px);
