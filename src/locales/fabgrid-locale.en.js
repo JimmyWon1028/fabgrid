@@ -18,6 +18,8 @@
       total: 'Total',
       expandGroup: 'Expand group',
       collapseGroup: 'Collapse group',
+      expandAll: 'Expand all',
+      collapseAll: 'Collapse all',
       showDetail: 'Show detail',
       detailTitle: 'Detail records',
       detailCount: '{count} records',
@@ -28,6 +30,34 @@
       aggregate: 'Aggregate',
       removeField: 'Remove field',
       filteredValues: 'Filtered',
+      chart: {
+        ariaLabel: 'Pivot chart',
+        title: 'Pivot Chart',
+        pointsTruncated: 'Showing {count} of {total} categories',
+        seriesTruncated: 'Showing {count} of {total} series'
+      },
+      workspace: {
+        ariaLabel: 'Pivot analysis workspace',
+        panelTitle: 'Define View',
+        gridTitle: 'Pivot Grid',
+        chartTitle: 'Pivot Chart',
+        panelSplitter: 'Resize definition pane',
+        chartSplitter: 'Resize chart pane',
+        hidePanel: 'Hide Definition',
+        showPanel: 'Show Definition',
+        hideChart: 'Hide Chart',
+        showChart: 'Show Chart',
+        gridFullscreen: 'Pivot Grid fullscreen',
+        chartFullscreen: 'Pivot Chart fullscreen',
+        exitFullscreen: 'Exit fullscreen',
+        chartType: 'Chart type',
+        chartTypes: {
+          column: 'Column',
+          bar: 'Bar',
+          line: 'Line',
+          pie: 'Pie'
+        }
+      },
       panel: {
         ariaLabel: 'Pivot view settings',
         fields: 'Fields',

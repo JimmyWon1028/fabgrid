@@ -18,6 +18,8 @@
       total: '小计',
       expandGroup: '展开群组',
       collapseGroup: '折叠群组',
+      expandAll: '全部展开',
+      collapseAll: '全部折叠',
       showDetail: '查看明细',
       detailTitle: '明细数据',
       detailCount: '共 {count} 条',
@@ -28,6 +30,34 @@
       aggregate: '汇总方式',
       removeField: '移除字段',
       filteredValues: '已筛选',
+      chart: {
+        ariaLabel: 'Pivot 图表',
+        title: 'Pivot 图表',
+        pointsTruncated: '显示前 {count}/{total} 个分类',
+        seriesTruncated: '显示前 {count}/{total} 个系列'
+      },
+      workspace: {
+        ariaLabel: 'Pivot 分析工作区',
+        panelTitle: '定义 View',
+        gridTitle: 'Pivot Grid',
+        chartTitle: 'Pivot 图表',
+        panelSplitter: '调整定义区大小',
+        chartSplitter: '调整图表区大小',
+        hidePanel: '隐藏定义',
+        showPanel: '显示定义',
+        hideChart: '隐藏图表',
+        showChart: '显示图表',
+        gridFullscreen: 'Pivot Grid 全屏',
+        chartFullscreen: 'Pivot 图表全屏',
+        exitFullscreen: '退出全屏',
+        chartType: '图形类型',
+        chartTypes: {
+          column: '柱形图',
+          bar: '条形图',
+          line: '折线图',
+          pie: '饼图'
+        }
+      },
       panel: {
         ariaLabel: 'Pivot View 设置',
         fields: '字段',

@@ -48,9 +48,9 @@
     </header>
     <section class="toolbar">
       <select id="viewSelect" aria-label="View">
-        <option value="region-product">季度／區域／產品</option>
-        <option value="basic">季度／平台</option>
-        <option value="region">季度／區域</option>
+        <option value="region-product-sales">季度／區域／產品（銷售額）</option>
+        <option value="platform-sales">季度／平台（銷售額）</option>
+        <option value="region-sales">季度／區域（銷售額）</option>
       </select>
       <button id="saveView" type="button">儲存 View</button>
       <button id="loadView" type="button">載入 View</button>
@@ -63,7 +63,6 @@
           銷售分析
           <span class="panel-title-actions">
             <button id="togglePivotPanel" type="button" aria-controls="pivotPanelCard" aria-expanded="true">隱藏定義</button>
-            <button id="toggleAllGroups" type="button" data-action="collapse">全部疊合</button>
           </span>
         </h2>
         <div id="pivotGrid"></div>
@@ -74,41 +73,62 @@
   <script src="../dist/fabui.min.js?v=20260716-pivot-build-v11"></script>
   <script>
     (function() {
-      var regions = ['北區', '中區', '南區', '東區'];
-      var platforms = ['Web', 'Mobile'];
-      var products = ['FabGrid', 'FabChart', 'FabForms'];
-      var agents = ['Amy', 'Ben', 'Cindy', 'David', 'Eva', 'Frank'];
+      var regions = [
+        { name: '北區', factor: 1.25 },
+        { name: '南區', factor: .75 }
+      ];
+      var platforms = [
+        { name: 'Web', factor: 1 },
+        { name: 'Mobile', factor: .6 }
+      ];
+      var products = [
+        { name: 'FabGrid', sales: 520000, downloads: 18000, revenueFactor: 1.25 },
+        { name: 'FabChart', sales: 240000, downloads: 42000, revenueFactor: 1.08 },
+        { name: 'FabForms', sales: 80000, downloads: 96000, revenueFactor: .92 }
+      ];
+      var agents = ['Amy', 'Cindy', 'Eva'];
+      var quarterFactors = [.6, .9, 1.35, 1.9];
+      var monthFactors = [.9, 1, 1.1];
       var rows = [];
-      var i;
+      var id = 1;
+      var quarterIndex;
+      var monthIndex;
+      var productIndex;
+      var regionIndex;
+      var platformIndex;
+      var factor;
       var sales;
+      var downloads;
       var engine;
       var pivot;
       var panel;
       var definitions;
-      var toggleAllGroupsButton;
 
-      function updateAllGroupsButton() {
-        var hasToggle = !!pivot.root.querySelector('.fg-pivot-row-toggle, .fg-pivot-column-toggle');
-        var hasExpanded = !!pivot.root.querySelector(
-          '.fg-pivot-row-toggle[aria-expanded="true"], .fg-pivot-column-toggle[aria-expanded="true"]'
-        );
-        toggleAllGroupsButton.disabled = !hasToggle;
-        toggleAllGroupsButton.setAttribute('data-action', hasExpanded ? 'collapse' : 'expand');
-        toggleAllGroupsButton.textContent = hasExpanded ? '全部疊合' : '全部展開';
-      }
-
-      for (i = 0; i < 10000; i += 1) {
-        sales = 40 + (i * 37) % 980;
-        rows.push({
-          quarter: 2025 + Math.floor((i % 18) / 12) + ' Q' + (Math.floor((i % 12) / 3) + 1),
-          agent: agents[i % agents.length],
-          region: regions[(i * 3) % regions.length],
-          platform: platforms[(i * 5) % platforms.length],
-          product: products[(i * 7) % products.length],
-          sales: sales,
-          downloads: 20 + (i * 19) % 720,
-          revenue: Math.round(sales * 2.35 * 100) / 100
-        });
+      for (quarterIndex = 0; quarterIndex < quarterFactors.length; quarterIndex += 1) {
+        for (monthIndex = 0; monthIndex < monthFactors.length; monthIndex += 1) {
+          for (productIndex = 0; productIndex < products.length; productIndex += 1) {
+            for (regionIndex = 0; regionIndex < regions.length; regionIndex += 1) {
+              for (platformIndex = 0; platformIndex < platforms.length; platformIndex += 1) {
+                factor = quarterFactors[quarterIndex] * monthFactors[monthIndex] *
+                  regions[regionIndex].factor * platforms[platformIndex].factor;
+                sales = Math.round(products[productIndex].sales * factor);
+                downloads = Math.round(products[productIndex].downloads * factor);
+                rows.push({
+                  id: id,
+                  quarter: '2026 Q' + (quarterIndex + 1),
+                  agent: agents[(quarterIndex + productIndex + regionIndex + platformIndex) % agents.length],
+                  region: regions[regionIndex].name,
+                  platform: platforms[platformIndex].name,
+                  product: products[productIndex].name,
+                  sales: sales,
+                  downloads: downloads,
+                  revenue: Math.round(sales * products[productIndex].revenueFactor * 100) / 100
+                });
+                id += 1;
+              }
+            }
+          }
+        }
       }
       engine = new fabui.pivot.PivotEngine({
         itemsSource: rows,
@@ -123,9 +143,9 @@
           { key: 'revenue', binding: 'revenue', header: '營收', dataType: 'number', aggregate: 'Sum', format: 'n2' }
         ],
         rowFields: ['quarter', 'region'],
-        columnFields: ['platform', 'product'],
-        valueFields: ['sales', 'downloads', 'revenue'],
-        filterFields: ['agent'],
+        columnFields: ['product'],
+        valueFields: ['sales'],
+        filterFields: ['platform'],
         showRowTotals: 'Subtotals',
         showColumnTotals: 'Subtotals'
       });
@@ -140,18 +160,9 @@
       pivot.root.classList.add('fg-theme-default');
       panel.hostElement.classList.add('fg-theme-default');
       definitions = {
-        basic: { rowFields: ['quarter'], columnFields: ['platform'], valueFields: ['sales', 'downloads', 'revenue'], filterFields: ['agent'] },
-        region: { rowFields: ['quarter', 'region'], columnFields: [], valueFields: ['sales', 'downloads', 'revenue'], filterFields: ['agent'] },
-        'region-product': { rowFields: ['quarter', 'region'], columnFields: ['platform', 'product'], valueFields: ['sales', 'downloads', 'revenue'], filterFields: ['agent'] }
-      };
-      toggleAllGroupsButton = document.getElementById('toggleAllGroups');
-      toggleAllGroupsButton.onclick = function(event) {
-        if (event.currentTarget.getAttribute('data-action') === 'collapse') {
-          pivot.collapseAll();
-        } else {
-          pivot.expandAll();
-        }
-        window.requestAnimationFrame(updateAllGroupsButton);
+        'region-product-sales': { rowFields: ['quarter', 'region'], columnFields: ['product'], valueFields: ['sales'], filterFields: ['platform'] },
+        'platform-sales': { rowFields: ['quarter'], columnFields: ['platform'], valueFields: ['sales'], filterFields: ['region'] },
+        'region-sales': { rowFields: ['quarter'], columnFields: ['region'], valueFields: ['sales'], filterFields: ['platform'] }
       };
       document.getElementById('togglePivotPanel').onclick = function(event) {
         var workspace = document.getElementById('pivotWorkspace');
@@ -162,15 +173,6 @@
           pivot.refresh();
         });
       };
-      pivot.root.addEventListener('click', function(event) {
-        if (event.target.classList.contains('fg-pivot-row-toggle') ||
-            event.target.classList.contains('fg-pivot-column-toggle')) {
-          window.requestAnimationFrame(updateAllGroupsButton);
-        }
-      });
-      engine.updatedView.addHandler(function() {
-        window.requestAnimationFrame(updateAllGroupsButton);
-      });
       document.getElementById('viewSelect').onchange = function(event) {
         var selected = definitions[event.target.value];
         var definition = engine.viewDefinition;
@@ -194,7 +196,6 @@
       engine.updatedView.addHandler(updateStats);
       pivot.updatedView.addHandler(updateStats);
       updateStats();
-      updateAllGroupsButton();
       window.pivotEngine = engine;
       window.pivotGrid = pivot;
       window.pivotPanel = panel;

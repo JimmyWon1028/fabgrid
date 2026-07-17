@@ -61,15 +61,15 @@ export function createChartFactory() {
     this.svg = document.createElementNS(SVG_NS, 'svg');
     this.svg.setAttribute('class', 'fui-chart-svg');
     this.svg.setAttribute('role', 'img');
-    this.legend = document.createElement('div');
-    this.legend.className = 'fui-chart-legend';
+    this.legendElement = document.createElement('div');
+    this.legendElement.className = 'fui-chart-legend';
     this.tooltip = document.createElement('div');
     this.tooltip.className = 'fui-chart-tooltip';
     this.tooltip.setAttribute('role', 'tooltip');
     this.body.appendChild(this.svg);
     this.root.appendChild(this.title);
     this.root.appendChild(this.body);
-    this.root.appendChild(this.legend);
+    this.root.appendChild(this.legendElement);
     this.root.appendChild(this.tooltip);
     this.host.appendChild(this.root);
   };
@@ -181,13 +181,13 @@ export function createChartFactory() {
   };
 
   Chart.prototype.renderFooter = function() {
-    if (!this.footer) {
-      this.footer = document.createElement('div');
-      this.footer.className = 'fui-chart-footer';
-      this.root.insertBefore(this.footer, this.legend);
+    if (!this.footerElement) {
+      this.footerElement = document.createElement('div');
+      this.footerElement.className = 'fui-chart-footer';
+      this.root.insertBefore(this.footerElement, this.legendElement);
     }
-    this.footer.textContent = this.options.footer || '';
-    this.footer.style.display = this.options.footer ? '' : 'none';
+    this.footerElement.textContent = this.options.footer || '';
+    this.footerElement.style.display = this.options.footer ? '' : 'none';
   };
 
   Chart.prototype.renderEmpty = function(width, height) {
@@ -197,7 +197,7 @@ export function createChartFactory() {
   };
 
   Chart.prototype.renderCartesian = function(type, width, height, model) {
-    var margin = { top: 16, right: 20, bottom: 44, left: 56 };
+    var margin = { top: 16, right: 20, bottom: 44, left: 72 };
     var plot = { x: margin.left, y: margin.top, width: width - margin.left - margin.right, height: height - margin.top - margin.bottom };
     var categories = model.categories;
     var series = model.series;
@@ -341,7 +341,10 @@ export function createChartFactory() {
 
   Chart.prototype.renderCategoryLabel = function(type, plot, categories, index) {
     var count = Math.max(categories.length, 1);
+    var maxLabels = type === 'bar' ? count : Math.max(2, Math.floor(plot.width / 100));
+    var step = Math.max(1, Math.ceil(count / maxLabels));
     var text;
+    if (type !== 'bar' && index % step !== 0 && index !== count - 1) return;
     if (type === 'bar') text = svgElement('text', { x: plot.x - 8, y: plot.y + plot.height * (index + 0.5) / count + 4, class: 'fui-chart-category-label', 'text-anchor': 'end' });
     else text = svgElement('text', { x: plot.x + plot.width * (index + 0.5) / count, y: plot.y + plot.height + 28, class: 'fui-chart-category-label', 'text-anchor': 'middle' });
     text.textContent = categories[index]; this.svg.appendChild(text);
@@ -349,15 +352,15 @@ export function createChartFactory() {
 
   Chart.prototype.renderLegend = function(series) {
     var self = this;
-    this.legend.innerHTML = '';
+    this.legendElement.innerHTML = '';
     var position = getLegendPosition(this.options.legend);
     this.root.setAttribute('data-legend-position', position.toLowerCase());
-    this.legend.style.display = position === 'None' ? 'none' : '';
+    this.legendElement.style.display = position === 'None' ? 'none' : '';
     if (position === 'None') return;
     series.forEach(function(item, index) {
       var entry = document.createElement('span'); var swatch = document.createElement('i');
       entry.className = 'fui-chart-legend-item'; swatch.style.backgroundColor = self.getColor(index);
-      entry.appendChild(swatch); entry.appendChild(document.createTextNode(item.name || ('Series ' + (index + 1)))); self.legend.appendChild(entry);
+      entry.appendChild(swatch); entry.appendChild(document.createTextNode(item.name || ('Series ' + (index + 1)))); self.legendElement.appendChild(entry);
     });
   };
 

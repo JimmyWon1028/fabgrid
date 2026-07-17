@@ -22,9 +22,12 @@ const javascriptSources = [
   'grid/fabgrid-editor-runtime.js',
   'editor/editor-definitions.js',
   'grid/fabgrid.js',
+  'pivot/pivot-utils.js',
   'pivot/pivot-engine.js',
+  'pivot/pivot-chart.js',
   'pivot/pivot-grid.js',
-  'pivot/pivot-panel.js'
+  'pivot/pivot-panel.js',
+  'pivot/pivot-workspace.js'
 ];
 const localeSources = [
   'locales/fabgrid-locale.en.js',
@@ -151,10 +154,12 @@ function createJavascriptBundle() {
     'global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);\n' +
     'global.fabui.pivot = {};\n' +
     'global.fabui.pivot.PivotAggregate = PivotAggregate;\n' +
+    'global.fabui.pivot.PivotChart = createPivotChartFactory(global.fabui.Control, registerControl, unregisterControl, PivotEngine, global.fabui.Chart, global.fabui.FabGrid);\n' +
     'global.fabui.pivot.PivotEngine = PivotEngine;\n' +
     'global.fabui.pivot.PivotField = PivotField;\n' +
     'global.fabui.pivot.PivotGrid = createPivotGridFactory(global.fabui.FabGrid, PivotEngine);\n' +
     'global.fabui.pivot.PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.FabGrid);\n' +
+    'global.fabui.pivot.PivotWorkspace = createPivotWorkspaceFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.pivot.PivotPanel, global.fabui.pivot.PivotGrid, global.fabui.pivot.PivotChart, global.fabui.FabGrid);\n' +
     'global.fabui.pivot.PivotShowTotals = PivotShowTotals;\n' +
     'global.fabui.CellType = CellType;\n' +
     'global.fabui.FabGridLocales = global.fabui.FabGrid.locales;\n' +
@@ -180,15 +185,19 @@ function createEsmJavascriptBundle() {
     'var editorDefinitions = createEditorDefinitions();\n' +
     'var Chart = createChartFactory();\n' +
     'var FabGrid = createFabGridFactory(editorDefinitions);\n' +
+    'var PivotChart = createPivotChartFactory(Control, registerControl, unregisterControl, PivotEngine, Chart, FabGrid);\n' +
     'var PivotGrid = createPivotGridFactory(FabGrid, PivotEngine);\n' +
     'var PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, FabGrid);\n' +
+    'var PivotWorkspace = createPivotWorkspaceFactory(Control, registerControl, unregisterControl, PivotEngine, PivotPanel, PivotGrid, PivotChart, FabGrid);\n' +
     'var pivotNamespace = {\n' +
     '  PivotAggregate: PivotAggregate,\n' +
+    '  PivotChart: PivotChart,\n' +
     '  PivotEngine: PivotEngine,\n' +
     '  PivotField: PivotField,\n' +
     '  PivotGrid: PivotGrid,\n' +
     '  PivotPanel: PivotPanel,\n' +
-    '  PivotShowTotals: PivotShowTotals\n' +
+    '  PivotShowTotals: PivotShowTotals,\n' +
+    '  PivotWorkspace: PivotWorkspace\n' +
     '};\n' +
     'var fabui = {\n' +
     '  version: ' + JSON.stringify(buildVersion) + ',\n' +
@@ -238,13 +247,19 @@ function verifyBuildOutput() {
   if (javascript.indexOf('global.fabui.Chart = createChartFactory()') < 0) {
     throw new Error('FabUI Chart is missing from the JavaScript bundle.');
   }
+  if (javascript.indexOf('global.fabui.pivot.PivotChart = createPivotChartFactory') < 0) {
+    throw new Error('FabUI PivotChart is missing from the JavaScript bundle.');
+  }
   if (javascript.indexOf('global.fabui.pivot.PivotGrid = createPivotGridFactory') < 0) {
     throw new Error('FabUI PivotGrid is missing from the JavaScript bundle.');
   }
   if (javascript.indexOf('global.fabui.pivot.PivotPanel = createPivotPanelFactory') < 0) {
     throw new Error('FabUI PivotPanel is missing from the JavaScript bundle.');
   }
-  if (/global\.fabui\.(?:PivotAggregate|PivotEngine|PivotField|PivotGrid|PivotPanel|PivotShowTotals)\s*=/.test(javascript)) {
+  if (javascript.indexOf('global.fabui.pivot.PivotWorkspace = createPivotWorkspaceFactory') < 0) {
+    throw new Error('FabUI PivotWorkspace is missing from the JavaScript bundle.');
+  }
+  if (/global\.fabui\.(?:PivotAggregate|PivotChart|PivotEngine|PivotField|PivotGrid|PivotPanel|PivotShowTotals|PivotWorkspace)\s*=/.test(javascript)) {
     throw new Error('Pivot APIs must only be published through fabui.pivot.');
   }
   if (javascript.indexOf('global.fabui.Control = Control') < 0) {

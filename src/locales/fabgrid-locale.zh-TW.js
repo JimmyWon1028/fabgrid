@@ -18,6 +18,8 @@
       total: '小計',
       expandGroup: '展開群組',
       collapseGroup: '收合群組',
+      expandAll: '全部展開',
+      collapseAll: '全部疊合',
       showDetail: '查看明細',
       detailTitle: '明細資料',
       detailCount: '共 {count} 筆',
@@ -28,6 +30,34 @@
       aggregate: '彙總方式',
       removeField: '移除欄位',
       filteredValues: '已篩選',
+      chart: {
+        ariaLabel: 'Pivot 圖表',
+        title: 'Pivot 圖表',
+        pointsTruncated: '顯示前 {count}／{total} 個分類',
+        seriesTruncated: '顯示前 {count}／{total} 個系列'
+      },
+      workspace: {
+        ariaLabel: 'Pivot 分析工作區',
+        panelTitle: '定義 View',
+        gridTitle: 'Pivot Grid',
+        chartTitle: 'Pivot 圖表',
+        panelSplitter: '調整定義區大小',
+        chartSplitter: '調整圖表區大小',
+        hidePanel: '隱藏定義',
+        showPanel: '顯示定義',
+        hideChart: '隱藏圖表',
+        showChart: '顯示圖表',
+        gridFullscreen: 'Pivot Grid 全螢幕',
+        chartFullscreen: 'Pivot 圖表全螢幕',
+        exitFullscreen: '離開全螢幕',
+        chartType: '圖形類型',
+        chartTypes: {
+          column: '直條圖',
+          bar: '橫條圖',
+          line: '折線圖',
+          pie: '圓餅圖'
+        }
+      },
       panel: {
         ariaLabel: 'Pivot View 設定',
         fields: '欄位',

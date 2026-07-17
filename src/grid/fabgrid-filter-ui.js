@@ -807,6 +807,14 @@ export function installFabGridFilterUi(FabGrid, context) {
     var operator;
     var colIndex;
     var column;
+    if (this.isTopLeftMenuOpen() && !closest(event.target, 'fg-top-left-menu')) {
+      this.hideTopLeftMenu();
+    }
+    if (this.isFilterMenuOpen() &&
+      !closest(event.target, 'fg-filter-menu') &&
+      !closest(event.target, 'fg-filter-icon')) {
+      this.hideFilterMenu();
+    }
     if (this.isColumnChooserOpen() &&
       !closest(event.target, 'fg-column-chooser') &&
       !closest(event.target, 'fg-column-chooser-trigger')) {

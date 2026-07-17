@@ -312,6 +312,8 @@ grid.columns[idx].cellTemplate = (ctx, cell) => {
 
 Excel-like 篩選 popup 開啟時可按 `Escape` 關閉；尚未按「套用」的選取變更不會寫入篩選條件。
 
+所有 Grid popup（右鍵選單、Filter、欄位選擇器與 datebox／combobox／color editor panel）都會在點擊外部時關閉；點擊 popup 內部或其 trigger 不會誤關閉。若同時存在多個 popup，點進其中一個會關閉其餘 popup。關閉 popup 不會自動套用、清除或提交尚未確認的內容。
+
 ### 分頁、遠端載入與選取
 
 | 方法 | 說明 |

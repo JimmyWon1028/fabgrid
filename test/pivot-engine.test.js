@@ -61,6 +61,26 @@ test('PivotEngine creates leaf, subtotal, and grand total aggregates', function(
   assert.equal(engine.pivotView.rowEntries.filter(function(entry) { return entry.isGrandTotal; }).length, 1);
 });
 
+test('PivotEngine averages only numeric values', function() {
+  var engine = new PivotEngine({
+    itemsSource: [
+      { group: 'A', amount: 10 },
+      { group: 'A', amount: 'invalid' },
+      { group: 'A', amount: 20 }
+    ],
+    fields: [
+      { binding: 'group', header: 'Group' },
+      { binding: 'amount', header: 'Amount', dataType: 'number', aggregate: 'Average' }
+    ],
+    rowFields: ['Group'],
+    valueFields: ['Amount'],
+    showRowTotals: 'None',
+    showColumnTotals: 'None'
+  });
+
+  assert.equal(getCell(engine, ['A'], [], 'Amount'), 15);
+});
+
 test('PivotEngine applies field filters before aggregation and returns matching detail', function() {
   var engine = createSalesEngine();
   var region = engine.getField('Region');
@@ -154,6 +174,54 @@ test('PivotEngine viewDefinition can be serialized and restored', function() {
   assert.deepEqual(restored.getField('Region').filter, { values: ['North'] });
   assert.equal(restored.getField('Region').sortDirection, -1);
   assert.equal(getCell(restored, [], [], 'Sales'), 30);
+});
+
+test('PivotEngine restores serialized Date filter values by value', function() {
+  var firstDate = new Date(2026, 0, 1);
+  var secondDate = new Date(2026, 1, 1);
+  var engine = new PivotEngine({
+    itemsSource: [
+      { date: firstDate, amount: 10 },
+      { date: secondDate, amount: 20 }
+    ],
+    fields: [
+      { binding: 'date', header: 'Date', dataType: 'date', filter: { values: [firstDate] } },
+      { binding: 'amount', header: 'Amount', dataType: 'number' }
+    ],
+    rowFields: ['Date'],
+    valueFields: ['Amount']
+  });
+  var definition = JSON.parse(JSON.stringify(engine.viewDefinition));
+  var restored = new PivotEngine({
+    itemsSource: engine.itemsSource
+  });
+
+  restored.viewDefinition = definition;
+  assert.equal(restored.pivotView.filteredCount, 1);
+  assert.equal(restored.pivotView.rows[0].__pivotMeta.path[0].getTime(), firstDate.getTime());
+});
+
+test('PivotEngine setFields rebinds active view areas to the new field instances', function() {
+  var engine = createSalesEngine();
+  var oldRowField = engine.rowFields[0];
+  var changedEvents = 0;
+
+  engine.viewDefinitionChanged.addHandler(function() {
+    changedEvents += 1;
+  });
+  engine.setFields([
+    { binding: 'region', key: 'Region', header: 'Sales Region' },
+    { binding: 'product', key: 'Product', header: 'Product' },
+    { binding: 'channel', key: 'Channel', header: 'Channel' },
+    { binding: 'sales', key: 'Sales', header: 'Sales', dataType: 'number' },
+    { binding: 'orders', key: 'Orders', header: 'Orders', dataType: 'number', aggregate: 'Average' }
+  ]);
+
+  assert.notEqual(engine.rowFields[0], oldRowField);
+  assert.equal(engine.rowFields[0], engine.getField('Region'));
+  assert.equal(engine.rowFields[0].header, 'Sales Region');
+  assert.equal(engine.valueFields[0], engine.getField('Sales'));
+  assert.equal(changedEvents, 1);
 });
 
 test('PivotEngine exposes compatible updatedView and native events', function() {

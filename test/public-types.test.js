@@ -129,6 +129,88 @@ test('PivotPanel closes the sorting popup with Escape', function() {
   assert.equal(stopped, true);
 });
 
+test('PivotPanel pointer outside closes each menu and pointer inside keeps its menu open', function() {
+  var panel = Object.create(fabui.pivot.PivotPanel.prototype);
+  var aggregateOpen = true;
+  var sortOpen = true;
+  var hidden = {
+    aggregate: 0,
+    sort: 0
+  };
+  var aggregateInside = {};
+  var outside = {};
+
+  panel.aggregateMenu = {
+    contains: function(target) { return target === aggregateInside; }
+  };
+  panel.sortMenu = {
+    contains: function() { return false; }
+  };
+  panel.isAggregateMenuOpen = function() { return aggregateOpen; };
+  panel.isSortMenuOpen = function() { return sortOpen; };
+  panel.hideAggregateMenu = function() {
+    aggregateOpen = false;
+    hidden.aggregate += 1;
+  };
+  panel.hideSortMenu = function() {
+    sortOpen = false;
+    hidden.sort += 1;
+  };
+
+  panel._handleDocumentPointerDown({ target: aggregateInside });
+  assert.deepEqual(hidden, {
+    aggregate: 0,
+    sort: 1
+  });
+
+  panel._handleDocumentPointerDown({ target: outside });
+  assert.deepEqual(hidden, {
+    aggregate: 1,
+    sort: 1
+  });
+});
+
+test('PivotPanel binds the document pointer listener only while a menu is open', function() {
+  var panel = Object.create(fabui.pivot.PivotPanel.prototype);
+  var originalDocument = globalThis.document;
+  var aggregateOpen = false;
+  var sortOpen = false;
+  var added = 0;
+  var removed = 0;
+
+  panel._managedEventListeners = [];
+  panel._documentPointerDownBound = false;
+  panel._documentPointerDownHandler = function() {};
+  panel.isAggregateMenuOpen = function() { return aggregateOpen; };
+  panel.isSortMenuOpen = function() { return sortOpen; };
+  globalThis.document = {
+    addEventListener: function() { added += 1; },
+    removeEventListener: function() { removed += 1; }
+  };
+
+  try {
+    panel._syncDocumentMenuPointerListener();
+    assert.equal(added, 0);
+
+    aggregateOpen = true;
+    panel._syncDocumentMenuPointerListener();
+    panel._syncDocumentMenuPointerListener();
+    assert.equal(added, 1);
+
+    aggregateOpen = false;
+    sortOpen = true;
+    panel._syncDocumentMenuPointerListener();
+    assert.equal(removed, 0);
+
+    sortOpen = false;
+    panel._syncDocumentMenuPointerListener();
+    assert.equal(removed, 1);
+  } finally {
+    panel.removeEventListener();
+    globalThis.document = originalDocument;
+  }
+});
+
 test('PivotPanel drag indicator reports the insertion index without counting the dragged field', function() {
   var panel = Object.create(fabui.pivot.PivotPanel.prototype);
   var originalDocument = globalThis.document;
@@ -210,6 +292,51 @@ test('PivotGrid closes its context menu with Escape', function() {
   assert.equal(stopped, true);
 });
 
+test('PivotGrid closes its context menu on outside pointer but keeps inside pointer', function() {
+  var grid = Object.create(fabui.pivot.PivotGrid.prototype);
+  var hidden = 0;
+  var root = {
+    nodeType: 1,
+    classList: { contains: function() { return false; } },
+    parentElement: null,
+    parentNode: null
+  };
+  var menu = {
+    nodeType: 1,
+    className: 'fg-top-left-menu',
+    classList: {
+      contains: function(name) { return name === 'fg-top-left-menu'; }
+    },
+    parentElement: root,
+    parentNode: root
+  };
+  var inside = {
+    nodeType: 1,
+    classList: { contains: function() { return false; } },
+    parentElement: menu,
+    parentNode: menu
+  };
+  var outside = {
+    nodeType: 1,
+    classList: { contains: function() { return false; } },
+    parentElement: null,
+    parentNode: null
+  };
+
+  grid.root = root;
+  grid.isTopLeftMenuOpen = function() { return true; };
+  grid.hideTopLeftMenu = function() { hidden += 1; };
+  grid.isFilterMenuOpen = function() { return false; };
+  grid.isColumnChooserOpen = function() { return false; };
+  grid.getFilterMenuItemAtEvent = function() { return null; };
+
+  grid.handleFilterMenuClick({ target: inside });
+  assert.equal(hidden, 0);
+
+  grid.handleFilterMenuClick({ target: outside });
+  assert.equal(hidden, 1);
+});
+
 test('PivotGrid routes its header fullscreen menu action through FabGrid', function() {
   var grid = Object.create(fabui.pivot.PivotGrid.prototype);
   var fullscreenCalls = 0;
@@ -240,6 +367,124 @@ test('PivotGrid routes its header fullscreen menu action through FabGrid', funct
   assert.equal(hidden, true);
   assert.equal(prevented, true);
   assert.equal(stopped, true);
+});
+
+test('PivotGrid row field context menu swaps one expand and collapse all action', function() {
+  var originalDocument = globalThis.document;
+  var grid = Object.create(fabui.pivot.PivotGrid.prototype);
+  var appended = null;
+
+  function createNode() {
+    return {
+      children: [],
+      attributes: {},
+      appendChild: function(child) {
+        this.children.push(child);
+        return child;
+      },
+      setAttribute: function(name, value) {
+        this.attributes[name] = String(value);
+      }
+    };
+  }
+
+  globalThis.document = {
+    createDocumentFragment: createNode,
+    createElement: createNode
+  };
+  grid._pivotContext = {
+    cellType: fabui.CellType.Cell,
+    row: 0,
+    column: {
+      _pivotRowField: { key: 'quarter', header: 'Quarter' }
+    }
+  };
+  grid.view = [{ __pivotMeta: { key: 'q1', isSubtotal: true } }];
+  grid._pivotRowEntriesByKey = {
+    q1: { isSubtotal: true }
+  };
+  grid._pivotColumnEntriesByKey = {
+    web: { isSubtotal: true }
+  };
+  grid._pivotRowCollapsed = {};
+  grid._pivotColumnCollapsed = {};
+  grid.topLeftMenu = {
+    innerHTML: '',
+    appendChild: function(fragment) {
+      appended = fragment.children;
+    }
+  };
+  grid.getText = function(path) { return path; };
+
+  try {
+    grid.renderTopLeftMenu();
+    assert.deepEqual(appended.slice(0, 2).map(function(item) {
+      return item.attributes['data-action'];
+    }), [
+      'pivot-collapse-all',
+      'pivot-sort'
+    ]);
+    grid._pivotRowCollapsed.q1 = true;
+    grid.renderTopLeftMenu();
+    assert.deepEqual(appended.slice(0, 2).map(function(item) {
+      return item.attributes['data-action'];
+    }), [
+      'pivot-collapse-all',
+      'pivot-sort'
+    ]);
+    grid._pivotColumnCollapsed.web = true;
+    grid.renderTopLeftMenu();
+    assert.deepEqual(appended.slice(0, 2).map(function(item) {
+      return item.attributes['data-action'];
+    }), [
+      'pivot-expand-all',
+      'pivot-sort'
+    ]);
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
+test('PivotGrid row field context menu routes expand and collapse all actions', function() {
+  var grid = Object.create(fabui.pivot.PivotGrid.prototype);
+  var action = 'pivot-expand-all';
+  var expanded = 0;
+  var collapsed = 0;
+  var item = {
+    nodeType: 1,
+    classList: {
+      contains: function(name) { return name === 'fg-top-left-menu-item'; }
+    },
+    getAttribute: function(name) {
+      return name === 'data-action' ? action : null;
+    }
+  };
+
+  grid.topLeftMenu = {};
+  grid._pivotContext = {
+    cellType: fabui.CellType.Cell,
+    row: 0,
+    column: { _pivotRowField: { key: 'quarter' } }
+  };
+  grid.view = [{ __pivotMeta: { key: 'q1' } }];
+  grid.hideTopLeftMenu = function() {};
+  grid.expandAll = function() { expanded += 1; };
+  grid.collapseAll = function() { collapsed += 1; };
+
+  grid.handleTopLeftMenuClick({
+    target: item,
+    preventDefault: function() {},
+    stopPropagation: function() {}
+  });
+  action = 'pivot-collapse-all';
+  grid.handleTopLeftMenuClick({
+    target: item,
+    preventDefault: function() {},
+    stopPropagation: function() {}
+  });
+
+  assert.equal(expanded, 1);
+  assert.equal(collapsed, 1);
 });
 
 test('PivotGrid mirrors filter fields above row field headers and applies their selected value', function() {
@@ -339,6 +584,7 @@ test('PivotGrid row field headers reuse the FabGrid sort indicators', function()
 test('PivotGrid row field sorting cycles default, ascending, descending, and default', function() {
   var field = { key: 'quarter', sortDirection: 0 };
   var refreshCount = 0;
+  var changedCount = 0;
   var grid = Object.create(fabui.pivot.PivotGrid.prototype);
 
   grid._pivotEngine = {
@@ -347,6 +593,13 @@ test('PivotGrid row field sorting cycles default, ascending, descending, and def
     },
     refresh: function() {
       refreshCount += 1;
+    },
+    emit: function(name, args) {
+      if (name === 'viewDefinitionChanged' &&
+          args.property === 'sortDirection' &&
+          args.field === field) {
+        changedCount += 1;
+      }
     }
   };
 
@@ -357,6 +610,7 @@ test('PivotGrid row field sorting cycles default, ascending, descending, and def
   assert.equal(grid.togglePivotFieldSort(field.key), true);
   assert.equal(field.sortDirection, 0);
   assert.equal(refreshCount, 3);
+  assert.equal(changedCount, 3);
 });
 
 test('PivotGrid merges repeated row field values into collapsible group spans', function() {

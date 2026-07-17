@@ -2,6 +2,8 @@
 
 `fabui.Chart` 是主 bundle 內建的 pure JavaScript SVG 圖表元件。API 採用 Wijmo FlexChart／FlexPie 常見的資料綁定模型，範圍限定為 `Column`、`Bar`、`Line`、`Pie`。
 
+Pivot view 請使用 [`fabui.pivot.PivotChart`](./pivotchart-api.md)；它會把 PivotEngine view 轉成此 Chart 的 categories 與 series，不會重新彙總原始資料。
+
 ```js
 const chart = new fabui.Chart('#chart', {
   chartType: 'Column',

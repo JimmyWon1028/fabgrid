@@ -1,3 +1,8 @@
+import {
+  createPivotPathKey,
+  pivotValuesEqual
+} from './pivot-utils.js?v=20260717-pivot-typed-values-v1';
+
 export var PivotAggregate = Object.freeze({
   Sum: 'Sum',
   Count: 'Count',
@@ -175,18 +180,6 @@ PivotField.prototype.getItemValue = function(item) {
   return getGroupedValue(value, this.groupBy);
 };
 
-function createPathKey(path) {
-  return JSON.stringify(path.map(function(value) {
-    if (value instanceof Date) {
-      return ['date', value.getTime()];
-    }
-    if (value === null) return ['null', null];
-    if (value === undefined) return ['undefined', null];
-    if (typeof value === 'number' && isNaN(value)) return ['nan', null];
-    return [typeof value, value];
-  }));
-}
-
 function createAggregatePaths(path, totals) {
   var result = [path.slice()];
   var i;
@@ -250,7 +243,7 @@ function createEntryValueOrders(entries, fieldCount) {
   for (e = 0; e < entries.length; e += 1) {
     entry = entries[e];
     for (i = 0; i < entry.path.length && i < fieldCount; i += 1) {
-      key = createPathKey([entry.path[i]]);
+      key = createPivotPathKey([entry.path[i]]);
       if (!orders[i].has(key)) {
         orders[i].set(key, orders[i].size);
       }
@@ -260,8 +253,8 @@ function createEntryValueOrders(entries, fieldCount) {
 }
 
 function comparePivotValueOrder(left, right, order) {
-  var leftOrder = order && order.get(createPathKey([left]));
-  var rightOrder = order && order.get(createPathKey([right]));
+  var leftOrder = order && order.get(createPivotPathKey([left]));
+  var rightOrder = order && order.get(createPivotPathKey([right]));
   if (leftOrder == null || rightOrder == null) {
     return null;
   }
@@ -297,6 +290,7 @@ function compareEntries(left, right, fields, totalsBeforeData, valueOrders) {
 function createAccumulator() {
   return {
     count: 0,
+    numericCount: 0,
     sum: 0,
     min: null,
     max: null
@@ -313,6 +307,7 @@ function accumulateValue(accumulator, value, aggregate) {
     number = Number(value);
     if (!isNaN(number)) {
       accumulator.sum += number;
+      accumulator.numericCount += 1;
     }
   }
   if (accumulator.min == null || comparePivotValues(value, accumulator.min) < 0) {
@@ -328,7 +323,9 @@ function finalizeAccumulator(accumulator, aggregate) {
     return aggregate === PivotAggregate.Count ? 0 : null;
   }
   if (aggregate === PivotAggregate.Count) return accumulator.count;
-  if (aggregate === PivotAggregate.Average) return accumulator.sum / accumulator.count;
+  if (aggregate === PivotAggregate.Average) {
+    return accumulator.numericCount ? accumulator.sum / accumulator.numericCount : null;
+  }
   if (aggregate === PivotAggregate.Min) return accumulator.min;
   if (aggregate === PivotAggregate.Max) return accumulator.max;
   return accumulator.sum;
@@ -346,19 +343,23 @@ function matchesFieldFilter(field, item) {
     return filter(value, item) !== false;
   }
   if (Array.isArray(filter)) {
-    return filter.indexOf(value) >= 0;
+    return filter.some(function(filterValue) {
+      return pivotValuesEqual(filterValue, value, field.dataType);
+    });
   }
   if (typeof filter.predicate === 'function' && filter.predicate(value, item) === false) {
     return false;
   }
   values = Array.isArray(filter.values) ? filter.values : null;
-  return !values || values.indexOf(value) >= 0;
+  return !values || values.some(function(filterValue) {
+    return pivotValuesEqual(filterValue, value, field.dataType);
+  });
 }
 
 function pathMatches(item, fields, path) {
   var i;
   for (i = 0; i < path.length; i += 1) {
-    if (comparePivotValues(fields[i].getItemValue(item), path[i]) !== 0) {
+    if (!pivotValuesEqual(fields[i].getItemValue(item), path[i], fields[i].dataType)) {
       return false;
     }
   }
@@ -482,11 +483,21 @@ PivotEngine.prototype.emit = function(name, args) {
 };
 
 PivotEngine.prototype.setFields = function(definitions, silent) {
+  var areaNames = ['rowFields', 'columnFields', 'valueFields', 'filterFields'];
+  var areaKeys = {};
   var usedKeys = Object.create(null);
   var definition;
   var field;
   var key;
+  var name;
   var i;
+  definitions = Array.isArray(definitions) ? definitions : [];
+  for (i = 0; i < areaNames.length; i += 1) {
+    name = areaNames[i];
+    areaKeys[name] = (this[name] || []).map(function(item) {
+      return item.key;
+    });
+  }
   this.fields = [];
   for (i = 0; i < definitions.length; i += 1) {
     definition = definitions[i] || {};
@@ -505,7 +516,12 @@ PivotEngine.prototype.setFields = function(definitions, silent) {
     usedKeys[key] = true;
     this.fields.push(field);
   }
+  for (i = 0; i < areaNames.length; i += 1) {
+    name = areaNames[i];
+    this.setViewFields(name, areaKeys[name], true);
+  }
   if (!silent) {
+    this.emit('viewDefinitionChanged', { property: 'fields' });
     this.refresh();
   }
 };
@@ -662,12 +678,12 @@ PivotEngine.prototype._buildPivotView = function() {
     rowPaths = createAggregatePaths(rowPath, this.showRowTotals);
     columnPaths = createAggregatePaths(columnPath, this.showColumnTotals);
     for (r = 0; r < rowPaths.length; r += 1) {
-      rowKey = createPathKey(rowPaths[r]);
+      rowKey = createPivotPathKey(rowPaths[r]);
       if (!rowEntryMap.has(rowKey)) {
         rowEntryMap.set(rowKey, createEntry(rowPaths[r], this.rowFields.length));
       }
       for (c = 0; c < columnPaths.length; c += 1) {
-        columnKey = createPathKey(columnPaths[c]);
+        columnKey = createPivotPathKey(columnPaths[c]);
         if (!columnEntryMap.has(columnKey)) {
           columnEntryMap.set(columnKey, createEntry(columnPaths[c], this.columnFields.length));
         }
@@ -685,10 +701,10 @@ PivotEngine.prototype._buildPivotView = function() {
     }
   }
   if (!this.rowFields.length && !rowEntryMap.size) {
-    rowEntryMap.set(createPathKey([]), createEntry([], 0));
+    rowEntryMap.set(createPivotPathKey([]), createEntry([], 0));
   }
   if (!this.columnFields.length && !columnEntryMap.size) {
-    columnEntryMap.set(createPathKey([]), createEntry([], 0));
+    columnEntryMap.set(createPivotPathKey([]), createEntry([], 0));
   }
   rowEntries = Array.from(rowEntryMap.values());
   columnEntries = Array.from(columnEntryMap.values());
@@ -746,7 +762,7 @@ PivotEngine.prototype._buildPivotView = function() {
 
 function createEntry(path, fieldCount) {
   return {
-    key: createPathKey(path),
+    key: createPivotPathKey(path),
     path: path.slice(),
     level: path.length,
     isSubtotal: path.length > 0 && path.length < fieldCount,
@@ -874,14 +890,21 @@ Object.defineProperties(PivotEngine.prototype, {
   }
 });
 
-PivotEngine.prototype.formatFieldValue = function(field, value) {
+PivotEngine.prototype.formatFieldValue = function(field, value, locale) {
   var date;
   if (value == null) {
     return '';
   }
   if (field && field.dataType === 'date') {
     date = normalizeDate(value);
-    return date ? date.toLocaleDateString() : String(value);
+    if (!date) {
+      return String(value);
+    }
+    try {
+      return date.toLocaleDateString(locale || undefined);
+    } catch (error) {
+      return date.toLocaleDateString();
+    }
   }
   return String(value);
 };

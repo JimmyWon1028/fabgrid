@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FabUI PivotWorkspace Demo</title>
+  <link rel="stylesheet" href="../dist/fabui.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body { margin: 0; background: #f3f4f6; color: #1f2937; font-family: helvetica, tahoma, verdana, sans-serif; }
+    .page { display: flex; width: 100%; height: 100vh; height: 100dvh; min-height: 0; padding: 10px; flex-direction: column; gap: 8px; }
+    .header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 12px; }
+    .header h1 { margin: 0; font-size: 21px; }
+    .toolbar { display: flex; flex: 0 0 auto; align-items: center; gap: 8px 12px; min-width: 0; overflow-x: auto; padding: 7px 9px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; scrollbar-width: none; }
+    .toolbar::-webkit-scrollbar { display: none; }
+    .toolbar label { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; font-size: 13px; white-space: nowrap; }
+    .toolbar select, .toolbar button { height: 29px; border: 1px solid #b8c4d4; border-radius: 3px; background: #fff; color: inherit; font: inherit; }
+    .toolbar select { padding: 0 24px 0 7px; }
+    .toolbar button { padding: 0 9px; cursor: pointer; }
+    .toolbar .spacer { flex: 1 1 auto; }
+    .stats { flex: 0 0 auto; color: #475569; font-size: 12px; white-space: nowrap; }
+    #pivotWorkspace { flex: 1 1 auto; min-width: 0; min-height: 0; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <h1>fabui.pivot.PivotWorkspace</h1>
+    </header>
+    <section id="toolbar" class="toolbar" aria-label="PivotWorkspace 工具列">
+      <label>
+        <span id="themeLabel">主題</span>
+        <select id="themeSelect" aria-label="主題">
+          <option value="default">預設</option>
+          <option value="metro-blue">Metro Blue</option>
+          <option value="material">Material</option>
+          <option value="cupertino">Cupertino</option>
+          <option value="dark-hive">Dark Hive</option>
+        </select>
+      </label>
+      <label>
+        <span id="layoutLabel">排列</span>
+        <select id="layoutSelect" aria-label="排列方式">
+          <option value="Auto">自動</option>
+          <option value="Horizontal">水平</option>
+          <option value="Vertical">垂直</option>
+        </select>
+      </label>
+      <label>
+        <span id="localeLabel">語系</span>
+        <select id="localeSelect" aria-label="語系">
+          <option value="zh-TW">繁體中文</option>
+          <option value="zh-CN">简体中文</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <label>
+        <span id="exampleLabel">範例</span>
+        <select id="exampleSelect" aria-label="範例">
+          <option value="quarter-region-product">季度 / 區域 / 產品</option>
+          <option value="quarter-platform-product">季度 / 平台 / 產品</option>
+          <option value="region-product">區域 / 產品</option>
+          <option value="product-region">產品 / 區域</option>
+        </select>
+      </label>
+      <span class="spacer"></span>
+      <span id="stats" class="stats">準備資料...</span>
+    </section>
+    <div id="pivotWorkspace"></div>
+  </main>
+
+  <script src="../dist/fabui.min.js"></script>
+  <script>
+    (function() {
+      var rows = [];
+      var products = [
+        { name: 'FabGrid', sales: 620000 },
+        { name: 'FabChart', sales: 260000 },
+        { name: 'FabForms', sales: 90000 }
+      ];
+      var regions = [
+        { name: '北區', factor: 1.3 },
+        { name: '南區', factor: .72 }
+      ];
+      var platforms = [
+        { name: 'Web', factor: 1 },
+        { name: 'Mobile', factor: .58 }
+      ];
+      var quarterFactors = [.55, .9, 1.4, 2.1];
+      var workspace;
+      var id = 1;
+      var quarterIndex;
+      var regionIndex;
+      var productIndex;
+      var platformIndex;
+      var factor;
+      var currentLocale = 'zh-TW';
+      var themes = ['default', 'metro-blue', 'material', 'cupertino', 'dark-hive'];
+      var examples = {
+        'quarter-region-product': {
+          rowFields: ['quarter', 'region'],
+          columnFields: ['product'],
+          valueFields: ['sales'],
+          filterFields: ['platform']
+        },
+        'quarter-platform-product': {
+          rowFields: ['quarter', 'platform'],
+          columnFields: ['product'],
+          valueFields: ['sales'],
+          filterFields: ['region']
+        },
+        'region-product': {
+          rowFields: ['region'],
+          columnFields: ['product'],
+          valueFields: ['sales'],
+          filterFields: ['platform']
+        },
+        'product-region': {
+          rowFields: ['product'],
+          columnFields: ['region'],
+          valueFields: ['sales'],
+          filterFields: ['platform']
+        }
+      };
+      var demoLocales = {
+        'zh-TW': {
+          toolbar: 'PivotWorkspace 工具列',
+          theme: '主題',
+          layout: '排列',
+          locale: '語系',
+          example: '範例',
+          themes: {
+            'default': '預設',
+            'metro-blue': 'Metro Blue',
+            'material': 'Material',
+            'cupertino': 'Cupertino',
+            'dark-hive': 'Dark Hive'
+          },
+          layouts: {
+            'Auto': '自動',
+            'Horizontal': '水平',
+            'Vertical': '垂直'
+          },
+          locales: {
+            'zh-TW': '繁體中文',
+            'zh-CN': '简体中文',
+            'en': 'English'
+          },
+          examples: {
+            'quarter-region-product': '季度 / 區域 / 產品',
+            'quarter-platform-product': '季度 / 平台 / 產品',
+            'region-product': '區域 / 產品',
+            'product-region': '產品 / 區域'
+          },
+          statsRows: '列',
+          statsCategories: '圖形分類'
+        },
+        'zh-CN': {
+          toolbar: 'PivotWorkspace 工具栏',
+          theme: '主题',
+          layout: '布局',
+          locale: '语言',
+          example: '示例',
+          themes: {
+            'default': '默认',
+            'metro-blue': 'Metro Blue',
+            'material': 'Material',
+            'cupertino': 'Cupertino',
+            'dark-hive': 'Dark Hive'
+          },
+          layouts: {
+            'Auto': '自动',
+            'Horizontal': '水平',
+            'Vertical': '垂直'
+          },
+          locales: {
+            'zh-TW': '繁體中文',
+            'zh-CN': '简体中文',
+            'en': 'English'
+          },
+          examples: {
+            'quarter-region-product': '季度 / 区域 / 产品',
+            'quarter-platform-product': '季度 / 平台 / 产品',
+            'region-product': '区域 / 产品',
+            'product-region': '产品 / 区域'
+          },
+          statsRows: '行',
+          statsCategories: '图表分类'
+        },
+        'en': {
+          toolbar: 'PivotWorkspace toolbar',
+          theme: 'Theme',
+          layout: 'Layout',
+          locale: 'Language',
+          example: 'Example',
+          themes: {
+            'default': 'Default',
+            'metro-blue': 'Metro Blue',
+            'material': 'Material',
+            'cupertino': 'Cupertino',
+            'dark-hive': 'Dark Hive'
+          },
+          layouts: {
+            'Auto': 'Auto',
+            'Horizontal': 'Horizontal',
+            'Vertical': 'Vertical'
+          },
+          locales: {
+            'zh-TW': 'Traditional Chinese',
+            'zh-CN': 'Simplified Chinese',
+            'en': 'English'
+          },
+          examples: {
+            'quarter-region-product': 'Quarter / Region / Product',
+            'quarter-platform-product': 'Quarter / Platform / Product',
+            'region-product': 'Region / Product',
+            'product-region': 'Product / Region'
+          },
+          statsRows: 'rows',
+          statsCategories: 'chart categories'
+        }
+      };
+
+      if (!window.fabui || !fabui.pivot || !fabui.pivot.PivotWorkspace) {
+        document.getElementById('stats').textContent = '請先執行 build 以更新 PivotWorkspace dist。';
+        return;
+      }
+
+      for (quarterIndex = 0; quarterIndex < quarterFactors.length; quarterIndex += 1) {
+        for (regionIndex = 0; regionIndex < regions.length; regionIndex += 1) {
+          for (productIndex = 0; productIndex < products.length; productIndex += 1) {
+            for (platformIndex = 0; platformIndex < platforms.length; platformIndex += 1) {
+              factor = quarterFactors[quarterIndex] * regions[regionIndex].factor * platforms[platformIndex].factor;
+              rows.push({
+                id: id,
+                date: new Date(2026, quarterIndex * 3, 15),
+                region: regions[regionIndex].name,
+                product: products[productIndex].name,
+                platform: platforms[platformIndex].name,
+                sales: Math.round(products[productIndex].sales * factor)
+              });
+              id += 1;
+            }
+          }
+        }
+      }
+
+      workspace = new fabui.pivot.PivotWorkspace('#pivotWorkspace', {
+        itemsSource: rows,
+        fields: [
+          { key: 'quarter', binding: 'date', header: '季度', dataType: 'date', groupBy: 'Quarter', width: 116 },
+          { key: 'region', binding: 'region', header: '區域', width: 92 },
+          { key: 'product', binding: 'product', header: '產品', width: 108 },
+          { key: 'platform', binding: 'platform', header: '平台', width: 100 },
+          { key: 'sales', binding: 'sales', header: '銷售額', dataType: 'number', aggregate: 'Sum', format: 'n0', width: 112 }
+        ],
+        rowFields: ['quarter', 'region'],
+        columnFields: ['product'],
+        valueFields: ['sales'],
+        filterFields: ['platform'],
+        showRowTotals: 'Subtotals',
+        showColumnTotals: 'Subtotals',
+        locale: 'zh-TW',
+        gridTitle: '銷售分析',
+        gridOptions: {
+          rowHeight: 31,
+          pivotHeaderHeight: 30,
+          collapsibleSubtotals: true
+        },
+        chartOptions: {
+          chartType: 'Column',
+          showTitle: false,
+          showLegend: 'Auto'
+        }
+      });
+      workspace.root.classList.add('fg-theme-default');
+
+      function setSelectText(select, textMap) {
+        var index;
+        var option;
+        for (index = 0; index < select.options.length; index += 1) {
+          option = select.options[index];
+          option.textContent = textMap[option.value] || option.value;
+        }
+      }
+
+      function updateStats() {
+        var labels = demoLocales[currentLocale] || demoLocales.en;
+        document.getElementById('stats').textContent =
+          labels.layouts[workspace.layout] + ' · ' +
+          workspace.grid.view.length + ' ' + labels.statsRows + ' · ' +
+          workspace.chart.model.categories.length + ' ' + labels.statsCategories;
+      }
+
+      function setTheme(theme) {
+        themes.forEach(function(name) {
+          workspace.root.classList.remove('fg-theme-' + name);
+        });
+        workspace.root.classList.add('fg-theme-' + theme);
+      }
+
+      function applyDemoLocale(locale) {
+        var labels = demoLocales[locale] || demoLocales.en;
+        var toolbar = document.getElementById('toolbar');
+        currentLocale = demoLocales[locale] ? locale : 'en';
+        document.documentElement.lang = currentLocale;
+        toolbar.setAttribute('aria-label', labels.toolbar);
+        document.getElementById('themeLabel').textContent = labels.theme;
+        document.getElementById('layoutLabel').textContent = labels.layout;
+        document.getElementById('localeLabel').textContent = labels.locale;
+        document.getElementById('exampleLabel').textContent = labels.example;
+        document.getElementById('themeSelect').setAttribute('aria-label', labels.theme);
+        document.getElementById('layoutSelect').setAttribute('aria-label', labels.layout);
+        document.getElementById('localeSelect').setAttribute('aria-label', labels.locale);
+        document.getElementById('exampleSelect').setAttribute('aria-label', labels.example);
+        setSelectText(document.getElementById('themeSelect'), labels.themes);
+        setSelectText(document.getElementById('layoutSelect'), labels.layouts);
+        setSelectText(document.getElementById('localeSelect'), labels.locales);
+        setSelectText(document.getElementById('exampleSelect'), labels.examples);
+        updateStats();
+      }
+
+      function applyExample(name) {
+        var selected = examples[name];
+        var definition;
+        if (!selected) {
+          return;
+        }
+        definition = workspace.engine.viewDefinition;
+        definition.rowFields = selected.rowFields.slice(0);
+        definition.columnFields = selected.columnFields.slice(0);
+        definition.valueFields = selected.valueFields.slice(0);
+        definition.filterFields = selected.filterFields.slice(0);
+        workspace.engine.viewDefinition = definition;
+      }
+
+      document.getElementById('themeSelect').onchange = function(event) {
+        setTheme(event.target.value);
+      };
+      document.getElementById('layoutSelect').onchange = function(event) {
+        workspace.layout = event.target.value;
+        updateStats();
+      };
+      document.getElementById('localeSelect').onchange = function(event) {
+        workspace.setLocale(event.target.value);
+        applyDemoLocale(event.target.value);
+      };
+      document.getElementById('exampleSelect').onchange = function(event) {
+        applyExample(event.target.value);
+      };
+      workspace.grid.refreshed.addHandler(updateStats);
+      applyDemoLocale(currentLocale);
+      window.pivotWorkspace = workspace;
+    }());
+  </script>
+</body>
+</html>

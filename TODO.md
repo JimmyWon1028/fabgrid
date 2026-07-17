@@ -2,15 +2,16 @@
 
 ## FabUI PivotGrid
 
-- [x] 由 `fabui.pivot` 公開 `PivotEngine`、`PivotField`、`PivotPanel`、`PivotGrid`、`PivotAggregate` 與 `PivotShowTotals`。
+- [x] 由 `fabui.pivot` 公開 `PivotEngine`、`PivotField`、`PivotPanel`、`PivotGrid`、`PivotChart`、`PivotWorkspace`、`PivotAggregate` 與 `PivotShowTotals`。
 - [x] PivotPanel Fields／Filters／Rows／Columns／Values、拖放、排序、單值 filter、aggregate 與 viewDefinition 儲存還原。
 - [x] 本機 Array row／column／value／filter fields 與 Sum、Count、Average、Min、Max。
 - [x] 多層欄標頭、固定 row fields、小計／總計、前後位置、列／欄展開收合。
 - [x] Dimension 排序、Pivot 右鍵選單、雙擊原始明細與 viewDefinition。
 - [x] 沿用 FabGrid virtualization、selection、clipboard、export、locale 與 theme variables。
 - [x] `demo/dev-pivot.html` source-mode 與 `demo/pivot.html` build-mode Demo。
+- [x] `PivotWorkspace` 三合一組合、自適應三欄／三列、可拖曳 Splitter，以及 `demo/dev-pivot-workspace.html`／`demo/pivot-workspace.html`。
 - [ ] 非同步分批彙總與取消中的工作。
-- [ ] PivotPanel 進階多值 filter dialog、deferredUpdate、touch drag、Slicer、PivotChart、calculated fields、weighted aggregate 與 ShowAs。
+- [ ] PivotPanel 進階多值 filter dialog、deferredUpdate、touch drag、Slicer、calculated fields、weighted aggregate 與 ShowAs。
 - [ ] Server-side Pivot／SSAS 與 Vue 2／jQuery Pivot wrapper。
 
 ## 遠端資料模式

@@ -1,3 +1,8 @@
+import {
+  createPivotPathKey,
+  pivotValuesEqual
+} from './pivot-utils.js?v=20260717-pivot-typed-values-v1';
+
 export function createPivotGridFactory(FabGrid, PivotEngine) {
   var baseApplyLocaleToDom = FabGrid.prototype.applyLocaleToDom;
   var baseCreateBodyCell = FabGrid.prototype.createBodyCell;
@@ -59,24 +64,36 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
       direction === 1 ? 'pivot.sortDescending' : 'pivot.clearSort';
   }
 
-  function isStrictDescendant(entry, parentKey, entriesByKey) {
-    var parent = entriesByKey[parentKey];
-    var i;
-    if (!parent || entry.path.length <= parent.path.length) {
-      return false;
-    }
-    for (i = 0; i < parent.path.length; i += 1) {
-      if (entry.path[i] !== parent.path[i]) {
-        return false;
+  function getRowGroupMenuState(entriesByKey, collapsed) {
+    var hasGroups = false;
+    var hasExpanded = false;
+    var key;
+    entriesByKey = entriesByKey || {};
+    collapsed = collapsed || {};
+    for (key in entriesByKey) {
+      if (entriesByKey[key].isSubtotal) {
+        hasGroups = true;
+        if (!collapsed[key]) {
+          hasExpanded = true;
+          break;
+        }
       }
     }
-    return true;
+    return {
+      hasGroups: hasGroups,
+      hasExpanded: hasExpanded
+    };
   }
 
-  function isHiddenByCollapsedEntry(entry, collapsed, entriesByKey) {
+  function isHiddenByCollapsedEntry(entry, collapsed) {
     var key;
-    for (key in collapsed) {
-      if (collapsed[key] && isStrictDescendant(entry, key, entriesByKey)) {
+    var length;
+    if (!entry || !entry.path) {
+      return false;
+    }
+    for (length = 1; length < entry.path.length; length += 1) {
+      key = createPivotPathKey(entry.path.slice(0, length));
+      if (collapsed[key]) {
         return true;
       }
     }
@@ -117,23 +134,6 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
       options.currency = field.currency || 'USD';
     }
     return new Intl.NumberFormat(locale || undefined, options).format(value);
-  }
-
-  function pivotValuesEqual(left, right) {
-    if (left instanceof Date && right instanceof Date) {
-      return left.getTime() === right.getTime();
-    }
-    return left === right || (typeof left === 'number' && typeof right === 'number' && isNaN(left) && isNaN(right));
-  }
-
-  function createPivotGroupKey(path) {
-    return JSON.stringify(path.map(function(value) {
-      if (value instanceof Date) return ['date', value.getTime()];
-      if (value === null) return ['null', null];
-      if (value === undefined) return ['undefined', null];
-      if (typeof value === 'number' && isNaN(value)) return ['nan', null];
-      return [typeof value, value];
-    }));
   }
 
   function createMenuItem(action, label, iconClass, active, disabled) {
@@ -261,10 +261,10 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
   };
 
   PivotGrid.prototype.setLocale = function(locale, messages, silent) {
-    baseSetLocale.call(this, locale, messages, silent);
     if (!this._pivotConstructing && this._pivotEngine) {
-      this._applyPivotView(silent === true);
+      this._applyPivotView(true);
     }
+    baseSetLocale.call(this, locale, messages, silent);
     return this;
   };
 
@@ -290,6 +290,8 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
 
   PivotGrid.prototype._applyPivotView = function(silent) {
     var view = this._pivotEngine ? this._pivotEngine.pivotView : null;
+    var selectionState = this._capturePivotSelectionState();
+    var selectionChanged;
     var rowEntries;
     var columnEntries;
     var visibleRows = [];
@@ -311,7 +313,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
       this._pivotRowEntriesByKey[rowEntries[i].key] = rowEntries[i];
     }
     for (i = 0; i < rowEntries.length; i += 1) {
-      if (!isHiddenByCollapsedEntry(rowEntries[i], this._pivotRowCollapsed, this._pivotRowEntriesByKey)) {
+      if (!isHiddenByCollapsedEntry(rowEntries[i], this._pivotRowCollapsed)) {
         visibleRows.push(view.rows[i]);
       }
     }
@@ -325,10 +327,100 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     this.options.frozenColumns = view.rowFields.length;
     FabGrid.prototype.setColumns.call(this, columns, true);
     baseSetItemsSource.call(this, visibleRows, true);
+    selectionChanged = this._restorePivotSelectionState(selectionState);
     this.syncHeaderLayout();
     if (!silent) {
       this.refresh();
+      if (selectionChanged) {
+        this.emit('selectionChanged', this.getSelectionEventArgs(
+          this.selection.row,
+          this.selection.col,
+          this.selectionAnchor.row,
+          this.selectionAnchor.col
+        ));
+      }
     }
+  };
+
+  PivotGrid.prototype._capturePivotSelectionState = function() {
+    var anchor = this.selectionAnchor || this.selection;
+    return {
+      activeRowKey: this._getPivotSelectionRowKey(this.selection.row),
+      activeColumnKey: this._getPivotSelectionColumnKey(this.selection.col),
+      anchorRowKey: this._getPivotSelectionRowKey(anchor.row),
+      anchorColumnKey: this._getPivotSelectionColumnKey(anchor.col),
+      activeRow: this.selection.row,
+      activeCol: this.selection.col,
+      anchorRow: anchor.row,
+      anchorCol: anchor.col
+    };
+  };
+
+  PivotGrid.prototype._getPivotSelectionRowKey = function(rowIndex) {
+    var row = this.view && this.view[rowIndex];
+    return row && row.__pivotMeta ? row.__pivotMeta.key : null;
+  };
+
+  PivotGrid.prototype._getPivotSelectionColumnKey = function(columnIndex) {
+    var column = this.visibleColumns && this.visibleColumns[columnIndex];
+    var dataColumn = column && column._pivotDataColumn;
+    if (!column) {
+      return null;
+    }
+    return dataColumn ?
+      'value:' + dataColumn.entry.key + ':' + dataColumn.valueField.key :
+      'row:' + column.binding;
+  };
+
+  PivotGrid.prototype._findPivotSelectionRow = function(key, fallback) {
+    var entry;
+    var i;
+    if (key != null) {
+      for (i = 0; i < this.view.length; i += 1) {
+        entry = this.view[i] && this.view[i].__pivotMeta;
+        if (entry && entry.key === key) {
+          return i;
+        }
+      }
+    }
+    return fallback;
+  };
+
+  PivotGrid.prototype._findPivotSelectionColumn = function(key, fallback) {
+    var i;
+    if (key != null) {
+      for (i = 0; i < this.visibleColumns.length; i += 1) {
+        if (this._getPivotSelectionColumnKey(i) === key) {
+          return i;
+        }
+      }
+    }
+    return fallback;
+  };
+
+  PivotGrid.prototype._restorePivotSelectionState = function(state) {
+    var previous = {
+      row: this.selection.row,
+      col: this.selection.col,
+      anchorRow: (this.selectionAnchor || this.selection).row,
+      anchorCol: (this.selectionAnchor || this.selection).col
+    };
+    if (state) {
+      this.selection = {
+        row: this._findPivotSelectionRow(state.activeRowKey, state.activeRow),
+        col: this._findPivotSelectionColumn(state.activeColumnKey, state.activeCol)
+      };
+      this.selectionAnchor = {
+        row: this._findPivotSelectionRow(state.anchorRowKey, state.anchorRow),
+        col: this._findPivotSelectionColumn(state.anchorColumnKey, state.anchorCol)
+      };
+    }
+    this.clampSelection();
+    this.rowSelection = this.view.length ? this.selection.row : null;
+    return previous.row !== this.selection.row ||
+      previous.col !== this.selection.col ||
+      previous.anchorRow !== this.selectionAnchor.row ||
+      previous.anchorCol !== this.selectionAnchor.col;
   };
 
   PivotGrid.prototype._createPivotColumns = function(view) {
@@ -364,11 +456,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
         align: field.align || 'right',
         dataType: field.dataType || 'number',
         format: field.format,
-        visible: !isHiddenByCollapsedEntry(
-          dataColumn.entry,
-          this._pivotColumnCollapsed,
-          this._pivotColumnEntriesByKey
-        ),
+        visible: !isHiddenByCollapsedEntry(dataColumn.entry, this._pivotColumnCollapsed),
         readOnly: true,
         isReadOnly: true,
         _pivotDataColumn: dataColumn,
@@ -386,11 +474,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
 
   PivotGrid.prototype._isExcelExportRowHidden = function(row) {
     var entry = row && row.__pivotMeta;
-    return Boolean(entry && isHiddenByCollapsedEntry(
-      entry,
-      this._pivotRowCollapsed,
-      this._pivotRowEntriesByKey
-    ));
+    return Boolean(entry && isHiddenByCollapsedEntry(entry, this._pivotRowCollapsed));
   };
 
   function createRowFieldFormatter(grid, field, fieldIndex) {
@@ -405,7 +489,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
       if (entry.isSubtotal && fieldIndex === entry.path.length) {
         return grid.getText('pivot.total');
       }
-      return fieldIndex < entry.path.length ? grid._pivotEngine.formatFieldValue(field, value) : '';
+      return fieldIndex < entry.path.length ? grid._pivotEngine.formatFieldValue(field, value, grid.locale) : '';
     };
   }
 
@@ -427,7 +511,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
           current = null;
           continue;
         }
-        key = createPivotGroupKey(entry.path.slice(0, fieldIndex + 1));
+        key = createPivotPathKey(entry.path.slice(0, fieldIndex + 1));
         if (!current || current.key !== key) {
           current = {
             key: key,
@@ -590,7 +674,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
       value = field.getItemValue(source[i]);
       exists = false;
       for (j = 0; j < values.length; j += 1) {
-        if (pivotValuesEqual(values[j], value)) {
+        if (pivotValuesEqual(values[j], value, field.dataType)) {
           exists = true;
           break;
         }
@@ -605,9 +689,9 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     for (i = 0; i < values.length; i += 1) {
       option = document.createElement('option');
       option.value = String(i + 1);
-      option.textContent = this._pivotEngine.formatFieldValue(field, values[i]) || this.getText('filter.blankValue');
+      option.textContent = this._pivotEngine.formatFieldValue(field, values[i], this.locale) || this.getText('filter.blankValue');
       option._pivotFilterValue = values[i];
-      option.selected = hasSingleFilter && pivotValuesEqual(current, values[i]);
+      option.selected = hasSingleFilter && pivotValuesEqual(current, values[i], field.dataType);
       select.appendChild(option);
     }
     return select;
@@ -677,7 +761,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
       if (entry.isGrandTotal) {
         label = level === 0 ? this.getText('pivot.grandTotal') : '';
       } else if (level < entry.path.length) {
-        label = this._pivotEngine.formatFieldValue(field, entry.path[level]);
+        label = this._pivotEngine.formatFieldValue(field, entry.path[level], this.locale);
       } else if (entry.isSubtotal && level === entry.path.length) {
         label = this.getText('pivot.total');
         toggle = this.options.collapsibleSubtotals !== false;
@@ -931,12 +1015,16 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     var fragment = document.createDocumentFragment();
     var aggregate;
     var aggregates = ['Sum', 'Count', 'Average', 'Min', 'Max'];
+    var rowGroupState;
+    var columnGroupState;
+    var hasGroups;
+    var hasExpandedGroups;
     var i;
     this.topLeftMenu.innerHTML = '';
     if (context && context.cellType === FabGrid.CellType.Cell && column && column._pivotDataColumn) {
       fragment.appendChild(createMenuItem('pivot-detail', this.getText('pivot.showDetail'), 'icon-refwin'));
     }
-    if (entry && entry.isSubtotal) {
+    if (entry && entry.isSubtotal && !(column && column._pivotRowField)) {
       fragment.appendChild(createMenuItem(
         context.cellType === FabGrid.CellType.Cell ? 'pivot-toggle-row' : 'pivot-toggle-column',
         this.getText((context.cellType === FabGrid.CellType.Cell ? this._pivotRowCollapsed : this._pivotColumnCollapsed)[entry.key] ?
@@ -945,6 +1033,17 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
       ));
     }
     if (column && column._pivotRowField) {
+      rowGroupState = getRowGroupMenuState(this._pivotRowEntriesByKey, this._pivotRowCollapsed);
+      columnGroupState = getRowGroupMenuState(this._pivotColumnEntriesByKey, this._pivotColumnCollapsed);
+      hasGroups = rowGroupState.hasGroups || columnGroupState.hasGroups;
+      hasExpandedGroups = rowGroupState.hasExpanded || columnGroupState.hasExpanded;
+      fragment.appendChild(createMenuItem(
+        hasExpandedGroups ? 'pivot-collapse-all' : 'pivot-expand-all',
+        this.getText(hasExpandedGroups ? 'pivot.collapseAll' : 'pivot.expandAll'),
+        hasExpandedGroups ? 'icon-collapse' : 'icon-expand',
+        false,
+        !hasGroups
+      ));
       fragment.appendChild(createMenuItem('pivot-sort', this.getText(
         getPivotSortMenuKey(column._pivotRowField)
       ), 'icon-sort'));
@@ -998,11 +1097,19 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
       this.toggleRowSubtotal(entry.key);
     } else if (action === 'pivot-toggle-column' && entry) {
       this.toggleColumnSubtotal(entry.key);
+    } else if (action === 'pivot-expand-all') {
+      this.expandAll();
+    } else if (action === 'pivot-collapse-all') {
+      this.collapseAll();
     } else if (action === 'pivot-sort' && field) {
       this.togglePivotFieldSort(field.key);
     } else if (action.indexOf('pivot-aggregate-') === 0 && field) {
       field.aggregate = action.slice('pivot-aggregate-'.length).replace(/^./, function(character) {
         return character.toUpperCase();
+      });
+      this._pivotEngine.emit('viewDefinitionChanged', {
+        property: 'aggregate',
+        field: field
       });
       this._pivotEngine.refresh();
     } else if (action === 'pivot-remove-field' && field) {
@@ -1024,6 +1131,10 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     }
     direction = getPivotFieldSortDirection(field);
     field.sortDirection = direction === 0 ? 1 : direction === 1 ? -1 : 0;
+    this._pivotEngine.emit('viewDefinitionChanged', {
+      property: 'sortDirection',
+      field: field
+    });
     this._pivotEngine.refresh();
     return true;
   };

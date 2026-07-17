@@ -9,7 +9,7 @@
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
     body { margin: 0; color: #1f2937; background: #f3f4f6; font-family: helvetica, tahoma, verdana, sans-serif; }
-    .page { display: flex; width: min(1600px, 100%); height: 100vh; height: 100dvh; min-height: 0; margin: 0 auto; padding: 14px 20px; flex-direction: column; }
+    .page { display: flex; width: min(1880px, 100%); height: 100vh; height: 100dvh; min-height: 0; margin: 0 auto; padding: 14px 20px; flex-direction: column; }
     .page-header { display: flex; flex: 0 0 auto; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 10px; }
     .page-header h1 { margin: 0 0 5px; font-size: 24px; }
     .page-header p { margin: 0; color: #64748b; font-size: 14px; }
@@ -25,20 +25,27 @@
     .toolbar .spacer { flex: 1 1 auto; }
     .stats { color: #475569; font-size: 13px; white-space: nowrap; }
     .card { overflow: hidden; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; box-shadow: 0 1px 3px rgb(15 23 42 / 8%); }
-    .workspace { display: grid; min-width: 0; min-height: 0; overflow: hidden; flex: 1 1 auto; gap: 12px; grid-template-columns: 340px minmax(0, 1fr); }
-    .workspace.pivot-panel-hidden { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+    .workspace { display: grid; min-width: 0; min-height: 0; overflow: hidden; flex: 1 1 auto; gap: 12px; grid-template-columns: 310px minmax(480px, 1fr) minmax(340px, .75fr); }
+    .workspace.pivot-panel-hidden { grid-template-columns: minmax(480px, 1fr) minmax(340px, .75fr); }
+    .workspace.pivot-chart-hidden { grid-template-columns: 310px minmax(0, 1fr); }
+    .workspace.pivot-panel-hidden.pivot-chart-hidden { grid-template-columns: minmax(0, 1fr); }
     .workspace.pivot-panel-hidden .panel-card { display: none; }
-    .panel-card, .pivot-card { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
+    .workspace.pivot-chart-hidden .chart-card { display: none; }
+    .panel-card, .pivot-card, .chart-card { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
     .card-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 40px; margin: 0; padding: 0 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
     .card-title-note { color: #64748b; font-size: 12px; font-weight: normal; }
     .card-title-actions { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; }
     .card-title-actions button { height: 27px; padding: 0 9px; border: 1px solid #b8c4d4; border-radius: 3px; background: #fff; color: #1f2937; cursor: pointer; font: inherit; font-size: 12px; font-weight: normal; }
     .card-title-actions button:hover { border-color: #2b7fd3; background: #eef6ff; }
-    #pivotGrid, #pivotPanel { min-height: 0; height: 100%; flex: 1 1 auto; }
+    .chart-controls { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+    .chart-controls select { height: 27px; min-width: 82px; padding: 0 22px 0 7px; border: 1px solid #b8c4d4; border-radius: 3px; background: #fff; color: #1f2937; font: inherit; font-size: 12px; }
+    #pivotGrid, #pivotPanel, #pivotChart { min-height: 0; height: 100%; flex: 1 1 auto; }
     #pivotPanel { border: 0; }
-    @media (max-width: 980px) {
-      .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
-      .workspace.pivot-panel-hidden { grid-template-rows: minmax(0, 1fr); }
+    #pivotChart { border: 0; }
+    @media (max-width: 1180px) {
+      .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(3, minmax(0, 1fr)); }
+      .workspace.pivot-panel-hidden, .workspace.pivot-chart-hidden { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+      .workspace.pivot-panel-hidden.pivot-chart-hidden { grid-template-rows: minmax(0, 1fr); }
     }
     @media (max-width: 760px) {
       .page { padding: 10px 12px; }
@@ -47,6 +54,7 @@
       .page-header p, .badge, .pivot-card .card-title-note { display: none; }
       .toolbar { overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; margin-bottom: 8px; padding: 6px 8px; }
       .workspace { gap: 8px; }
+      .chart-controls select { min-width: 72px; }
     }
   </style>
 </head>
@@ -55,7 +63,7 @@
     <header class="page-header">
       <div>
         <h1>fabui.pivot.PivotGrid</h1>
-        <p>10,000 筆銷售資料，使用 PivotEngine 建立多層列／欄彙總。</p>
+        <p>144 筆差異化銷售資料，使用 PivotEngine 建立多層列／欄彙總。</p>
       </div>
       <span class="badge">Source mode · dev-pivot.html</span>
     </header>
@@ -72,10 +80,10 @@
       </label>
       <label>View
         <select id="viewSelect">
-          <option value="agent-product">季度／業務／產品</option>
-          <option value="basic">季度／平台</option>
-          <option value="region">季度／區域</option>
-          <option value="quarter-month">季度／月份</option>
+          <option value="region-product-sales">季度／區域／產品（銷售額）</option>
+          <option value="platform-sales">季度／平台（銷售額）</option>
+          <option value="region-sales">季度／區域（銷售額）</option>
+          <option value="month-downloads">月份／產品（下載數）</option>
         </select>
       </label>
       <button id="saveView" type="button">儲存 View</button>
@@ -116,49 +124,87 @@
           銷售分析
           <span class="card-title-actions">
             <button id="togglePivotPanel" type="button" aria-controls="pivotPanelCard" aria-expanded="true">隱藏定義</button>
-            <button id="toggleAllGroups" type="button" data-action="collapse">全部疊合</button>
+            <button id="toggleChartPanel" type="button" aria-controls="pivotChartCard" aria-expanded="true">隱藏圖表</button>
           </span>
         </h2>
         <div id="pivotGrid"></div>
+      </section>
+      <section id="pivotChartCard" class="card chart-card">
+        <h2 class="card-title">
+          Pivot 圖表
+          <span class="chart-controls">
+            <select id="chartTypeSelect" aria-label="圖表類型">
+              <option value="Column">Column</option>
+              <option value="Bar">Bar</option>
+              <option value="Line">Line</option>
+              <option value="Pie">Pie</option>
+            </select>
+            <select id="chartLegendSelect" aria-label="圖例顯示">
+              <option value="Auto">Legend: Auto</option>
+              <option value="Always">Legend: Always</option>
+              <option value="Never">Legend: Never</option>
+            </select>
+            <select id="chartSeriesSelect" aria-label="圓餅圖系列" hidden></select>
+          </span>
+        </h2>
+        <div id="pivotChart"></div>
       </section>
     </div>
   </main>
 
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260717-pivot-header-fullscreen-v1';
+    import fabui from '../src/fabui.js?v=20260717-pivot-workspace-v2';
+    import { getPivotDemoLocale } from './js/pivot-locales.js?v=20260717-pivot-chart-locale-v1';
 
     window.fabui = fabui;
-    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260717-pivot-sort-tristate-v1');
-    await import('../src/locales/fabgrid-locale.zh-CN.js?v=20260717-pivot-sort-tristate-v1');
-    await import('../src/locales/fabgrid-locale.en.js?v=20260717-pivot-sort-tristate-v1');
+    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260717-pivot-row-menu-expand-v1');
+    await import('../src/locales/fabgrid-locale.zh-CN.js?v=20260717-pivot-row-menu-expand-v1');
+    await import('../src/locales/fabgrid-locale.en.js?v=20260717-pivot-row-menu-expand-v1');
 
-    const regions = ['北區', '中區', '南區', '東區'];
-    const platforms = ['Web', 'Mobile'];
-    const products = ['FabGrid', 'FabChart', 'FabForms'];
-    const agents = ['Amy', 'Ben', 'Cindy', 'David', 'Eva', 'Frank'];
+    const regions = [
+      { name: '北區', factor: 1.25 },
+      { name: '南區', factor: .75 }
+    ];
+    const platforms = [
+      { name: 'Web', factor: 1 },
+      { name: 'Mobile', factor: .6 }
+    ];
+    const products = [
+      { name: 'FabGrid', sales: 520000, downloads: 18000, revenueFactor: 1.25 },
+      { name: 'FabChart', sales: 240000, downloads: 42000, revenueFactor: 1.08 },
+      { name: 'FabForms', sales: 80000, downloads: 96000, revenueFactor: .92 }
+    ];
+    const agents = ['Amy', 'Cindy', 'Eva'];
+    const quarterFactors = [.6, .9, 1.35, 1.9];
+    const monthFactors = [.9, 1, 1.1];
     const rows = [];
-    const start = new Date(2025, 0, 1);
-    let i;
-    let date;
-    let sales;
-    let downloads;
+    let id = 1;
 
-    for (i = 0; i < 10000; i += 1) {
-      date = new Date(start.getFullYear(), start.getMonth() + (i % 18), 1 + (i % 27));
-      sales = 40 + (i * 37) % 980;
-      downloads = 20 + (i * 19) % 720;
-      rows.push({
-        id: i + 1,
-        date: date,
-        agent: agents[i % agents.length],
-        region: regions[(i * 3) % regions.length],
-        platform: platforms[(i * 5) % platforms.length],
-        product: products[(i * 7) % products.length],
-        sales: sales,
-        downloads: downloads,
-        revenue: Math.round((sales * 2.35 + downloads * .42) * 100) / 100
+    quarterFactors.forEach(function(quarterFactor, quarterIndex) {
+      monthFactors.forEach(function(monthFactor, monthIndex) {
+        products.forEach(function(product, productIndex) {
+          regions.forEach(function(region, regionIndex) {
+            platforms.forEach(function(platform, platformIndex) {
+              const factor = quarterFactor * monthFactor * region.factor * platform.factor;
+              const sales = Math.round(product.sales * factor);
+              const downloads = Math.round(product.downloads * factor);
+              rows.push({
+                id: id,
+                date: new Date(2026, quarterIndex * 3 + monthIndex, 15),
+                agent: agents[(quarterIndex + productIndex + regionIndex + platformIndex) % agents.length],
+                region: region.name,
+                platform: platform.name,
+                product: product.name,
+                sales: sales,
+                downloads: downloads,
+                revenue: Math.round(sales * product.revenueFactor * 100) / 100
+              });
+              id += 1;
+            });
+          });
+        });
       });
-    }
+    });
 
     const engine = new fabui.pivot.PivotEngine({
       itemsSource: rows,
@@ -173,10 +219,10 @@
         { key: 'downloads', binding: 'downloads', header: '下載數', dataType: 'number', aggregate: 'Sum', format: 'n0', width: 112 },
         { key: 'revenue', binding: 'revenue', header: '營收', dataType: 'number', aggregate: 'Sum', format: 'n2', width: 124 }
       ],
-      rowFields: ['quarter', 'agent'],
-      columnFields: ['platform', 'product'],
-      valueFields: ['sales', 'downloads', 'revenue'],
-      filterFields: ['region'],
+      rowFields: ['quarter', 'region'],
+      columnFields: ['product'],
+      valueFields: ['sales'],
+      filterFields: ['platform'],
       showRowTotals: 'Subtotals',
       showColumnTotals: 'Subtotals'
     });
@@ -198,41 +244,73 @@
       itemsSource: engine,
       locale: 'zh-TW'
     });
+    const pivotChart = new fabui.pivot.PivotChart('#pivotChart', {
+      itemsSource: engine,
+      locale: 'zh-TW',
+      chartType: 'Column',
+      showTitle: false,
+      showLegend: 'Auto',
+      showTotals: false,
+      maxPoints: 100,
+      maxSeries: 12,
+      selectionSource: pivot,
+      animation: true
+    });
 
     const themes = ['default', 'metro-blue', 'material', 'cupertino', 'dark-hive'];
     const stats = document.getElementById('stats');
 
     function updateStats() {
       stats.textContent = '原始 ' + engine.itemsSource.length.toLocaleString() +
-        ' 筆 · Pivot ' + pivot.view.length.toLocaleString() + ' 列 × ' + pivot.visibleColumns.length.toLocaleString() + ' 欄';
+        ' 筆 · Pivot ' + pivot.view.length.toLocaleString() + ' 列 × ' + pivot.visibleColumns.length.toLocaleString() + ' 欄' +
+        ' · Chart ' + pivotChart.model.categories.length.toLocaleString() + ' 類別 × ' +
+        pivotChart.model.series.length.toLocaleString() + ' 系列';
     }
 
     function setTheme(theme) {
       themes.forEach(function(name) {
         pivot.root.classList.remove('fg-theme-' + name);
         panel.hostElement.classList.remove('fg-theme-' + name);
+        pivotChart.hostElement.classList.remove('fg-theme-' + name);
       });
       pivot.root.classList.add('fg-theme-' + theme);
       panel.hostElement.classList.add('fg-theme-' + theme);
+      pivotChart.hostElement.classList.add('fg-theme-' + theme);
     }
 
-    function updateAllGroupsButton() {
-      const button = document.getElementById('toggleAllGroups');
-      const hasToggle = !!pivot.root.querySelector('.fg-pivot-row-toggle, .fg-pivot-column-toggle');
-      const hasExpanded = !!pivot.root.querySelector(
-        '.fg-pivot-row-toggle[aria-expanded="true"], .fg-pivot-column-toggle[aria-expanded="true"]'
-      );
-      button.disabled = !hasToggle;
-      button.dataset.action = hasExpanded ? 'collapse' : 'expand';
-      button.textContent = hasExpanded ? '全部疊合' : '全部展開';
+    function updateChartSeriesOptions() {
+      const select = document.getElementById('chartSeriesSelect');
+      const selected = Math.max(0, Math.min(pivotChart.selectedSeries, Math.max(0, pivotChart.model.series.length - 1)));
+      select.innerHTML = '';
+      pivotChart.model.series.forEach(function(series, index) {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = series.name;
+        select.appendChild(option);
+      });
+      select.value = String(selected);
+      select.hidden = pivotChart.chartType !== 'Pie' || pivotChart.model.series.length <= 1;
+      if (pivotChart.selectedSeries !== selected) {
+        pivotChart.selectedSeries = selected;
+      }
+    }
+
+    function updateChartTypeOptions(locale) {
+      const labels = getPivotDemoLocale(locale);
+      const select = document.getElementById('chartTypeSelect');
+      Array.from(select.options).forEach(function(option) {
+        option.textContent = labels.chartTypes[option.value] || option.value;
+      });
+      select.setAttribute('aria-label', labels.chartTypeLabel);
+      document.documentElement.lang = locale;
     }
 
     function applyView(name) {
       const definitions = {
-        basic: { rowFields: ['quarter'], columnFields: ['platform'], valueFields: ['sales', 'downloads', 'revenue'], filterFields: ['region'] },
-        region: { rowFields: ['quarter', 'region'], columnFields: [], valueFields: ['sales', 'downloads', 'revenue'], filterFields: [] },
-        'agent-product': { rowFields: ['quarter', 'agent'], columnFields: ['platform', 'product'], valueFields: ['sales', 'downloads', 'revenue'], filterFields: ['region'] },
-        'quarter-month': { rowFields: ['quarter', 'month'], columnFields: [], valueFields: ['sales', 'downloads', 'revenue'], filterFields: ['region'] }
+        'region-product-sales': { rowFields: ['quarter', 'region'], columnFields: ['product'], valueFields: ['sales'], filterFields: ['platform'] },
+        'platform-sales': { rowFields: ['quarter'], columnFields: ['platform'], valueFields: ['sales'], filterFields: ['region'] },
+        'region-sales': { rowFields: ['quarter'], columnFields: ['region'], valueFields: ['sales'], filterFields: ['platform'] },
+        'month-downloads': { rowFields: ['month'], columnFields: ['product'], valueFields: ['downloads'], filterFields: ['region'] }
       };
       const selected = definitions[name];
       const definition = engine.viewDefinition;
@@ -250,6 +328,8 @@
     document.getElementById('localeSelect').addEventListener('change', function(event) {
       pivot.setLocale(event.target.value);
       panel.setLocale(event.target.value);
+      pivotChart.setLocale(event.target.value);
+      updateChartTypeOptions(event.target.value);
     });
     document.getElementById('viewSelect').addEventListener('change', function(event) {
       applyView(event.target.value);
@@ -273,14 +353,6 @@
       engine.totalsBeforeData = event.target.checked;
       engine.refresh();
     });
-    document.getElementById('toggleAllGroups').addEventListener('click', function(event) {
-      if (event.currentTarget.dataset.action === 'collapse') {
-        pivot.collapseAll();
-      } else {
-        pivot.expandAll();
-      }
-      requestAnimationFrame(updateAllGroupsButton);
-    });
     document.getElementById('togglePivotPanel').addEventListener('click', function(event) {
       const workspace = document.getElementById('pivotWorkspace');
       const hidden = workspace.classList.toggle('pivot-panel-hidden');
@@ -288,25 +360,52 @@
       event.currentTarget.setAttribute('aria-expanded', hidden ? 'false' : 'true');
       requestAnimationFrame(function() {
         pivot.refresh();
+        pivotChart.resize();
       });
     });
-    pivot.root.addEventListener('click', function(event) {
-      if (event.target.classList.contains('fg-pivot-row-toggle') ||
-          event.target.classList.contains('fg-pivot-column-toggle')) {
-        requestAnimationFrame(updateAllGroupsButton);
-      }
+    document.getElementById('toggleChartPanel').addEventListener('click', function(event) {
+      const workspace = document.getElementById('pivotWorkspace');
+      const hidden = workspace.classList.toggle('pivot-chart-hidden');
+      event.currentTarget.textContent = hidden ? '開啟圖表' : '隱藏圖表';
+      event.currentTarget.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+      requestAnimationFrame(function() {
+        pivot.refresh();
+        pivotChart.resize();
+      });
+    });
+    document.getElementById('chartTypeSelect').addEventListener('change', function(event) {
+      pivotChart.setType(event.target.value);
+      updateChartSeriesOptions();
+    });
+    document.getElementById('chartLegendSelect').addEventListener('change', function(event) {
+      pivotChart.showLegend = event.target.value;
+    });
+    document.getElementById('chartSeriesSelect').addEventListener('change', function(event) {
+      pivotChart.selectedSeries = Number(event.target.value);
+    });
+    pivot.selectionChanged.addHandler(function() {
+      requestAnimationFrame(updateChartSeriesOptions);
+    });
+    pivot.refreshed.addHandler(function() {
+      requestAnimationFrame(function() {
+        updateChartSeriesOptions();
+        updateStats();
+      });
     });
     engine.updatedView.addHandler(function() {
-      requestAnimationFrame(updateAllGroupsButton);
+      requestAnimationFrame(function() {
+        updateChartSeriesOptions();
+        updateStats();
+      });
     });
-    engine.updatedView.addHandler(updateStats);
-    pivot.updatedView.addHandler(updateStats);
     setTheme('default');
-    updateAllGroupsButton();
+    updateChartTypeOptions('zh-TW');
+    updateChartSeriesOptions();
     updateStats();
     window.pivotEngine = engine;
     window.pivotGrid = pivot;
     window.pivotPanel = panel;
+    window.pivotChart = pivotChart;
   </script>
 </body>
 </html>

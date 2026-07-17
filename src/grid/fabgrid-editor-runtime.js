@@ -580,59 +580,52 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   };
 
   FabGrid.prototype.handleDocumentMouseDown = function(event) {
+    var filterMenuItem;
     if (this.isTopLeftMenuOpen() && !closest(event.target, 'fg-top-left-menu')) {
       this.hideTopLeftMenu();
     }
-    if (closest(event.target, 'fg-filter-menu-item') || this.getFilterMenuItemAtEvent(event)) {
+    filterMenuItem = closest(event.target, 'fg-filter-menu-item') || this.getFilterMenuItemAtEvent(event);
+    if (filterMenuItem) {
       this.handleFilterMenuClick(event);
-      return;
     }
-    if (this.filterMenu && this.filterMenu.style.display === 'block') {
-      if (closest(event.target, 'fg-filter-menu') || closest(event.target, 'fg-filter-icon')) {
-        return;
-      }
+    if (this.filterMenu && this.filterMenu.style.display === 'block' &&
+      !closest(event.target, 'fg-filter-menu') &&
+      !closest(event.target, 'fg-filter-icon')) {
       this.hideFilterMenu();
     }
-    if (this.isColumnChooserOpen()) {
-      if (closest(event.target, 'fg-column-chooser') || closest(event.target, 'fg-column-chooser-trigger')) {
-        return;
-      }
+    if (this.isColumnChooserOpen() &&
+      !closest(event.target, 'fg-column-chooser') &&
+      !closest(event.target, 'fg-column-chooser-trigger')) {
       this.hideColumnChooser();
     }
-    if (this.dateboxPanel && this.dateboxPanel.style.display === 'block') {
-      if (
+    if (this.dateboxPanel && this.dateboxPanel.style.display === 'block' &&
+      !(
         (this.dateboxTarget && event.target === this.dateboxTarget.input) ||
         event.target === this.editor ||
         closest(event.target, 'fg-editor-icons') ||
         closest(event.target, 'fg-header-search-icons') ||
         closest(event.target, 'fg-datebox-panel')
-      ) {
-        return;
-      }
+      )) {
       this.hideDateboxPanel();
     }
-    if (this.comboboxPanel && this.comboboxPanel.style.display === 'block') {
-      if (
+    if (this.comboboxPanel && this.comboboxPanel.style.display === 'block' &&
+      !(
         (this.comboboxTarget && event.target === this.comboboxTarget.input) ||
         event.target === this.editor ||
         closest(event.target, 'fg-editor-icons') ||
         closest(event.target, 'fg-header-search-icons') ||
         closest(event.target, 'fg-combobox-panel')
-      ) {
-        return;
-      }
+      )) {
       this.hideComboboxPanel();
     }
-    if (this.isColorPanelOpen()) {
-      if (
+    if (this.isColorPanelOpen() &&
+      !(
         (this.colorTarget && event.target === this.colorTarget.input) ||
         event.target === this.editor ||
         closest(event.target, 'fg-editor-icons') ||
         closest(event.target, 'fg-header-search-icons') ||
         closest(event.target, 'fg-color-panel')
-      ) {
-        return;
-      }
+      )) {
       this.hideColorPanel();
     }
     if (!this.editing) {

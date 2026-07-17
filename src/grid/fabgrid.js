@@ -26,9 +26,9 @@ import {
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
 import { installFabGridView } from './fabgrid-view.js?v=20260717-scroll-linked-distance-v2';
-import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260716-column-chooser-close-v4';
+import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260717-popup-outside-v1';
 import { installFabGridSelection } from './fabgrid-selection.js?v=20260716-selection-pointer-v3';
-import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js';
+import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260717-popup-outside-v1';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
 

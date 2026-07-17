@@ -151,15 +151,15 @@ function createChartFactory() {
     this.svg = document.createElementNS(SVG_NS, 'svg');
     this.svg.setAttribute('class', 'fui-chart-svg');
     this.svg.setAttribute('role', 'img');
-    this.legend = document.createElement('div');
-    this.legend.className = 'fui-chart-legend';
+    this.legendElement = document.createElement('div');
+    this.legendElement.className = 'fui-chart-legend';
     this.tooltip = document.createElement('div');
     this.tooltip.className = 'fui-chart-tooltip';
     this.tooltip.setAttribute('role', 'tooltip');
     this.body.appendChild(this.svg);
     this.root.appendChild(this.title);
     this.root.appendChild(this.body);
-    this.root.appendChild(this.legend);
+    this.root.appendChild(this.legendElement);
     this.root.appendChild(this.tooltip);
     this.host.appendChild(this.root);
   };
@@ -271,13 +271,13 @@ function createChartFactory() {
   };
 
   Chart.prototype.renderFooter = function() {
-    if (!this.footer) {
-      this.footer = document.createElement('div');
-      this.footer.className = 'fui-chart-footer';
-      this.root.insertBefore(this.footer, this.legend);
+    if (!this.footerElement) {
+      this.footerElement = document.createElement('div');
+      this.footerElement.className = 'fui-chart-footer';
+      this.root.insertBefore(this.footerElement, this.legendElement);
     }
-    this.footer.textContent = this.options.footer || '';
-    this.footer.style.display = this.options.footer ? '' : 'none';
+    this.footerElement.textContent = this.options.footer || '';
+    this.footerElement.style.display = this.options.footer ? '' : 'none';
   };
 
   Chart.prototype.renderEmpty = function(width, height) {
@@ -287,7 +287,7 @@ function createChartFactory() {
   };
 
   Chart.prototype.renderCartesian = function(type, width, height, model) {
-    var margin = { top: 16, right: 20, bottom: 44, left: 56 };
+    var margin = { top: 16, right: 20, bottom: 44, left: 72 };
     var plot = { x: margin.left, y: margin.top, width: width - margin.left - margin.right, height: height - margin.top - margin.bottom };
     var categories = model.categories;
     var series = model.series;
@@ -431,7 +431,10 @@ function createChartFactory() {
 
   Chart.prototype.renderCategoryLabel = function(type, plot, categories, index) {
     var count = Math.max(categories.length, 1);
+    var maxLabels = type === 'bar' ? count : Math.max(2, Math.floor(plot.width / 100));
+    var step = Math.max(1, Math.ceil(count / maxLabels));
     var text;
+    if (type !== 'bar' && index % step !== 0 && index !== count - 1) return;
     if (type === 'bar') text = svgElement('text', { x: plot.x - 8, y: plot.y + plot.height * (index + 0.5) / count + 4, class: 'fui-chart-category-label', 'text-anchor': 'end' });
     else text = svgElement('text', { x: plot.x + plot.width * (index + 0.5) / count, y: plot.y + plot.height + 28, class: 'fui-chart-category-label', 'text-anchor': 'middle' });
     text.textContent = categories[index]; this.svg.appendChild(text);
@@ -439,15 +442,15 @@ function createChartFactory() {
 
   Chart.prototype.renderLegend = function(series) {
     var self = this;
-    this.legend.innerHTML = '';
+    this.legendElement.innerHTML = '';
     var position = getLegendPosition(this.options.legend);
     this.root.setAttribute('data-legend-position', position.toLowerCase());
-    this.legend.style.display = position === 'None' ? 'none' : '';
+    this.legendElement.style.display = position === 'None' ? 'none' : '';
     if (position === 'None') return;
     series.forEach(function(item, index) {
       var entry = document.createElement('span'); var swatch = document.createElement('i');
       entry.className = 'fui-chart-legend-item'; swatch.style.backgroundColor = self.getColor(index);
-      entry.appendChild(swatch); entry.appendChild(document.createTextNode(item.name || ('Series ' + (index + 1)))); self.legend.appendChild(entry);
+      entry.appendChild(swatch); entry.appendChild(document.createTextNode(item.name || ('Series ' + (index + 1)))); self.legendElement.appendChild(entry);
     });
   };
 
@@ -7134,6 +7137,14 @@ function installFabGridFilterUi(FabGrid, context) {
     var operator;
     var colIndex;
     var column;
+    if (this.isTopLeftMenuOpen() && !closest(event.target, 'fg-top-left-menu')) {
+      this.hideTopLeftMenu();
+    }
+    if (this.isFilterMenuOpen() &&
+      !closest(event.target, 'fg-filter-menu') &&
+      !closest(event.target, 'fg-filter-icon')) {
+      this.hideFilterMenu();
+    }
     if (this.isColumnChooserOpen() &&
       !closest(event.target, 'fg-column-chooser') &&
       !closest(event.target, 'fg-column-chooser-trigger')) {
@@ -10369,59 +10380,52 @@ function installFabGridEditorRuntime(FabGrid, context) {
   };
 
   FabGrid.prototype.handleDocumentMouseDown = function(event) {
+    var filterMenuItem;
     if (this.isTopLeftMenuOpen() && !closest(event.target, 'fg-top-left-menu')) {
       this.hideTopLeftMenu();
     }
-    if (closest(event.target, 'fg-filter-menu-item') || this.getFilterMenuItemAtEvent(event)) {
+    filterMenuItem = closest(event.target, 'fg-filter-menu-item') || this.getFilterMenuItemAtEvent(event);
+    if (filterMenuItem) {
       this.handleFilterMenuClick(event);
-      return;
     }
-    if (this.filterMenu && this.filterMenu.style.display === 'block') {
-      if (closest(event.target, 'fg-filter-menu') || closest(event.target, 'fg-filter-icon')) {
-        return;
-      }
+    if (this.filterMenu && this.filterMenu.style.display === 'block' &&
+      !closest(event.target, 'fg-filter-menu') &&
+      !closest(event.target, 'fg-filter-icon')) {
       this.hideFilterMenu();
     }
-    if (this.isColumnChooserOpen()) {
-      if (closest(event.target, 'fg-column-chooser') || closest(event.target, 'fg-column-chooser-trigger')) {
-        return;
-      }
+    if (this.isColumnChooserOpen() &&
+      !closest(event.target, 'fg-column-chooser') &&
+      !closest(event.target, 'fg-column-chooser-trigger')) {
       this.hideColumnChooser();
     }
-    if (this.dateboxPanel && this.dateboxPanel.style.display === 'block') {
-      if (
+    if (this.dateboxPanel && this.dateboxPanel.style.display === 'block' &&
+      !(
         (this.dateboxTarget && event.target === this.dateboxTarget.input) ||
         event.target === this.editor ||
         closest(event.target, 'fg-editor-icons') ||
         closest(event.target, 'fg-header-search-icons') ||
         closest(event.target, 'fg-datebox-panel')
-      ) {
-        return;
-      }
+      )) {
       this.hideDateboxPanel();
     }
-    if (this.comboboxPanel && this.comboboxPanel.style.display === 'block') {
-      if (
+    if (this.comboboxPanel && this.comboboxPanel.style.display === 'block' &&
+      !(
         (this.comboboxTarget && event.target === this.comboboxTarget.input) ||
         event.target === this.editor ||
         closest(event.target, 'fg-editor-icons') ||
         closest(event.target, 'fg-header-search-icons') ||
         closest(event.target, 'fg-combobox-panel')
-      ) {
-        return;
-      }
+      )) {
       this.hideComboboxPanel();
     }
-    if (this.isColorPanelOpen()) {
-      if (
+    if (this.isColorPanelOpen() &&
+      !(
         (this.colorTarget && event.target === this.colorTarget.input) ||
         event.target === this.editor ||
         closest(event.target, 'fg-editor-icons') ||
         closest(event.target, 'fg-header-search-icons') ||
         closest(event.target, 'fg-color-panel')
-      ) {
-        return;
-      }
+      )) {
       this.hideColorPanel();
     }
     if (!this.editing) {
@@ -16082,6 +16086,50 @@ function createFabGridFactory(editorDefinitions) {
   return FabGrid;
 }
 
+function normalizePivotComparable(value, dataType) {
+  var date;
+  var type = String(dataType || '').toLowerCase();
+  if (type === 'date' || value instanceof Date) {
+    date = value instanceof Date ? value : new Date(value);
+    if (!isNaN(date.getTime())) {
+      return ['date', date.getTime()];
+    }
+  }
+  if (value === null) return ['null', null];
+  if (value === undefined) return ['undefined', null];
+  if (typeof value === 'number' && isNaN(value)) return ['nan', null];
+  return [typeof value, value];
+}
+
+function pivotValuesEqual(left, right, dataType) {
+  var leftValue = normalizePivotComparable(left, dataType);
+  var rightValue = normalizePivotComparable(right, dataType);
+  return leftValue[0] === rightValue[0] && leftValue[1] === rightValue[1];
+}
+
+function createPivotPathKey(path) {
+  return JSON.stringify((path || []).map(function(value) {
+    return normalizePivotComparable(value);
+  }));
+}
+
+function isPivotPathPrefix(parentPath, path) {
+  var i;
+  parentPath = parentPath || [];
+  path = path || [];
+  if (parentPath.length > path.length) {
+    return false;
+  }
+  for (i = 0; i < parentPath.length; i += 1) {
+    if (!pivotValuesEqual(parentPath[i], path[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+
 var PivotAggregate = Object.freeze({
   Sum: 'Sum',
   Count: 'Count',
@@ -16259,18 +16307,6 @@ PivotField.prototype.getItemValue = function(item) {
   return getGroupedValue(value, this.groupBy);
 };
 
-function createPathKey(path) {
-  return JSON.stringify(path.map(function(value) {
-    if (value instanceof Date) {
-      return ['date', value.getTime()];
-    }
-    if (value === null) return ['null', null];
-    if (value === undefined) return ['undefined', null];
-    if (typeof value === 'number' && isNaN(value)) return ['nan', null];
-    return [typeof value, value];
-  }));
-}
-
 function createAggregatePaths(path, totals) {
   var result = [path.slice()];
   var i;
@@ -16334,7 +16370,7 @@ function createEntryValueOrders(entries, fieldCount) {
   for (e = 0; e < entries.length; e += 1) {
     entry = entries[e];
     for (i = 0; i < entry.path.length && i < fieldCount; i += 1) {
-      key = createPathKey([entry.path[i]]);
+      key = createPivotPathKey([entry.path[i]]);
       if (!orders[i].has(key)) {
         orders[i].set(key, orders[i].size);
       }
@@ -16344,8 +16380,8 @@ function createEntryValueOrders(entries, fieldCount) {
 }
 
 function comparePivotValueOrder(left, right, order) {
-  var leftOrder = order && order.get(createPathKey([left]));
-  var rightOrder = order && order.get(createPathKey([right]));
+  var leftOrder = order && order.get(createPivotPathKey([left]));
+  var rightOrder = order && order.get(createPivotPathKey([right]));
   if (leftOrder == null || rightOrder == null) {
     return null;
   }
@@ -16381,6 +16417,7 @@ function compareEntries(left, right, fields, totalsBeforeData, valueOrders) {
 function createAccumulator() {
   return {
     count: 0,
+    numericCount: 0,
     sum: 0,
     min: null,
     max: null
@@ -16397,6 +16434,7 @@ function accumulateValue(accumulator, value, aggregate) {
     number = Number(value);
     if (!isNaN(number)) {
       accumulator.sum += number;
+      accumulator.numericCount += 1;
     }
   }
   if (accumulator.min == null || comparePivotValues(value, accumulator.min) < 0) {
@@ -16412,7 +16450,9 @@ function finalizeAccumulator(accumulator, aggregate) {
     return aggregate === PivotAggregate.Count ? 0 : null;
   }
   if (aggregate === PivotAggregate.Count) return accumulator.count;
-  if (aggregate === PivotAggregate.Average) return accumulator.sum / accumulator.count;
+  if (aggregate === PivotAggregate.Average) {
+    return accumulator.numericCount ? accumulator.sum / accumulator.numericCount : null;
+  }
   if (aggregate === PivotAggregate.Min) return accumulator.min;
   if (aggregate === PivotAggregate.Max) return accumulator.max;
   return accumulator.sum;
@@ -16430,19 +16470,23 @@ function matchesFieldFilter(field, item) {
     return filter(value, item) !== false;
   }
   if (Array.isArray(filter)) {
-    return filter.indexOf(value) >= 0;
+    return filter.some(function(filterValue) {
+      return pivotValuesEqual(filterValue, value, field.dataType);
+    });
   }
   if (typeof filter.predicate === 'function' && filter.predicate(value, item) === false) {
     return false;
   }
   values = Array.isArray(filter.values) ? filter.values : null;
-  return !values || values.indexOf(value) >= 0;
+  return !values || values.some(function(filterValue) {
+    return pivotValuesEqual(filterValue, value, field.dataType);
+  });
 }
 
 function pathMatches(item, fields, path) {
   var i;
   for (i = 0; i < path.length; i += 1) {
-    if (comparePivotValues(fields[i].getItemValue(item), path[i]) !== 0) {
+    if (!pivotValuesEqual(fields[i].getItemValue(item), path[i], fields[i].dataType)) {
       return false;
     }
   }
@@ -16566,11 +16610,21 @@ PivotEngine.prototype.emit = function(name, args) {
 };
 
 PivotEngine.prototype.setFields = function(definitions, silent) {
+  var areaNames = ['rowFields', 'columnFields', 'valueFields', 'filterFields'];
+  var areaKeys = {};
   var usedKeys = Object.create(null);
   var definition;
   var field;
   var key;
+  var name;
   var i;
+  definitions = Array.isArray(definitions) ? definitions : [];
+  for (i = 0; i < areaNames.length; i += 1) {
+    name = areaNames[i];
+    areaKeys[name] = (this[name] || []).map(function(item) {
+      return item.key;
+    });
+  }
   this.fields = [];
   for (i = 0; i < definitions.length; i += 1) {
     definition = definitions[i] || {};
@@ -16589,7 +16643,12 @@ PivotEngine.prototype.setFields = function(definitions, silent) {
     usedKeys[key] = true;
     this.fields.push(field);
   }
+  for (i = 0; i < areaNames.length; i += 1) {
+    name = areaNames[i];
+    this.setViewFields(name, areaKeys[name], true);
+  }
   if (!silent) {
+    this.emit('viewDefinitionChanged', { property: 'fields' });
     this.refresh();
   }
 };
@@ -16746,12 +16805,12 @@ PivotEngine.prototype._buildPivotView = function() {
     rowPaths = createAggregatePaths(rowPath, this.showRowTotals);
     columnPaths = createAggregatePaths(columnPath, this.showColumnTotals);
     for (r = 0; r < rowPaths.length; r += 1) {
-      rowKey = createPathKey(rowPaths[r]);
+      rowKey = createPivotPathKey(rowPaths[r]);
       if (!rowEntryMap.has(rowKey)) {
         rowEntryMap.set(rowKey, createEntry(rowPaths[r], this.rowFields.length));
       }
       for (c = 0; c < columnPaths.length; c += 1) {
-        columnKey = createPathKey(columnPaths[c]);
+        columnKey = createPivotPathKey(columnPaths[c]);
         if (!columnEntryMap.has(columnKey)) {
           columnEntryMap.set(columnKey, createEntry(columnPaths[c], this.columnFields.length));
         }
@@ -16769,10 +16828,10 @@ PivotEngine.prototype._buildPivotView = function() {
     }
   }
   if (!this.rowFields.length && !rowEntryMap.size) {
-    rowEntryMap.set(createPathKey([]), createEntry([], 0));
+    rowEntryMap.set(createPivotPathKey([]), createEntry([], 0));
   }
   if (!this.columnFields.length && !columnEntryMap.size) {
-    columnEntryMap.set(createPathKey([]), createEntry([], 0));
+    columnEntryMap.set(createPivotPathKey([]), createEntry([], 0));
   }
   rowEntries = Array.from(rowEntryMap.values());
   columnEntries = Array.from(columnEntryMap.values());
@@ -16830,7 +16889,7 @@ PivotEngine.prototype._buildPivotView = function() {
 
 function createEntry(path, fieldCount) {
   return {
-    key: createPathKey(path),
+    key: createPivotPathKey(path),
     path: path.slice(),
     level: path.length,
     isSubtotal: path.length > 0 && path.length < fieldCount,
@@ -16958,14 +17017,21 @@ Object.defineProperties(PivotEngine.prototype, {
   }
 });
 
-PivotEngine.prototype.formatFieldValue = function(field, value) {
+PivotEngine.prototype.formatFieldValue = function(field, value, locale) {
   var date;
   if (value == null) {
     return '';
   }
   if (field && field.dataType === 'date') {
     date = normalizeDate(value);
-    return date ? date.toLocaleDateString() : String(value);
+    if (!date) {
+      return String(value);
+    }
+    try {
+      return date.toLocaleDateString(locale || undefined);
+    } catch (error) {
+      return date.toLocaleDateString();
+    }
   }
   return String(value);
 };
@@ -16986,6 +17052,715 @@ PivotEngine.prototype.dispose = function() {
   this._filteredItems = [];
   this.pivotView = createEmptyPivotView(this);
 };
+
+
+
+function resolvePivotChartHostElement(element) {
+  if (typeof element === 'string') {
+    if (typeof document === 'undefined') {
+      return null;
+    }
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function getPivotChartMessageValue(source, path) {
+  var value = source;
+  var parts = String(path || '').split('.');
+  var i;
+  for (i = 0; i < parts.length; i += 1) {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+    value = value[parts[i]];
+  }
+  return typeof value === 'string' ? value : null;
+}
+
+function formatPivotChartMessage(text, data) {
+  return String(text || '').replace(/\{(\w+)\}/g, function(match, key) {
+    return data && data[key] != null ? String(data[key]) : match;
+  });
+}
+
+function mergeOptions(base, override) {
+  var result = {};
+  var key;
+  for (key in base) {
+    if (Object.prototype.hasOwnProperty.call(base, key)) {
+      result[key] = base[key];
+    }
+  }
+  for (key in override) {
+    if (Object.prototype.hasOwnProperty.call(override, key)) {
+      result[key] = override[key];
+    }
+  }
+  return result;
+}
+
+function normalizeLimit(value, fallback) {
+  value = Math.floor(Number(value));
+  return isFinite(value) && value > 0 ? value : fallback;
+}
+
+function formatPathValue(value, locale) {
+  if (value instanceof Date) {
+    try {
+      return value.toLocaleDateString(locale || 'en');
+    } catch (error) {
+      return value.toISOString().slice(0, 10);
+    }
+  }
+  return value == null ? '' : String(value);
+}
+
+function formatPath(path, locale, emptyText) {
+  var values = (path || []).map(function(value) {
+    return formatPathValue(value, locale);
+  }).filter(function(value) {
+    return value !== '';
+  });
+  return values.length ? values.join(' / ') : emptyText;
+}
+
+function resolvePivotGridCell(grid, model, selection, options) {
+  var pointIndex = Math.floor(Number(selection && selection.pointIndex));
+  var isPie = String(options && options.chartType || '').toLowerCase() === 'pie';
+  var seriesIndex = isPie ?
+    Math.floor(Number(options && options.selectedSeries) || 0) :
+    Math.floor(Number(selection && selection.seriesIndex));
+  var rowKey = model && model.rowKeys && model.rowKeys[pointIndex];
+  var series = model && model.series && model.series[seriesIndex];
+  var rows = grid && grid.view || [];
+  var columns = grid && grid.visibleColumns || [];
+  var entry;
+  var dataColumn;
+  var row = -1;
+  var col = -1;
+  var i;
+  if (!isFinite(pointIndex) || pointIndex < 0 || !isFinite(seriesIndex) || seriesIndex < 0 ||
+      rowKey == null || !series) {
+    return null;
+  }
+  for (i = 0; i < rows.length; i += 1) {
+    entry = rows[i] && rows[i].__pivotMeta;
+    if (entry && entry.key === rowKey) {
+      row = i;
+      break;
+    }
+  }
+  for (i = 0; i < columns.length; i += 1) {
+    dataColumn = columns[i] && columns[i]._pivotDataColumn;
+    if (dataColumn && dataColumn.binding === series.binding) {
+      col = i;
+      break;
+    }
+  }
+  return row >= 0 && col >= 0 ? { row: row, col: col } : null;
+}
+
+function resolvePivotChartPoint(grid, model) {
+  var selection = grid && grid.selection;
+  var row = selection && grid.view && grid.view[selection.row];
+  var column = selection && grid.visibleColumns && grid.visibleColumns[selection.col];
+  var rowKey = row && row.__pivotMeta && row.__pivotMeta.key;
+  var binding = column && column._pivotDataColumn && column._pivotDataColumn.binding;
+  var pointIndex = model && model.rowKeys ? model.rowKeys.indexOf(rowKey) : -1;
+  var seriesIndex = -1;
+  var i;
+  if (pointIndex < 0 || !binding || !model || !model.series) {
+    return null;
+  }
+  for (i = 0; i < model.series.length; i += 1) {
+    if (model.series[i].binding === binding) {
+      seriesIndex = i;
+      break;
+    }
+  }
+  return seriesIndex >= 0 ? { pointIndex: pointIndex, seriesIndex: seriesIndex } : null;
+}
+
+function formatChartNumber(value, locale) {
+  value = Number(value);
+  if (!isFinite(value)) {
+    return '';
+  }
+  try {
+    return new Intl.NumberFormat(locale || undefined, {
+      maximumFractionDigits: 2
+    }).format(value);
+  } catch (error) {
+    return String(Math.round(value * 100) / 100);
+  }
+}
+
+function createPivotChartOptions(options) {
+  return mergeOptions({
+    chartType: 'Column',
+    showTitle: true,
+    showLegend: 'Auto',
+    legendPosition: 'Bottom',
+    showTotals: false,
+    maxPoints: 100,
+    maxSeries: 12,
+    selectedSeries: 0,
+    header: '',
+    footer: '',
+    locale: 'en',
+    messages: null,
+    tooltip: true,
+    palette: null,
+    animation: true,
+    dataLabel: { content: '{percent}%', position: 'Inside' },
+    axisX: {},
+    axisY: {},
+    formatValue: null,
+    formatTooltip: null,
+    emptyText: null,
+    selectionMode: 'Point',
+    selectionSource: null,
+    selectedItemOffset: .1,
+    selectedItemPosition: 'Top',
+    isAnimated: true
+  }, options || {});
+}
+
+function isStrictEntryDescendant(entry, parent) {
+  var entryPath = entry && entry.path || [];
+  var parentPath = parent && parent.path || [];
+  return entryPath.length > parentPath.length && isPivotPathPrefix(parentPath, entryPath);
+}
+
+function hasVisibleDescendant(entry, visibleEntries) {
+  var i;
+  for (i = 0; i < visibleEntries.length; i += 1) {
+    if (visibleEntries[i] && isStrictEntryDescendant(visibleEntries[i], entry)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function includePivotEntry(entry, showTotals, visibleEntries, useVisibleEntries) {
+  if (showTotals === true || !entry || entry.isLeaf === true) {
+    return true;
+  }
+  return useVisibleEntries === true && entry.isSubtotal === true &&
+    !hasVisibleDescendant(entry, visibleEntries);
+}
+
+function createPivotGridChartView(grid, pivotView) {
+  var rows = grid && Array.isArray(grid.view) ? grid.view : [];
+  var visibleColumns = grid && Array.isArray(grid.visibleColumns) ? grid.visibleColumns : [];
+  var dataColumns = [];
+  var i;
+  for (i = 0; i < visibleColumns.length; i += 1) {
+    if (visibleColumns[i] && visibleColumns[i]._pivotDataColumn) {
+      dataColumns.push(visibleColumns[i]._pivotDataColumn);
+    }
+  }
+  return {
+    engine: pivotView && pivotView.engine || null,
+    rows: rows,
+    rowEntries: rows.map(function(row) {
+      return row && row.__pivotMeta || null;
+    }),
+    columnEntries: dataColumns.map(function(dataColumn) {
+      return dataColumn.entry || null;
+    }),
+    dataColumns: dataColumns,
+    rowFields: pivotView && pivotView.rowFields || [],
+    columnFields: pivotView && pivotView.columnFields || [],
+    valueFields: pivotView && pivotView.valueFields || [],
+    filterFields: pivotView && pivotView.filterFields || [],
+    sourceCount: pivotView && pivotView.sourceCount || 0,
+    filteredCount: pivotView && pivotView.filteredCount || 0
+  };
+}
+
+function getSeriesName(dataColumn, pivotView, locale, totalText) {
+  var entry = dataColumn.entry || {};
+  var valueField = dataColumn.valueField || {};
+  var columnName = entry.path && entry.path.length ? formatPath(entry.path, locale, totalText) : '';
+  var valueName = valueField.header || valueField.key || valueField.binding || '';
+  var hasMultipleValues = (pivotView.valueFields || []).length > 1;
+  if (columnName && hasMultipleValues && valueName) {
+    return columnName + ' · ' + valueName;
+  }
+  return columnName || valueName || totalText;
+}
+
+function createPivotChartModel(pivotView, options) {
+  var rows = pivotView && pivotView.rows || [];
+  var rowEntries = pivotView && pivotView.rowEntries || [];
+  var dataColumns = pivotView && pivotView.dataColumns || [];
+  var locale = options && options.locale || 'en';
+  var totalText = options && options.totalText || 'Total';
+  var showTotals = options && options.showTotals === true;
+  var maxPoints = normalizeLimit(options && options.maxPoints, 100);
+  var maxSeries = normalizeLimit(options && options.maxSeries, 12);
+  var useVisibleEntries = options && options.useVisibleEntries === true;
+  var visibleRowEntries = [];
+  var visibleColumnEntries = [];
+  var includedRows = [];
+  var includedColumns = [];
+  var categories;
+  var series;
+  var entry;
+  var i;
+
+  for (i = 0; i < rows.length; i += 1) {
+    visibleRowEntries.push(rowEntries[i] || rows[i] && rows[i].__pivotMeta || null);
+  }
+  for (i = 0; i < dataColumns.length; i += 1) {
+    visibleColumnEntries.push(dataColumns[i].entry || null);
+  }
+  for (i = 0; i < rows.length; i += 1) {
+    entry = visibleRowEntries[i];
+    if (includePivotEntry(entry, showTotals, visibleRowEntries, useVisibleEntries)) {
+      includedRows.push({ row: rows[i], entry: entry });
+    }
+  }
+  for (i = 0; i < dataColumns.length; i += 1) {
+    if (includePivotEntry(dataColumns[i].entry, showTotals, visibleColumnEntries, useVisibleEntries) &&
+        (!dataColumns[i].valueField || dataColumns[i].valueField.visible !== false)) {
+      includedColumns.push(dataColumns[i]);
+    }
+  }
+
+  categories = includedRows.slice(0, maxPoints).map(function(item) {
+    return formatPath(item.entry && item.entry.path, locale, totalText);
+  });
+  series = includedColumns.slice(0, maxSeries).map(function(dataColumn) {
+    return {
+      name: getSeriesName(dataColumn, pivotView || {}, locale, totalText),
+      binding: dataColumn.binding,
+      valueField: dataColumn.valueField || null,
+      columnEntry: dataColumn.entry || null,
+      data: includedRows.slice(0, maxPoints).map(function(item) {
+        var value = item.row ? item.row[dataColumn.binding] : null;
+        return value == null ? undefined : value;
+      })
+    };
+  });
+
+  return {
+    categories: categories,
+    rowKeys: includedRows.slice(0, maxPoints).map(function(item) {
+      return item.entry ? item.entry.key : null;
+    }),
+    series: series,
+    pointCount: includedRows.length,
+    seriesCount: includedColumns.length,
+    pointsTruncated: includedRows.length > maxPoints,
+    seriesTruncated: includedColumns.length > maxSeries
+  };
+}
+
+function createPivotChartFactory(Control, registerControl, unregisterControl, PivotEngine, Chart, FabGrid) {
+  function PivotChart(element, options) {
+    var host = resolvePivotChartHostElement(element);
+    var source;
+    options = options || {};
+    if (!host) {
+      throw new TypeError('PivotChart host element was not found.');
+    }
+    Control.call(this);
+    this.hostElement = host;
+    this.root = host;
+    this.options = createPivotChartOptions(options);
+    this.locale = this.options.locale || 'en';
+    this.messages = this.options.messages || null;
+    this._engine = null;
+    this._selectionSource = null;
+    this._raf = 0;
+    this._disposed = false;
+    this._updatedHandler = this.invalidate.bind(this);
+    this._chartSelectionHandler = this._handleChartSelectionChanged.bind(this);
+    this._gridSelectionHandler = this._handleGridSelectionChanged.bind(this);
+    this._gridRefreshedHandler = this.invalidate.bind(this);
+    this._createDom();
+    this.chart = new Chart(this.chartHost, {
+      observeData: false,
+      animation: this.options.animation,
+      locale: this.locale
+    });
+    this.chart.on('selectionChanged', this._chartSelectionHandler);
+    this.bindSelectionSource(this.options.selectionSource);
+    registerControl(host, this);
+    source = options.itemsSource || options.engine || null;
+    if (source) {
+      this.setItemsSource(source);
+    } else {
+      this.refresh();
+    }
+  }
+
+  PivotChart.prototype = Object.create(Control.prototype);
+  PivotChart.prototype.constructor = PivotChart;
+
+  PivotChart.prototype._createDom = function() {
+    this.hostElement.innerHTML = '';
+    this.hostElement.classList.add('fg-root', 'fg-pivot-chart');
+    this.hostElement.setAttribute('role', 'region');
+    this.chartHost = document.createElement('div');
+    this.chartHost.className = 'fg-pivot-chart-host';
+    this.hostElement.appendChild(this.chartHost);
+    this.applyLocaleToDom();
+  };
+
+  PivotChart.prototype.getText = function(path, data) {
+    var locales = FabGrid.locales || {};
+    var localeName = this.locale || 'en';
+    var baseName = localeName.split('-')[0];
+    var text = getPivotChartMessageValue(this.messages, path) ||
+      getPivotChartMessageValue(locales[localeName], path) ||
+      getPivotChartMessageValue(locales[baseName], path) ||
+      getPivotChartMessageValue(locales.en, path) || path;
+    return formatPivotChartMessage(text, data);
+  };
+
+  PivotChart.prototype.applyLocaleToDom = function() {
+    this.hostElement.setAttribute('aria-label', this.getText('pivot.chart.ariaLabel'));
+  };
+
+  PivotChart.prototype.resolveEngine = function(source) {
+    if (source instanceof PivotEngine) {
+      return source;
+    }
+    if (source && source.engine instanceof PivotEngine) {
+      return source.engine;
+    }
+    return null;
+  };
+
+  PivotChart.prototype.setItemsSource = function(source) {
+    var engine = this.resolveEngine(source);
+    if (!engine) {
+      throw new TypeError('PivotChart itemsSource must be a fabui.pivot.PivotEngine or PivotPanel instance.');
+    }
+    if (this._engine === engine) {
+      this.refresh();
+      return this;
+    }
+    if (this._engine && this._engine.updatedView) {
+      this._engine.updatedView.removeHandler(this._updatedHandler, this);
+    }
+    this._engine = engine;
+    engine.updatedView.addHandler(this._updatedHandler, this);
+    this.refresh();
+    return this;
+  };
+
+  PivotChart.prototype.setOptions = function(options) {
+    var source;
+    var hasSelectionSource;
+    options = options || {};
+    source = options.itemsSource || options.engine || null;
+    hasSelectionSource = Object.prototype.hasOwnProperty.call(options, 'selectionSource');
+    this.options = mergeOptions(this.options, options);
+    this.locale = this.options.locale || this.locale || 'en';
+    this.messages = this.options.messages || null;
+    if (hasSelectionSource) {
+      this.bindSelectionSource(options.selectionSource);
+    }
+    this.applyLocaleToDom();
+    if (source) {
+      return this.setItemsSource(source);
+    }
+    this.refresh();
+    return this;
+  };
+
+  PivotChart.prototype.bindSelectionSource = function(source) {
+    if (this._selectionSource && this._selectionSource.selectionChanged &&
+        typeof this._selectionSource.selectionChanged.removeHandler === 'function') {
+      this._selectionSource.selectionChanged.removeHandler(this._gridSelectionHandler, this);
+    }
+    if (this._selectionSource && this._selectionSource.refreshed &&
+        typeof this._selectionSource.refreshed.removeHandler === 'function') {
+      this._selectionSource.refreshed.removeHandler(this._gridRefreshedHandler, this);
+    }
+    this._selectionSource = source || null;
+    this.options.selectionSource = this._selectionSource;
+    if (this._selectionSource && this._selectionSource.selectionChanged &&
+        typeof this._selectionSource.selectionChanged.addHandler === 'function') {
+      this._selectionSource.selectionChanged.addHandler(this._gridSelectionHandler, this);
+    }
+    if (this._selectionSource && this._selectionSource.refreshed &&
+        typeof this._selectionSource.refreshed.addHandler === 'function') {
+      this._selectionSource.refreshed.addHandler(this._gridRefreshedHandler, this);
+    }
+    return this;
+  };
+
+  PivotChart.prototype._handleChartSelectionChanged = function(eventArgs) {
+    var grid = this._selectionSource;
+    var selection = eventArgs && eventArgs.selection;
+    var cell;
+    if (!grid || typeof grid.select !== 'function' || !selection) {
+      return;
+    }
+    cell = resolvePivotGridCell(grid, this.model, selection, this.options);
+    if (!cell) {
+      return;
+    }
+    grid.select(cell.row, cell.col);
+    if (typeof grid.scrollIntoView === 'function') {
+      grid.scrollIntoView(cell.row, cell.col);
+    }
+  };
+
+  PivotChart.prototype._handleGridSelectionChanged = function() {
+    var point = resolvePivotChartPoint(this._selectionSource, this.model);
+    var isPie = String(this.options.chartType || 'Column').toLowerCase() === 'pie';
+    if (!point || !this.chart) {
+      return;
+    }
+    if (isPie && this.options.selectedSeries !== point.seriesIndex) {
+      this.options.selectedSeries = point.seriesIndex;
+      this.refresh();
+    }
+    this.chart.selectPoint(point.pointIndex, isPie ? null : point.seriesIndex);
+  };
+
+  PivotChart.prototype.setType = function(type) {
+    this.options.chartType = type || 'Column';
+    this.refresh();
+    return this;
+  };
+
+  PivotChart.prototype.setLocale = function(locale, messages) {
+    this.locale = locale || 'en';
+    this.options.locale = this.locale;
+    if (messages !== undefined) {
+      this.messages = messages;
+      this.options.messages = messages;
+    }
+    this.applyLocaleToDom();
+    this.refresh();
+    return this;
+  };
+
+  PivotChart.prototype.getLegendOption = function(seriesCount) {
+    var mode = String(this.options.showLegend == null ? 'Auto' : this.options.showLegend).toLowerCase();
+    if (this.options.showLegend === false || mode === 'never' || mode === 'none') {
+      return false;
+    }
+    if (mode === 'auto' && seriesCount <= 1) {
+      return false;
+    }
+    return { position: this.options.legendPosition || 'Bottom' };
+  };
+
+  PivotChart.prototype.getFooter = function(model) {
+    var notices = [];
+    if (this.options.footer) {
+      notices.push(this.options.footer);
+    }
+    if (model.pointsTruncated) {
+      notices.push(this.getText('pivot.chart.pointsTruncated', {
+        count: normalizeLimit(this.options.maxPoints, 100),
+        total: model.pointCount
+      }));
+    }
+    if (model.seriesTruncated) {
+      notices.push(this.getText('pivot.chart.seriesTruncated', {
+        count: normalizeLimit(this.options.maxSeries, 12),
+        total: model.seriesCount
+      }));
+    }
+    return notices.join(' · ');
+  };
+
+  PivotChart.prototype.getChartSeries = function(model) {
+    var type = String(this.options.chartType || 'Column').toLowerCase();
+    var selected;
+    if (type !== 'pie') {
+      return model.series;
+    }
+    selected = Math.max(0, Math.min(
+      Math.floor(Number(this.options.selectedSeries) || 0),
+      Math.max(0, model.series.length - 1)
+    ));
+    if (!model.series[selected]) {
+      return [];
+    }
+    return [{
+      name: model.series[selected].name,
+      data: model.categories.map(function(category, index) {
+        return { name: category, value: model.series[selected].data[index] };
+      })
+    }];
+  };
+
+  PivotChart.prototype.refresh = function() {
+    var engineView = this._engine ? this._engine.pivotView : null;
+    var useGridView = Boolean(this._selectionSource && this._selectionSource.engine === this._engine);
+    var view = useGridView ? createPivotGridChartView(this._selectionSource, engineView) : engineView;
+    var model = createPivotChartModel(view, {
+      locale: this.locale,
+      totalText: this.getText('pivot.grandTotal'),
+      showTotals: this.options.showTotals,
+      maxPoints: this.options.maxPoints,
+      maxSeries: this.options.maxSeries,
+      useVisibleEntries: useGridView
+    });
+    var gridPoint = useGridView ? resolvePivotChartPoint(this._selectionSource, model) : null;
+    if (gridPoint && String(this.options.chartType || 'Column').toLowerCase() === 'pie') {
+      this.options.selectedSeries = gridPoint.seriesIndex;
+    }
+    var series = this.getChartSeries(model);
+    var isPie = String(this.options.chartType || 'Column').toLowerCase() === 'pie';
+    var pieItems = isPie && series[0] ? series[0].data : [];
+    if (this._disposed || !this.chart) {
+      return this;
+    }
+    this.model = model;
+    this.chart.setOptions({
+      chartType: this.options.chartType,
+      type: this.options.chartType,
+      itemsSource: isPie ? pieItems : null,
+      bindingName: isPie ? 'name' : '',
+      binding: isPie ? 'value' : '',
+      categories: isPie ? [] : model.categories,
+      series: isPie ? [] : series,
+      header: this.options.showTitle === false ? '' :
+        (this.options.header || this.getText('pivot.chart.title')),
+      footer: this.getFooter(model),
+      legend: this.getLegendOption(isPie ? pieItems.length : series.length),
+      tooltip: this.options.tooltip,
+      palette: this.options.palette,
+      animation: this.options.animation,
+      dataLabel: this.options.dataLabel,
+      axisX: this.options.axisX,
+      axisY: this.options.axisY,
+      formatValue: this.options.formatValue || function(value) {
+        return formatChartNumber(value, this.locale);
+      }.bind(this),
+      formatTooltip: this.options.formatTooltip,
+      emptyText: this.options.emptyText || this.getText('emptyText'),
+      selectionMode: this.options.selectionMode,
+      selectedItemOffset: this.options.selectedItemOffset,
+      selectedItemPosition: this.options.selectedItemPosition,
+      isAnimated: this.options.isAnimated,
+      locale: this.locale,
+      observeData: false
+    });
+    if (useGridView) {
+      if (gridPoint) {
+        this.chart.selectPoint(gridPoint.pointIndex, isPie ? null : gridPoint.seriesIndex);
+      } else {
+        this.chart.selectPoint(-1);
+      }
+    }
+    return this;
+  };
+
+  PivotChart.prototype.invalidate = function() {
+    var self = this;
+    var schedule;
+    if (this._disposed || this._raf) {
+      return;
+    }
+    schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : function(callback) {
+      return setTimeout(callback, 0);
+    };
+    this._raf = schedule(function() {
+      self._raf = 0;
+      self.refresh();
+    });
+  };
+
+  PivotChart.prototype.resize = function() {
+    if (this.chart) {
+      this.chart.resize();
+    }
+    return this;
+  };
+
+  PivotChart.prototype.dispose = function() {
+    if (this._disposed) {
+      return;
+    }
+    this._disposed = true;
+    if (this._engine && this._engine.updatedView) {
+      this._engine.updatedView.removeHandler(this._updatedHandler, this);
+    }
+    if (this._raf) {
+      if (typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(this._raf);
+      } else {
+        clearTimeout(this._raf);
+      }
+      this._raf = 0;
+    }
+    if (this.chart) {
+      this.chart.off('selectionChanged', this._chartSelectionHandler);
+      this.chart.dispose();
+    }
+    this.bindSelectionSource(null);
+    this.removeEventListener();
+    unregisterControl(this.hostElement, this);
+    this.hostElement.innerHTML = '';
+    this.hostElement.classList.remove('fg-root', 'fg-pivot-chart');
+    this._engine = null;
+    this.chart = null;
+  };
+
+  Object.defineProperties(PivotChart.prototype, {
+    itemsSource: {
+      get: function() { return this._engine; },
+      set: function(value) { this.setItemsSource(value); }
+    },
+    engine: {
+      get: function() { return this._engine; }
+    },
+    chartType: {
+      get: function() { return this.options.chartType; },
+      set: function(value) { this.setType(value); }
+    },
+    showTitle: {
+      get: function() { return this.options.showTitle !== false; },
+      set: function(value) { this.options.showTitle = value !== false; this.refresh(); }
+    },
+    showLegend: {
+      get: function() { return this.options.showLegend; },
+      set: function(value) { this.options.showLegend = value; this.refresh(); }
+    },
+    showTotals: {
+      get: function() { return this.options.showTotals === true; },
+      set: function(value) { this.options.showTotals = value === true; this.refresh(); }
+    },
+    maxPoints: {
+      get: function() { return this.options.maxPoints; },
+      set: function(value) { this.options.maxPoints = normalizeLimit(value, 100); this.refresh(); }
+    },
+    maxSeries: {
+      get: function() { return this.options.maxSeries; },
+      set: function(value) { this.options.maxSeries = normalizeLimit(value, 12); this.refresh(); }
+    },
+    selectedSeries: {
+      get: function() { return this.options.selectedSeries; },
+      set: function(value) { this.options.selectedSeries = Math.max(0, Math.floor(Number(value) || 0)); this.refresh(); }
+    },
+    selectionSource: {
+      get: function() { return this._selectionSource; },
+      set: function(value) { this.bindSelectionSource(value); this.refresh(); }
+    }
+  });
+
+  PivotChart.ChartType = Chart.ChartType;
+  return PivotChart;
+}
+
+
 
 function createPivotGridFactory(FabGrid, PivotEngine) {
   var baseApplyLocaleToDom = FabGrid.prototype.applyLocaleToDom;
@@ -17048,24 +17823,36 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
       direction === 1 ? 'pivot.sortDescending' : 'pivot.clearSort';
   }
 
-  function isStrictDescendant(entry, parentKey, entriesByKey) {
-    var parent = entriesByKey[parentKey];
-    var i;
-    if (!parent || entry.path.length <= parent.path.length) {
-      return false;
-    }
-    for (i = 0; i < parent.path.length; i += 1) {
-      if (entry.path[i] !== parent.path[i]) {
-        return false;
+  function getRowGroupMenuState(entriesByKey, collapsed) {
+    var hasGroups = false;
+    var hasExpanded = false;
+    var key;
+    entriesByKey = entriesByKey || {};
+    collapsed = collapsed || {};
+    for (key in entriesByKey) {
+      if (entriesByKey[key].isSubtotal) {
+        hasGroups = true;
+        if (!collapsed[key]) {
+          hasExpanded = true;
+          break;
+        }
       }
     }
-    return true;
+    return {
+      hasGroups: hasGroups,
+      hasExpanded: hasExpanded
+    };
   }
 
-  function isHiddenByCollapsedEntry(entry, collapsed, entriesByKey) {
+  function isHiddenByCollapsedEntry(entry, collapsed) {
     var key;
-    for (key in collapsed) {
-      if (collapsed[key] && isStrictDescendant(entry, key, entriesByKey)) {
+    var length;
+    if (!entry || !entry.path) {
+      return false;
+    }
+    for (length = 1; length < entry.path.length; length += 1) {
+      key = createPivotPathKey(entry.path.slice(0, length));
+      if (collapsed[key]) {
         return true;
       }
     }
@@ -17106,23 +17893,6 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
       options.currency = field.currency || 'USD';
     }
     return new Intl.NumberFormat(locale || undefined, options).format(value);
-  }
-
-  function pivotValuesEqual(left, right) {
-    if (left instanceof Date && right instanceof Date) {
-      return left.getTime() === right.getTime();
-    }
-    return left === right || (typeof left === 'number' && typeof right === 'number' && isNaN(left) && isNaN(right));
-  }
-
-  function createPivotGroupKey(path) {
-    return JSON.stringify(path.map(function(value) {
-      if (value instanceof Date) return ['date', value.getTime()];
-      if (value === null) return ['null', null];
-      if (value === undefined) return ['undefined', null];
-      if (typeof value === 'number' && isNaN(value)) return ['nan', null];
-      return [typeof value, value];
-    }));
   }
 
   function createMenuItem(action, label, iconClass, active, disabled) {
@@ -17250,10 +18020,10 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
   };
 
   PivotGrid.prototype.setLocale = function(locale, messages, silent) {
-    baseSetLocale.call(this, locale, messages, silent);
     if (!this._pivotConstructing && this._pivotEngine) {
-      this._applyPivotView(silent === true);
+      this._applyPivotView(true);
     }
+    baseSetLocale.call(this, locale, messages, silent);
     return this;
   };
 
@@ -17279,6 +18049,8 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
 
   PivotGrid.prototype._applyPivotView = function(silent) {
     var view = this._pivotEngine ? this._pivotEngine.pivotView : null;
+    var selectionState = this._capturePivotSelectionState();
+    var selectionChanged;
     var rowEntries;
     var columnEntries;
     var visibleRows = [];
@@ -17300,7 +18072,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
       this._pivotRowEntriesByKey[rowEntries[i].key] = rowEntries[i];
     }
     for (i = 0; i < rowEntries.length; i += 1) {
-      if (!isHiddenByCollapsedEntry(rowEntries[i], this._pivotRowCollapsed, this._pivotRowEntriesByKey)) {
+      if (!isHiddenByCollapsedEntry(rowEntries[i], this._pivotRowCollapsed)) {
         visibleRows.push(view.rows[i]);
       }
     }
@@ -17314,10 +18086,100 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
     this.options.frozenColumns = view.rowFields.length;
     FabGrid.prototype.setColumns.call(this, columns, true);
     baseSetItemsSource.call(this, visibleRows, true);
+    selectionChanged = this._restorePivotSelectionState(selectionState);
     this.syncHeaderLayout();
     if (!silent) {
       this.refresh();
+      if (selectionChanged) {
+        this.emit('selectionChanged', this.getSelectionEventArgs(
+          this.selection.row,
+          this.selection.col,
+          this.selectionAnchor.row,
+          this.selectionAnchor.col
+        ));
+      }
     }
+  };
+
+  PivotGrid.prototype._capturePivotSelectionState = function() {
+    var anchor = this.selectionAnchor || this.selection;
+    return {
+      activeRowKey: this._getPivotSelectionRowKey(this.selection.row),
+      activeColumnKey: this._getPivotSelectionColumnKey(this.selection.col),
+      anchorRowKey: this._getPivotSelectionRowKey(anchor.row),
+      anchorColumnKey: this._getPivotSelectionColumnKey(anchor.col),
+      activeRow: this.selection.row,
+      activeCol: this.selection.col,
+      anchorRow: anchor.row,
+      anchorCol: anchor.col
+    };
+  };
+
+  PivotGrid.prototype._getPivotSelectionRowKey = function(rowIndex) {
+    var row = this.view && this.view[rowIndex];
+    return row && row.__pivotMeta ? row.__pivotMeta.key : null;
+  };
+
+  PivotGrid.prototype._getPivotSelectionColumnKey = function(columnIndex) {
+    var column = this.visibleColumns && this.visibleColumns[columnIndex];
+    var dataColumn = column && column._pivotDataColumn;
+    if (!column) {
+      return null;
+    }
+    return dataColumn ?
+      'value:' + dataColumn.entry.key + ':' + dataColumn.valueField.key :
+      'row:' + column.binding;
+  };
+
+  PivotGrid.prototype._findPivotSelectionRow = function(key, fallback) {
+    var entry;
+    var i;
+    if (key != null) {
+      for (i = 0; i < this.view.length; i += 1) {
+        entry = this.view[i] && this.view[i].__pivotMeta;
+        if (entry && entry.key === key) {
+          return i;
+        }
+      }
+    }
+    return fallback;
+  };
+
+  PivotGrid.prototype._findPivotSelectionColumn = function(key, fallback) {
+    var i;
+    if (key != null) {
+      for (i = 0; i < this.visibleColumns.length; i += 1) {
+        if (this._getPivotSelectionColumnKey(i) === key) {
+          return i;
+        }
+      }
+    }
+    return fallback;
+  };
+
+  PivotGrid.prototype._restorePivotSelectionState = function(state) {
+    var previous = {
+      row: this.selection.row,
+      col: this.selection.col,
+      anchorRow: (this.selectionAnchor || this.selection).row,
+      anchorCol: (this.selectionAnchor || this.selection).col
+    };
+    if (state) {
+      this.selection = {
+        row: this._findPivotSelectionRow(state.activeRowKey, state.activeRow),
+        col: this._findPivotSelectionColumn(state.activeColumnKey, state.activeCol)
+      };
+      this.selectionAnchor = {
+        row: this._findPivotSelectionRow(state.anchorRowKey, state.anchorRow),
+        col: this._findPivotSelectionColumn(state.anchorColumnKey, state.anchorCol)
+      };
+    }
+    this.clampSelection();
+    this.rowSelection = this.view.length ? this.selection.row : null;
+    return previous.row !== this.selection.row ||
+      previous.col !== this.selection.col ||
+      previous.anchorRow !== this.selectionAnchor.row ||
+      previous.anchorCol !== this.selectionAnchor.col;
   };
 
   PivotGrid.prototype._createPivotColumns = function(view) {
@@ -17353,11 +18215,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
         align: field.align || 'right',
         dataType: field.dataType || 'number',
         format: field.format,
-        visible: !isHiddenByCollapsedEntry(
-          dataColumn.entry,
-          this._pivotColumnCollapsed,
-          this._pivotColumnEntriesByKey
-        ),
+        visible: !isHiddenByCollapsedEntry(dataColumn.entry, this._pivotColumnCollapsed),
         readOnly: true,
         isReadOnly: true,
         _pivotDataColumn: dataColumn,
@@ -17375,11 +18233,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
 
   PivotGrid.prototype._isExcelExportRowHidden = function(row) {
     var entry = row && row.__pivotMeta;
-    return Boolean(entry && isHiddenByCollapsedEntry(
-      entry,
-      this._pivotRowCollapsed,
-      this._pivotRowEntriesByKey
-    ));
+    return Boolean(entry && isHiddenByCollapsedEntry(entry, this._pivotRowCollapsed));
   };
 
   function createRowFieldFormatter(grid, field, fieldIndex) {
@@ -17394,7 +18248,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
       if (entry.isSubtotal && fieldIndex === entry.path.length) {
         return grid.getText('pivot.total');
       }
-      return fieldIndex < entry.path.length ? grid._pivotEngine.formatFieldValue(field, value) : '';
+      return fieldIndex < entry.path.length ? grid._pivotEngine.formatFieldValue(field, value, grid.locale) : '';
     };
   }
 
@@ -17416,7 +18270,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
           current = null;
           continue;
         }
-        key = createPivotGroupKey(entry.path.slice(0, fieldIndex + 1));
+        key = createPivotPathKey(entry.path.slice(0, fieldIndex + 1));
         if (!current || current.key !== key) {
           current = {
             key: key,
@@ -17579,7 +18433,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
       value = field.getItemValue(source[i]);
       exists = false;
       for (j = 0; j < values.length; j += 1) {
-        if (pivotValuesEqual(values[j], value)) {
+        if (pivotValuesEqual(values[j], value, field.dataType)) {
           exists = true;
           break;
         }
@@ -17594,9 +18448,9 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
     for (i = 0; i < values.length; i += 1) {
       option = document.createElement('option');
       option.value = String(i + 1);
-      option.textContent = this._pivotEngine.formatFieldValue(field, values[i]) || this.getText('filter.blankValue');
+      option.textContent = this._pivotEngine.formatFieldValue(field, values[i], this.locale) || this.getText('filter.blankValue');
       option._pivotFilterValue = values[i];
-      option.selected = hasSingleFilter && pivotValuesEqual(current, values[i]);
+      option.selected = hasSingleFilter && pivotValuesEqual(current, values[i], field.dataType);
       select.appendChild(option);
     }
     return select;
@@ -17666,7 +18520,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
       if (entry.isGrandTotal) {
         label = level === 0 ? this.getText('pivot.grandTotal') : '';
       } else if (level < entry.path.length) {
-        label = this._pivotEngine.formatFieldValue(field, entry.path[level]);
+        label = this._pivotEngine.formatFieldValue(field, entry.path[level], this.locale);
       } else if (entry.isSubtotal && level === entry.path.length) {
         label = this.getText('pivot.total');
         toggle = this.options.collapsibleSubtotals !== false;
@@ -17920,12 +18774,16 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
     var fragment = document.createDocumentFragment();
     var aggregate;
     var aggregates = ['Sum', 'Count', 'Average', 'Min', 'Max'];
+    var rowGroupState;
+    var columnGroupState;
+    var hasGroups;
+    var hasExpandedGroups;
     var i;
     this.topLeftMenu.innerHTML = '';
     if (context && context.cellType === FabGrid.CellType.Cell && column && column._pivotDataColumn) {
       fragment.appendChild(createMenuItem('pivot-detail', this.getText('pivot.showDetail'), 'icon-refwin'));
     }
-    if (entry && entry.isSubtotal) {
+    if (entry && entry.isSubtotal && !(column && column._pivotRowField)) {
       fragment.appendChild(createMenuItem(
         context.cellType === FabGrid.CellType.Cell ? 'pivot-toggle-row' : 'pivot-toggle-column',
         this.getText((context.cellType === FabGrid.CellType.Cell ? this._pivotRowCollapsed : this._pivotColumnCollapsed)[entry.key] ?
@@ -17934,6 +18792,17 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
       ));
     }
     if (column && column._pivotRowField) {
+      rowGroupState = getRowGroupMenuState(this._pivotRowEntriesByKey, this._pivotRowCollapsed);
+      columnGroupState = getRowGroupMenuState(this._pivotColumnEntriesByKey, this._pivotColumnCollapsed);
+      hasGroups = rowGroupState.hasGroups || columnGroupState.hasGroups;
+      hasExpandedGroups = rowGroupState.hasExpanded || columnGroupState.hasExpanded;
+      fragment.appendChild(createMenuItem(
+        hasExpandedGroups ? 'pivot-collapse-all' : 'pivot-expand-all',
+        this.getText(hasExpandedGroups ? 'pivot.collapseAll' : 'pivot.expandAll'),
+        hasExpandedGroups ? 'icon-collapse' : 'icon-expand',
+        false,
+        !hasGroups
+      ));
       fragment.appendChild(createMenuItem('pivot-sort', this.getText(
         getPivotSortMenuKey(column._pivotRowField)
       ), 'icon-sort'));
@@ -17987,11 +18856,19 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
       this.toggleRowSubtotal(entry.key);
     } else if (action === 'pivot-toggle-column' && entry) {
       this.toggleColumnSubtotal(entry.key);
+    } else if (action === 'pivot-expand-all') {
+      this.expandAll();
+    } else if (action === 'pivot-collapse-all') {
+      this.collapseAll();
     } else if (action === 'pivot-sort' && field) {
       this.togglePivotFieldSort(field.key);
     } else if (action.indexOf('pivot-aggregate-') === 0 && field) {
       field.aggregate = action.slice('pivot-aggregate-'.length).replace(/^./, function(character) {
         return character.toUpperCase();
+      });
+      this._pivotEngine.emit('viewDefinitionChanged', {
+        property: 'aggregate',
+        field: field
       });
       this._pivotEngine.refresh();
     } else if (action === 'pivot-remove-field' && field) {
@@ -18013,6 +18890,10 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
     }
     direction = getPivotFieldSortDirection(field);
     field.sortDirection = direction === 0 ? 1 : direction === 1 ? -1 : 0;
+    this._pivotEngine.emit('viewDefinitionChanged', {
+      property: 'sortDirection',
+      field: field
+    });
     this._pivotEngine.refresh();
     return true;
   };
@@ -18179,14 +19060,14 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
   return PivotGrid;
 }
 
-function resolveHostElement(element) {
+function resolvePivotPanelHostElement(element) {
   if (typeof element === 'string') {
     return typeof document === 'undefined' ? null : document.querySelector(element);
   }
   return element && element.nodeType === 1 ? element : null;
 }
 
-function getMessageValue(messages, path) {
+function getPivotPanelMessageValue(messages, path) {
   var parts = String(path || '').split('.');
   var value = messages;
   var i;
@@ -18199,7 +19080,7 @@ function getMessageValue(messages, path) {
   return typeof value === 'string' ? value : null;
 }
 
-function formatMessage(text, data) {
+function formatPivotPanelMessage(text, data) {
   return String(text || '').replace(/\{([^}]+)\}/g, function(match, key) {
     return data && data[key] != null ? String(data[key]) : match;
   });
@@ -18296,7 +19177,7 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
   ];
 
   function PivotPanel(element, options) {
-    var host = resolveHostElement(element);
+    var host = resolvePivotPanelHostElement(element);
     options = options || {};
     if (!host) {
       throw new TypeError('PivotPanel host element was not found.');
@@ -18315,6 +19196,8 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     this._dropIndicator = null;
     this._aggregateMenuFieldKey = null;
     this._sortMenuFieldKey = null;
+    this._documentPointerDownBound = false;
+    this._documentPointerDownHandler = this._handleDocumentPointerDown.bind(this);
     this._updatedHandler = this.refresh.bind(this);
     this._createDom();
     this._bindEvents();
@@ -18398,18 +19281,17 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     this.addEventListener(this.hostElement, 'drop', this._handleDrop.bind(this));
     this.addEventListener(this.hostElement, 'dragend', this._clearDragState.bind(this));
     this.addEventListener(this.hostElement, 'keydown', this._handleKeyDown.bind(this));
-    this.addEventListener(document, 'pointerdown', this._handleDocumentPointerDown.bind(this));
   };
 
   PivotPanel.prototype.getText = function(path, data) {
     var locales = FabGrid.locales || {};
     var localeName = this.locale || 'en';
     var baseName = localeName.split('-')[0];
-    var text = getMessageValue(this.messages, path) ||
-      getMessageValue(locales[localeName], path) ||
-      getMessageValue(locales[baseName], path) ||
-      getMessageValue(locales.en, path) || path;
-    return formatMessage(text, data);
+    var text = getPivotPanelMessageValue(this.messages, path) ||
+      getPivotPanelMessageValue(locales[localeName], path) ||
+      getPivotPanelMessageValue(locales[baseName], path) ||
+      getPivotPanelMessageValue(locales.en, path) || path;
+    return formatPivotPanelMessage(text, data);
   };
 
   PivotPanel.prototype.applyLocaleToDom = function() {
@@ -18757,6 +19639,7 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     top = Math.max(0, Math.min(top, this.hostElement.clientHeight - this.aggregateMenu.offsetHeight));
     this.aggregateMenu.style.left = left + 'px';
     this.aggregateMenu.style.top = top + 'px';
+    this._syncDocumentMenuPointerListener();
     this.hostElement.focus({ preventScroll: true });
     return true;
   };
@@ -18767,6 +19650,7 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
       this.aggregateMenu.setAttribute('aria-hidden', 'true');
     }
     this._aggregateMenuFieldKey = null;
+    this._syncDocumentMenuPointerListener();
   };
 
   PivotPanel.prototype.isAggregateMenuOpen = function() {
@@ -18818,6 +19702,7 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     top = Math.max(0, Math.min(top, this.hostElement.clientHeight - this.sortMenu.offsetHeight));
     this.sortMenu.style.left = left + 'px';
     this.sortMenu.style.top = top + 'px';
+    this._syncDocumentMenuPointerListener();
     this.hostElement.focus({ preventScroll: true });
     return true;
   };
@@ -18828,10 +19713,22 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
       this.sortMenu.setAttribute('aria-hidden', 'true');
     }
     this._sortMenuFieldKey = null;
+    this._syncDocumentMenuPointerListener();
   };
 
   PivotPanel.prototype.isSortMenuOpen = function() {
     return !!(this.sortMenu && this.sortMenu.style.display === 'block');
+  };
+
+  PivotPanel.prototype._syncDocumentMenuPointerListener = function() {
+    var shouldBind = this.isAggregateMenuOpen() || this.isSortMenuOpen();
+    if (shouldBind && !this._documentPointerDownBound) {
+      this.addEventListener(document, 'pointerdown', this._documentPointerDownHandler);
+      this._documentPointerDownBound = true;
+    } else if (!shouldBind && this._documentPointerDownBound) {
+      this.removeEventListener(document, 'pointerdown', this._documentPointerDownHandler);
+      this._documentPointerDownBound = false;
+    }
   };
 
   PivotPanel.prototype._handleDocumentPointerDown = function(event) {
@@ -18979,6 +19876,8 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     if (this._engine && this._engine.updatedView) {
       this._engine.updatedView.removeHandler(this._updatedHandler, this);
     }
+    this.hideAggregateMenu();
+    this.hideSortMenu();
     this.removeEventListener();
     unregisterControl(this.hostElement, this);
     this.hostElement.innerHTML = '';
@@ -19022,18 +19921,1065 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
   return PivotPanel;
 }
 
+function resolvePivotWorkspaceHostElement(element) {
+  if (typeof element === 'string') {
+    if (typeof document === 'undefined') {
+      return null;
+    }
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function assign(target, source) {
+  var key;
+  source = source || {};
+  for (key in source) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
+      target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function normalizePositiveNumber(value, fallback) {
+  value = Number(value);
+  return isFinite(value) && value > 0 ? value : fallback;
+}
+
+function normalizeChartSize(value, fallback) {
+  var match;
+  var fraction;
+  var percent;
+  if (typeof value === 'string') {
+    match = value.trim().match(/^(\d+(?:\.\d+)?)%$/);
+    if (match) {
+      percent = Number(match[1]);
+      if (isFinite(percent) && percent > 0 && percent <= 100) {
+        return percent + '%';
+      }
+    }
+    match = value.trim().match(/^(\d+(?:\.\d+)?)fr$/i);
+    if (match) {
+      fraction = Number(match[1]);
+      if (isFinite(fraction) && fraction > 0) {
+        return fraction + 'fr';
+      }
+    }
+  }
+  value = Number(value);
+  return isFinite(value) && value > 0 ? value : fallback;
+}
+
+function normalizeLayout(value) {
+  value = String(value || 'Auto').toLowerCase();
+  if (value === 'horizontal') {
+    return 'Horizontal';
+  }
+  if (value === 'vertical') {
+    return 'Vertical';
+  }
+  return 'Auto';
+}
+
+function normalizePivotWorkspaceChartType(value) {
+  value = String(value || 'Column').toLowerCase();
+  if (value === 'bar') {
+    return 'Bar';
+  }
+  if (value === 'line') {
+    return 'Line';
+  }
+  if (value === 'pie') {
+    return 'Pie';
+  }
+  return 'Column';
+}
+
+function getPivotWorkspaceMessageValue(source, path) {
+  var value = source;
+  var parts = String(path || '').split('.');
+  var i;
+  for (i = 0; i < parts.length; i += 1) {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+    value = value[parts[i]];
+  }
+  return typeof value === 'string' ? value : null;
+}
+
+function getEngineOptions(options) {
+  var result = assign({}, options.engineOptions);
+  var names = [
+    'itemsSource',
+    'fields',
+    'rowFields',
+    'columnFields',
+    'valueFields',
+    'filterFields',
+    'showRowTotals',
+    'showColumnTotals',
+    'totalsBeforeData',
+    'showZeros',
+    'autoGenerateFields'
+  ];
+  var i;
+  for (i = 0; i < names.length; i += 1) {
+    if (Object.prototype.hasOwnProperty.call(options, names[i])) {
+      result[names[i]] = options[names[i]];
+    }
+  }
+  return result;
+}
+
+function getChildOptions(base, override, engine) {
+  var result = assign({}, override);
+  if (!Object.prototype.hasOwnProperty.call(result, 'locale')) {
+    result.locale = base.locale;
+  }
+  if (!Object.prototype.hasOwnProperty.call(result, 'messages') && base.messages) {
+    result.messages = base.messages;
+  }
+  result.itemsSource = engine;
+  return result;
+}
+
+function normalizePivotWorkspaceOptions(options) {
+  options = options || {};
+  return assign({
+    locale: 'en',
+    messages: null,
+    layout: 'Auto',
+    compactBreakpoint: 1050,
+    splitterSize: 7,
+    splitterStep: 16,
+    panelSize: 300,
+    chartSize: '40%',
+    verticalPanelSize: 190,
+    verticalChartSize: 190,
+    minPanelSize: 220,
+    minGridSize: 320,
+    minChartSize: 240,
+    minVerticalPanelSize: 120,
+    minVerticalGridSize: 180,
+    minVerticalChartSize: 120,
+    showPanel: true,
+    showChart: true,
+    showHeaders: true,
+    showControls: true,
+    panelTitle: null,
+    gridTitle: null,
+    chartTitle: null,
+    panelOptions: {},
+    gridOptions: {},
+    chartOptions: {},
+    engineOptions: {},
+    layoutChanged: null,
+    paneSizeChanged: null
+  }, options);
+}
+
+function resolvePivotWorkspaceChartSize(value, constraints) {
+  var percentMatch = typeof value === 'string' ? value.match(/^(\d+(?:\.\d+)?)%$/) : null;
+  var fractionMatch = typeof value === 'string' ? value.match(/^(\d+(?:\.\d+)?)fr$/i) : null;
+  var fraction;
+  var splitterCount;
+  var available;
+  if (!percentMatch && !fractionMatch) {
+    return normalizePositiveNumber(value, 350);
+  }
+  splitterCount = (constraints.panelVisible !== false ? 1 : 0) +
+    (constraints.chartVisible !== false ? 1 : 0);
+  available = Number(constraints.totalSize) -
+    splitterCount * Number(constraints.splitterSize) -
+    (constraints.panelVisible !== false ? Number(constraints.panelSize) : 0);
+  available = Math.max(0, available);
+  if (percentMatch) {
+    return Math.round(available * Number(percentMatch[1]) / 100);
+  }
+  fraction = Number(fractionMatch[1]);
+  return Math.round(available * fraction / (1 + fraction));
+}
+
+function resolvePivotWorkspaceLayout(layout, width, breakpoint) {
+  layout = normalizeLayout(layout);
+  if (layout !== 'Auto') {
+    return layout;
+  }
+  return Number(width) < normalizePositiveNumber(breakpoint, 1050) ? 'Vertical' : 'Horizontal';
+}
+
+function fitPivotWorkspacePaneSizes(sizes, constraints) {
+  var panelVisible = constraints.panelVisible !== false;
+  var chartVisible = constraints.chartVisible !== false;
+  var splitterCount = (panelVisible ? 1 : 0) + (chartVisible ? 1 : 0);
+  var available = Math.max(0, Number(constraints.totalSize) -
+    splitterCount * Number(constraints.splitterSize) -
+    Number(constraints.minGridSize));
+  var panel = panelVisible ? Math.max(Number(constraints.minPanelSize), Number(sizes.panel) || 0) : 0;
+  var chart = chartVisible ? Math.max(Number(constraints.minChartSize), Number(sizes.chart) || 0) : 0;
+  var overflow = panel + chart - available;
+  var amount;
+  if (overflow > 0 && chartVisible) {
+    amount = Math.min(overflow, Math.max(0, chart - Number(constraints.minChartSize)));
+    chart -= amount;
+    overflow -= amount;
+  }
+  if (overflow > 0 && panelVisible) {
+    amount = Math.min(overflow, Math.max(0, panel - Number(constraints.minPanelSize)));
+    panel -= amount;
+    overflow -= amount;
+  }
+  if (overflow > 0 && chartVisible) {
+    amount = Math.min(overflow, chart);
+    chart -= amount;
+    overflow -= amount;
+  }
+  if (overflow > 0 && panelVisible) {
+    panel = Math.max(0, panel - overflow);
+  }
+  return {
+    panel: Math.round(panel),
+    chart: Math.round(chart)
+  };
+}
+
+function calculatePivotWorkspacePaneSize(kind, startSize, delta, constraints) {
+  var panelVisible = constraints.panelVisible !== false;
+  var chartVisible = constraints.chartVisible !== false;
+  var splitterCount = (panelVisible ? 1 : 0) + (chartVisible ? 1 : 0);
+  var otherSize = kind === 'panel' ?
+    (chartVisible ? Number(constraints.chartSize) : 0) :
+    (panelVisible ? Number(constraints.panelSize) : 0);
+  var minimum = kind === 'panel' ? Number(constraints.minPanelSize) : Number(constraints.minChartSize);
+  var maximum = Number(constraints.totalSize) -
+    splitterCount * Number(constraints.splitterSize) -
+    Number(constraints.minGridSize) -
+    otherSize;
+  var value = Number(startSize) + (kind === 'chart' ? -Number(delta) : Number(delta));
+  maximum = Math.max(0, maximum);
+  minimum = Math.min(Math.max(0, minimum), maximum);
+  return Math.round(Math.max(minimum, Math.min(maximum, value)));
+}
+
+function createPivotWorkspaceFactory(
+  Control,
+  registerControl,
+  unregisterControl,
+  PivotEngine,
+  PivotPanel,
+  PivotGrid,
+  PivotChart,
+  FabGrid
+) {
+  function PivotWorkspace(element, options) {
+    var host = resolvePivotWorkspaceHostElement(element);
+    var source;
+    if (!host) {
+      throw new TypeError('PivotWorkspace host element was not found.');
+    }
+    Control.call(this);
+    this.hostElement = host;
+    this.root = host;
+    this.options = normalizePivotWorkspaceOptions(options);
+    this.options.layout = normalizeLayout(this.options.layout);
+    this.locale = this.options.locale || 'en';
+    this.messages = this.options.messages || null;
+    this._disposed = false;
+    this._layout = null;
+    this._panelVisible = this.options.showPanel !== false;
+    this._chartVisible = this.options.showChart !== false;
+    this._horizontalSizes = {
+      panel: normalizePositiveNumber(this.options.panelSize, 300),
+      chart: normalizePositiveNumber(this.options.chartSize, 350)
+    };
+    this._horizontalChartSize = normalizeChartSize(this.options.chartSize, '40%');
+    this.options.chartSize = this._horizontalChartSize;
+    this._verticalSizes = {
+      panel: normalizePositiveNumber(this.options.verticalPanelSize, 190),
+      chart: normalizePositiveNumber(this.options.verticalChartSize, 190)
+    };
+    this._dragState = null;
+    this._fallbackFullscreenPane = null;
+    this._resizeFrame = 0;
+    this._documentPointerMoveHandler = this._handleDocumentPointerMove.bind(this);
+    this._documentPointerUpHandler = this._handleDocumentPointerUp.bind(this);
+    source = this.options.engine || this.options.itemsSource;
+    this._engine = source instanceof PivotEngine ? source : new PivotEngine(getEngineOptions(this.options));
+    this._createDom();
+    this._createChildren();
+    this._createControls();
+    this._bindEvents();
+    this._observeSize();
+    registerControl(host, this);
+    this.applyLocaleToDom();
+    this.resize();
+  }
+
+  PivotWorkspace.prototype = Object.create(Control.prototype);
+  PivotWorkspace.prototype.constructor = PivotWorkspace;
+
+  PivotWorkspace.prototype._createDom = function() {
+    this.hostElement.innerHTML = '';
+    this.hostElement.classList.add('fg-root', 'fg-pivot-workspace');
+    this.hostElement.setAttribute('role', 'group');
+    if (this.options.showHeaders === false) {
+      this.hostElement.classList.add('fg-pivot-workspace-headers-hidden');
+    }
+    this.panelPane = this._createPane('panel');
+    this.panelSplitter = this._createSplitter('panel');
+    this.gridPane = this._createPane('grid');
+    this.chartSplitter = this._createSplitter('chart');
+    this.chartPane = this._createPane('chart');
+    this.hostElement.appendChild(this.panelPane.pane);
+    this.hostElement.appendChild(this.panelSplitter);
+    this.hostElement.appendChild(this.gridPane.pane);
+    this.hostElement.appendChild(this.chartSplitter);
+    this.hostElement.appendChild(this.chartPane.pane);
+  };
+
+  PivotWorkspace.prototype._createPane = function(name) {
+    var pane = document.createElement('section');
+    var header = document.createElement('div');
+    var title = document.createElement('span');
+    var actions = document.createElement('span');
+    var body = document.createElement('div');
+    pane.className = 'fg-pivot-workspace-pane fg-pivot-workspace-' + name + '-pane';
+    pane.setAttribute('data-pane', name);
+    header.className = 'fg-pivot-workspace-pane-header';
+    header.setAttribute('role', 'heading');
+    header.setAttribute('aria-level', '2');
+    title.className = 'fg-pivot-workspace-pane-title';
+    actions.className = 'fg-pivot-workspace-pane-actions';
+    body.className = 'fg-pivot-workspace-pane-body fg-pivot-workspace-' + name + '-host';
+    header.appendChild(title);
+    header.appendChild(actions);
+    pane.appendChild(header);
+    pane.appendChild(body);
+    return {
+      pane: pane,
+      header: header,
+      title: title,
+      actions: actions,
+      body: body
+    };
+  };
+
+  PivotWorkspace.prototype._createSplitter = function(name) {
+    var splitter = document.createElement('div');
+    splitter.className = 'fg-pivot-workspace-splitter fg-pivot-workspace-' + name + '-splitter';
+    splitter.setAttribute('data-splitter', name);
+    splitter.setAttribute('role', 'separator');
+    splitter.setAttribute('tabindex', '0');
+    splitter.setAttribute('aria-valuemin', '0');
+    return splitter;
+  };
+
+  PivotWorkspace.prototype._createChildren = function() {
+    var panelOptions = getChildOptions(this.options, this.options.panelOptions, this._engine);
+    var gridOptions = getChildOptions(this.options, this.options.gridOptions, this._engine);
+    var chartOptions = getChildOptions(this.options, this.options.chartOptions, this._engine);
+    chartOptions.selectionSource = null;
+    this.panel = new PivotPanel(this.panelPane.body, panelOptions);
+    this.grid = new PivotGrid(this.gridPane.body, gridOptions);
+    chartOptions.selectionSource = this.grid;
+    this.chart = new PivotChart(this.chartPane.body, chartOptions);
+  };
+
+  PivotWorkspace.prototype._createControls = function() {
+    var chartTypes = ['Column', 'Bar', 'Line', 'Pie'];
+    var i;
+    var option;
+    if (this.options.showControls === false) {
+      return;
+    }
+    this.panelToggleButton = document.createElement('button');
+    this.panelToggleButton.type = 'button';
+    this.panelToggleButton.className = 'fg-pivot-workspace-control';
+    this.chartToggleButton = document.createElement('button');
+    this.chartToggleButton.type = 'button';
+    this.chartToggleButton.className = 'fg-pivot-workspace-control';
+    this.chartTypeSelect = document.createElement('select');
+    this.chartTypeSelect.className = 'fg-pivot-workspace-control fg-pivot-workspace-chart-type';
+    this.gridFullscreenButton = document.createElement('button');
+    this.gridFullscreenButton.type = 'button';
+    this.gridFullscreenButton.className =
+      'fg-pivot-workspace-control fg-pivot-workspace-fullscreen icon-fullscreen';
+    this.chartFullscreenButton = document.createElement('button');
+    this.chartFullscreenButton.type = 'button';
+    this.chartFullscreenButton.className =
+      'fg-pivot-workspace-control fg-pivot-workspace-fullscreen icon-fullscreen';
+    for (i = 0; i < chartTypes.length; i += 1) {
+      option = document.createElement('option');
+      option.value = chartTypes[i];
+      this.chartTypeSelect.appendChild(option);
+    }
+    this.gridPane.actions.appendChild(this.panelToggleButton);
+    this.gridPane.actions.appendChild(this.chartToggleButton);
+    this.gridPane.actions.appendChild(this.gridFullscreenButton);
+    this.chartPane.actions.appendChild(this.chartTypeSelect);
+    this.chartPane.actions.appendChild(this.chartFullscreenButton);
+  };
+
+  PivotWorkspace.prototype._bindEvents = function() {
+    this.addEventListener(this.panelSplitter, 'pointerdown', this._handleSplitterPointerDown.bind(this));
+    this.addEventListener(this.chartSplitter, 'pointerdown', this._handleSplitterPointerDown.bind(this));
+    this.addEventListener(this.panelSplitter, 'keydown', this._handleSplitterKeyDown.bind(this));
+    this.addEventListener(this.chartSplitter, 'keydown', this._handleSplitterKeyDown.bind(this));
+    if (this.panelToggleButton) {
+      this.addEventListener(this.panelToggleButton, 'click', function() {
+        this.setPanelVisible(!this._panelVisible);
+      }.bind(this));
+    }
+    if (this.chartToggleButton) {
+      this.addEventListener(this.chartToggleButton, 'click', function() {
+        this.setChartVisible(!this._chartVisible);
+      }.bind(this));
+    }
+    if (this.chartTypeSelect) {
+      this.addEventListener(this.chartTypeSelect, 'change', function(event) {
+        this.setChartType(event.target.value);
+      }.bind(this));
+    }
+    if (this.gridFullscreenButton) {
+      this.addEventListener(this.gridFullscreenButton, 'click', function() {
+        this.togglePaneFullscreen('grid');
+      }.bind(this));
+    }
+    if (this.chartFullscreenButton) {
+      this.addEventListener(this.chartFullscreenButton, 'click', function() {
+        this.togglePaneFullscreen('chart');
+      }.bind(this));
+    }
+    this.addEventListener(document, 'fullscreenchange', this._handleFullscreenChange.bind(this));
+    this.addEventListener(document, 'webkitfullscreenchange', this._handleFullscreenChange.bind(this));
+    this.addEventListener(document, 'keydown', this._handleFullscreenKeyDown.bind(this), true);
+  };
+
+  PivotWorkspace.prototype._observeSize = function() {
+    var self = this;
+    if (typeof ResizeObserver === 'function') {
+      this._resizeObserver = new ResizeObserver(function() {
+        self._scheduleResize();
+      });
+      this._resizeObserver.observe(this.hostElement);
+    } else if (typeof window !== 'undefined') {
+      this._windowResizeHandler = this._scheduleResize.bind(this);
+      this.addEventListener(window, 'resize', this._windowResizeHandler);
+    }
+  };
+
+  PivotWorkspace.prototype.getText = function(path) {
+    var locales = FabGrid.locales || {};
+    var localeName = this.locale || 'en';
+    var baseName = localeName.split('-')[0];
+    return getPivotWorkspaceMessageValue(this.messages, path) ||
+      getPivotWorkspaceMessageValue(locales[localeName], path) ||
+      getPivotWorkspaceMessageValue(locales[baseName], path) ||
+      getPivotWorkspaceMessageValue(locales.en, path) || path;
+  };
+
+  PivotWorkspace.prototype.applyLocaleToDom = function() {
+    this.hostElement.setAttribute('aria-label', this.getText('pivot.workspace.ariaLabel'));
+    this.panelPane.title.textContent = this.options.panelTitle || this.getText('pivot.workspace.panelTitle');
+    this.gridPane.title.textContent = this.options.gridTitle || this.getText('pivot.workspace.gridTitle');
+    this.chartPane.title.textContent = this.options.chartTitle || this.getText('pivot.workspace.chartTitle');
+    this.panelSplitter.setAttribute('aria-label', this.getText('pivot.workspace.panelSplitter'));
+    this.chartSplitter.setAttribute('aria-label', this.getText('pivot.workspace.chartSplitter'));
+    this._syncVisibilityControls();
+    this._syncChartTypeControl();
+    this._syncFullscreenControls();
+  };
+
+  PivotWorkspace.prototype._syncVisibilityControls = function() {
+    if (this.panelToggleButton) {
+      this.panelToggleButton.textContent = this.getText(
+        this._panelVisible ? 'pivot.workspace.hidePanel' : 'pivot.workspace.showPanel'
+      );
+      this.panelToggleButton.setAttribute('aria-expanded', this._panelVisible ? 'true' : 'false');
+    }
+    if (this.chartToggleButton) {
+      this.chartToggleButton.textContent = this.getText(
+        this._chartVisible ? 'pivot.workspace.hideChart' : 'pivot.workspace.showChart'
+      );
+      this.chartToggleButton.setAttribute('aria-expanded', this._chartVisible ? 'true' : 'false');
+    }
+  };
+
+  PivotWorkspace.prototype._syncChartTypeControl = function() {
+    var chartType;
+    var options;
+    var i;
+    if (this.chartTypeSelect) {
+      this.chartTypeSelect.setAttribute('aria-label', this.getText('pivot.workspace.chartType'));
+      chartType = normalizePivotWorkspaceChartType(this.chart ? this.chart.chartType : null);
+      options = this.chartTypeSelect.options;
+      for (i = 0; i < options.length; i += 1) {
+        options[i].textContent = this.getText(
+          'pivot.workspace.chartTypes.' + String(options[i].value).toLowerCase()
+        );
+      }
+      this.chartTypeSelect.value = chartType;
+    }
+  };
+
+  PivotWorkspace.prototype._getNativeFullscreenElement = function() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  };
+
+  PivotWorkspace.prototype._getFullscreenElement = function() {
+    return this._getNativeFullscreenElement() || this._fallbackFullscreenPane;
+  };
+
+  PivotWorkspace.prototype._getFullscreenPane = function(name) {
+    if (name === 'grid') {
+      return this.gridPane.pane;
+    }
+    if (name === 'chart') {
+      return this.chartPane.pane;
+    }
+    return null;
+  };
+
+  PivotWorkspace.prototype.isPaneFullscreen = function(name) {
+    return this._getFullscreenElement() === this._getFullscreenPane(name);
+  };
+
+  PivotWorkspace.prototype.isPaneFullscreenAvailable = function(name) {
+    return Boolean(this._getFullscreenPane(name));
+  };
+
+  PivotWorkspace.prototype._syncFullscreenControls = function() {
+    var gridFullscreen;
+    var chartFullscreen;
+    var gridLabel;
+    var chartLabel;
+    if (!this.gridFullscreenButton || !this.chartFullscreenButton) {
+      return;
+    }
+    gridFullscreen = this.isPaneFullscreen('grid');
+    chartFullscreen = this.isPaneFullscreen('chart');
+    gridLabel = this.getText(
+      gridFullscreen ? 'pivot.workspace.exitFullscreen' : 'pivot.workspace.gridFullscreen'
+    );
+    chartLabel = this.getText(
+      chartFullscreen ? 'pivot.workspace.exitFullscreen' : 'pivot.workspace.chartFullscreen'
+    );
+    this.gridFullscreenButton.setAttribute('aria-label', gridLabel);
+    this.gridFullscreenButton.setAttribute('title', gridLabel);
+    this.gridFullscreenButton.setAttribute('aria-pressed', gridFullscreen ? 'true' : 'false');
+    this.gridFullscreenButton.disabled = !this.isPaneFullscreenAvailable('grid');
+    this.chartFullscreenButton.setAttribute('aria-label', chartLabel);
+    this.chartFullscreenButton.setAttribute('title', chartLabel);
+    this.chartFullscreenButton.setAttribute('aria-pressed', chartFullscreen ? 'true' : 'false');
+    this.chartFullscreenButton.disabled = !this.isPaneFullscreenAvailable('chart');
+  };
+
+  PivotWorkspace.prototype.togglePaneFullscreen = function(name) {
+    var pane = this._getFullscreenPane(name);
+    var action;
+    var context;
+    var result;
+    if (!pane) {
+      return false;
+    }
+    if (this._fallbackFullscreenPane === pane) {
+      this._setFallbackFullscreen(null);
+      return true;
+    }
+    if (this.isPaneFullscreen(name)) {
+      action = document.exitFullscreen || document.webkitExitFullscreen;
+      context = document;
+    } else {
+      action = pane.requestFullscreen || pane.webkitRequestFullscreen;
+      context = pane;
+    }
+    if (typeof action !== 'function') {
+      this._setFallbackFullscreen(pane);
+      return true;
+    }
+    try {
+      result = action.call(context);
+      if (result && typeof result.catch === 'function') {
+        result.catch(function() {
+          this._setFallbackFullscreen(pane);
+        }.bind(this));
+      }
+      return result || true;
+    } catch (error) {
+      this._setFallbackFullscreen(pane);
+      return true;
+    }
+  };
+
+  PivotWorkspace.prototype._setFallbackFullscreen = function(pane) {
+    if (this._fallbackFullscreenPane) {
+      this._fallbackFullscreenPane.classList.remove('fg-pivot-workspace-pane-fullscreen');
+    }
+    this._fallbackFullscreenPane = pane || null;
+    if (this._fallbackFullscreenPane) {
+      this._fallbackFullscreenPane.classList.add('fg-pivot-workspace-pane-fullscreen');
+    }
+    this._syncFullscreenControls();
+    this._scheduleResize();
+  };
+
+  PivotWorkspace.prototype._handleFullscreenKeyDown = function(event) {
+    if (event.key !== 'Escape' || !this._fallbackFullscreenPane) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this._setFallbackFullscreen(null);
+  };
+
+  PivotWorkspace.prototype._handleFullscreenChange = function() {
+    if (this._disposed) {
+      return;
+    }
+    this._syncFullscreenControls();
+    this._scheduleResize();
+  };
+
+  PivotWorkspace.prototype._getActiveSizes = function() {
+    return this._layout === 'Vertical' ? this._verticalSizes : this._horizontalSizes;
+  };
+
+  PivotWorkspace.prototype._getConstraints = function() {
+    var vertical = this._layout === 'Vertical';
+    return {
+      totalSize: vertical ? this.hostElement.clientHeight : this.hostElement.clientWidth,
+      splitterSize: normalizePositiveNumber(this.options.splitterSize, 7),
+      minPanelSize: vertical ?
+        normalizePositiveNumber(this.options.minVerticalPanelSize, 120) :
+        normalizePositiveNumber(this.options.minPanelSize, 220),
+      minGridSize: vertical ?
+        normalizePositiveNumber(this.options.minVerticalGridSize, 180) :
+        normalizePositiveNumber(this.options.minGridSize, 320),
+      minChartSize: vertical ?
+        normalizePositiveNumber(this.options.minVerticalChartSize, 120) :
+        normalizePositiveNumber(this.options.minChartSize, 240),
+      panelVisible: this._panelVisible,
+      chartVisible: this._chartVisible
+    };
+  };
+
+  PivotWorkspace.prototype._applyPaneSizes = function() {
+    var sizes = this._getActiveSizes();
+    var constraints = this._getConstraints();
+    var requested = {
+      panel: sizes.panel,
+      chart: sizes.chart
+    };
+    var fitted;
+    constraints.panelSize = sizes.panel;
+    if (this._layout === 'Horizontal' && constraints.chartVisible) {
+      requested.chart = resolvePivotWorkspaceChartSize(this._horizontalChartSize, constraints);
+    }
+    fitted = constraints.totalSize > 0 ?
+      fitPivotWorkspacePaneSizes(requested, constraints) : requested;
+    if (constraints.panelVisible) {
+      sizes.panel = fitted.panel;
+    }
+    if (constraints.chartVisible) {
+      sizes.chart = fitted.chart;
+    }
+    this.hostElement.style.setProperty('--fg-pivot-workspace-panel-size', sizes.panel + 'px');
+    this.hostElement.style.setProperty('--fg-pivot-workspace-chart-size', sizes.chart + 'px');
+    this.hostElement.style.setProperty(
+      '--fg-pivot-workspace-splitter-size',
+      normalizePositiveNumber(this.options.splitterSize, 7) + 'px'
+    );
+    this.panelSplitter.setAttribute('aria-valuenow', String(sizes.panel));
+    this.chartSplitter.setAttribute('aria-valuenow', String(sizes.chart));
+    this.panelSplitter.setAttribute('aria-valuemax', String(Math.max(sizes.panel, constraints.totalSize)));
+    this.chartSplitter.setAttribute('aria-valuemax', String(Math.max(sizes.chart, constraints.totalSize)));
+  };
+
+  PivotWorkspace.prototype._applyVisibility = function() {
+    this.hostElement.classList.toggle('fg-pivot-workspace-panel-hidden', !this._panelVisible);
+    this.hostElement.classList.toggle('fg-pivot-workspace-chart-hidden', !this._chartVisible);
+    this.panelPane.pane.setAttribute('aria-hidden', this._panelVisible ? 'false' : 'true');
+    this.chartPane.pane.setAttribute('aria-hidden', this._chartVisible ? 'false' : 'true');
+    this._syncVisibilityControls();
+  };
+
+  PivotWorkspace.prototype._applyLayout = function(layout) {
+    var changed = this._layout !== layout;
+    this._layout = layout;
+    this.hostElement.classList.toggle('fg-pivot-workspace-horizontal', layout === 'Horizontal');
+    this.hostElement.classList.toggle('fg-pivot-workspace-vertical', layout === 'Vertical');
+    this.panelSplitter.setAttribute('aria-orientation', layout === 'Horizontal' ? 'vertical' : 'horizontal');
+    this.chartSplitter.setAttribute('aria-orientation', layout === 'Horizontal' ? 'vertical' : 'horizontal');
+    if (changed && typeof this.options.layoutChanged === 'function') {
+      this.options.layoutChanged(this, { layout: layout });
+    }
+  };
+
+  PivotWorkspace.prototype._scheduleResize = function() {
+    var self = this;
+    var schedule;
+    if (this._disposed || this._resizeFrame) {
+      return;
+    }
+    schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : function(callback) {
+      return setTimeout(callback, 0);
+    };
+    this._resizeFrame = schedule(function() {
+      self._resizeFrame = 0;
+      self.resize();
+    });
+  };
+
+  PivotWorkspace.prototype._resizeChildren = function() {
+    if (this.grid && typeof this.grid.refresh === 'function') {
+      this.grid.refresh();
+    }
+    if (this.chart && typeof this.chart.resize === 'function') {
+      this.chart.resize();
+    }
+  };
+
+  PivotWorkspace.prototype.resize = function() {
+    var layout;
+    if (this._disposed) {
+      return this;
+    }
+    layout = resolvePivotWorkspaceLayout(
+      this.options.layout,
+      this.hostElement.clientWidth,
+      this.options.compactBreakpoint
+    );
+    this._applyLayout(layout);
+    this._applyVisibility();
+    this._applyPaneSizes();
+    this._resizeChildren();
+    return this;
+  };
+
+  PivotWorkspace.prototype._getPointerCoordinate = function(event) {
+    return this._layout === 'Horizontal' ? event.clientX : event.clientY;
+  };
+
+  PivotWorkspace.prototype._handleSplitterPointerDown = function(event) {
+    var kind;
+    var sizes;
+    if (event.button != null && event.button !== 0) {
+      return;
+    }
+    kind = event.currentTarget.getAttribute('data-splitter');
+    if ((kind === 'panel' && !this._panelVisible) || (kind === 'chart' && !this._chartVisible)) {
+      return;
+    }
+    event.preventDefault();
+    sizes = this._getActiveSizes();
+    this._dragState = {
+      kind: kind,
+      pointerId: event.pointerId,
+      startCoordinate: this._getPointerCoordinate(event),
+      startSize: sizes[kind],
+      layout: this._layout
+    };
+    this.hostElement.classList.add('fg-pivot-workspace-resizing');
+    document.addEventListener('pointermove', this._documentPointerMoveHandler, false);
+    document.addEventListener('pointerup', this._documentPointerUpHandler, false);
+    document.addEventListener('pointercancel', this._documentPointerUpHandler, false);
+  };
+
+  PivotWorkspace.prototype._handleDocumentPointerMove = function(event) {
+    var state = this._dragState;
+    var sizes;
+    var constraints;
+    var delta;
+    if (!state || (state.pointerId != null && event.pointerId !== state.pointerId)) {
+      return;
+    }
+    event.preventDefault();
+    if (state.layout !== this._layout) {
+      this._endSplitterDrag();
+      return;
+    }
+    sizes = this._getActiveSizes();
+    constraints = this._getConstraints();
+    constraints.panelSize = sizes.panel;
+    constraints.chartSize = sizes.chart;
+    delta = this._getPointerCoordinate(event) - state.startCoordinate;
+    sizes[state.kind] = calculatePivotWorkspacePaneSize(
+      state.kind,
+      state.startSize,
+      delta,
+      constraints
+    );
+    if (state.kind === 'chart' && this._layout === 'Horizontal') {
+      this._horizontalChartSize = sizes.chart;
+      this.options.chartSize = sizes.chart;
+    }
+    this._applyPaneSizes();
+    this._scheduleResize();
+  };
+
+  PivotWorkspace.prototype._handleDocumentPointerUp = function(event) {
+    if (!this._dragState ||
+        (this._dragState.pointerId != null && event.pointerId !== this._dragState.pointerId)) {
+      return;
+    }
+    this._endSplitterDrag(true);
+  };
+
+  PivotWorkspace.prototype._endSplitterDrag = function(notify) {
+    var sizes = this._getActiveSizes();
+    document.removeEventListener('pointermove', this._documentPointerMoveHandler, false);
+    document.removeEventListener('pointerup', this._documentPointerUpHandler, false);
+    document.removeEventListener('pointercancel', this._documentPointerUpHandler, false);
+    this.hostElement.classList.remove('fg-pivot-workspace-resizing');
+    this._dragState = null;
+    if (notify && typeof this.options.paneSizeChanged === 'function') {
+      this.options.paneSizeChanged(this, {
+        layout: this._layout,
+        panelSize: sizes.panel,
+        chartSize: sizes.chart
+      });
+    }
+  };
+
+  PivotWorkspace.prototype._handleSplitterKeyDown = function(event) {
+    var kind = event.currentTarget.getAttribute('data-splitter');
+    var horizontal = this._layout === 'Horizontal';
+    var direction = 0;
+    var sizes;
+    var constraints;
+    if ((horizontal && event.key === 'ArrowLeft') || (!horizontal && event.key === 'ArrowUp')) {
+      direction = -1;
+    } else if ((horizontal && event.key === 'ArrowRight') || (!horizontal && event.key === 'ArrowDown')) {
+      direction = 1;
+    }
+    if (!direction) {
+      return;
+    }
+    event.preventDefault();
+    sizes = this._getActiveSizes();
+    constraints = this._getConstraints();
+    constraints.panelSize = sizes.panel;
+    constraints.chartSize = sizes.chart;
+    sizes[kind] = calculatePivotWorkspacePaneSize(
+      kind,
+      sizes[kind],
+      direction * normalizePositiveNumber(this.options.splitterStep, 16),
+      constraints
+    );
+    if (kind === 'chart' && this._layout === 'Horizontal') {
+      this._horizontalChartSize = sizes.chart;
+      this.options.chartSize = sizes.chart;
+    }
+    this._applyPaneSizes();
+    this._resizeChildren();
+    if (typeof this.options.paneSizeChanged === 'function') {
+      this.options.paneSizeChanged(this, {
+        layout: this._layout,
+        panelSize: sizes.panel,
+        chartSize: sizes.chart
+      });
+    }
+  };
+
+  PivotWorkspace.prototype.setPanelVisible = function(visible) {
+    this._panelVisible = visible !== false;
+    this.options.showPanel = this._panelVisible;
+    this.resize();
+    return this;
+  };
+
+  PivotWorkspace.prototype.setChartVisible = function(visible) {
+    this._chartVisible = visible !== false;
+    this.options.showChart = this._chartVisible;
+    this.resize();
+    return this;
+  };
+
+  PivotWorkspace.prototype.setChartType = function(type) {
+    type = normalizePivotWorkspaceChartType(type);
+    this.chart.setType(type);
+    if (this.chartTypeSelect) {
+      this.chartTypeSelect.value = type;
+    }
+    return this;
+  };
+
+  PivotWorkspace.prototype.setPaneSizes = function(panelSize, chartSize) {
+    var sizes = this._getActiveSizes();
+    if (panelSize != null) {
+      sizes.panel = normalizePositiveNumber(panelSize, sizes.panel);
+    }
+    if (chartSize != null) {
+      if (this._layout === 'Horizontal') {
+        this._horizontalChartSize = normalizeChartSize(chartSize, this._horizontalChartSize);
+        this.options.chartSize = this._horizontalChartSize;
+        if (typeof this._horizontalChartSize === 'number') {
+          sizes.chart = this._horizontalChartSize;
+        }
+      } else {
+        sizes.chart = normalizePositiveNumber(chartSize, sizes.chart);
+      }
+    }
+    this.resize();
+    return this;
+  };
+
+  PivotWorkspace.prototype.setLocale = function(locale, messages) {
+    this.locale = locale || 'en';
+    this.options.locale = this.locale;
+    if (messages !== undefined) {
+      this.messages = messages;
+      this.options.messages = messages;
+    }
+    this.panel.setLocale(this.locale, messages);
+    this.grid.setLocale(this.locale, messages);
+    this.chart.setLocale(this.locale, messages);
+    this.applyLocaleToDom();
+    return this;
+  };
+
+  PivotWorkspace.prototype.setEngine = function(engine) {
+    if (!(engine instanceof PivotEngine)) {
+      throw new TypeError('PivotWorkspace engine must be a fabui.pivot.PivotEngine instance.');
+    }
+    if (this._engine === engine) {
+      return this;
+    }
+    this._engine = engine;
+    this.panel.setItemsSource(engine);
+    this.grid.setPivotEngine(engine);
+    this.chart.setItemsSource(engine);
+    return this;
+  };
+
+  PivotWorkspace.prototype.setItemsSource = function(source) {
+    if (source instanceof PivotEngine) {
+      return this.setEngine(source);
+    }
+    if (!Array.isArray(source)) {
+      throw new TypeError('PivotWorkspace itemsSource must be an Array or fabui.pivot.PivotEngine.');
+    }
+    this._engine.setItemsSource(source);
+    return this;
+  };
+
+  PivotWorkspace.prototype.dispose = function() {
+    if (this._disposed) {
+      return;
+    }
+    this._disposed = true;
+    this._endSplitterDrag(false);
+    this._setFallbackFullscreen(null);
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    }
+    if (this._resizeFrame) {
+      if (typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(this._resizeFrame);
+      } else {
+        clearTimeout(this._resizeFrame);
+      }
+      this._resizeFrame = 0;
+    }
+    if (this.chart) {
+      this.chart.dispose();
+    }
+    if (this.grid) {
+      this.grid.dispose();
+    }
+    if (this.panel) {
+      this.panel.dispose();
+    }
+    this.removeEventListener();
+    unregisterControl(this.hostElement, this);
+    this.hostElement.innerHTML = '';
+    this.hostElement.classList.remove(
+      'fg-root',
+      'fg-pivot-workspace',
+      'fg-pivot-workspace-horizontal',
+      'fg-pivot-workspace-vertical',
+      'fg-pivot-workspace-panel-hidden',
+      'fg-pivot-workspace-chart-hidden',
+      'fg-pivot-workspace-headers-hidden',
+      'fg-pivot-workspace-resizing'
+    );
+    this._engine = null;
+    this.panel = null;
+    this.grid = null;
+    this.chart = null;
+    this.panelToggleButton = null;
+    this.chartToggleButton = null;
+    this.chartTypeSelect = null;
+    this.gridFullscreenButton = null;
+    this.chartFullscreenButton = null;
+  };
+
+  Object.defineProperties(PivotWorkspace.prototype, {
+    engine: {
+      get: function() { return this._engine; },
+      set: function(value) { this.setEngine(value); }
+    },
+    itemsSource: {
+      get: function() { return this._engine ? this._engine.itemsSource : []; },
+      set: function(value) { this.setItemsSource(value); }
+    },
+    layout: {
+      get: function() { return this._layout; },
+      set: function(value) {
+        this.options.layout = normalizeLayout(value);
+        this.resize();
+      }
+    },
+    showPanel: {
+      get: function() { return this._panelVisible; },
+      set: function(value) { this.setPanelVisible(value); }
+    },
+    showChart: {
+      get: function() { return this._chartVisible; },
+      set: function(value) { this.setChartVisible(value); }
+    },
+    panelSize: {
+      get: function() { return this._getActiveSizes().panel; },
+      set: function(value) { this.setPaneSizes(value, null); }
+    },
+    chartSize: {
+      get: function() { return this._getActiveSizes().chart; },
+      set: function(value) { this.setPaneSizes(null, value); }
+    },
+    chartType: {
+      get: function() {
+        return this.chart ? normalizePivotWorkspaceChartType(this.chart.chartType) : 'Column';
+      },
+      set: function(value) { this.setChartType(value); }
+    }
+  });
+
+  return PivotWorkspace;
+}
+
 var editorDefinitions = createEditorDefinitions();
 var Chart = createChartFactory();
 var FabGrid = createFabGridFactory(editorDefinitions);
+var PivotChart = createPivotChartFactory(Control, registerControl, unregisterControl, PivotEngine, Chart, FabGrid);
 var PivotGrid = createPivotGridFactory(FabGrid, PivotEngine);
 var PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, FabGrid);
+var PivotWorkspace = createPivotWorkspaceFactory(Control, registerControl, unregisterControl, PivotEngine, PivotPanel, PivotGrid, PivotChart, FabGrid);
 var pivotNamespace = {
   PivotAggregate: PivotAggregate,
+  PivotChart: PivotChart,
   PivotEngine: PivotEngine,
   PivotField: PivotField,
   PivotGrid: PivotGrid,
   PivotPanel: PivotPanel,
-  PivotShowTotals: PivotShowTotals
+  PivotShowTotals: PivotShowTotals,
+  PivotWorkspace: PivotWorkspace
 };
 var fabui = {
   version: "2026.7.17",
@@ -19065,6 +21011,8 @@ var fabui = {
       total: 'Total',
       expandGroup: 'Expand group',
       collapseGroup: 'Collapse group',
+      expandAll: 'Expand all',
+      collapseAll: 'Collapse all',
       showDetail: 'Show detail',
       detailTitle: 'Detail records',
       detailCount: '{count} records',
@@ -19075,6 +21023,34 @@ var fabui = {
       aggregate: 'Aggregate',
       removeField: 'Remove field',
       filteredValues: 'Filtered',
+      chart: {
+        ariaLabel: 'Pivot chart',
+        title: 'Pivot Chart',
+        pointsTruncated: 'Showing {count} of {total} categories',
+        seriesTruncated: 'Showing {count} of {total} series'
+      },
+      workspace: {
+        ariaLabel: 'Pivot analysis workspace',
+        panelTitle: 'Define View',
+        gridTitle: 'Pivot Grid',
+        chartTitle: 'Pivot Chart',
+        panelSplitter: 'Resize definition pane',
+        chartSplitter: 'Resize chart pane',
+        hidePanel: 'Hide Definition',
+        showPanel: 'Show Definition',
+        hideChart: 'Hide Chart',
+        showChart: 'Show Chart',
+        gridFullscreen: 'Pivot Grid fullscreen',
+        chartFullscreen: 'Pivot Chart fullscreen',
+        exitFullscreen: 'Exit fullscreen',
+        chartType: 'Chart type',
+        chartTypes: {
+          column: 'Column',
+          bar: 'Bar',
+          line: 'Line',
+          pie: 'Pie'
+        }
+      },
       panel: {
         ariaLabel: 'Pivot view settings',
         fields: 'Fields',
@@ -19216,6 +21192,8 @@ var fabui = {
       total: '小計',
       expandGroup: '展開群組',
       collapseGroup: '收合群組',
+      expandAll: '全部展開',
+      collapseAll: '全部疊合',
       showDetail: '查看明細',
       detailTitle: '明細資料',
       detailCount: '共 {count} 筆',
@@ -19226,6 +21204,34 @@ var fabui = {
       aggregate: '彙總方式',
       removeField: '移除欄位',
       filteredValues: '已篩選',
+      chart: {
+        ariaLabel: 'Pivot 圖表',
+        title: 'Pivot 圖表',
+        pointsTruncated: '顯示前 {count}／{total} 個分類',
+        seriesTruncated: '顯示前 {count}／{total} 個系列'
+      },
+      workspace: {
+        ariaLabel: 'Pivot 分析工作區',
+        panelTitle: '定義 View',
+        gridTitle: 'Pivot Grid',
+        chartTitle: 'Pivot 圖表',
+        panelSplitter: '調整定義區大小',
+        chartSplitter: '調整圖表區大小',
+        hidePanel: '隱藏定義',
+        showPanel: '顯示定義',
+        hideChart: '隱藏圖表',
+        showChart: '顯示圖表',
+        gridFullscreen: 'Pivot Grid 全螢幕',
+        chartFullscreen: 'Pivot 圖表全螢幕',
+        exitFullscreen: '離開全螢幕',
+        chartType: '圖形類型',
+        chartTypes: {
+          column: '直條圖',
+          bar: '橫條圖',
+          line: '折線圖',
+          pie: '圓餅圖'
+        }
+      },
       panel: {
         ariaLabel: 'Pivot View 設定',
         fields: '欄位',
@@ -19367,6 +21373,8 @@ var fabui = {
       total: '小计',
       expandGroup: '展开群组',
       collapseGroup: '折叠群组',
+      expandAll: '全部展开',
+      collapseAll: '全部折叠',
       showDetail: '查看明细',
       detailTitle: '明细数据',
       detailCount: '共 {count} 条',
@@ -19377,6 +21385,34 @@ var fabui = {
       aggregate: '汇总方式',
       removeField: '移除字段',
       filteredValues: '已筛选',
+      chart: {
+        ariaLabel: 'Pivot 图表',
+        title: 'Pivot 图表',
+        pointsTruncated: '显示前 {count}/{total} 个分类',
+        seriesTruncated: '显示前 {count}/{total} 个系列'
+      },
+      workspace: {
+        ariaLabel: 'Pivot 分析工作区',
+        panelTitle: '定义 View',
+        gridTitle: 'Pivot Grid',
+        chartTitle: 'Pivot 图表',
+        panelSplitter: '调整定义区大小',
+        chartSplitter: '调整图表区大小',
+        hidePanel: '隐藏定义',
+        showPanel: '显示定义',
+        hideChart: '隐藏图表',
+        showChart: '显示图表',
+        gridFullscreen: 'Pivot Grid 全屏',
+        chartFullscreen: 'Pivot 图表全屏',
+        exitFullscreen: '退出全屏',
+        chartType: '图形类型',
+        chartTypes: {
+          column: '柱形图',
+          bar: '条形图',
+          line: '折线图',
+          pie: '饼图'
+        }
+      },
       panel: {
         ariaLabel: 'Pivot View 设置',
         fields: '字段',

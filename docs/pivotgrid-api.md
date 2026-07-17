@@ -46,7 +46,7 @@ var engine = new fabui.pivot.PivotEngine({
 | `binding` | 原始資料 property path。 |
 | `header` | 顯示名稱。 |
 | `dataType` | `string`、`number`、`date`、`boolean`。 |
-| `aggregate` | `Sum`、`Count`、`Average`、`Min`、`Max`。 |
+| `aggregate` | `Sum`、`Count`、`Average`、`Min`、`Max`；Average 只計入可轉為數字的非空值。 |
 | `format` | `n0`、`n2`、`p0`、`c2` 等顯示格式。 |
 | `sortDirection` | Dimension 排序狀態：`0` 預設順序、`1` 升冪、`-1` 降冪。 |
 | `descending` | 向下相容屬性；指定 `true` 為降冪，`false` 為升冪。 |
@@ -87,7 +87,7 @@ fabui.pivot.PivotShowTotals.Subtotals
 
 `viewDefinition` 是可序列化的 plain object，可用 `JSON.stringify()` 保存，再指定回另一個 PivotEngine。
 
-若 `PivotField.filter` 使用單一允許值，該條件也會包含在 `viewDefinition.fields` 內；Function predicate 不會序列化。
+若 `PivotField.filter` 使用單一允許值，該條件也會包含在 `viewDefinition.fields` 內；Function predicate 不會序列化。`dataType: 'date'` 的允許值經 JSON 轉為 ISO 字串後，還原時仍會依日期值比對，不要求相同的 Date object reference。
 
 ### PivotEngine methods
 
@@ -103,6 +103,8 @@ fabui.pivot.PivotShowTotals.Subtotals
 - `getDetail(row, column)`
 - `getKeys(row, column)`
 - `dispose()`
+
+`setFields(definitions)` 會使用穩定的 field `key`，將既有 Rows、Columns、Values、Filters 重新綁定到新的 `PivotField` instance；已從 definitions 移除的 key 也會自動從 View 區域移除。
 
 ### PivotEngine events
 
@@ -193,6 +195,8 @@ PivotGrid 固定為唯讀，並停用一般 FabGrid 的編輯、欄位 Search Ro
 
 FabGrid 的選取、CellRange、clipboard、CSV／Excel 匯出、`formatItem`、`hitTest()`、`refresh()`、`invalidate()` 與 `Control.getControl()` 仍可使用。
 
+Pivot view 更新、排序或疊合造成列欄位置改變時，PivotGrid 會優先以 row key 與 data-column key 保留原本的邏輯選取；若原資料已不可見才會將選取範圍限制在目前 View。綁定為 PivotChart `selectionSource` 時，圖表會在重繪後重新同步該選取。
+
 PivotGrid 預設 Excel 匯出會保留疊合欄位的完整子欄與資料，並在工作表中維持 hidden column 狀態；疊合列的明細也會完整匯出並維持 hidden row 狀態，使用者可在 Excel 內取消隱藏查看。只有明確傳入 `visibleOnly === true` 時，才只匯出目前畫面可見欄位；此參數不會移除疊合列的隱藏明細。
 
 ## 互動行為
@@ -202,7 +206,7 @@ PivotGrid 預設 Excel 匯出會保留疊合欄位的完整子欄與資料，並
 - 相鄰列若具有相同的父層 row field 值，PivotGrid 會將該父層顯示為一個跨越明細與小計列的疊合 cell，不重複列出相同文字。
 - 點擊疊合父層 cell 旁的 `＋`／`−`：展開或收合後代；收合時只保留該群組的小計列，展開時恢復明細列。
 - 雙擊 aggregate cell：使用同一份 FabGrid style 開啟原始明細 Grid。
-- Header 或 aggregate cell 右鍵：排序、aggregate、移除欄位、明細與匯出；Header 右鍵選單另提供進入／離開 PivotGrid 全螢幕。
+- Header 或 aggregate cell 右鍵：排序、aggregate、移除欄位、明細與匯出；Row field 右鍵選單以單一「全部展開／全部疊合」狀態項目操作所有列與欄群組，不顯示單一「展開群組／疊合群組」項目。Header 右鍵選單另提供進入／離開 PivotGrid 全螢幕。點擊 popup 外部會立即關閉，點擊 popup 內部則維持開啟直到執行項目。
 - `Escape`：關閉明細或已開啟的 Grid popup，不提交其他變更。
 
 ## 樣式與 Theme
@@ -229,6 +233,6 @@ PivotGrid 與 PivotPanel root 都具有 `.fg-root`，直接沿用 FabGrid 的：
 ## 第一版限制
 
 - 僅處理本機 Array，不支援 server-side OLAP／SSAS。
-- 尚未提供 Slicer、PivotChart、calculated fields、weighted aggregate、ShowAs 計算與進階多值 filter dialog。
+- 尚未提供 Slicer、calculated fields、weighted aggregate、ShowAs 計算與進階多值 filter dialog。
 - 彙總目前為同步處理；Grid DOM rendering 仍使用 FabGrid 雙向 virtualization。
 - Vue 2 與 jQuery wrapper 尚未加入 PivotGrid 專用 component／plugin API。

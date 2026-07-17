@@ -1,11 +1,11 @@
-function resolveHostElement(element) {
+function resolvePivotPanelHostElement(element) {
   if (typeof element === 'string') {
     return typeof document === 'undefined' ? null : document.querySelector(element);
   }
   return element && element.nodeType === 1 ? element : null;
 }
 
-function getMessageValue(messages, path) {
+function getPivotPanelMessageValue(messages, path) {
   var parts = String(path || '').split('.');
   var value = messages;
   var i;
@@ -18,7 +18,7 @@ function getMessageValue(messages, path) {
   return typeof value === 'string' ? value : null;
 }
 
-function formatMessage(text, data) {
+function formatPivotPanelMessage(text, data) {
   return String(text || '').replace(/\{([^}]+)\}/g, function(match, key) {
     return data && data[key] != null ? String(data[key]) : match;
   });
@@ -115,7 +115,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
   ];
 
   function PivotPanel(element, options) {
-    var host = resolveHostElement(element);
+    var host = resolvePivotPanelHostElement(element);
     options = options || {};
     if (!host) {
       throw new TypeError('PivotPanel host element was not found.');
@@ -134,6 +134,8 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     this._dropIndicator = null;
     this._aggregateMenuFieldKey = null;
     this._sortMenuFieldKey = null;
+    this._documentPointerDownBound = false;
+    this._documentPointerDownHandler = this._handleDocumentPointerDown.bind(this);
     this._updatedHandler = this.refresh.bind(this);
     this._createDom();
     this._bindEvents();
@@ -217,18 +219,17 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     this.addEventListener(this.hostElement, 'drop', this._handleDrop.bind(this));
     this.addEventListener(this.hostElement, 'dragend', this._clearDragState.bind(this));
     this.addEventListener(this.hostElement, 'keydown', this._handleKeyDown.bind(this));
-    this.addEventListener(document, 'pointerdown', this._handleDocumentPointerDown.bind(this));
   };
 
   PivotPanel.prototype.getText = function(path, data) {
     var locales = FabGrid.locales || {};
     var localeName = this.locale || 'en';
     var baseName = localeName.split('-')[0];
-    var text = getMessageValue(this.messages, path) ||
-      getMessageValue(locales[localeName], path) ||
-      getMessageValue(locales[baseName], path) ||
-      getMessageValue(locales.en, path) || path;
-    return formatMessage(text, data);
+    var text = getPivotPanelMessageValue(this.messages, path) ||
+      getPivotPanelMessageValue(locales[localeName], path) ||
+      getPivotPanelMessageValue(locales[baseName], path) ||
+      getPivotPanelMessageValue(locales.en, path) || path;
+    return formatPivotPanelMessage(text, data);
   };
 
   PivotPanel.prototype.applyLocaleToDom = function() {
@@ -576,6 +577,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     top = Math.max(0, Math.min(top, this.hostElement.clientHeight - this.aggregateMenu.offsetHeight));
     this.aggregateMenu.style.left = left + 'px';
     this.aggregateMenu.style.top = top + 'px';
+    this._syncDocumentMenuPointerListener();
     this.hostElement.focus({ preventScroll: true });
     return true;
   };
@@ -586,6 +588,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
       this.aggregateMenu.setAttribute('aria-hidden', 'true');
     }
     this._aggregateMenuFieldKey = null;
+    this._syncDocumentMenuPointerListener();
   };
 
   PivotPanel.prototype.isAggregateMenuOpen = function() {
@@ -637,6 +640,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     top = Math.max(0, Math.min(top, this.hostElement.clientHeight - this.sortMenu.offsetHeight));
     this.sortMenu.style.left = left + 'px';
     this.sortMenu.style.top = top + 'px';
+    this._syncDocumentMenuPointerListener();
     this.hostElement.focus({ preventScroll: true });
     return true;
   };
@@ -647,10 +651,22 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
       this.sortMenu.setAttribute('aria-hidden', 'true');
     }
     this._sortMenuFieldKey = null;
+    this._syncDocumentMenuPointerListener();
   };
 
   PivotPanel.prototype.isSortMenuOpen = function() {
     return !!(this.sortMenu && this.sortMenu.style.display === 'block');
+  };
+
+  PivotPanel.prototype._syncDocumentMenuPointerListener = function() {
+    var shouldBind = this.isAggregateMenuOpen() || this.isSortMenuOpen();
+    if (shouldBind && !this._documentPointerDownBound) {
+      this.addEventListener(document, 'pointerdown', this._documentPointerDownHandler);
+      this._documentPointerDownBound = true;
+    } else if (!shouldBind && this._documentPointerDownBound) {
+      this.removeEventListener(document, 'pointerdown', this._documentPointerDownHandler);
+      this._documentPointerDownBound = false;
+    }
   };
 
   PivotPanel.prototype._handleDocumentPointerDown = function(event) {
@@ -798,6 +814,8 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     if (this._engine && this._engine.updatedView) {
       this._engine.updatedView.removeHandler(this._updatedHandler, this);
     }
+    this.hideAggregateMenu();
+    this.hideSortMenu();
     this.removeEventListener();
     unregisterControl(this.hostElement, this);
     this.hostElement.innerHTML = '';
