@@ -6,33 +6,9 @@
 
 ## FabGrid 介紹
 
-FabGrid 名稱中的 **Fab** 是 **Fabulous** 的縮寫，意思是「出色、令人驚豔」。這個名稱代表專案希望提供兼具效能、實用性與良好開發體驗的資料表元件。
+FabGrid 是 FabUI 的高效能資料表元件，使用 pure JavaScript 開發，不依賴前端框架。名稱中的 **Fab** 取自 **Fabulous**，代表兼具效能、實用性與良好開發體驗。
 
-FabUI 是以 pure JavaScript 開發的前端 UI 元件庫，不依賴任何前端框架。主要元件包含 FabGrid、`fabui.Button`、`fabui.Calendar`、`fabui.CheckBox`、`fabui.CheckGroup`、`fabui.SwitchButton`、`fabui.RadioButton`、`fabui.RadioGroup`、`fabui.FileBox`、`fabui.Form`、`fabui.Tabs`、`fabui.Tree`、`fabui.PropertyGrid`、`fabui.Diagram`、`fabui.Tooltip`、`fabui.Menu`、`fabui.MenuButton`、`fabui.SplitButton`、`fabui.Messager`、`fabui.EditBox`、`fabui.Panel`、`fabui.Window`、`fabui.Layout`、Chart，以及 PivotPanel、PivotGrid、PivotChart 與 PivotWorkspace。
-
-FabGrid 是以效能為優先的資料表元件，透過水平與垂直 virtualization 處理大量資料。內建凍結欄、TreeGrid、排序、搜尋、編輯、群組、分頁、JSON 匯入匯出，以及 CSV、Excel 匯出等常用功能。
-
-`fabui.EditBox` 使用單一 class 提供文字、數字、日期、清單與顏色編輯，並可作為 FabGrid 的儲存格編輯器使用。日期、清單與顏色 popup 分別和 FabGrid 共用內部 `DatePopup`／`ComboPopup`／`ColorPopup`，統一採用 EditBox 的 DOM、互動與樣式。Combo popup 預設以 EditBox 寬度為下限，選項內容較長時會自動加寬，並受 `panelMaxWidth` 與 viewport 限制。
-
-`fabui.Panel` 與 `fabui.Window` 的內建工具使用各主題對應的 `panel_tools.png` sprite；16 組主題的 Panel header／body／footer 與 Window frame／shadow／mask 樣式分別對應本機 `res/themes/<theme>/panel.css`、`window.css`。Panel 的收合／展開 icon，以及 Window 的最小化、最大化、還原、關閉、收合與展開 icon 不顯示滑鼠 hover 效果，正式 source 與 build 不依賴 `res/`。
-
-`fabui.Layout` 的收合／展開 icon 不顯示滑鼠 hover 效果；Splitter 只在實際拖曳時亮起目前操作的分隔線，hover 不變色。拖曳期間只移動分隔線預覽，放開滑鼠後才一次更新 Panel 尺寸，避免內容持續重繪。
-
-`fabui.Window` 疊合後只保留約 38px 高的標題列，展開時恢復原高度。
-
-`fabui.Window` 最小化後保留約 220×38px 的可見標題列並停靠可用範圍左下角；最小化工具會切換成還原，點擊後回到原位置與尺寸。
-
-`fabui.Window` 從四邊或四角縮放時只更新虛線預覽框，內容與實際視窗維持原尺寸；放開滑鼠後才一次套用新位置與尺寸，避免內部元件在拖曳過程持續 render。
-
-日期 editor 可設定 `showLunar: true`，在共用 DatePopup 的國曆日期下方顯示農曆日期；預設關閉。
-
-`fabui.Calendar` 是可獨立放在頁面中的月曆，與 Date EditBox／FabGrid 日期 editor 共用同一個 DatePopup 日曆 renderer、月份選單、農民曆與主題樣式；支援週次、`formatter`、`styler`、`validator`、三語系與 16 組 theme。
-
-Date EditBox 的 Calendar 預設從外層 `fg-theme-*` class 繼承，也可用 `theme` option 或 `setTheme(theme)` 覆寫；FabGrid 的共用 DatePopup 會自動跟隨 Grid theme。色彩映射參考本機 `res/themes/*/calendar.css`，正式 source 與 build 不依賴 `res/`。
-
-Pivot 元件共用同一個 PivotEngine。PivotPanel 用來設定分析欄位，PivotGrid 顯示多階列／欄彙總，PivotChart 將分析結果呈現為直條圖、橫條圖、折線圖或圓餅圖。PivotWorkspace 則將這些元件整合成完整的資料分析工作區。
-
-Chart 是以 SVG 繪製的圖表元件，可獨立使用，也能與 FabGrid 或 PivotGrid 連動。
+FabGrid 透過水平與垂直 virtualization 處理大量資料，並提供凍結欄、TreeGrid、排序、搜尋、編輯、群組、分頁及資料匯出等常用功能。FabUI 另包含表單、導覽、視窗、圖表、Diagram 與 Pivot 分析元件。
 
 ## 文件與 Demo
 
@@ -45,6 +21,7 @@ Chart 是以 SVG 繪製的圖表元件，可獨立使用，也能與 FabGrid 或
 - [線上 Chart Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-chart.html)
 - [線上 PivotGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/pivot.html)
 - [線上 PivotWorkspace Demo](https://jimmywon1028.github.io/fabgrid/demo/pivot-workspace.html)
+- [線上 Demo 索引](https://jimmywon1028.github.io/fabgrid/demo/index.html)
 
 ### 開發測試
 
