@@ -25,6 +25,12 @@
       status.textContent = message;
     }
 
+    function toggleRegion(region) {
+      var record = layout.regions[region];
+      if (record && record.collapsed) layout.expand(region);
+      else layout.collapse(region);
+    }
+
     if (!fabui || typeof fabui.Layout !== 'function') {
       throw new Error('fabui.Layout class is unavailable.');
     }
@@ -55,20 +61,17 @@
       applyTheme(theme.value);
       log('主題：' + theme.value);
     });
-    document.getElementById('toggle-west').addEventListener('click', function() {
-      var west = layout.regions.west;
-      if (west && west.collapsed) layout.expand('west');
-      else layout.collapse('west');
-    });
-    document.getElementById('toggle-east').addEventListener('click', function() {
-      var east = layout.regions.east;
-      if (east && east.collapsed) layout.expand('east');
-      else layout.collapse('east');
+    document.getElementById('toggle-north').addEventListener('click', function() {
+      toggleRegion('north');
     });
     document.getElementById('toggle-south').addEventListener('click', function() {
-      var south = layout.regions.south;
-      if (south && south.collapsed) layout.expand('south');
-      else layout.collapse('south');
+      toggleRegion('south');
+    });
+    document.getElementById('toggle-west').addEventListener('click', function() {
+      toggleRegion('west');
+    });
+    document.getElementById('toggle-east').addEventListener('click', function() {
+      toggleRegion('east');
     });
     document.getElementById('remove-east').addEventListener('click', function() {
       if (layout.panel('east')) {

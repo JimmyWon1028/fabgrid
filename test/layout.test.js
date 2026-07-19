@@ -171,6 +171,14 @@ test('Layout collapse and expand icons do not change on mouse hover', function()
     new URL('../src/layout/layout.css', import.meta.url),
     'utf8'
   );
+  var panelCss = readFileSync(
+    new URL('../src/panel/panel.css', import.meta.url),
+    'utf8'
+  );
+  var panelToolRule = panelCss.match(/\.fui-panel-tool\s*\{([\s\S]*?)\}/);
+  var expandButtonRule = css.match(
+    /\.fui-layout-expand-button\s*\{([\s\S]*?)\}/
+  );
 
   assert.match(
     css,
@@ -182,6 +190,12 @@ test('Layout collapse and expand icons do not change on mouse hover', function()
     /\.fui-layout \.fui-panel-tool\.fui-layout-button-up:hover,[\s\S]*?background-color:\s*transparent;[\s\S]*?opacity:\s*0\.6;/
   );
   assert.doesNotMatch(css, /fui-layout-button-(?:up|down|left|right):hover:not/);
+  assert.ok(panelToolRule);
+  assert.match(panelToolRule[1], /background-color:\s*transparent;/);
+  assert.doesNotMatch(panelToolRule[1], /background:\s*transparent;/);
+  assert.ok(expandButtonRule);
+  assert.match(expandButtonRule[1], /background-color:\s*transparent;/);
+  assert.doesNotMatch(expandButtonRule[1], /background:\s*transparent;/);
 });
 
 test('Layout highlights only the splitter being dragged', function() {
@@ -233,4 +247,28 @@ test('Layout previews splitter movement and resizes panels only on pointer relea
     /this\._setRegionSize\(state\.region,\s*state\.pendingSize\)/
   );
   assert.match(finishSource[1], /splitter\.style\.removeProperty\('transform'\)/);
+});
+
+test('Layout demos expose controls for all four collapsible edge regions', function() {
+  var demoSource = readFileSync(
+    new URL('../demo/layout.html', import.meta.url),
+    'utf8'
+  );
+  var devDemoSource = readFileSync(
+    new URL('../demo/dev-layout.html', import.meta.url),
+    'utf8'
+  );
+  var scriptSource = readFileSync(
+    new URL('../demo/js/layout-demo.js', import.meta.url),
+    'utf8'
+  );
+
+  ['north', 'south', 'west', 'east'].forEach(function(region) {
+    var controlPattern = new RegExp('id="toggle-' + region + '"');
+    var handlerPattern = new RegExp("toggleRegion\\('" + region + "'\\)");
+
+    assert.match(demoSource, controlPattern);
+    assert.match(devDemoSource, controlPattern);
+    assert.match(scriptSource, handlerPattern);
+  });
 });

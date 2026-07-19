@@ -20,12 +20,12 @@
 @import './menu/menu.css?v=20260718-menu-v2';
 @import './menubutton/menubutton.css?v=20260718-menubutton-no-divider-v1';
 @import './splitbutton/splitbutton.css?v=20260718-splitbutton-hover-divider-v1';
-@import './panel/panel.css?v=20260719-panel-tools-v3';
+@import './panel/panel.css?v=20260719-panel-tools-v4';
 @import './propertygrid/propertygrid.css?v=20260719-propertygrid-theme-v2';
 @import './tabs/tabs.css?v=20260719-tabs-drag-title-v1';
 @import './tree/tree.css?v=20260719-tree-theme-v2';
 @import './tooltip/tooltip.css?v=20260718-tooltip-v1';
-@import './layout/layout.css?v=20260719-layout-hover-v4';
+@import './layout/layout.css?v=20260719-layout-collapse-icon-v5';
 @import './window/window.css?v=20260719-window-resize-preview-v1';
 @import './messager/messager.css?v=20260718-messager-v3';
 @import './fabui.icon.css?v=20260719-panel-tools-v1';
