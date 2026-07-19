@@ -28,7 +28,7 @@ import { createSplitButtonFactory } from './splitbutton/splitbutton.js?v=2026071
 import { createTabsFactory } from './tabs/tabs.js?v=20260719-i18n-theme-audit-v1';
 import { createTreeFactory } from './tree/tree.js?v=20260719-i18n-theme-audit-v1';
 import { createTooltipFactory } from './tooltip/tooltip.js?v=20260719-i18n-theme-audit-v1';
-import { createWindowFactory } from './window/window.js?v=20260719-window-resize-preview-v1';
+import { createWindowFactory } from './window/window.js?v=20260720-window-minimize-target-v1';
 import {
   PivotAggregate,
   PivotEngine,

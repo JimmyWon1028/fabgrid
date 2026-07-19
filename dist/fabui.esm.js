@@ -35575,6 +35575,36 @@ function calculateMinimizedWindowRect(bounds, preferredWidth) {
   };
 }
 
+function calculateMinimizedTargetRect(target, bounds) {
+  var boundsWidth = Math.max(0, toNumber(bounds && bounds.width, 0));
+  var boundsHeight = Math.max(0, toNumber(bounds && bounds.height, 0));
+  var width = toNumber(target && target.width, 0);
+  var height = toNumber(target && target.height, 0);
+  var left;
+  var top;
+  if (boundsWidth <= 0 || boundsHeight <= 0 || width <= 0 || height <= 0) {
+    return null;
+  }
+  width = Math.min(boundsWidth, width);
+  height = Math.min(boundsHeight, height);
+  left = clamp(
+    toNumber(target && target.left, 0),
+    0,
+    Math.max(0, boundsWidth - width)
+  );
+  top = clamp(
+    toNumber(target && target.top, 0),
+    0,
+    Math.max(0, boundsHeight - height)
+  );
+  return {
+    left: left,
+    top: top,
+    width: width,
+    height: height
+  };
+}
+
 function findWindowTheme(element) {
   var current = resolveWindowElement(element);
   var index;
@@ -35642,6 +35672,7 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
     this._animationEndTimer = null;
     this._normalRect = null;
     this._minimizedRestoreRect = null;
+    this._minimizeTargetActive = false;
     this._resizeProxy = null;
     this._onMinimizedViewportResize = null;
     this._originalParent = host.parentNode;
@@ -36078,9 +36109,39 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
   };
 
   FabWindow.prototype._getMinimizedRect = function() {
+    var target = this.options.minimizeTarget;
+    var targetRect;
+    var container;
+    var containerRect;
     var restoreWidth = this._minimizedRestoreRect ?
       this._minimizedRestoreRect.width :
       this.options.width;
+    if (typeof target === 'function') target = target.call(this, this);
+    if (typeof target === 'string') {
+      try {
+        target = document.querySelector(target);
+      } catch (error) {
+        target = null;
+      }
+    }
+    if (target && target.nodeType === 1) {
+      targetRect = target.getBoundingClientRect();
+      if (this.options.inline) {
+        container = this.windowElement.parentElement;
+        containerRect = container.getBoundingClientRect();
+        targetRect = {
+          left: targetRect.left - containerRect.left + container.scrollLeft,
+          top: targetRect.top - containerRect.top + container.scrollTop,
+          width: targetRect.width,
+          height: targetRect.height
+        };
+      }
+    } else {
+      targetRect = target;
+    }
+    targetRect = calculateMinimizedTargetRect(targetRect, this._getBounds());
+    this._minimizeTargetActive = targetRect != null;
+    if (targetRect) return targetRect;
     return calculateMinimizedWindowRect(this._getBounds(), restoreWidth);
   };
 
@@ -36088,9 +36149,15 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
     var self = this;
     this._unbindMinimizedViewportResize();
     this._onMinimizedViewportResize = function() {
+      var minimizedRect;
       if (!self.options.minimized || self.options.closed) return;
       self._cancelStateAnimation(true);
-      self._applyRect(self._getMinimizedRect());
+      minimizedRect = self._getMinimizedRect();
+      self.windowElement.classList.toggle(
+        'fui-window-minimized-target',
+        self._minimizeTargetActive
+      );
+      self._applyRect(minimizedRect);
     };
     window.addEventListener('resize', this._onMinimizedViewportResize);
   };
@@ -36106,8 +36173,13 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
     if (!this.options.minimized) return false;
     rect = this._minimizedRestoreRect;
     this._cancelStateAnimation(true);
+    if (this.options.minimizeTarget) {
+      this._applyRect(this._getMinimizedRect());
+    }
     this.options.minimized = false;
     this.windowElement.classList.remove('fui-window-minimized');
+    this.windowElement.classList.remove('fui-window-minimized-target');
+    this._minimizeTargetActive = false;
     this._unbindMinimizedViewportResize();
     this.hostElement.hidden = this.options.collapsed;
     this.footerElement.hidden =
@@ -36178,6 +36250,10 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
     this.footerElement.hidden = true;
     this.windowElement.classList.add('fui-window-minimized');
     minimizedRect = this._getMinimizedRect();
+    this.windowElement.classList.toggle(
+      'fui-window-minimized-target',
+      this._minimizeTargetActive
+    );
     this._setVisible(true);
     this.bringToFront();
     this._bindMinimizedViewportResize();
@@ -36470,6 +36546,7 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
     closed: false,
     collapsed: false,
     minimized: false,
+    minimizeTarget: null,
     maximized: false,
     noheader: false,
     iconCls: '',

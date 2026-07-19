@@ -2,6 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { bridgeNumberEditBoxInput } from '../demo/js/grid2-components.js?v=20260720-number-input-bridge-v1';
+import {
+  normalizeWin7Theme,
+  readWin7Theme,
+  writeWin7Theme
+} from '../demo/js/win7-demo.js?v=20260720-win7-theme-storage-v1';
 
 var demoDirectory = new URL('../demo/', import.meta.url);
 var devHelperScript = readFileSync(
@@ -197,6 +202,38 @@ test('The Grid Demo bridges live Number EditBox input to source controls', funct
   assert.equal(bridgeNumberEditBoxInput(source, numberControl, 'change'), false);
 });
 
+test('The Windows 7 Demo remembers only supported themes', function() {
+  var stored = null;
+  var storage = {
+    getItem: function() {
+      return stored;
+    },
+    setItem: function(name, value) {
+      assert.equal(name, 'fabui.win7.theme');
+      stored = value;
+    }
+  };
+  var blockedStorage = {
+    getItem: function() {
+      throw new Error('blocked');
+    },
+    setItem: function() {
+      throw new Error('blocked');
+    }
+  };
+
+  assert.equal(normalizeWin7Theme('metro-blue'), 'metro-blue');
+  assert.equal(normalizeWin7Theme('unknown-theme'), 'default');
+  assert.equal(readWin7Theme(storage), 'default');
+  assert.equal(writeWin7Theme(storage, 'black'), true);
+  assert.equal(stored, 'black');
+  assert.equal(readWin7Theme(storage), 'black');
+  assert.equal(writeWin7Theme(storage, 'unknown-theme'), true);
+  assert.equal(stored, 'default');
+  assert.equal(readWin7Theme(blockedStorage), 'default');
+  assert.equal(writeWin7Theme(blockedStorage, 'black'), false);
+});
+
 test('The Windows 7 source Demo composes FabUI controls', function() {
   assert.match(win7Html, /\.\.\/src\/fabui\.css/);
   assert.match(win7Html, /from '\.\.\/src\/fabui\.js/);
@@ -230,9 +267,13 @@ test('The Windows 7 source Demo composes FabUI controls', function() {
   assert.match(win7Script, /desktop\.addEventListener\('contextmenu'/);
   assert.match(win7Script, /desktop\.addEventListener\('keydown'/);
   assert.match(win7Script, /control\.setTheme\('inherit'\)/);
+  assert.match(win7Script, /applyTheme\(readWin7Theme\(themeStorage\), false\)/);
+  assert.match(win7Script, /writeWin7Theme\(themeStorage, theme\)/);
   assert.match(win7Script, /function makeShortcutDraggable/);
   assert.match(win7Script, /setPointerCapture\(event\.pointerId\)/);
   assert.match(win7Script, /function minimizeToTaskbar\(name\)/);
+  assert.match(win7Script, /function revealTaskbarTarget\(name\)/);
+  assert.equal((win7Script.match(/minimizeTarget:\s*function\(\)/g) || []).length, 3);
   assert.match(win7Script, /function getMinimizeAnimationDelay\(control\)/);
   assert.match(win7Script, /control\.options\.animationDuration/);
   assert.match(win7Script, /prefers-reduced-motion:\s*reduce/);

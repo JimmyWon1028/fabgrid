@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import coreFabui from '../src/fabui.js';
 import {
+  calculateMinimizedTargetRect,
   calculateWindowResizeRect,
   calculateMinimizedWindowRect,
   constrainWindowRect,
@@ -116,6 +117,30 @@ test('Window minimized rectangle sits at the bottom-left of its bounds', functio
   );
 });
 
+test('Window minimized target uses one exact target rectangle', function() {
+  assert.deepEqual(
+    calculateMinimizedTargetRect(
+      { left: 88, top: 676, width: 132, height: 34 },
+      { width: 1280, height: 720 }
+    ),
+    { left: 88, top: 676, width: 132, height: 34 }
+  );
+  assert.deepEqual(
+    calculateMinimizedTargetRect(
+      { left: 1180, top: 700, width: 180, height: 40 },
+      { width: 1280, height: 720 }
+    ),
+    { left: 1100, top: 680, width: 180, height: 40 }
+  );
+  assert.equal(
+    calculateMinimizedTargetRect(
+      { left: 0, top: 0, width: 0, height: 34 },
+      { width: 1280, height: 720 }
+    ),
+    null
+  );
+});
+
 test('Window exposes the documented EasyUI-compatible defaults', function() {
   assert.equal(coreFabui.Window.defaults.title, 'New Window');
   assert.equal(coreFabui.Window.defaults.draggable, true);
@@ -127,6 +152,7 @@ test('Window exposes the documented EasyUI-compatible defaults', function() {
   assert.equal(coreFabui.Window.defaults.modal, false);
   assert.equal(coreFabui.Window.defaults.animate, true);
   assert.equal(coreFabui.Window.defaults.animationDuration, 180);
+  assert.equal(coreFabui.Window.defaults.minimizeTarget, null);
 });
 
 test('Window theme styles match every EasyUI window reference palette', function() {
@@ -347,7 +373,17 @@ test('Window minimized state remains visible and exposes restore', function() {
     css,
     /\.fui-window-minimized\.fui-window-inline\s*\{[\s\S]*?position:\s*absolute;/
   );
+  assert.match(
+    css,
+    /\.fui-window-minimized\.fui-window-minimized-target\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?min-height:\s*0;/
+  );
   assert.match(source, /this\._minimizedRestoreRect = this\._getRect\(\)/);
+  assert.match(source, /target = this\.options\.minimizeTarget/);
+  assert.match(source, /target\.getBoundingClientRect\(\)/);
+  assert.match(
+    source,
+    /if \(this\.options\.minimizeTarget\)\s*\{\s*this\._applyRect\(this\._getMinimizedRect\(\)\)/
+  );
   assert.match(source, /this\._animateRect\(minimizedRect\)/);
   assert.match(
     source,

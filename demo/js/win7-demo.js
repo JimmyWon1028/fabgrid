@@ -16,6 +16,44 @@ var WIN7_THEMES = [
   { value: 'dark-hive', text: 'Dark Hive' },
   { value: 'black', text: 'Black' }
 ];
+var WIN7_THEME_STORAGE_KEY = 'fabui.win7.theme';
+
+function normalizeWin7Theme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  var index;
+  for (index = 0; index < WIN7_THEMES.length; index += 1) {
+    if (WIN7_THEMES[index].value === theme) return theme;
+  }
+  return 'default';
+}
+
+function getWin7ThemeStorage() {
+  try {
+    return typeof window !== 'undefined' ? window.localStorage : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function readWin7Theme(storage) {
+  if (!storage || typeof storage.getItem !== 'function') return 'default';
+  try {
+    return normalizeWin7Theme(storage.getItem(WIN7_THEME_STORAGE_KEY));
+  } catch (error) {
+    return 'default';
+  }
+}
+
+function writeWin7Theme(storage, value) {
+  var theme = normalizeWin7Theme(value);
+  if (!storage || typeof storage.setItem !== 'function') return false;
+  try {
+    storage.setItem(WIN7_THEME_STORAGE_KEY, theme);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
 
 function requireFabUI(fabui) {
   [
@@ -151,6 +189,7 @@ function mountWin7Demo(fabui) {
   var startElement = document.getElementById('win7-start');
   var startMenu;
   var themeControls = [];
+  var themeStorage = getWin7ThemeStorage();
   var taskElements = {
     computer: document.getElementById('win7-task-computer'),
     network: document.getElementById('win7-task-network'),
@@ -252,7 +291,13 @@ function mountWin7Demo(fabui) {
     taskElements[name].hidden = true;
   }
 
-  function applyTheme(theme) {
+  function revealTaskbarTarget(name) {
+    taskElements[name].hidden = false;
+    return taskElements[name];
+  }
+
+  function applyTheme(theme, persist) {
+    theme = normalizeWin7Theme(theme);
     WIN7_THEMES.forEach(function(item) {
       document.body.classList.remove('fg-theme-' + item.value);
     });
@@ -270,6 +315,7 @@ function mountWin7Demo(fabui) {
         iconCls: item.value === theme ? 'icon-ok' : ''
       });
     });
+    if (persist !== false) writeWin7Theme(themeStorage, theme);
   }
 
   function showDesktopThemeMenu(left, top) {
@@ -297,6 +343,9 @@ function mountWin7Demo(fabui) {
     locale: 'zh-TW',
     collapsible: false,
     minimizable: true,
+    minimizeTarget: function() {
+      return revealTaskbarTarget('computer');
+    },
     maximizable: true,
     closable: true,
     constrain: true,
@@ -323,6 +372,9 @@ function mountWin7Demo(fabui) {
     locale: 'zh-TW',
     collapsible: false,
     minimizable: true,
+    minimizeTarget: function() {
+      return revealTaskbarTarget('network');
+    },
     maximizable: true,
     closable: true,
     constrain: true,
@@ -349,6 +401,9 @@ function mountWin7Demo(fabui) {
     locale: 'zh-TW',
     collapsible: false,
     minimizable: true,
+    minimizeTarget: function() {
+      return revealTaskbarTarget('monitor');
+    },
     maximizable: true,
     closable: true,
     constrain: true,
@@ -581,6 +636,7 @@ function mountWin7Demo(fabui) {
     startMenu,
     desktopMenu
   ], buttons);
+  applyTheme(readWin7Theme(themeStorage), false);
 
   startElement.addEventListener('click', function() {
     var menuRect;
@@ -662,4 +718,9 @@ function mountWin7Demo(fabui) {
   };
 }
 
-export { mountWin7Demo };
+export {
+  mountWin7Demo,
+  normalizeWin7Theme,
+  readWin7Theme,
+  writeWin7Theme
+};

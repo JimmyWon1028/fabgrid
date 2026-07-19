@@ -238,7 +238,7 @@ Browser global 與 ES module 都以 `fabui` 作為最上層 namespace：
 | `fabui.Messager` | Pure JavaScript singleton 訊息服務；提供 Alert、Confirm、Prompt、Toast、Progress、theme 與 lifecycle。 |
 | `fabui.EditBox` | FabUI core 直接提供；使用方式為 `new fabui.EditBox(...)` |
 | `fabui.Panel` | Pure JavaScript 內容容器；提供 Header、Footer、Tools、狀態過渡動畫、載入與 lifecycle。 |
-| `fabui.Window` | Pure JavaScript 浮動視窗；提供拖曳、放開滑鼠才提交的縮放預覽、Modal、狀態動畫、`iconCls: 'icon-xxx'` 標題 icon 與 lifecycle。 |
+| `fabui.Window` | Pure JavaScript 浮動視窗；提供拖曳、放開滑鼠才提交的縮放預覽、Modal、可對準單一目標矩形的最小化動畫、`iconCls: 'icon-xxx'` 標題 icon 與 lifecycle。 |
 | `fabui.Layout` | 以 `fabui.Panel` 組成 north／south／east／west／center 五區、可拖曳 Splitter，以及同步 edge／center／collapsed bar 的收起展開動畫。 |
 
 `fabui.version` 使用 `YYYY.M.D` 格式，執行 build 時會依本機日期自動產生。
