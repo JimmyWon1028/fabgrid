@@ -517,6 +517,53 @@ test('active cell border defaults to two pixels', function() {
   assert.equal(applyCount, 1);
 });
 
+test('editor icon host stays inside the active editor border', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var cell = {
+    getBoundingClientRect: function() {
+      return { left: 110, top: 210, width: 120, height: 32 };
+    }
+  };
+
+  grid.editing = { row: 0, col: 0 };
+  grid.visibleColumns = [{}];
+  grid.root = {
+    querySelector: function() {
+      return cell;
+    }
+  };
+  grid.body = {
+    getBoundingClientRect: function() {
+      return { left: 10, top: 10 };
+    }
+  };
+  grid.bodyScroll = { clientWidth: 600, scrollLeft: 0, scrollTop: 0 };
+  grid.editor = { style: {} };
+  grid.editorIconHost = { style: { width: '22px' } };
+  grid.editorConfig = { type: 'combo' };
+  grid.editorIconConfigs = [];
+  grid.options = { activeCellBorder: 2, rowHeight: 32 };
+  Object.defineProperty(grid, 'frozenColumns', {
+    configurable: true,
+    value: 0
+  });
+  grid.scrollableColumnEnd = 1;
+  grid.getEditorIconHostWidth = function() {
+    return 22;
+  };
+  grid.positionComboboxPanel = function() {};
+
+  FabGrid.prototype.positionEditor.call(grid);
+
+  assert.equal(grid.editor.style.top, '200px');
+  assert.equal(grid.editor.style.height, '32px');
+  assert.equal(grid.editorIconHost.style.left, '196px');
+  assert.equal(grid.editorIconHost.style.top, '203px');
+  assert.equal(grid.editorIconHost.style.height, '26px');
+  assert.equal(grid.editorIconHost.style.width, '22px');
+});
+
 test('cell templates support Wijmo-compatible function and string contracts', function() {
   var FabGrid = createFabGridFactory({});
   var grid = Object.create(FabGrid.prototype);

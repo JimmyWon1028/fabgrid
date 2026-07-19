@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>fabui.Tabs 開發版 Demo</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260718-tabs-directional-drop-v1">
+  <link rel="stylesheet" href="../src/fabui.css?v=20260719-components-theme-v2">
   <style>
     body {
       max-width: 1040px;
@@ -92,10 +92,10 @@
       <option value="justified">Justified</option>
     </select>
     <label><input id="tabs-draggable" type="checkbox" checked> 可拖曳排序</label>
-    <button id="tabs-add" type="button">新增</button>
-    <button id="tabs-close" type="button">關閉目前頁籤</button>
-    <button id="tabs-toggle-disabled" type="button">切換報表 Disabled</button>
-    <button id="tabs-toggle-header" type="button">顯示／隱藏 Header</button>
+    <a data-fabui-button href="javascript:void(0)" id="tabs-add">新增</a>
+    <a data-fabui-button href="javascript:void(0)" id="tabs-close">關閉目前頁籤</a>
+    <a data-fabui-button href="javascript:void(0)" id="tabs-toggle-disabled">切換報表 Disabled</a>
+    <a data-fabui-button href="javascript:void(0)" id="tabs-toggle-header">顯示／隱藏 Header</a>
   </div>
   <div id="tabs-status" aria-live="polite"></div>
 
@@ -122,11 +122,12 @@
     <div id="tabs-overflow"></div>
   </div>
 
-  <script src="./js/tabs-demo.js?v=20260718-tabs-drag-right-v1"></script>
+  <script src="./js/tabs-demo.js?v=20260719-tabs-drag-title-v1"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260718-tabs-directional-drop-v1';
+    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
 
     window.mountFabUITabsDemo(fabui);
   </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
 </body>
 </html>

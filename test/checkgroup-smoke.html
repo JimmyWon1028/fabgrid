@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CheckGroup source smoke</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260719-checkgroup-v1">
+</head>
+<body class="fg-theme-default">
+  <form id="checkgroup-smoke-form">
+    <div id="checkgroup-smoke" class="original-checkgroup"><span>Original</span></div>
+  </form>
+  <pre id="result">{"complete":false}</pre>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260719-checkgroup-v1';
+
+    var host = document.getElementById('checkgroup-smoke');
+    var form = document.getElementById('checkgroup-smoke-form');
+    var originalHtml = host.innerHTML;
+    var result = document.getElementById('result');
+    var changes = [];
+    var checks = {};
+    var group;
+
+    try {
+      group = new fabui.CheckGroup(host, {
+        name: 'fruit',
+        value: ['apple'],
+        data: [
+          { value: 'apple', label: 'Apple' },
+          { value: 'orange', label: 'Orange', disabled: true },
+          { value: 'banana', label: 'Banana' }
+        ],
+        locale: 'zh-TW',
+        onChange: function(values) {
+          changes.push(values.slice());
+        }
+      });
+      checks.published = typeof fabui.CheckGroup === 'function';
+      checks.registered = fabui.Control.getControl(host) === group;
+      checks.nativeInputs = host.querySelectorAll('input[type="checkbox"]').length === 3 &&
+        host.querySelectorAll('.fui-checkbox').length === 3 &&
+        new FormData(form).getAll('fruit').join(',') === 'apple';
+      checks.initial = group.getValue().join(',') === 'apple' &&
+        group.getCheckBox('orange').options().disabled === true &&
+        host.classList.contains('fui-checkgroup-h');
+      group.setValue(['apple', 'banana']);
+      checks.setValue = group.getValue().join(',') === 'apple,banana' &&
+        changes.length === 1 &&
+        changes[0].join(',') === 'apple,banana' &&
+        new FormData(form).getAll('fruit').join(',') === 'apple,banana';
+      group.uncheck('apple').check('orange');
+      checks.runtime = group.getValue().join(',') === 'orange,banana' &&
+        changes.length === 3;
+      group.clear();
+      checks.clear = group.getValue().length === 0 && changes.length === 4;
+      group.reset();
+      checks.reset = group.getValue().join(',') === 'apple' && changes.length === 5;
+      group.setOptions({
+        dir: 'v',
+        labelPosition: 'before',
+        labelWidth: 90,
+        itemStyle: { height: 36 }
+      });
+      checks.layout = host.classList.contains('fui-checkgroup-v') &&
+        host.querySelector('.fui-checkgroup-item').style.height === '36px' &&
+        host.querySelector('.fui-checkbox').classList.contains('fui-checkbox-label-before');
+      group.disable();
+      checks.disabled = Array.from(host.querySelectorAll('input')).every(function(input) {
+        return input.disabled;
+      });
+      group.enable().setLocale('zh-CN').setTheme('black');
+      checks.localeTheme = host.getAttribute('aria-label') === '复选框组' &&
+        host.classList.contains('fg-theme-black') &&
+        group.getCheckBox('orange').options().disabled === true &&
+        group.getCheckBox('apple').options().disabled === false;
+      group.dispose();
+      checks.disposed = fabui.Control.getControl(host) === null &&
+        host.className === 'original-checkgroup' &&
+        host.innerHTML === originalHtml;
+      checks.complete = Object.keys(checks).every(function(key) {
+        return checks[key] === true;
+      });
+    } catch (error) {
+      checks.error = error && error.stack ? error.stack : String(error);
+      checks.complete = false;
+    }
+    result.textContent = JSON.stringify(checks);
+    document.title = checks.complete ? 'PASS CheckGroup source smoke' : 'FAIL CheckGroup source smoke';
+  </script>
+</body>
+</html>

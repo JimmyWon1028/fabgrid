@@ -45,8 +45,10 @@ function resolveTreeElement(element) {
 }
 
 function normalizeTreeLocale(value) {
-  value = String(value || 'en');
-  return value === 'zh-TW' || value === 'zh-CN' ? value : 'en';
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
 }
 
 export function normalizeTreeTheme(value) {
@@ -1489,6 +1491,7 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
 
   FabTree.defaults = defaults;
   FabTree.locales = localePacks;
+  FabTree.themes = TREE_THEMES.slice();
   FabTree.addLocale = function(name, messages) {
     if (name && messages) localePacks[String(name)] = treeAssign({}, localePacks.en, messages);
     return FabTree;
@@ -1498,5 +1501,6 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
     return element && element.__fabuiTree ? element.__fabuiTree : null;
   };
   FabTree.normalizeTheme = normalizeTreeTheme;
+  FabTree.normalizeLocale = normalizeTreeLocale;
   return FabTree;
 }

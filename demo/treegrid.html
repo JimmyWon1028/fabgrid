@@ -15,8 +15,8 @@
         <p>Build-mode：只引用 dist browser global bundle，展示 childItemsPath 樹狀資料。</p>
       </div>
       <div class="tree-actions">
-        <button id="collapseTree" type="button">全部收合</button>
-        <button id="expandTree" type="button">全部展開</button>
+        <a id="collapseTree" href="javascript:void(0)">全部收合</a>
+        <a id="expandTree" href="javascript:void(0)">全部展開</a>
       </div>
     </header>
 
@@ -36,19 +36,17 @@
               placeholder="逗號分隔條件，例如 團隊,啟用"
               autocomplete="off"
             >
-            <button
+            <a
               id="treeQuickSearchMode"
               class="tree-filter-mode"
-              type="button"
               aria-label="OR"
               title="OR"
-            >OR</button>
-            <button
+             href="javascript:void(0)">OR</a>
+            <a
               id="treeQuickSearchClear"
-              type="button"
               aria-label="清除篩選"
               title="清除篩選"
-            >🧹</button>
+             href="javascript:void(0)">🧹</a>
           </span>
         </label>
       </div>
@@ -59,5 +57,6 @@
   <script src="../dist/fabui.min.js?v=20260715-treegrid-v1"></script>
   <script src="./js/treegrid-data.js?v=20260715-treegrid-v1"></script>
   <script src="./js/treegrid.js?v=20260715-top-left-row-header-v1"></script>
+  <script type="module" src="./js/dist-controls.js?v=20260719-all-demos-v1"></script>
 </body>
 </html>

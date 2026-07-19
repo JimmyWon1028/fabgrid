@@ -2,7 +2,7 @@ import {
   DatePopup,
   findDatePopupTheme,
   normalizeDatePopupTheme
-} from '../editbox/date-popup.js?v=20260718-final-audit-v1';
+} from '../editbox/date-popup.js?v=20260719-current-month-text-v1';
 
 var CALENDAR_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
@@ -77,9 +77,10 @@ function calendarDateOnly(date) {
 }
 
 function normalizeCalendarLocale(locale) {
-  var value = String(locale || '').replace('_', '-');
+  var value = String(locale || '').trim().replace(/_/g, '-');
   if (CALENDAR_LOCALES[value]) return value;
-  if (/^zh-TW/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value)) return 'zh-CN';
   if (/^zh/i.test(value)) return 'zh-CN';
   return 'en';
 }
@@ -463,6 +464,8 @@ export function createCalendarFactory(Control, registerControl, unregisterContro
   };
 
   FabCalendar.locales = CALENDAR_LOCALES;
+  FabCalendar.themes = CALENDAR_THEMES.slice();
+  FabCalendar.normalizeLocale = normalizeCalendarLocale;
   FabCalendar.getControl = function(element) {
     element = resolveCalendarElement(element);
     return element && element.__fabuiCalendar ? element.__fabuiCalendar : null;

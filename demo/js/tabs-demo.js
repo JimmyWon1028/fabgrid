@@ -42,6 +42,7 @@
       height: 310,
       locale: localeSelect.value,
       draggable: dragToggle ? dragToggle.checked : false,
+      // draggable: false,
       tools: [{
         iconCls: 'icon-add',
         title: '新增頁籤',

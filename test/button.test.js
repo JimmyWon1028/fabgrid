@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import coreFabui from '../src/fabui.js';
 import {
   normalizeButtonIconAlign,
@@ -38,4 +39,12 @@ test('Button exposes the documented EasyUI-compatible defaults', function() {
   assert.equal(coreFabui.Button.defaults.iconCls, null);
   assert.equal(coreFabui.Button.defaults.iconAlign, 'left');
   assert.equal(coreFabui.Button.defaults.size, 'small');
+});
+
+test('Button follows LinkButton and only accepts anchor hosts', function() {
+  var source = fs.readFileSync('src/button/button.js', 'utf8');
+  assert.match(source, /host\.tagName !== 'A'/);
+  assert.match(source, /host must be an anchor element/);
+  assert.match(source, /setAttribute\('href', 'javascript:void\(0\)'\)/);
+  assert.doesNotMatch(source, /A\|BUTTON/);
 });

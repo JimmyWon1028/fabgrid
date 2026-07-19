@@ -54,6 +54,8 @@ test('Messager source composes Window and Button without another dialog renderer
   var source = fs.readFileSync('src/messager/messager.js', 'utf8');
   assert.match(source, /state\.window = new Window\(/);
   assert.match(source, /buttons\.push\(new Button\(/);
+  assert.match(source, /document\.createElement\('a'\)/);
+  assert.doesNotMatch(source, /document\.createElement\('button'\)/);
   assert.match(source, /show:\s*showToast/);
   assert.match(source, /alert:\s*function/);
   assert.match(source, /confirm:\s*function/);

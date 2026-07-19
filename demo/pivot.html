@@ -14,8 +14,7 @@
     .header h1 { margin: 0; font-size: 24px; }
     .toolbar { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; scrollbar-width: none; }
     .toolbar::-webkit-scrollbar { display: none; }
-    .toolbar button, .toolbar select { height: 30px; padding: 0 11px; border: 1px solid #b8c4d4; border-radius: 3px; background: #fff; cursor: pointer; }
-    .toolbar > button, .toolbar > select, .toolbar > span { flex: 0 0 auto; }
+    .toolbar > label, .toolbar > .fui-button, .toolbar > span { flex: 0 0 auto; }
     .toolbar span { margin-left: auto; color: #64748b; font-size: 13px; }
     .card { overflow: hidden; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
     .workspace { display: grid; min-width: 0; min-height: 0; overflow: hidden; flex: 1 1 auto; gap: 12px; grid-template-columns: 320px minmax(0, 1fr); }
@@ -24,8 +23,6 @@
     .panel-card, .pivot-card { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
     .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 38px; margin: 0; padding: 0 12px; border-bottom: 1px solid #cbd5e1; font-size: 14px; }
     .panel-title-actions { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; }
-    .panel-title-actions button { height: 27px; padding: 0 9px; border: 1px solid #b8c4d4; border-radius: 3px; background: #fff; color: #1f2937; cursor: pointer; font: inherit; font-size: 12px; font-weight: normal; }
-    .panel-title-actions button:hover { border-color: #2b7fd3; background: #eef6ff; }
     #pivotPanel, #pivotGrid { min-height: 0; height: 100%; flex: 1 1 auto; }
     #pivotPanel { border: 0; }
     .fg-pivot-panel-insert-line { opacity: .55; }
@@ -53,8 +50,8 @@
         <option value="platform-sales">季度／平台（銷售額）</option>
         <option value="region-sales">季度／區域（銷售額）</option>
       </select>
-      <button id="saveView" type="button">儲存 View</button>
-      <button id="loadView" type="button">載入 View</button>
+      <a id="saveView" href="javascript:void(0)">儲存 View</a>
+      <a id="loadView" href="javascript:void(0)">載入 View</a>
       <span id="stats"></span>
     </section>
     <div id="pivotWorkspace" class="workspace">
@@ -63,7 +60,7 @@
         <h2 class="panel-title">
           銷售分析
           <span class="panel-title-actions">
-            <button id="togglePivotPanel" type="button" aria-controls="pivotPanelCard" aria-expanded="true">隱藏定義</button>
+            <a id="togglePivotPanel" aria-controls="pivotPanelCard" aria-expanded="true" href="javascript:void(0)">隱藏定義</a>
           </span>
         </h2>
         <div id="pivotGrid"></div>
@@ -202,5 +199,6 @@
       window.pivotPanel = panel;
     }());
   </script>
+  <script type="module" src="./js/dist-controls.js?v=20260719-all-demos-v1"></script>
 </body>
 </html>

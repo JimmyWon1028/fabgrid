@@ -133,3 +133,94 @@ test('Tree source contains delegated keyboard, lazy loading, editing and DnD pat
   assert.match(css, /\.fui-tree-drop-before::before/);
   assert.match(css, /opacity: var\(--fg-drag-indicator-opacity, 0\.55\)/);
 });
+
+test('Tree uses the matching EasyUI sprite assets for every FabUI theme', function() {
+  var css = readFileSync(new URL('../src/tree/tree.css', import.meta.url), 'utf8');
+  var themes = [
+    'default',
+    'black',
+    'bootstrap',
+    'cupertino',
+    'dark-hive',
+    'material',
+    'material-blue',
+    'material-teal',
+    'metro',
+    'metro-blue',
+    'metro-gray',
+    'metro-green',
+    'metro-orange',
+    'metro-red',
+    'pepper-grinder',
+    'sunny'
+  ];
+
+  assert.match(css, /background-position:\s*-18px 0/);
+  assert.match(css, /background-position:\s*-144px 0/);
+  assert.match(css, /background-position:\s*-208px -18px/);
+  assert.match(css, /background-position:\s*-240px 0/);
+  assert.doesNotMatch(css, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
+
+  themes.forEach(function(theme) {
+    var png = readFileSync(
+      new URL('../src/theme/' + theme + '/images/tree_icons.png', import.meta.url)
+    );
+    var gif = readFileSync(
+      new URL('../src/theme/' + theme + '/images/loading.gif', import.meta.url)
+    );
+    var escapedTheme = theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    assert.match(
+      css,
+      new RegExp("--fui-tree-icons:\\s*url\\('\\.\\./theme/" + escapedTheme + "/images/tree_icons\\.png'\\)")
+    );
+    assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', theme);
+    assert.equal(png.readUInt32BE(16), 272, theme);
+    assert.equal(png.readUInt32BE(20), 36, theme);
+    assert.match(gif.subarray(0, 6).toString('ascii'), /^GIF8[79]a$/, theme);
+  });
+});
+
+test('Tree theme states match every EasyUI reference theme', function() {
+  var css = readFileSync(new URL('../src/tree/tree.css', import.meta.url), 'utf8');
+  var expected = {
+    default: ['#eaf2ff', '#000000', '#ffe48d', '#000000', '#95B8E7'],
+    black: ['#777777', '#ffffff', '#0052A3', '#ffffff', '#000000'],
+    bootstrap: ['#e6e6e6', '#00438a', '#0081c2', '#ffffff', '#D4D4D4'],
+    cupertino: ['#e4f1fb', '#2779AA', '#3baae3', '#ffffff', '#AED0EA'],
+    'dark-hive': ['#003147', '#ffffff', '#0972a5', '#ffffff', '#444444'],
+    material: ['#eeeeee', '#404040', '#00bbee', '#ffffff', '#dddddd'],
+    'material-blue': ['#eeeeee', '#404040', '#eeeeee', '#2196f3', '#dfdfdf'],
+    'material-teal': ['#eeeeee', '#404040', '#eeeeee', '#3399cc', '#dfdfdf'],
+    metro: ['#E6E6E6', '#444444', '#CCE6FF', '#000000', '#dddddd'],
+    'metro-blue': ['#9cc8f7', '#404040', '#6caef5', '#ffffff', '#c3d9e0'],
+    'metro-gray': ['#E6E6E6', '#404040', '#84909c', '#ffffff', '#abafb8'],
+    'metro-green': ['#E0F892', '#404040', '#c8d47b', '#404040', '#b1c242'],
+    'metro-orange': ['#fff7d6', '#404040', '#f7cc8f', '#404040', '#d4a375'],
+    'metro-red': ['#fff0e6', '#404040', '#f09090', '#404040', '#f6c1bc'],
+    'pepper-grinder': ['#654b24', '#ffffff', '#b83400', '#ffffff', '#cbc7bd'],
+    sunny: ['#ffdd57', '#000000', '#ffffff', '#0074c7', '#494437']
+  };
+
+  Object.keys(expected).forEach(function(theme) {
+    var match = css.match(new RegExp(
+      '\\.fui-tree\\.fg-theme-' + theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+      '\\s*\\{([\\s\\S]*?)\\}'
+    ));
+    var block = match && match[1];
+    var values = expected[theme];
+
+    assert.ok(block, theme);
+    assert.match(block, new RegExp('--fui-tree-hover-bg:\\s*' + values[0], 'i'), theme);
+    assert.match(block, new RegExp('--fui-tree-hover-text:\\s*' + values[1], 'i'), theme);
+    assert.match(block, new RegExp('--fui-tree-selected-bg:\\s*' + values[2], 'i'), theme);
+    assert.match(block, new RegExp('--fui-tree-selected-text:\\s*' + values[3], 'i'), theme);
+    assert.match(block, new RegExp('--fui-tree-editor-border:\\s*' + values[4], 'i'), theme);
+  });
+
+  assert.match(css, /\.fui-tree\s*\{[\s\S]*?color:\s*inherit/);
+  assert.doesNotMatch(css, /\.fui-tree\.fg-theme-(?:black|dark-hive)\s*\{[^}]*--fui-tree-text:/);
+  assert.match(css, /\.fui-tree-node:hover[\s\S]*color:\s*var\(--fui-tree-hover-text\)/);
+  assert.match(css, /\.fui-tree-node-selected[\s\S]*color:\s*var\(--fui-tree-selected-text\)/);
+  assert.match(css, /\.fui-tree\.fg-theme-bootstrap[\s\S]*--fui-tree-font-size:\s*12px/);
+});

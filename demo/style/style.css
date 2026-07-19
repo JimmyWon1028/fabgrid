@@ -70,8 +70,8 @@ body {
   font-size: 12px;
 }
 
-.field input,
-.field select {
+.field > input,
+.field > select {
   height: 34px;
   min-width: 220px;
   padding: 0 10px;
@@ -91,34 +91,35 @@ body {
   white-space: nowrap;
 }
 
-.toggle input {
+.toggle > input {
   width: 16px;
   height: 16px;
   margin: 0;
 }
 
-.field.compact input,
-.field.compact select {
+.field.compact > input,
+.field.compact > select {
   min-width: 80px;
   width: 80px;
 }
 
-.field.compact select {
+.field.compact > select {
   width: 96px;
 }
 
-.field.compact.narrow-number-field input {
+.field.compact.narrow-number-field > input {
   width: 40px;
   min-width: 40px;
   padding: 0 6px;
 }
 
-.theme-field select {
+.theme-field > select {
   min-width: 136px;
   width: 136px;
 }
 
-.toolbar button {
+/* Keep legacy Demo rules off FabUI component roots. */
+.toolbar > button:not(.fui-button) {
   height: 34px;
   padding: 0 12px;
   border: 1px solid #1d4ed8;
@@ -129,7 +130,7 @@ body {
   cursor: pointer;
 }
 
-.toolbar .toolbar-icon-button {
+.toolbar > .toolbar-icon-button:not(.fui-button) {
   width: 34px;
   min-width: 34px;
   padding: 0;
@@ -148,7 +149,7 @@ body {
   font-size: 12px;
 }
 
-.stats span {
+.stats > span {
   padding: 5px 8px;
   border: 1px solid #d8e0eb;
   background: #ffffff;
@@ -220,7 +221,7 @@ body {
   background: #ffffff;
 }
 
-.demo-filter-input-wrap input {
+.demo-filter-input-wrap > input {
   flex: 1 1 auto;
   width: auto;
   min-width: 0;
@@ -233,11 +234,11 @@ body {
   font: inherit;
 }
 
-.demo-filter-input-wrap input::placeholder {
+.demo-filter-input-wrap > input::placeholder {
   color: #a0a0a0;
 }
 
-.demo-filter-mode {
+.demo-filter-mode:not(.fui-button) {
   border: 0;
   background: transparent;
   padding: 0 6px;
@@ -247,7 +248,7 @@ body {
   cursor: pointer;
 }
 
-.demo-filter-input-wrap button {
+.demo-filter-input-wrap > button:not(.fui-button) {
   width: 34px;
   height: 100%;
   padding: 0;
@@ -268,37 +269,7 @@ body {
   display: none;
 }
 
-.demo-filter-textbox-ready .fui-textbox-field {
-  width: 100%;
-  height: 30px;
-}
-
-.demo-filter-textbox-ready .fui-textbox-text {
-  width: auto;
-  min-width: 0;
-  height: 100%;
-  padding: 0 8px;
-}
-
-.demo-filter-textbox-ready .fui-textbox {
-  width: 100% !important;
-  border-color: #8ebcf1;
-  border-radius: 7px;
-}
-
-.demo-filter-textbox-ready .fui-textbox-button {
-  width: 34px;
-  min-width: 34px;
-  padding: 0;
-  border-left-color: #8ebcf1;
-  background: transparent;
-}
-
-.demo-filter-textbox-ready .fui-textbox-button:hover {
-  background: #eef6ff;
-}
-
-.demo-filter-mode-icon::before {
+.demo-filter-mode-icon:not(.fui-button)::before {
   content: "OR";
   display: block;
   color: inherit;
@@ -309,14 +280,14 @@ body {
   text-align: center;
 }
 
-.demo-filter-mode-icon.demo-filter-mode-and::before {
+.demo-filter-mode-icon.demo-filter-mode-and:not(.fui-button)::before {
   content: "&";
   font-size: 18px;
 }
 
-.demo-filter-mode-icon,
-.demo-filter-mode-icon:hover,
-.demo-filter-mode-icon:focus-visible {
+.demo-filter-mode-icon:not(.fui-button),
+.demo-filter-mode-icon:not(.fui-button):hover,
+.demo-filter-mode-icon:not(.fui-button):focus-visible {
   color: inherit;
   font: inherit;
   opacity: 1;
@@ -342,7 +313,7 @@ body {
   background: rgba(15, 23, 42, 0.22);
 }
 
-.lookup-popup-window {
+.lookup-popup-window:not(.fui-window-body) {
   display: flex;
   flex-direction: column;
   width: min(760px, calc(100vw - 36px));
@@ -435,7 +406,7 @@ body {
   background: #f8fafc;
 }
 
-.lookup-popup-button {
+.lookup-popup-button:not(.fui-button) {
   height: 30px;
   padding: 0 10px 0 30px;
   border: 1px solid #b6beca;
@@ -446,7 +417,7 @@ body {
   color: #111827;
 }
 
-.lookup-popup-button:hover,
+.lookup-popup-button:not(.fui-button):hover,
 .lookup-popup-icon-button:hover {
   border-color: #6aa9e9;
   background-color: #eef6ff;

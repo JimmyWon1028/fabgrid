@@ -233,6 +233,7 @@ DatePopup.defaults = {
   weekNumberHeader: '',
   locale: 'zh-TW',
   currentText: 'Today',
+  currentMonthText: 'Current month',
   closeText: 'Close',
   yearText: 'Year',
   previousYearText: 'Previous year',
@@ -727,7 +728,12 @@ DatePopup.prototype._renderMonthMenu = function() {
 
 DatePopup.prototype._renderButtons = function() {
   var buttons = Array.isArray(this.options.buttons) ? this.options.buttons : [
-    { text: this.options.currentText, action: 'today' },
+    {
+      text: this.options.calendarMode === 'months' ?
+        this.options.currentMonthText :
+        this.options.currentText,
+      action: 'today'
+    },
     { text: this.options.closeText, action: 'close' }
   ];
   var index;

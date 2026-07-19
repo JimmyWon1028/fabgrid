@@ -9,7 +9,11 @@
   --fui-panel-header-text: #404040;
   --fui-panel-body-bg: #fff;
   --fui-panel-body-text: #404040;
+  --fui-panel-footer-bg: #fafafa;
+  --fui-panel-footer-text: #404040;
   --fui-panel-tool-hover: #eee;
+  --fui-panel-tool-radius: 2px;
+  --fui-panel-font-size: 14px;
   --fui-panel-animation-duration: 180ms;
   position: relative;
   display: flex;
@@ -19,7 +23,7 @@
   overflow: hidden;
   border: 0;
   color: var(--fui-panel-body-text);
-  font: 14px Arial, sans-serif;
+  font: var(--fui-panel-font-size) Arial, sans-serif;
 }
 
 .fui-panel[hidden] {
@@ -71,7 +75,7 @@
 
 .fui-panel-tools {
   position: absolute;
-  top: 7px;
+  top: 8px;
   right: 5px;
   display: flex;
   align-items: center;
@@ -80,85 +84,27 @@
 
 .fui-panel-tool {
   position: relative;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   padding: 0;
   border: 0;
-  border-radius: 2px;
+  border-radius: var(--fui-panel-tool-radius);
   background: transparent;
   color: var(--fui-panel-header-text);
   cursor: pointer;
-  opacity: 0.65;
+  opacity: 0.6;
 }
 
 .fui-panel-tool:hover,
 .fui-panel-tool:focus-visible {
-  background: var(--fui-panel-tool-hover);
+  background-color: var(--fui-panel-tool-hover);
   opacity: 1;
 }
 
-.fui-panel-tool::before,
-.fui-panel-tool::after {
-  content: '';
-  position: absolute;
-}
-
-.fui-panel-tool-close::before,
-.fui-panel-tool-close::after {
-  top: 8px;
-  left: 3px;
-  width: 12px;
-  height: 2px;
-  background: currentColor;
-}
-
-.fui-panel-tool-close::before { transform: rotate(45deg); }
-.fui-panel-tool-close::after { transform: rotate(-45deg); }
-
-.fui-panel-tool-minimize::before {
-  right: 3px;
-  bottom: 4px;
-  left: 3px;
-  height: 2px;
-  background: currentColor;
-}
-
-.fui-panel-tool-maximize::before {
-  inset: 3px;
-  border: 2px solid currentColor;
-}
-
-.fui-panel-tool-restore::before {
-  top: 5px;
-  left: 3px;
-  width: 9px;
-  height: 8px;
-  border: 2px solid currentColor;
-}
-
-.fui-panel-tool-restore::after {
-  top: 2px;
-  left: 6px;
-  width: 8px;
-  height: 7px;
-  border: 2px solid currentColor;
-  border-bottom: 0;
-  border-left: 0;
-}
-
-.fui-panel-tool-collapse::before {
-  top: 5px;
-  left: 5px;
-  width: 7px;
-  height: 7px;
-  border-top: 2px solid currentColor;
-  border-left: 2px solid currentColor;
-  transform: rotate(45deg);
-}
-
-.fui-panel-tool-expand::before {
-  top: 2px;
-  transform: rotate(225deg);
+.fui-panel-tool-collapse:hover:not(:focus-visible),
+.fui-panel-tool-expand:hover:not(:focus-visible) {
+  background-color: transparent;
+  opacity: 0.6;
 }
 
 .fui-panel-body {
@@ -177,8 +123,8 @@
   min-height: 34px;
   padding: 6px 8px;
   border-top: 0;
-  background: var(--fui-panel-header-bg);
-  color: var(--fui-panel-header-text);
+  background: var(--fui-panel-footer-bg);
+  color: var(--fui-panel-footer-text);
 }
 
 .fui-panel-no-border .fui-panel-header {
@@ -304,117 +250,210 @@
 
 .fui-panel.fg-theme-default {
   --fui-panel-border: #95b8e7;
-  --fui-panel-header-bg: #e0ecff;
-  --fui-panel-header-text: #000;
+  --fui-panel-header-bg: linear-gradient(to bottom, #eff5ff 0, #e0ecff 100%);
+  --fui-panel-header-text: #0e2d5f;
   --fui-panel-body-bg: #fff;
   --fui-panel-body-text: #000;
+  --fui-panel-footer-bg: #f4f4f4;
+  --fui-panel-footer-text: #000;
   --fui-panel-tool-hover: #eaf2ff;
+  --fui-panel-tool-radius: 3px;
+  --fui-panel-font-size: 14px;
 }
 
 .fui-panel.fg-theme-bootstrap {
   --fui-panel-border: #d4d4d4;
-  --fui-panel-header-bg: #f2f2f2;
-  --fui-panel-header-text: #333;
+  --fui-panel-header-bg: linear-gradient(to bottom, #fff 0, #f2f2f2 100%);
+  --fui-panel-header-text: #777;
   --fui-panel-body-bg: #fff;
   --fui-panel-body-text: #333;
+  --fui-panel-footer-bg: #f5f5f5;
+  --fui-panel-footer-text: #333;
   --fui-panel-tool-hover: #e6e6e6;
+  --fui-panel-tool-radius: 3px;
+  --fui-panel-font-size: 12px;
 }
 
 .fui-panel.fg-theme-cupertino {
   --fui-panel-border: #aed0ea;
-  --fui-panel-header-bg: #d7ebf9;
+  --fui-panel-header-bg: linear-gradient(to bottom, #eff5ff 0, #d7ebf9 100%);
   --fui-panel-header-text: #2779aa;
   --fui-panel-body-bg: #f2f5f7;
   --fui-panel-body-text: #000;
+  --fui-panel-footer-bg: #f4f4f4;
+  --fui-panel-footer-text: #000;
   --fui-panel-tool-hover: #e4f1fb;
+  --fui-panel-tool-radius: 3px;
+  --fui-panel-font-size: 14px;
 }
 
-.fui-panel.fg-theme-material,
-.fui-panel.fg-theme-material-blue,
+.fui-panel.fg-theme-material {
+  --fui-panel-border: #ddd;
+  --fui-panel-header-bg: #f5f5f5;
+  --fui-panel-header-text: #000;
+  --fui-panel-body-bg: #fff;
+  --fui-panel-body-text: #404040;
+  --fui-panel-footer-bg: #fafafa;
+  --fui-panel-footer-text: #404040;
+  --fui-panel-tool-hover: #eee;
+  --fui-panel-tool-radius: 2px;
+  --fui-panel-font-size: 14px;
+}
+
+.fui-panel.fg-theme-material-blue {
+  --fui-panel-border: #dfdfdf;
+  --fui-panel-header-bg: #f5f5f5;
+  --fui-panel-header-text: #404040;
+  --fui-panel-body-bg: #fff;
+  --fui-panel-body-text: #404040;
+  --fui-panel-footer-bg: #fafafa;
+  --fui-panel-footer-text: #404040;
+  --fui-panel-tool-hover: #eee;
+  --fui-panel-tool-radius: 0;
+  --fui-panel-font-size: 14px;
+}
+
 .fui-panel.fg-theme-material-teal {
   --fui-panel-border: #dfdfdf;
   --fui-panel-header-bg: #fafafa;
   --fui-panel-header-text: #404040;
   --fui-panel-body-bg: #fff;
   --fui-panel-body-text: #404040;
+  --fui-panel-footer-bg: #fafafa;
+  --fui-panel-footer-text: #404040;
   --fui-panel-tool-hover: #eee;
+  --fui-panel-tool-radius: 2px;
+  --fui-panel-font-size: 14px;
 }
 
-.fui-panel.fg-theme-metro,
-.fui-panel.fg-theme-metro-blue,
-.fui-panel.fg-theme-metro-gray,
-.fui-panel.fg-theme-metro-green,
-.fui-panel.fg-theme-metro-orange,
-.fui-panel.fg-theme-metro-red {
+.fui-panel.fg-theme-metro {
   --fui-panel-border: #ddd;
   --fui-panel-header-bg: #fff;
-  --fui-panel-header-text: #404040;
-  --fui-panel-body-bg: #fafafa;
-  --fui-panel-body-text: #404040;
+  --fui-panel-header-text: #777;
+  --fui-panel-body-bg: #fff;
+  --fui-panel-body-text: #444;
+  --fui-panel-footer-bg: #fff;
+  --fui-panel-footer-text: #444;
   --fui-panel-tool-hover: #e6e6e6;
+  --fui-panel-tool-radius: 0;
+  --fui-panel-font-size: 14px;
 }
 
 .fui-panel.fg-theme-metro-blue {
   --fui-panel-border: #c3d9e0;
   --fui-panel-header-bg: #daeef5;
+  --fui-panel-header-text: #404040;
+  --fui-panel-body-bg: #fafafa;
+  --fui-panel-body-text: #404040;
+  --fui-panel-footer-bg: #f5f5f5;
+  --fui-panel-footer-text: #404040;
   --fui-panel-tool-hover: #9cc8f7;
+  --fui-panel-tool-radius: 0;
+  --fui-panel-font-size: 14px;
 }
 
 .fui-panel.fg-theme-metro-gray {
   --fui-panel-border: #abafb8;
   --fui-panel-header-bg: #c7ccd1;
+  --fui-panel-header-text: #404040;
+  --fui-panel-body-bg: #fafafa;
+  --fui-panel-body-text: #404040;
+  --fui-panel-footer-bg: #f5f5f5;
+  --fui-panel-footer-text: #404040;
+  --fui-panel-tool-hover: #e6e6e6;
+  --fui-panel-tool-radius: 0;
+  --fui-panel-font-size: 14px;
 }
 
 .fui-panel.fg-theme-metro-green {
   --fui-panel-border: #b1c242;
   --fui-panel-header-bg: #e5f0c9;
+  --fui-panel-header-text: #404040;
+  --fui-panel-body-bg: #fafafa;
+  --fui-panel-body-text: #404040;
+  --fui-panel-footer-bg: #f5f5f5;
+  --fui-panel-footer-text: #404040;
   --fui-panel-tool-hover: #e0f892;
+  --fui-panel-tool-radius: 0;
+  --fui-panel-font-size: 14px;
 }
 
 .fui-panel.fg-theme-metro-orange {
   --fui-panel-border: #d4a375;
   --fui-panel-header-bg: #f0e3bf;
+  --fui-panel-header-text: #404040;
+  --fui-panel-body-bg: #fafafa;
+  --fui-panel-body-text: #404040;
+  --fui-panel-footer-bg: #f5f5f5;
+  --fui-panel-footer-text: #404040;
+  --fui-panel-tool-hover: #fff7d6;
+  --fui-panel-tool-radius: 0;
+  --fui-panel-font-size: 14px;
 }
 
 .fui-panel.fg-theme-metro-red {
-  --fui-panel-border: #d48787;
-  --fui-panel-header-bg: #f0cfcf;
+  --fui-panel-border: #f6c1bc;
+  --fui-panel-header-bg: #f0e1e3;
+  --fui-panel-header-text: #404040;
+  --fui-panel-body-bg: #fafafa;
+  --fui-panel-body-text: #404040;
+  --fui-panel-footer-bg: #f5f5f5;
+  --fui-panel-footer-text: #404040;
+  --fui-panel-tool-hover: #fff0e7;
+  --fui-panel-tool-radius: 0;
+  --fui-panel-font-size: 14px;
 }
 
 .fui-panel.fg-theme-sunny {
-  --fui-panel-border: #8e846b;
-  --fui-panel-header-bg: #feeebd;
-  --fui-panel-header-text: #383838;
-  --fui-panel-body-bg: #fff;
-  --fui-panel-body-text: #383838;
-  --fui-panel-tool-hover: #fff3cd;
+  --fui-panel-border: #494437;
+  --fui-panel-header-bg: linear-gradient(to bottom, #a69e8d 0, #817865 100%);
+  --fui-panel-header-text: #fff;
+  --fui-panel-body-bg: #feeebd;
+  --fui-panel-body-text: #000;
+  --fui-panel-footer-bg: #efefef;
+  --fui-panel-footer-text: #000;
+  --fui-panel-tool-hover: #ffdd57;
+  --fui-panel-tool-radius: 3px;
+  --fui-panel-font-size: 14px;
 }
 
 .fui-panel.fg-theme-pepper-grinder {
-  --fui-panel-border: #d4d1bf;
-  --fui-panel-header-bg: #fff;
-  --fui-panel-header-text: #453821;
-  --fui-panel-body-bg: #fff;
-  --fui-panel-body-text: #453821;
-  --fui-panel-tool-hover: #eceadf;
+  --fui-panel-border: #cbc7bd;
+  --fui-panel-header-bg: #f8f7f6;
+  --fui-panel-header-text: #654b24;
+  --fui-panel-body-bg: #eceadf;
+  --fui-panel-body-text: #1f1f1f;
+  --fui-panel-footer-bg: #f8f7f6;
+  --fui-panel-footer-text: #1f1f1f;
+  --fui-panel-tool-hover: #654b24;
+  --fui-panel-tool-radius: 3px;
+  --fui-panel-font-size: 14px;
 }
 
 .fui-panel.fg-theme-dark-hive {
-  --fui-panel-border: #333;
-  --fui-panel-header-bg: #1f1f1f;
-  --fui-panel-header-text: #fff;
-  --fui-panel-body-bg: #262626;
+  --fui-panel-border: #444;
+  --fui-panel-header-bg: linear-gradient(to bottom, #626262 0, #222 100%);
+  --fui-panel-header-text: #eee;
+  --fui-panel-body-bg: #000;
   --fui-panel-body-text: #fff;
-  --fui-panel-tool-hover: #444;
+  --fui-panel-footer-bg: #222;
+  --fui-panel-footer-text: #fff;
+  --fui-panel-tool-hover: #003147;
+  --fui-panel-tool-radius: 3px;
+  --fui-panel-font-size: 14px;
 }
 
 .fui-panel.fg-theme-black {
-  --fui-panel-border: #111;
-  --fui-panel-header-bg: #333;
+  --fui-panel-border: #000;
+  --fui-panel-header-bg: linear-gradient(to bottom, #454545 0, #383838 100%);
   --fui-panel-header-text: #fff;
-  --fui-panel-body-bg: #606060;
+  --fui-panel-body-bg: #666;
   --fui-panel-body-text: #fff;
-  --fui-panel-tool-hover: #555;
+  --fui-panel-footer-bg: #555;
+  --fui-panel-footer-text: #fff;
+  --fui-panel-tool-hover: #777;
+  --fui-panel-tool-radius: 3px;
+  --fui-panel-font-size: 14px;
 }
 
 .fui-panel-loading {

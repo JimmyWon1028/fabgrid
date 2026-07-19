@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fabui.CheckGroup 開發版 Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260719-components-theme-v2">
+  <style>
+    body {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+      background: var(--fg-cell-bg, #fff);
+      color: var(--fg-cell-text, #333);
+      font: 14px Arial, sans-serif;
+    }
+    h1 { margin: 0 0 8px; }
+    h2 { margin: 28px 0 12px; font-size: 18px; }
+    .demo-toolbar,
+    .checkgroup-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .demo-toolbar {
+      margin: 18px 0;
+      padding: 12px;
+      border: 1px solid var(--fg-border, #ddd);
+      background: var(--fg-header-bg, #fafafa);
+    }
+    .checkgroup-panel {
+      max-width: 620px;
+      padding: 16px;
+      border: 1px solid var(--fg-border, #ddd);
+      background: var(--fg-cell-bg, #fff);
+    }
+    #checkgroup-status {
+      min-height: 20px;
+      margin: 12px 0;
+      color: var(--fg-muted-text, #666);
+    }
+    .checkgroup-actions { margin-top: 16px; }
+  </style>
+</head>
+<body class="fg-theme-default">
+  <h1>fabui.CheckGroup 開發版 Demo</h1>
+  <p>參考 jQuery EasyUI CheckGroup／Default theme，每個項目直接重用 fabui.CheckBox 與原生表單欄位。</p>
+
+  <div class="demo-toolbar">
+    <label for="checkgroup-theme">主題</label>
+    <select id="checkgroup-theme">
+      <option value="default" selected>Default</option>
+      <option value="bootstrap">Bootstrap</option>
+      <option value="cupertino">Cupertino</option>
+      <option value="material">Material</option>
+      <option value="material-blue">Material Blue</option>
+      <option value="material-teal">Material Teal</option>
+      <option value="metro">Metro</option>
+      <option value="metro-blue">Metro Blue</option>
+      <option value="metro-gray">Metro Gray</option>
+      <option value="metro-green">Metro Green</option>
+      <option value="metro-orange">Metro Orange</option>
+      <option value="metro-red">Metro Red</option>
+      <option value="sunny">Sunny</option>
+      <option value="pepper-grinder">Pepper Grinder</option>
+      <option value="dark-hive">Dark Hive</option>
+      <option value="black">Black</option>
+    </select>
+    <label for="checkgroup-locale">語系</label>
+    <select id="checkgroup-locale">
+      <option value="zh-TW" selected>繁體中文</option>
+      <option value="zh-CN">簡體中文</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+  <div id="checkgroup-status" aria-live="polite"></div>
+
+  <form id="checkgroup-form">
+    <h2>Horizontal</h2>
+    <div class="checkgroup-panel">
+      <div id="checkgroup-horizontal"></div>
+    </div>
+
+    <h2>Vertical</h2>
+    <div class="checkgroup-panel">
+      <div id="checkgroup-vertical"></div>
+    </div>
+
+    <h2>Label Before／Runtime API</h2>
+    <div class="checkgroup-panel">
+      <div id="checkgroup-runtime"></div>
+      <div class="checkgroup-actions">
+        <a data-fabui-button href="javascript:void(0)" id="checkgroup-all">Select All</a>
+        <a data-fabui-button href="javascript:void(0)" id="checkgroup-clear">Clear</a>
+        <a data-fabui-button href="javascript:void(0)" id="checkgroup-reset">Reset</a>
+        <a data-fabui-button href="javascript:void(0)" id="checkgroup-toggle">Enable／Disable</a>
+        <a data-fabui-button href="javascript:void(0)" data-button-type="submit">檢查 FormData</a>
+      </div>
+    </div>
+  </form>
+
+  <script src="./js/checkgroup-demo.js?v=20260719-checkgroup-v1"></script>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
+
+    window.mountFabUICheckGroupDemo(fabui);
+  </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
+</body>
+</html>

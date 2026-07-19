@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>RadioGroup source smoke</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260719-radiogroup-v1">
+</head>
+<body class="fg-theme-default">
+  <form id="radiogroup-smoke-form">
+    <div id="radiogroup-smoke" class="original-radiogroup"><span>Original</span></div>
+  </form>
+  <pre id="result">{"complete":false}</pre>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260719-radiogroup-v1';
+
+    var host = document.getElementById('radiogroup-smoke');
+    var form = document.getElementById('radiogroup-smoke-form');
+    var originalHtml = host.innerHTML;
+    var result = document.getElementById('result');
+    var changes = [];
+    var checks = {};
+    var group;
+
+    try {
+      group = new fabui.RadioGroup(host, {
+        name: 'fruit',
+        value: 'apple',
+        data: [
+          { value: 'apple', label: 'Apple' },
+          { value: 'orange', label: 'Orange', disabled: true },
+          { value: 'banana', label: 'Banana' }
+        ],
+        locale: 'zh-TW',
+        onChange: function(value) {
+          changes.push(value);
+        }
+      });
+      checks.published = typeof fabui.RadioGroup === 'function';
+      checks.registered = fabui.Control.getControl(host) === group;
+      checks.nativeInputs = host.querySelectorAll('input[type="radio"]').length === 3 &&
+        host.querySelectorAll('.fui-radiobutton').length === 3 &&
+        new FormData(form).get('fruit') === 'apple';
+      checks.initial = group.getValue() === 'apple' &&
+        group.getRadioButton('orange').options().disabled === true &&
+        host.classList.contains('fui-radiogroup-h');
+      group.setValue('banana');
+      checks.setValue = group.getValue() === 'banana' &&
+        changes.length === 1 &&
+        changes[0] === 'banana' &&
+        new FormData(form).get('fruit') === 'banana';
+      group.clear();
+      checks.clear = group.getValue() === null &&
+        changes.length === 2 &&
+        new FormData(form).get('fruit') === null;
+      group.reset();
+      checks.reset = group.getValue() === 'apple' && changes.length === 3;
+      group.setOptions({
+        dir: 'v',
+        labelPosition: 'before',
+        labelWidth: 90,
+        itemStyle: { height: 36 }
+      });
+      checks.layout = host.classList.contains('fui-radiogroup-v') &&
+        host.querySelector('.fui-radiogroup-item').style.height === '36px' &&
+        host.querySelector('.fui-radiobutton').classList.contains('fui-radiobutton-label-before');
+      group.disable();
+      checks.disabled = Array.from(host.querySelectorAll('input')).every(function(input) {
+        return input.disabled;
+      });
+      group.enable().setLocale('zh-CN').setTheme('black');
+      checks.localeTheme = host.getAttribute('aria-label') === '单选组' &&
+        host.classList.contains('fg-theme-black') &&
+        group.getRadioButton('orange').options().disabled === true &&
+        group.getRadioButton('apple').options().disabled === false;
+      group.dispose();
+      checks.disposed = fabui.Control.getControl(host) === null &&
+        host.className === 'original-radiogroup' &&
+        host.innerHTML === originalHtml;
+      checks.complete = Object.keys(checks).every(function(key) {
+        return checks[key] === true;
+      });
+    } catch (error) {
+      checks.error = error && error.stack ? error.stack : String(error);
+      checks.complete = false;
+    }
+    result.textContent = JSON.stringify(checks);
+    document.title = checks.complete ? 'PASS RadioGroup source smoke' : 'FAIL RadioGroup source smoke';
+  </script>
+</body>
+</html>

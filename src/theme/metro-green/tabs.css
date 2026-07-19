@@ -1,4 +1,5 @@
 .fui-tabs.fg-theme-metro-green {
+  --fui-tabs-radius: 0;
   --fui-tabs-border: #b1c242;
   --fui-tabs-header-bg: #e5f0c9;
   --fui-tabs-header-text: #404040;

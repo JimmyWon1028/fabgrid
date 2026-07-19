@@ -33,8 +33,9 @@ function messagerCssPosition(value) {
 }
 
 export function normalizeMessagerLocale(value) {
-  value = String(value || 'en');
-  if (/^zh(?:-|_)?tw/i.test(value)) return 'zh-TW';
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:cn|hans)(?:-|$)/i.test(value)) return 'zh-CN';
   if (/^zh/i.test(value)) return 'zh-CN';
   return 'en';
 }
@@ -166,10 +167,10 @@ export function createMessagerFactory(Window, Button) {
   function createDialogButtons(options, type, resolve) {
     var footer = document.createElement('div');
     var buttons = [];
-    var okElement = document.createElement('button');
+    var okElement = document.createElement('a');
     var cancelElement;
     footer.className = 'fui-messager-buttons';
-    okElement.type = 'button';
+    okElement.href = 'javascript:void(0)';
     footer.appendChild(okElement);
     buttons.push(new Button(okElement, {
       text: options.messages.ok,
@@ -180,8 +181,8 @@ export function createMessagerFactory(Window, Button) {
       }
     }));
     if (type === 'confirm' || type === 'prompt') {
-      cancelElement = document.createElement('button');
-      cancelElement.type = 'button';
+      cancelElement = document.createElement('a');
+      cancelElement.href = 'javascript:void(0)';
       footer.appendChild(cancelElement);
       buttons.push(new Button(cancelElement, {
         text: options.messages.cancel,
@@ -200,7 +201,7 @@ export function createMessagerFactory(Window, Button) {
 
   function focusableElements(element) {
     return Array.prototype.filter.call(
-      element.querySelectorAll('button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])'),
+      element.querySelectorAll('a[href]:not([aria-disabled="true"]),input:not([disabled]),[tabindex]:not([tabindex="-1"])'),
       function(item) {
         return !item.hidden && item.offsetParent !== null;
       }
@@ -617,6 +618,7 @@ export function createMessagerFactory(Window, Button) {
     },
     locales: localePacks,
     themes: MESSAGER_THEMES.slice(),
+    normalizeLocale: normalizeMessagerLocale,
     show: showToast,
     alert: function(title, msg, icon, fn) {
       if (typeof icon === 'function' && fn == null) {

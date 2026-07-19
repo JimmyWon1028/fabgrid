@@ -93,10 +93,28 @@ server.listen(port, '127.0.0.1', async function() {
       !result.editBoxCoreBundleWorks ||
       !result.hasCalendar ||
       !result.calendarCoreBundleWorks ||
+      !result.hasCheckBox ||
+      !result.checkBoxCoreBundleWorks ||
+      !result.hasSwitchButton ||
+      !result.switchButtonCoreBundleWorks ||
+      !result.hasCheckGroup ||
+      !result.checkGroupCoreBundleWorks ||
+      !result.hasRadioButton ||
+      !result.radioButtonCoreBundleWorks ||
+      !result.hasRadioGroup ||
+      !result.radioGroupCoreBundleWorks ||
+      !result.hasFileBox ||
+      !result.fileBoxCoreBundleWorks ||
+      !result.hasForm ||
+      !result.formCoreBundleWorks ||
       !result.hasTabs ||
       !result.tabsCoreBundleWorks ||
       !result.hasTree ||
       !result.treeCoreBundleWorks ||
+      !result.hasPropertyGrid ||
+      !result.propertyGridCoreBundleWorks ||
+      !result.hasDiagram ||
+      !result.diagramCoreBundleWorks ||
       !result.hasTooltip ||
       !result.tooltipCoreBundleWorks ||
       !result.hasMenu ||
@@ -412,8 +430,7 @@ server.listen(port, '127.0.0.1', async function() {
       'fabui.js',
       'fabui.min.css',
       'fabui.min.js',
-      'theme',
-      'wrapper'
+      'theme'
     ];
     const actualDistFiles = fs.readdirSync(path.join(root, 'dist')).sort();
     if (JSON.stringify(actualDistFiles) !== JSON.stringify(expectedDistFiles)) {
@@ -424,10 +441,6 @@ server.listen(port, '127.0.0.1', async function() {
       !fs.existsSync(path.join(root, 'dist', 'theme', 'fabgrid.black.min.css')) ||
       !fs.existsSync(path.join(root, 'dist', 'theme', 'black', 'images', 'pagination_icons.png'))) {
       throw new Error('Smoke assertions failed: theme dependencies are incomplete.');
-    }
-    const wrapperFiles = fs.readdirSync(path.join(root, 'dist', 'wrapper')).sort();
-    if (JSON.stringify(wrapperFiles) !== JSON.stringify(['fabeditbox-jquery.min.js', 'fabgrid-jquery.min.js', 'fabgrid-vue.js', 'fabgrid-vue.min.js', 'vue.min.js'])) {
-      throw new Error('Smoke assertions failed: wrapper outputs are incomplete.');
     }
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {

@@ -1,4 +1,4 @@
-import { ComboPopup } from './combo-popup.js?v=20260718-final-audit-v1';
+import { ComboPopup } from './combo-popup.js?v=20260719-i18n-theme-audit-v1';
 import { normalizeEditorIconDescriptors } from './editor-icons.js?v=20260718-editor-icons-v1';
 
 export function createComboBoxFactory(TextBox, editorDefinitions) {
@@ -37,6 +37,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
     panelMaxHeight: null,
     panelAlign: 'left',
     panelValign: 'auto',
+    fitContent: true,
     multiple: false,
     multiline: false,
     separator: ',',
@@ -93,7 +94,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
     var options = {};
     var stringNames = ['valueField', 'textField', 'groupField', 'groupPosition', 'mode', 'method', 'url', 'separator', 'panelAlign', 'panelValign'];
     var numberNames = ['panelWidth', 'panelHeight', 'panelMinWidth', 'panelMaxWidth', 'panelMinHeight', 'panelMaxHeight', 'delay'];
-    var booleanNames = ['multiple', 'multiline', 'hasDownArrow', 'selectOnNavigation', 'showItemIcon', 'showValueInList', 'limitToList'];
+    var booleanNames = ['fitContent', 'multiple', 'multiline', 'hasDownArrow', 'selectOnNavigation', 'showItemIcon', 'showValueInList', 'limitToList'];
     var index;
     var value;
     for (index = 0; index < stringNames.length; index += 1) {
@@ -120,9 +121,10 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
   }
 
   function normalizeLocale(name) {
+    name = String(name || 'en').trim().replace(/_/g, '-');
     if (localePacks[name]) return name;
-    if (/^zh(?:-|_)?tw/i.test(name || '')) return 'zh-TW';
-    if (/^zh/i.test(name || '')) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) return 'zh-TW';
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) return 'zh-CN';
     return 'en';
   }
 
@@ -221,6 +223,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
     }
     this._field = this._editor.closest('.fui-textbox-field');
     this._shell = this._editor.closest('.fui-textbox');
+    this._trigger = this._options.hasDownArrow ? this._textbox.getIcon(icons.length - 1) : null;
     this._comboPopup = new ComboPopup({
       anchor: this._shell,
       openClassHost: this._shell,
@@ -514,6 +517,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
       panelMaxHeight: this._options.panelMaxHeight,
       panelAlign: this._options.panelAlign,
       panelValign: this._options.panelValign,
+      fitContent: this._options.fitContent,
       multiple: this._options.multiple,
       closeOnSelect: !this._options.multiple,
       items: descriptors,
@@ -761,6 +765,25 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
     this._options.width = this._textbox.options().width;
     this._options.height = this._textbox.options().height;
     this._positionPanel();
+    return this;
+  };
+
+  ComboBox.prototype.setLocale = function(locale, messages) {
+    var name = String(locale || 'en').trim().replace(/_/g, '-');
+    if (messages) localePacks[name] = assign({}, localePacks.en, messages);
+    this._options.locale = normalizeLocale(name);
+    this._options.openListText =
+      (localePacks[this._options.locale] || localePacks.en).openListText;
+    if (this._trigger) {
+      this._trigger.title = this._options.openListText;
+      this._trigger.setAttribute('aria-label', this._options.openListText);
+    }
+    this._comboPopup.setOptions({ ariaLabel: this._options.openListText });
+    return this;
+  };
+
+  ComboBox.prototype.setTheme = function(theme) {
+    this._comboPopup.setTheme(theme);
     return this;
   };
 

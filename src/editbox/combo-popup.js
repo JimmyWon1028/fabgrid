@@ -1,4 +1,10 @@
 var activeComboPopup = null;
+var COMBO_POPUP_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
 
 function assignComboPopupOptions(target) {
   var index;
@@ -17,6 +23,26 @@ function assignComboPopupOptions(target) {
 
 function resolveComboPopupElement(element) {
   return typeof element === 'string' ? document.querySelector(element) : element;
+}
+
+function normalizeComboPopupTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return COMBO_POPUP_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function findComboPopupTheme(element) {
+  var current = resolveComboPopupElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < COMBO_POPUP_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + COMBO_POPUP_THEMES[index])) {
+        return COMBO_POPUP_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
 }
 
 function comboPopupCssSize(value, fallback) {
@@ -45,12 +71,15 @@ export function ComboPopup(options) {
   this.activeIndex = -1;
   this._normalizeOptions();
   this._build();
+  this.setTheme(this.options.theme);
   this._bind();
   this.render();
 }
 
 ComboPopup.defaults = {
   anchor: null,
+  theme: 'inherit',
+  themeSource: null,
   className: '',
   ariaLabel: 'Combo box options',
   panelWidth: null,
@@ -183,6 +212,7 @@ ComboPopup.prototype.setOptions = function(options) {
   assignComboPopupOptions(this.options, options || {});
   this._normalizeOptions();
   this.panel.className = ('fui-combobox-panel ' + (this.options.className || '')).trim();
+  this.setTheme(this.options.theme);
   this.panel.setAttribute('aria-label', this.options.ariaLabel);
   this.panel.setAttribute(
     'aria-multiselectable',
@@ -195,6 +225,21 @@ ComboPopup.prototype.setOptions = function(options) {
 
 ComboPopup.prototype.setLayout = function(options) {
   assignComboPopupOptions(this.options, options || {});
+  return this;
+};
+
+ComboPopup.prototype.setTheme = function(theme) {
+  var index;
+  var source;
+  this.options.theme = theme == null ? 'inherit' : String(theme);
+  source = this.options.themeSource || this.options.anchor;
+  this.theme = this.options.theme === 'inherit' ?
+    findComboPopupTheme(source) :
+    normalizeComboPopupTheme(this.options.theme);
+  for (index = 0; index < COMBO_POPUP_THEMES.length; index += 1) {
+    this.panel.classList.remove('fg-theme-' + COMBO_POPUP_THEMES[index]);
+  }
+  this.panel.classList.add('fg-theme-' + this.theme);
   return this;
 };
 
@@ -361,6 +406,7 @@ ComboPopup.prototype.show = function() {
   var openClassHost;
   if (this.destroyed || this.visible) return this;
   if (activeComboPopup && activeComboPopup !== this) activeComboPopup.hide();
+  this.setTheme(this.options.theme);
   this.visible = true;
   this.panel.hidden = false;
   this._bindOpenEvents();
@@ -371,6 +417,8 @@ ComboPopup.prototype.show = function() {
   if (typeof this.options.onShow === 'function') this.options.onShow(this);
   return this;
 };
+
+ComboPopup.themes = COMBO_POPUP_THEMES.slice();
 
 ComboPopup.prototype.hide = function() {
   var openClassHost;

@@ -30,10 +30,8 @@
       border: 1px solid #ddd;
       background: #fafafa;
     }
-    .messager-row button {
+    .messager-row > .fui-button {
       min-width: 92px;
-      min-height: 30px;
-      padding: 4px 10px;
     }
     #messager-status {
       min-height: 20px;
@@ -72,37 +70,38 @@
       <option value="zh-CN">简体中文</option>
       <option value="en">English</option>
     </select>
-    <button id="messager-close-all" type="button">關閉全部</button>
+    <a data-fabui-button href="javascript:void(0)" id="messager-close-all">關閉全部</a>
   </div>
   <div id="messager-status" aria-live="polite"></div>
 
   <h2>Alert Messager</h2>
   <div class="messager-row">
-    <button id="messager-alert" type="button">Alert</button>
-    <button id="messager-error" type="button">Error</button>
-    <button id="messager-info" type="button">Info</button>
-    <button id="messager-question" type="button">Question</button>
-    <button id="messager-warning" type="button">Warning</button>
+    <a data-fabui-button href="javascript:void(0)" id="messager-alert">Alert</a>
+    <a data-fabui-button href="javascript:void(0)" id="messager-error">Error</a>
+    <a data-fabui-button href="javascript:void(0)" id="messager-info">Info</a>
+    <a data-fabui-button href="javascript:void(0)" id="messager-question">Question</a>
+    <a data-fabui-button href="javascript:void(0)" id="messager-warning">Warning</a>
   </div>
 
   <h2>Interactive Messager</h2>
   <div class="messager-row">
-    <button id="messager-confirm" type="button">Confirm</button>
-    <button id="messager-prompt" type="button">Prompt</button>
+    <a data-fabui-button href="javascript:void(0)" id="messager-confirm">Confirm</a>
+    <a data-fabui-button href="javascript:void(0)" id="messager-prompt">Prompt</a>
   </div>
 
   <h2>Toast／Progress</h2>
   <div class="messager-row">
-    <button id="messager-show" type="button">Show</button>
-    <button id="messager-slide" type="button">Slide</button>
-    <button id="messager-fade" type="button">Fade</button>
-    <button id="messager-progress" type="button">Progress</button>
+    <a data-fabui-button href="javascript:void(0)" id="messager-show">Show</a>
+    <a data-fabui-button href="javascript:void(0)" id="messager-slide">Slide</a>
+    <a data-fabui-button href="javascript:void(0)" id="messager-fade">Fade</a>
+    <a data-fabui-button href="javascript:void(0)" id="messager-progress">Progress</a>
   </div>
 
   <script src="./js/messager-demo.js?v=20260718-messager-v3"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260718-messager-v3';
+    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
     window.mountFabUIMessagerDemo(fabui);
   </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
 </body>
 </html>

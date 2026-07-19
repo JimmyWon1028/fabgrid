@@ -17,11 +17,7 @@
     .toolbar { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 10px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; scrollbar-width: none; }
     .toolbar::-webkit-scrollbar { display: none; }
     .toolbar label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
-    .toolbar select, .toolbar button { height: 30px; border: 1px solid #b8c4d4; border-radius: 3px; background: #fff; color: #1f2937; font: inherit; }
-    .toolbar > label, .toolbar > button, .toolbar > .stats { flex: 0 0 auto; }
-    .toolbar select { padding: 0 26px 0 8px; }
-    .toolbar button { padding: 0 11px; cursor: pointer; }
-    .toolbar button:hover { border-color: #2b7fd3; background: #eef6ff; }
+    .toolbar > label, .toolbar > .fui-button, .toolbar > .stats { flex: 0 0 auto; }
     .toolbar .spacer { flex: 1 1 auto; }
     .stats { color: #475569; font-size: 13px; white-space: nowrap; }
     .card { overflow: hidden; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; box-shadow: 0 1px 3px rgb(15 23 42 / 8%); }
@@ -35,10 +31,7 @@
     .card-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 40px; margin: 0; padding: 0 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
     .card-title-note { color: #64748b; font-size: 12px; font-weight: normal; }
     .card-title-actions { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; }
-    .card-title-actions button { height: 27px; padding: 0 9px; border: 1px solid #b8c4d4; border-radius: 3px; background: #fff; color: #1f2937; cursor: pointer; font: inherit; font-size: 12px; font-weight: normal; }
-    .card-title-actions button:hover { border-color: #2b7fd3; background: #eef6ff; }
     .chart-controls { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
-    .chart-controls select { height: 27px; min-width: 82px; padding: 0 22px 0 7px; border: 1px solid #b8c4d4; border-radius: 3px; background: #fff; color: #1f2937; font: inherit; font-size: 12px; }
     #pivotGrid, #pivotPanel, #pivotChart { min-height: 0; height: 100%; flex: 1 1 auto; }
     #pivotPanel { border: 0; }
     #pivotChart { border: 0; }
@@ -86,8 +79,8 @@
           <option value="month-downloads">月份／產品（下載數）</option>
         </select>
       </label>
-      <button id="saveView" type="button">儲存 View</button>
-      <button id="loadView" type="button">載入 View</button>
+      <a data-fabui-button href="javascript:void(0)" id="saveView">儲存 View</a>
+      <a data-fabui-button href="javascript:void(0)" id="loadView">載入 View</a>
       <label>語系
         <select id="localeSelect">
           <option value="zh-TW">繁體中文</option>
@@ -123,8 +116,8 @@
         <h2 class="card-title">
           銷售分析
           <span class="card-title-actions">
-            <button id="togglePivotPanel" type="button" aria-controls="pivotPanelCard" aria-expanded="true">隱藏定義</button>
-            <button id="toggleChartPanel" type="button" aria-controls="pivotChartCard" aria-expanded="true">隱藏圖表</button>
+            <a data-fabui-button href="javascript:void(0)" id="togglePivotPanel" aria-controls="pivotPanelCard" aria-expanded="true">隱藏定義</a>
+            <a data-fabui-button href="javascript:void(0)" id="toggleChartPanel" aria-controls="pivotChartCard" aria-expanded="true">隱藏圖表</a>
           </span>
         </h2>
         <div id="pivotGrid"></div>
@@ -153,7 +146,7 @@
   </main>
 
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260718-final-audit-v1';
+    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
     import { getPivotDemoLocale } from './js/pivot-locales.js?v=20260717-pivot-chart-locale-v1';
 
     window.fabui = fabui;
@@ -407,5 +400,6 @@
     window.pivotPanel = panel;
     window.pivotChart = pivotChart;
   </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
 </body>
 </html>

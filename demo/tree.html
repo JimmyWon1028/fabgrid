@@ -24,7 +24,7 @@
     .demo-card { min-width: 0; min-height: 300px; padding: 14px; border: 1px solid var(--fg-border-strong, #95b8e7); background: var(--fg-cell-bg, #fff); }
     .tree-stage { min-height: 220px; overflow: auto; }
     .tree-actions { margin-bottom: 10px; }
-    .tree-actions input { min-width: 130px; height: 28px; padding: 3px 7px; }
+    #tree-search { width: 130px; height: 28px; }
     @media (max-width: 760px) { .demo-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -76,11 +76,11 @@
     <section class="demo-card">
       <h2>Actions／Context Menu／Edit／DnD</h2>
       <div class="tree-actions">
-        <button id="tree-expand-all" type="button">全部展開</button>
-        <button id="tree-collapse-all" type="button">全部收合</button>
-        <button id="tree-add" type="button">新增</button>
-        <button id="tree-edit" type="button">重新命名</button>
-        <button id="tree-remove" type="button">刪除</button>
+        <a id="tree-expand-all" href="javascript:void(0)">全部展開</a>
+        <a id="tree-collapse-all" href="javascript:void(0)">全部收合</a>
+        <a id="tree-add" href="javascript:void(0)">新增</a>
+        <a id="tree-edit" href="javascript:void(0)">重新命名</a>
+        <a id="tree-remove" href="javascript:void(0)">刪除</a>
         <input id="tree-search" type="search" placeholder="搜尋節點">
       </div>
       <div id="tree-actions" class="tree-stage"></div>
@@ -93,5 +93,6 @@
   <script>
     window.mountFabUITreeDemo(window.fabui);
   </script>
+  <script type="module" src="./js/dist-controls.js?v=20260719-all-demos-v1"></script>
 </body>
 </html>

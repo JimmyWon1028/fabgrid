@@ -10,6 +10,8 @@ import {
 test('DatePopup keeps lunar calendar display disabled by default', function() {
   assert.equal(DatePopup.defaults.showLunar, false);
   assert.equal(DatePopup.defaults.theme, 'default');
+  assert.equal(DatePopup.defaults.currentText, 'Today');
+  assert.equal(DatePopup.defaults.currentMonthText, 'Current month');
 });
 
 test('DatePopup normalizes supported calendar themes', function() {

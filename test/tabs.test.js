@@ -59,6 +59,7 @@ test('Tabs factory returns a public control class', function() {
   assert.equal(typeof Tabs, 'function');
   assert.equal(Tabs.defaults.showHeader, true);
   assert.equal(Tabs.normalizeTheme('sunny'), 'sunny');
+  assert.equal(Tabs.prototype.dispose, Tabs.prototype.destroy);
 });
 
 test('Tabs scroll buttons render one sprite icon without text overlap', function() {
@@ -69,6 +70,25 @@ test('Tabs scroll buttons render one sprite icon without text overlap', function
   assert.match(css, /\.fui-tabs-scroll:hover\s*\{\s*background-color:/);
   assert.match(css, /\.fui-tabs-scroll-prev[\s\S]*?background-position:/);
   assert.match(css, /\.fui-tabs-scroll-next[\s\S]*?background-position:/);
+});
+
+test('Tabs keeps overflow controls and unselect events synchronized', function() {
+  var source = readFileSync(new URL('../src/tabs/tabs.js', import.meta.url), 'utf8');
+  assert.match(source, /this\._onTabScroll = function\(\) \{ self\._syncOverflow\(\); \};/);
+  assert.match(source, /addEventListener\(this\.viewport, 'scroll', this\._onTabScroll\)/);
+  assert.match(source, /this\._emit\('unselect', \{/);
+});
+
+test('Tabs keeps tab and panel ARIA ids synchronized', function() {
+  var source = readFileSync(new URL('../src/tabs/tabs.js', import.meta.url), 'utf8');
+  assert.match(
+    source,
+    /record\.tab\.setAttribute\('aria-controls', record\.panel\.id\);/
+  );
+  assert.match(
+    source,
+    /if \(options\.id\) panel\.id = String\(options\.id\);[\s\S]*?this\._createRecord\(panel, options\)/
+  );
 });
 
 test('Tabs reorder helper moves one record and rejects unchanged indexes', function() {
@@ -100,7 +120,10 @@ test('Tabs draggable mode uses directional complementary semi-transparent indica
     new URL('../src/theme/default/tabs.css', import.meta.url),
     'utf8'
   );
-  assert.match(source, /tab\.draggable = this\._isHorizontalDragEnabled\(\)/);
+  assert.match(source, /var title = event\.target\.closest\('\.fui-tabs-title'\)/);
+  assert.match(source, /var tab = title && title\.closest\('\.fui-tabs-tab'\)/);
+  assert.match(source, /title\.draggable = this\._isHorizontalDragEnabled\(\)/);
+  assert.match(source, /tab\.draggable = false/);
   assert.match(source, /addEventListener\(this\.list, 'dragstart'/);
   assert.match(source, /addEventListener\(this\.list, 'dragover'/);
   assert.match(source, /addEventListener\(this\.list, 'drop'/);
@@ -116,12 +139,21 @@ test('Tabs draggable mode uses directional complementary semi-transparent indica
   assert.doesNotMatch(css, /\.fui-tabs-drop-(?:before|after)::(?:before|after)\s*\{[^}]*border-(?:top|right|bottom|left):/);
   assert.match(css, /background: var\(--fui-tabs-drag-indicator\)/);
   assert.match(css, /opacity: var\(--fg-drag-indicator-opacity, 0\.55\)/);
+  assert.match(css, /\.fui-tabs-tab\s*\{[^}]*cursor: default;/);
+  assert.match(
+    css,
+    /\.fui-tabs-draggable \.fui-tabs-tab:not\(\.fui-tabs-disabled\) \.fui-tabs-title\s*\{[^}]*cursor: grab;/
+  );
+  assert.doesNotMatch(
+    css,
+    /\.fui-tabs-draggable \.fui-tabs-tab:not\(\.fui-tabs-disabled\)\s*\{[^}]*cursor: grab;/
+  );
   assert.match(source, /event\.dataTransfer\.setDragImage\(/);
   assert.match(source, /Tabs\.prototype\._createTabDragImage/);
   assert.match(source, /Tabs\.prototype\._removeTabDragImage/);
   assert.match(source, /this\.element\.appendChild\(dragImage\)/);
   assert.doesNotMatch(
-    css.match(/\.fui-tabs-tab-dragging\s*\{[^}]*\}/)[0],
+    css.match(/\.fui-tabs-tab-dragging \.fui-tabs-title\s*\{[^}]*\}/)[0],
     /opacity:/
   );
   assert.doesNotMatch(
@@ -153,5 +185,19 @@ test('Every Tabs theme defines a complementary drag indicator color', function()
       'utf8'
     );
     assert.match(css, /--fui-tabs-drag-indicator:\s*#[0-9a-f]{6}/i, theme);
+  });
+});
+
+test('Metro Tabs themes preserve the square reference corners', function() {
+  var themes = [
+    'metro', 'metro-blue', 'metro-gray',
+    'metro-green', 'metro-orange', 'metro-red'
+  ];
+  themes.forEach(function(theme) {
+    var css = readFileSync(
+      new URL('../src/theme/' + theme + '/tabs.css', import.meta.url),
+      'utf8'
+    );
+    assert.match(css, /--fui-tabs-radius:\s*0(?:px)?;/, theme);
   });
 });

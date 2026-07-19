@@ -1,0 +1,40 @@
+.fui-radiogroup,
+.fui-radiogroup * {
+  box-sizing: border-box;
+}
+
+.fui-radiogroup {
+  --fui-radiogroup-text: var(--fui-control-label-text, var(--fg-cell-text, #000));
+  --fui-radiogroup-disabled-opacity: 0.6;
+  display: flex;
+  max-width: 100%;
+  color: var(--fui-radiogroup-text);
+  font: 14px Arial, Helvetica, sans-serif;
+}
+
+.fui-radiogroup-h {
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 0 14px;
+}
+
+.fui-radiogroup-v {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.fui-radiogroup-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+}
+
+.fui-radiogroup-disabled {
+  opacity: var(--fui-radiogroup-disabled-opacity);
+}
+
+@media (forced-colors: active) {
+  .fui-radiogroup-disabled {
+    opacity: 1;
+  }
+}

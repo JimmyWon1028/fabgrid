@@ -1,11 +1,17 @@
 import { createEditorDefinitions } from './editbox-definitions.js?v=20260717-editbox-v21';
-import { createColorEditBoxFactory } from './color-editbox.js?v=20260718-final-audit-v1';
+import { createColorEditBoxFactory } from './color-editbox.js?v=20260719-i18n-theme-audit-v1';
 import { createTextBoxFactory } from './text-editbox.js?v=20260718-editor-icons-v1';
 import { createNumberBoxFactory } from './number-editbox.js?v=20260717-editbox-v21';
-import { createDateBoxFactory } from './date-editbox.js?v=20260718-final-audit-v1';
-import { createComboBoxFactory } from './combo-editbox.js?v=20260718-final-audit-v1';
+import { createDateBoxFactory } from './date-editbox.js?v=20260719-i18n-theme-audit-v1';
+import { createComboBoxFactory } from './combo-editbox.js?v=20260719-combo-fit-content-v1';
 
 var EDITOR_TYPES = ['text', 'number', 'date', 'combo', 'color'];
+var EDITBOX_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
 
 function assignEditBoxOptions(target) {
   var index;
@@ -270,6 +276,13 @@ export function createEditBoxFactory(editorDefinitions) {
     return this;
   };
 
+  EditBox.prototype.setLocale = function(locale, messages) {
+    if (typeof this._control.setLocale === 'function') {
+      this._control.setLocale(locale, messages);
+    }
+    return this;
+  };
+
   EditBox.prototype.fix = function() {
     if (typeof this._control.fix === 'function') this._control.fix();
     return this;
@@ -337,6 +350,27 @@ export function createEditBoxFactory(editorDefinitions) {
 
   EditBox.editorDefinitions = definitions;
   EditBox.editorTypes = EDITOR_TYPES.slice();
+  EditBox.themes = EDITBOX_THEMES.slice();
+  EditBox.locales = {
+    en: assignEditBoxOptions(
+      {},
+      DateBox.locales.en,
+      ComboBox.locales.en,
+      ColorEditBox.locales.en
+    ),
+    'zh-TW': assignEditBoxOptions(
+      {},
+      DateBox.locales['zh-TW'],
+      ComboBox.locales['zh-TW'],
+      ColorEditBox.locales['zh-TW']
+    ),
+    'zh-CN': assignEditBoxOptions(
+      {},
+      DateBox.locales['zh-CN'],
+      ComboBox.locales['zh-CN'],
+      ColorEditBox.locales['zh-CN']
+    )
+  };
   EditBox.getEditorDefinition = function(name) {
     return definitions[normalizeDefinitionName(name)] || null;
   };

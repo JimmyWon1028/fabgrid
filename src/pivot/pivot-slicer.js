@@ -348,5 +348,6 @@ export function createPivotSlicerFactory(
     }
   });
 
+  PivotSlicer.themes = (FabGrid.themes || []).slice();
   return PivotSlicer;
 }

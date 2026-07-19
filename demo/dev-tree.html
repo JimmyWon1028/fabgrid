@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>fabui.Tree 開發版 Demo</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260718-tree-v1">
+  <link rel="stylesheet" href="../src/fabui.css?v=20260719-tree-theme-v2">
   <style>
     body {
       max-width: 1120px;
@@ -145,11 +145,11 @@
     <section class="demo-card">
       <h2>Actions／Context Menu／Edit／DnD</h2>
       <div class="tree-actions">
-        <button id="tree-expand-all" type="button">全部展開</button>
-        <button id="tree-collapse-all" type="button">全部收合</button>
-        <button id="tree-add" type="button">新增</button>
-        <button id="tree-edit" type="button">重新命名</button>
-        <button id="tree-remove" type="button">刪除</button>
+        <a data-fabui-button href="javascript:void(0)" id="tree-expand-all">全部展開</a>
+        <a data-fabui-button href="javascript:void(0)" id="tree-collapse-all">全部收合</a>
+        <a data-fabui-button href="javascript:void(0)" id="tree-add">新增</a>
+        <a data-fabui-button href="javascript:void(0)" id="tree-edit">重新命名</a>
+        <a data-fabui-button href="javascript:void(0)" id="tree-remove">刪除</a>
         <input id="tree-search" type="search" placeholder="搜尋節點">
       </div>
       <div id="tree-actions" class="tree-stage"></div>
@@ -163,11 +163,12 @@
     </section>
   </div>
 
-  <script src="./js/tree-demo.js?v=20260718-tree-v1"></script>
+  <script src="./js/tree-demo.js?v=20260719-tree-theme-v2"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260718-tree-v1';
+    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
 
     window.mountFabUITreeDemo(fabui);
   </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
 </body>
 </html>

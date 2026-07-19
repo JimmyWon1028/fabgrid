@@ -30,10 +30,10 @@
       <option value="sunny">Sunny</option><option value="pepper-grinder">Pepper Grinder</option>
       <option value="dark-hive">Dark Hive</option><option value="black">Black</option>
     </select>
-    <button id="toggle-west" type="button">切換 West</button>
-    <button id="toggle-east" type="button">切換 East</button>
-    <button id="toggle-south" type="button">切換 South</button>
-    <button id="remove-east" type="button">移除／加入 East</button>
+    <a id="toggle-west" href="javascript:void(0)">切換 West</a>
+    <a id="toggle-east" href="javascript:void(0)">切換 East</a>
+    <a id="toggle-south" href="javascript:void(0)">切換 South</a>
+    <a id="remove-east" href="javascript:void(0)">移除／加入 East</a>
   </div>
   <div id="layout-status" aria-live="polite"></div>
   <div class="layout-stage">
@@ -52,5 +52,6 @@
   <script src="../dist/fabui.min.js"></script>
   <script src="./js/layout-demo.js?v=20260718-layout-v1"></script>
   <script>window.mountFabUILayoutDemo(window.fabui);</script>
+  <script type="module" src="./js/dist-controls.js?v=20260719-all-demos-v1"></script>
 </body>
 </html>

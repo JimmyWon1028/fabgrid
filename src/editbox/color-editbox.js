@@ -1,4 +1,4 @@
-import { ColorPopup } from './color-popup.js?v=20260718-final-audit-v1';
+import { ColorPopup } from './color-popup.js?v=20260719-i18n-theme-audit-v1';
 import { normalizeEditorIconDescriptors } from './editor-icons.js?v=20260718-editor-icons-v1';
 
 export function createColorEditBoxFactory(TextBox, editorDefinitions) {
@@ -76,9 +76,10 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
   }
 
   function normalizeLocale(name) {
+    name = String(name || 'en').trim().replace(/_/g, '-');
     if (localePacks[name]) return name;
-    if (/^zh(?:-|_)?tw/i.test(name || '')) return 'zh-TW';
-    if (/^zh/i.test(name || '')) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) return 'zh-TW';
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) return 'zh-CN';
     return 'en';
   }
 
@@ -259,6 +260,34 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
     return this;
   };
 
+  ColorEditBox.prototype.setLocale = function(locale, messages) {
+    var name = String(locale || 'en').trim().replace(/_/g, '-');
+    var pack;
+    if (messages) localePacks[name] = assign({}, localePacks.en, messages);
+    this._options.locale = normalizeLocale(name);
+    pack = localePacks[this._options.locale] || localePacks.en;
+    this._options.openColorText = pack.openColorText;
+    this._options.saturationText = pack.saturationText;
+    this._options.hueText = pack.hueText;
+    this._options.alphaText = pack.alphaText;
+    if (this._trigger) {
+      this._trigger.title = this._options.openColorText;
+      this._trigger.setAttribute('aria-label', this._options.openColorText);
+    }
+    this._colorPopup.setOptions({
+      ariaLabel: this._options.openColorText,
+      saturationText: this._options.saturationText,
+      hueText: this._options.hueText,
+      alphaText: this._options.alphaText
+    });
+    return this;
+  };
+
+  ColorEditBox.prototype.setTheme = function(theme) {
+    this._colorPopup.setTheme(theme);
+    return this;
+  };
+
   ColorEditBox.prototype.showPanel = function() {
     if (this._options.disabled || this._options.readonly) return this;
     this._colorPopup.setOptions({
@@ -348,5 +377,10 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
 
   ColorEditBox.defaults = defaults;
   ColorEditBox.editorDefinition = editorDefinition;
+  ColorEditBox.locales = localePacks;
+  ColorEditBox.addLocale = function(name, pack) {
+    if (name && pack) localePacks[name] = assign({}, localePacks.en, pack);
+    return ColorEditBox;
+  };
   return ColorEditBox;
 }

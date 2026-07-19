@@ -83,8 +83,8 @@ export function createButtonFactory(Control, registerControl, unregisterControl)
     if (!(this instanceof FabButton)) return new FabButton(element, options);
     if (!host) throw new Error('fabui.Button requires a host element.');
     if (host.__fabuiButton) return host.__fabuiButton;
-    if (!/^(?:A|BUTTON)$/i.test(host.tagName)) {
-      throw new Error('fabui.Button host must be an anchor or button element.');
+    if (host.tagName !== 'A') {
+      throw new Error('fabui.Button host must be an anchor element.');
     }
     Control.call(this);
     this.hostElement = host;
@@ -95,11 +95,12 @@ export function createButtonFactory(Control, registerControl, unregisterControl)
       className: host.getAttribute('class'),
       style: host.getAttribute('style'),
       id: host.getAttribute('id'),
+      href: host.getAttribute('href'),
       role: host.getAttribute('role'),
       tabIndex: host.getAttribute('tabindex'),
       ariaDisabled: host.getAttribute('aria-disabled'),
       ariaPressed: host.getAttribute('aria-pressed'),
-      disabled: Boolean(host.disabled)
+      disabled: host.getAttribute('disabled')
     };
     this._themeSource = host.parentElement || document.body;
     this.options = assignButtonOptions({}, FabButton.defaults, this._readElementOptions(), options || {});
@@ -135,7 +136,7 @@ export function createButtonFactory(Control, registerControl, unregisterControl)
     if (iconCls) options.iconCls = iconCls;
     if (width) options.width = width;
     if (height) options.height = height;
-    if (host.disabled || host.hasAttribute('disabled')) options.disabled = true;
+    if (host.hasAttribute('disabled')) options.disabled = true;
     value = host.getAttribute('data-icon-align');
     if (value) options.iconAlign = value;
     value = host.getAttribute('data-size');
@@ -168,10 +169,8 @@ export function createButtonFactory(Control, registerControl, unregisterControl)
     inner.appendChild(icon);
     inner.appendChild(text);
     host.appendChild(inner);
-    if (host.tagName === 'A' && !host.hasAttribute('href')) {
-      host.setAttribute('role', 'button');
-      if (!host.hasAttribute('tabindex')) host.tabIndex = 0;
-    }
+    if (!host.hasAttribute('href')) host.setAttribute('href', 'javascript:void(0)');
+    host.setAttribute('role', 'button');
     this.innerElement = inner;
     this.textElement = text;
     this.iconElement = icon;
@@ -198,12 +197,8 @@ export function createButtonFactory(Control, registerControl, unregisterControl)
       if (allowed === false) event.preventDefault();
     };
     this._onKeyDown = function(event) {
-      var isAnchor = self.hostElement.tagName === 'A';
       if (self.options.disabled) return;
-      if (
-        (event.key === ' ' && isAnchor) ||
-        (event.key === 'Enter' && isAnchor && !self.hostElement.hasAttribute('href'))
-      ) {
+      if (event.key === ' ') {
         event.preventDefault();
         self.hostElement.click();
       }
@@ -256,12 +251,10 @@ export function createButtonFactory(Control, registerControl, unregisterControl)
     } else {
       host.removeAttribute('aria-pressed');
     }
-    if ('disabled' in host) host.disabled = this.options.disabled === true;
     if (this.options.disabled) {
       host.tabIndex = -1;
     } else if (this._enabledTabIndex == null) {
-      if (host.tagName === 'A' && !host.hasAttribute('href')) host.tabIndex = 0;
-      else host.removeAttribute('tabindex');
+      host.removeAttribute('tabindex');
     } else {
       host.setAttribute('tabindex', this._enabledTabIndex);
     }
@@ -398,11 +391,12 @@ export function createButtonFactory(Control, registerControl, unregisterControl)
     restoreButtonAttribute(host, 'class', this._original.className);
     restoreButtonAttribute(host, 'style', this._original.style);
     restoreButtonAttribute(host, 'id', this._original.id);
+    restoreButtonAttribute(host, 'href', this._original.href);
     restoreButtonAttribute(host, 'role', this._original.role);
     restoreButtonAttribute(host, 'tabindex', this._original.tabIndex);
     restoreButtonAttribute(host, 'aria-disabled', this._original.ariaDisabled);
     restoreButtonAttribute(host, 'aria-pressed', this._original.ariaPressed);
-    if ('disabled' in host) host.disabled = this._original.disabled;
+    restoreButtonAttribute(host, 'disabled', this._original.disabled);
     this._listeners = {};
   };
 
@@ -430,6 +424,7 @@ export function createButtonFactory(Control, registerControl, unregisterControl)
     onUnselect: null,
     onResize: null
   };
+  FabButton.themes = BUTTON_THEMES.slice();
   FabButton.getControl = function(element) {
     element = resolveButtonElement(element);
     return element && element.__fabuiButton ? element.__fabuiButton : null;

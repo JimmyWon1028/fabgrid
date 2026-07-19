@@ -587,6 +587,7 @@ export function createTooltipFactory(Control, registerControl, unregisterControl
     onPosition: null,
     onDestroy: null
   };
+  FabTooltip.themes = TOOLTIP_THEMES.slice();
   FabTooltip.getControl = function(element) {
     element = resolveTooltipElement(element);
     return element && element.__fabuiTooltip ? element.__fabuiTooltip : null;

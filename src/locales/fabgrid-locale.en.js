@@ -197,6 +197,7 @@
     },
     datebox: {
       today: 'Today',
+      currentMonth: 'Current month',
       close: 'Close',
       weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
       months: [

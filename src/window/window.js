@@ -63,6 +63,40 @@ export function constrainWindowRect(rect, bounds, minimums) {
   return result;
 }
 
+export function calculateWindowResizeRect(rect, dx, dy, direction) {
+  var result = assignWindowOptions({}, rect);
+  direction = String(direction || '').toLowerCase();
+  dx = toNumber(dx, 0);
+  dy = toNumber(dy, 0);
+  if (direction.indexOf('e') >= 0) result.width += dx;
+  if (direction.indexOf('s') >= 0) result.height += dy;
+  if (direction.indexOf('w') >= 0) {
+    result.left += dx;
+    result.width -= dx;
+  }
+  if (direction.indexOf('n') >= 0) {
+    result.top += dy;
+    result.height -= dy;
+  }
+  return result;
+}
+
+export function calculateMinimizedWindowRect(bounds, preferredWidth) {
+  var width = Math.max(0, toNumber(bounds && bounds.width, 0));
+  var height = Math.max(0, toNumber(bounds && bounds.height, 0));
+  var minimizedHeight = Math.min(38, height);
+  var minimizedWidth = Math.min(
+    width,
+    Math.max(80, Math.min(220, toNumber(preferredWidth, 220)))
+  );
+  return {
+    left: 0,
+    top: Math.max(0, height - minimizedHeight),
+    width: minimizedWidth,
+    height: minimizedHeight
+  };
+}
+
 function findWindowTheme(element) {
   var current = resolveWindowElement(element);
   var index;
@@ -106,9 +140,10 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
   };
 
   function normalizeLocale(value) {
+    value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh(?:-|_)?tw/i.test(value || '')) return 'zh-TW';
-    if (/^zh/i.test(value || '')) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
     return 'en';
   }
 
@@ -128,6 +163,9 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
     this._animationStartTimer = null;
     this._animationEndTimer = null;
     this._normalRect = null;
+    this._minimizedRestoreRect = null;
+    this._resizeProxy = null;
+    this._onMinimizedViewportResize = null;
     this._originalParent = host.parentNode;
     this._originalNextSibling = host.nextSibling;
     this._originalStyle = host.getAttribute('style');
@@ -277,7 +315,10 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
       if (this.options.collapsed) this.expand();
       else this.collapse();
     });
-    this._createTool('minimize', this.options.minimizable, this.minimize);
+    this._createTool('minimize', this.options.minimizable, function() {
+      if (this.options.minimized) this.restore();
+      else this.minimize();
+    });
     this._createTool('maximize', this.options.maximizable, function() {
       if (this.options.maximized) this.restore();
       else this.maximize();
@@ -310,6 +351,40 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
     });
   };
 
+  FabWindow.prototype._showResizeProxy = function(rect) {
+    var computed = window.getComputedStyle(this.windowElement);
+    var proxy = document.createElement('div');
+    this._removeResizeProxy();
+    proxy.className = 'fui-window-resize-proxy';
+    proxy.style.position = computed.position === 'fixed' ? 'fixed' : 'absolute';
+    proxy.style.zIndex = String(
+      toNumber(this.windowElement.style.zIndex, this.options.zIndex) + 1
+    );
+    proxy.style.borderColor =
+      computed.getPropertyValue('--fui-window-border').trim() ||
+      computed.borderTopColor;
+    proxy.style.borderRadius = computed.borderRadius;
+    this.windowElement.parentElement.appendChild(proxy);
+    this._resizeProxy = proxy;
+    this._applyResizeProxyRect(rect);
+  };
+
+  FabWindow.prototype._applyResizeProxyRect = function(rect) {
+    if (!this._resizeProxy) return;
+    this._resizeProxy.style.left = Math.round(rect.left) + 'px';
+    this._resizeProxy.style.top = Math.round(rect.top) + 'px';
+    this._resizeProxy.style.width = Math.round(rect.width) + 'px';
+    this._resizeProxy.style.height = Math.round(rect.height) + 'px';
+  };
+
+  FabWindow.prototype._removeResizeProxy = function() {
+    if (!this._resizeProxy) return;
+    if (this._resizeProxy.parentNode) {
+      this._resizeProxy.parentNode.removeChild(this._resizeProxy);
+    }
+    this._resizeProxy = null;
+  };
+
   FabWindow.prototype._bind = function() {
     var self = this;
     this._onHeaderPointerDown = function(event) {
@@ -328,7 +403,10 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
   FabWindow.prototype._startInteraction = function(event, type, direction) {
     var rect;
     if (
-      (type === 'move' && (!this.options.draggable || this.options.maximized)) ||
+      (
+        type === 'move' &&
+        (!this.options.draggable || this.options.maximized || this.options.minimized)
+      ) ||
       (type === 'resize' && (!this.options.resizable || this.options.maximized || this.options.collapsed))
     ) return;
     event.preventDefault();
@@ -340,9 +418,11 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      rect: rect
+      rect: rect,
+      previewRect: rect
     };
     this.windowElement.classList.add('fui-window-interacting');
+    if (type === 'resize') this._showResizeProxy(rect);
     this._bindDocumentInteraction();
   };
 
@@ -370,41 +450,46 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
     var dx;
     var dy;
     var rect;
-    var direction;
     if (!state || event.pointerId !== state.pointerId) return;
+    event.preventDefault();
     dx = event.clientX - state.startX;
     dy = event.clientY - state.startY;
-    rect = assignWindowOptions({}, state.rect);
-    direction = state.direction;
     if (state.type === 'move') {
+      rect = assignWindowOptions({}, state.rect);
       rect.left += dx;
       rect.top += dy;
+      rect = this._normalizeRect(rect);
+      this._applyRect(rect);
     } else {
-      if (direction.indexOf('e') >= 0) rect.width += dx;
-      if (direction.indexOf('s') >= 0) rect.height += dy;
-      if (direction.indexOf('w') >= 0) {
-        rect.left += dx;
-        rect.width -= dx;
-      }
-      if (direction.indexOf('n') >= 0) {
-        rect.top += dy;
-        rect.height -= dy;
-      }
+      rect = calculateWindowResizeRect(state.rect, dx, dy, state.direction);
+      rect = this._normalizeRect(rect);
+      state.previewRect = rect;
+      this._applyResizeProxyRect(rect);
     }
-    rect = this._normalizeRect(rect);
-    this._applyRect(rect);
   };
 
   FabWindow.prototype._finishInteraction = function(event) {
     var state = this._interaction;
+    var cancelled;
     var rect;
     if (!state || event.pointerId !== state.pointerId) return;
-    rect = this._getRect();
+    cancelled = event.type === 'pointercancel';
+    if (state.type === 'resize' && !cancelled) {
+      this._handleInteractionMove(event);
+    }
+    rect = state.type === 'resize' ?
+      state.previewRect :
+      this._getRect();
     this._interaction = null;
     this.windowElement.classList.remove('fui-window-interacting');
     this._unbindDocumentInteraction();
-    if (state.type === 'move') this._fire('Move', { left: rect.left, top: rect.top });
-    else this._fire('Resize', { width: rect.width, height: rect.height });
+    this._removeResizeProxy();
+    if (state.type === 'move') {
+      this._fire('Move', { left: rect.left, top: rect.top });
+    } else if (!cancelled) {
+      this._applyRect(rect);
+      this._fire('Resize', { width: rect.width, height: rect.height });
+    }
   };
 
   FabWindow.prototype._getBounds = function() {
@@ -511,7 +596,52 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
       toNumber(style.paddingBottom, 0) +
       toNumber(style.borderTopWidth, 0) +
       toNumber(style.borderBottomWidth, 0);
-    return Math.max(48, this.headerElement.hidden ? 0 : this.headerElement.offsetHeight + frameHeight);
+    return Math.max(38, this.headerElement.hidden ? 0 : this.headerElement.offsetHeight + frameHeight);
+  };
+
+  FabWindow.prototype._getMinimizedRect = function() {
+    var restoreWidth = this._minimizedRestoreRect ?
+      this._minimizedRestoreRect.width :
+      this.options.width;
+    return calculateMinimizedWindowRect(this._getBounds(), restoreWidth);
+  };
+
+  FabWindow.prototype._bindMinimizedViewportResize = function() {
+    var self = this;
+    this._unbindMinimizedViewportResize();
+    this._onMinimizedViewportResize = function() {
+      if (!self.options.minimized || self.options.closed) return;
+      self._cancelStateAnimation(true);
+      self._applyRect(self._getMinimizedRect());
+    };
+    window.addEventListener('resize', this._onMinimizedViewportResize);
+  };
+
+  FabWindow.prototype._unbindMinimizedViewportResize = function() {
+    if (!this._onMinimizedViewportResize) return;
+    window.removeEventListener('resize', this._onMinimizedViewportResize);
+    this._onMinimizedViewportResize = null;
+  };
+
+  FabWindow.prototype._restoreMinimized = function(animate) {
+    var rect;
+    if (!this.options.minimized) return false;
+    rect = this._minimizedRestoreRect;
+    this._cancelStateAnimation(true);
+    this.options.minimized = false;
+    this.windowElement.classList.remove('fui-window-minimized');
+    this._unbindMinimizedViewportResize();
+    this.hostElement.hidden = this.options.collapsed;
+    this.footerElement.hidden =
+      this.options.collapsed ||
+      !this.footerElement.childNodes.length;
+    if (rect) {
+      if (animate === false) this._applyRect(rect);
+      else this._animateRect(rect);
+    }
+    this._minimizedRestoreRect = null;
+    this._syncToolStates();
+    return true;
   };
 
   FabWindow.prototype._fireBefore = function(name, detail) {
@@ -537,21 +667,14 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
   };
 
   FabWindow.prototype.open = function(force) {
-    var self = this;
     var wasMinimized = this.options.minimized;
     if (!force && !this._fireBefore('Open')) return this;
     this._cancelStateAnimation(true);
     this.options.closed = false;
-    this.options.minimized = false;
     this._setVisible(true);
     this.bringToFront();
     this.windowElement.focus();
-    if (wasMinimized) {
-      this.windowElement.classList.add('fui-window-minimized-visual');
-      this._animateState(function() {
-        self.windowElement.classList.remove('fui-window-minimized-visual');
-      });
-    }
+    if (wasMinimized) this._restoreMinimized(true);
     this._fire('Open');
     return this;
   };
@@ -560,6 +683,7 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
     if (this.options.closed) return this;
     if (!force && !this._fireBefore('Close')) return this;
     this._cancelStateAnimation(true);
+    this._unbindMinimizedViewportResize();
     this.options.closed = true;
     this._setVisible(false);
     this._fire('Close');
@@ -567,22 +691,27 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
   };
 
   FabWindow.prototype.minimize = function() {
-    var self = this;
+    var minimizedRect;
     if (this.options.minimized) return this;
     this._cancelStateAnimation(true);
+    this._minimizedRestoreRect = this._getRect();
     this.options.minimized = true;
-    this._animateState(function() {
-      self.windowElement.classList.add('fui-window-minimized-visual');
-    }, function() {
-      self._setVisible(false);
-      self.windowElement.classList.remove('fui-window-minimized-visual');
-    });
+    this.hostElement.hidden = true;
+    this.footerElement.hidden = true;
+    this.windowElement.classList.add('fui-window-minimized');
+    minimizedRect = this._getMinimizedRect();
+    this._setVisible(true);
+    this.bringToFront();
+    this._bindMinimizedViewportResize();
+    this._animateRect(minimizedRect);
+    this._syncToolStates();
     this._fire('Minimize');
     return this;
   };
 
   FabWindow.prototype.maximize = function() {
     var bounds;
+    if (this.options.minimized) this._restoreMinimized(false);
     if (this.options.maximized) return this;
     this._cancelStateAnimation(true);
     this._normalRect = this._getRect();
@@ -601,6 +730,10 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
 
   FabWindow.prototype.restore = function() {
     var normalRect;
+    if (this._restoreMinimized(true)) {
+      this._fire('Restore');
+      return this;
+    }
     if (!this.options.maximized || !this._normalRect) return this;
     this._cancelStateAnimation(true);
     normalRect = this._normalRect;
@@ -620,12 +753,12 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
     if (this.options.collapsed || !this._fireBefore('Collapse')) return this;
     this._cancelStateAnimation(true);
     startHeight = this.windowElement.offsetHeight || this.options.height;
-    collapsedHeight = this._getCollapsedHeight();
     this.windowElement.style.height = Math.round(startHeight) + 'px';
     this.options.collapsed = true;
     this.hostElement.hidden = true;
     this.footerElement.hidden = true;
     this.windowElement.classList.add('fui-window-collapsed');
+    collapsedHeight = this._getCollapsedHeight();
     this._animateState(function() {
       self.windowElement.style.height = Math.round(collapsedHeight) + 'px';
     }, function() {
@@ -657,11 +790,20 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
 
   FabWindow.prototype._syncToolStates = function() {
     var collapse = this.toolsElement.querySelector('[data-window-tool="collapse"]');
+    var minimize = this.toolsElement.querySelector('[data-window-tool="minimize"]');
     var maximize = this.toolsElement.querySelector('[data-window-tool="maximize"]');
     if (collapse) {
       collapse.classList.toggle('fui-window-tool-expand', this.options.collapsed);
       collapse.setAttribute('aria-label', this.options.collapsed ? this.messages.expand : this.messages.collapse);
       collapse.title = this.options.collapsed ? this.messages.expand : this.messages.collapse;
+    }
+    if (minimize) {
+      minimize.classList.toggle('fui-window-tool-restore', this.options.minimized);
+      minimize.setAttribute(
+        'aria-label',
+        this.options.minimized ? this.messages.restore : this.messages.minimize
+      );
+      minimize.title = this.options.minimized ? this.messages.restore : this.messages.minimize;
     }
     if (maximize) {
       maximize.classList.toggle('fui-window-tool-restore', this.options.maximized);
@@ -752,12 +894,7 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
     this.options.messages = messages || this.options.messages;
     this.messages = assignWindowOptions({}, localePacks[this.options.locale], this.options.messages || {});
     this._syncToolStates();
-    var minimize = this.toolsElement.querySelector('[data-window-tool="minimize"]');
     var close = this.toolsElement.querySelector('[data-window-tool="close"]');
-    if (minimize) {
-      minimize.title = this.messages.minimize;
-      minimize.setAttribute('aria-label', this.messages.minimize);
-    }
     if (close) {
       close.title = this.messages.close;
       close.setAttribute('aria-label', this.messages.close);
@@ -809,6 +946,9 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
     this._destroyed = true;
     this._cancelStateAnimation(true);
     this._unbindDocumentInteraction();
+    this._removeResizeProxy();
+    this._interaction = null;
+    this._unbindMinimizedViewportResize();
     this.headerElement.removeEventListener('pointerdown', this._onHeaderPointerDown);
     this.windowElement.removeEventListener('pointerdown', this._onWindowPointerDown);
     unregisterControl(this.hostElement, this);
@@ -865,6 +1005,8 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
     messages: null
   };
   FabWindow.locales = localePacks;
+  FabWindow.themes = WINDOW_THEMES.slice();
+  FabWindow.normalizeLocale = normalizeLocale;
   FabWindow.getControl = function(element) {
     element = resolveWindowElement(element);
     return element && element.__fabuiWindow ? element.__fabuiWindow : null;

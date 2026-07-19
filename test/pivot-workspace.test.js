@@ -5,6 +5,7 @@ import {
   calculatePivotWorkspacePaneSize,
   fitPivotWorkspacePaneSizes,
   normalizePivotWorkspaceOptions,
+  normalizePivotWorkspaceTheme,
   resolvePivotWorkspaceChartSize,
   resolvePivotWorkspaceLayout
 } from '../src/pivot/pivot-workspace.js?v=20260717-pivot-workspace-test-v5';
@@ -25,6 +26,11 @@ test('PivotWorkspace defaults to an adaptive three-pane layout', function() {
   assert.equal(options.panelSize, 300);
   assert.equal(options.chartSize, '40%');
   assert.equal(options.compactBreakpoint, 1050);
+  assert.equal(options.theme, 'inherit');
+  assert.equal(fabui.pivot.PivotWorkspace.themes.length, 16);
+  assert.equal(typeof fabui.pivot.PivotWorkspace.prototype.setTheme, 'function');
+  assert.equal(normalizePivotWorkspaceTheme('dark-hive'), 'dark-hive');
+  assert.equal(normalizePivotWorkspaceTheme('pepper'), 'pepper-grinder');
 });
 
 test('PivotWorkspace resolves fixed, percentage, and fractional chart widths', function() {

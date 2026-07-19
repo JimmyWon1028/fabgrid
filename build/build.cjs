@@ -13,7 +13,13 @@ const javascriptSources = [
   'core/control.js',
   'button/button.js',
   'calendar/calendar.js',
+  'checkbox/checkbox.js',
+  'checkgroup/checkgroup.js',
+  'switchbutton/switchbutton.js',
+  'radiobutton/radiobutton.js',
+  'radiogroup/radiogroup.js',
   'chart/chart.js',
+  'diagram/diagram.js',
   'grid/fabgrid-types.js',
   'grid/fabgrid-data.js',
   'grid/fabgrid-tree.js',
@@ -35,10 +41,13 @@ const javascriptSources = [
   'editbox/color-popup.js',
   'editbox/color-editbox.js',
   'editbox/editbox.js',
+  'filebox/filebox.js',
+  'form/form.js',
   'menu/menu.js',
   'menubutton/menubutton.js',
   'splitbutton/splitbutton.js',
   'panel/panel.js',
+  'propertygrid/propertygrid.js',
   'tabs/tabs.js',
   'tree/tree.js',
   'tooltip/tooltip.js',
@@ -178,17 +187,26 @@ function createJavascriptBundle() {
     'global.fabui.Control = Control;\n' +
     'global.fabui.Button = createButtonFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.Calendar = createCalendarFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.CheckBox = createCheckBoxFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.CheckGroup = createCheckGroupFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.CheckBox);\n' +
+    'global.fabui.SwitchButton = createSwitchButtonFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.RadioButton = createRadioButtonFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.RadioGroup = createRadioGroupFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.RadioButton);\n' +
     'global.fabui.Chart = createChartFactory();\n' +
     'global.fabui.EditBox = createEditBoxFactory(global.fabui.editorDefinitions);\n' +
+    'global.fabui.Window = createWindowFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.Diagram = createDiagramFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Button, global.fabui.EditBox, global.fabui.Window);\n' +
+    'global.fabui.FileBox = createFileBoxFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.EditBox);\n' +
+    'global.fabui.Form = createFormFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.EditBox);\n' +
     'global.fabui.Menu = createMenuFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.MenuButton = createMenuButtonFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Button, global.fabui.Menu);\n' +
     'global.fabui.SplitButton = createSplitButtonFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.MenuButton);\n' +
     'global.fabui.Panel = createPanelFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.PropertyGrid = createPropertyGridFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.EditBox);\n' +
     'global.fabui.Tabs = createTabsFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.Tree = createTreeFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.Tooltip = createTooltipFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.Layout = createLayoutFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Panel);\n' +
-    'global.fabui.Window = createWindowFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.Messager = createMessagerFactory(global.fabui.Window, global.fabui.Button);\n' +
     'global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);\n' +
     'global.fabui.pivot = {};\n' +
@@ -226,17 +244,26 @@ function createEsmJavascriptBundle() {
     'var editorDefinitions = createEditorDefinitions();\n' +
     'var Button = createButtonFactory(Control, registerControl, unregisterControl);\n' +
     'var Calendar = createCalendarFactory(Control, registerControl, unregisterControl);\n' +
+    'var CheckBox = createCheckBoxFactory(Control, registerControl, unregisterControl);\n' +
+    'var CheckGroup = createCheckGroupFactory(Control, registerControl, unregisterControl, CheckBox);\n' +
+    'var SwitchButton = createSwitchButtonFactory(Control, registerControl, unregisterControl);\n' +
+    'var RadioButton = createRadioButtonFactory(Control, registerControl, unregisterControl);\n' +
+    'var RadioGroup = createRadioGroupFactory(Control, registerControl, unregisterControl, RadioButton);\n' +
     'var Chart = createChartFactory();\n' +
     'var EditBox = createEditBoxFactory(editorDefinitions);\n' +
+    'var Window = createWindowFactory(Control, registerControl, unregisterControl);\n' +
+    'var Diagram = createDiagramFactory(Control, registerControl, unregisterControl, Button, EditBox, Window);\n' +
+    'var FileBox = createFileBoxFactory(Control, registerControl, unregisterControl, EditBox);\n' +
+    'var Form = createFormFactory(Control, registerControl, unregisterControl, EditBox);\n' +
     'var Menu = createMenuFactory(Control, registerControl, unregisterControl);\n' +
     'var MenuButton = createMenuButtonFactory(Control, registerControl, unregisterControl, Button, Menu);\n' +
     'var SplitButton = createSplitButtonFactory(Control, registerControl, unregisterControl, MenuButton);\n' +
     'var Panel = createPanelFactory(Control, registerControl, unregisterControl);\n' +
+    'var PropertyGrid = createPropertyGridFactory(Control, registerControl, unregisterControl, EditBox);\n' +
     'var Tabs = createTabsFactory(Control, registerControl, unregisterControl);\n' +
     'var Tree = createTreeFactory(Control, registerControl, unregisterControl);\n' +
     'var Tooltip = createTooltipFactory(Control, registerControl, unregisterControl);\n' +
     'var Layout = createLayoutFactory(Control, registerControl, unregisterControl, Panel);\n' +
-    'var Window = createWindowFactory(Control, registerControl, unregisterControl);\n' +
     'var Messager = createMessagerFactory(Window, Button);\n' +
     'var FabGrid = createFabGridFactory(editorDefinitions);\n' +
     'var PivotChart = createPivotChartFactory(Control, registerControl, unregisterControl, PivotEngine, Chart, FabGrid);\n' +
@@ -261,14 +288,23 @@ function createEsmJavascriptBundle() {
     '  editorDefinitions: editorDefinitions,\n' +
     '  Button: Button,\n' +
     '  Calendar: Calendar,\n' +
+    '  CheckBox: CheckBox,\n' +
+    '  CheckGroup: CheckGroup,\n' +
+    '  SwitchButton: SwitchButton,\n' +
+    '  RadioButton: RadioButton,\n' +
+    '  RadioGroup: RadioGroup,\n' +
     '  Control: Control,\n' +
     '  Chart: Chart,\n' +
+    '  Diagram: Diagram,\n' +
     '  EditBox: EditBox,\n' +
+    '  FileBox: FileBox,\n' +
+    '  Form: Form,\n' +
     '  Layout: Layout,\n' +
     '  Menu: Menu,\n' +
     '  MenuButton: MenuButton,\n' +
     '  Messager: Messager,\n' +
     '  Panel: Panel,\n' +
+    '  PropertyGrid: PropertyGrid,\n' +
     '  SplitButton: SplitButton,\n' +
     '  Tabs: Tabs,\n' +
     '  Tree: Tree,\n' +
@@ -317,8 +353,17 @@ function verifyBuildOutput() {
   if (javascript.indexOf('global.fabui.Chart = createChartFactory()') < 0) {
     throw new Error('FabUI Chart is missing from the JavaScript bundle.');
   }
+  if (javascript.indexOf('global.fabui.Diagram = createDiagramFactory') < 0) {
+    throw new Error('FabUI Diagram is missing from the JavaScript bundle.');
+  }
   if (javascript.indexOf('global.fabui.EditBox = createEditBoxFactory(global.fabui.editorDefinitions)') < 0) {
     throw new Error('fabui.EditBox is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.FileBox = createFileBoxFactory') < 0) {
+    throw new Error('FabUI FileBox is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.Form = createFormFactory') < 0) {
+    throw new Error('FabUI Form is missing from the JavaScript bundle.');
   }
   if (javascript.indexOf('global.fabui.Menu = createMenuFactory') < 0) {
     throw new Error('FabUI Menu is missing from the JavaScript bundle.');
@@ -359,6 +404,21 @@ function verifyBuildOutput() {
   if (javascript.indexOf('global.fabui.Calendar = createCalendarFactory') < 0) {
     throw new Error('FabUI Calendar is missing from the JavaScript bundle.');
   }
+  if (javascript.indexOf('global.fabui.CheckBox = createCheckBoxFactory') < 0) {
+    throw new Error('FabUI CheckBox is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.CheckGroup = createCheckGroupFactory') < 0) {
+    throw new Error('FabUI CheckGroup is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.SwitchButton = createSwitchButtonFactory') < 0) {
+    throw new Error('FabUI SwitchButton is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.RadioButton = createRadioButtonFactory') < 0) {
+    throw new Error('FabUI RadioButton is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.RadioGroup = createRadioGroupFactory') < 0) {
+    throw new Error('FabUI RadioGroup is missing from the JavaScript bundle.');
+  }
   if (javascript.indexOf('function downloadBlob(') < 0) {
     throw new Error('FabGrid export download helper is missing from the JavaScript bundle.');
   }
@@ -379,6 +439,9 @@ function verifyBuildOutput() {
   }
   if (javascript.indexOf('global.fabui.Panel = createPanelFactory') < 0) {
     throw new Error('FabUI Panel is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.PropertyGrid = createPropertyGridFactory') < 0) {
+    throw new Error('FabUI PropertyGrid is missing from the JavaScript bundle.');
   }
   if (javascript.indexOf('global.fabui.Tabs = createTabsFactory') < 0) {
     throw new Error('FabUI Tabs is missing from the JavaScript bundle.');

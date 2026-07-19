@@ -8,11 +8,21 @@
 
 FabGrid 名稱中的 **Fab** 是 **Fabulous** 的縮寫，意思是「出色、令人驚豔」。這個名稱代表專案希望提供兼具效能、實用性與良好開發體驗的資料表元件。
 
-FabUI 是以 pure JavaScript 開發的前端 UI 元件庫，不依賴任何前端框架。主要元件包含 FabGrid、`fabui.Button`、`fabui.Calendar`、`fabui.Tabs`、`fabui.Tree`、`fabui.Tooltip`、`fabui.Menu`、`fabui.MenuButton`、`fabui.SplitButton`、`fabui.Messager`、`fabui.EditBox`、`fabui.Panel`、`fabui.Window`、`fabui.Layout`、Chart，以及 PivotPanel、PivotGrid、PivotChart 與 PivotWorkspace。
+FabUI 是以 pure JavaScript 開發的前端 UI 元件庫，不依賴任何前端框架。主要元件包含 FabGrid、`fabui.Button`、`fabui.Calendar`、`fabui.CheckBox`、`fabui.CheckGroup`、`fabui.SwitchButton`、`fabui.RadioButton`、`fabui.RadioGroup`、`fabui.FileBox`、`fabui.Form`、`fabui.Tabs`、`fabui.Tree`、`fabui.PropertyGrid`、`fabui.Diagram`、`fabui.Tooltip`、`fabui.Menu`、`fabui.MenuButton`、`fabui.SplitButton`、`fabui.Messager`、`fabui.EditBox`、`fabui.Panel`、`fabui.Window`、`fabui.Layout`、Chart，以及 PivotPanel、PivotGrid、PivotChart 與 PivotWorkspace。
 
 FabGrid 是以效能為優先的資料表元件，透過水平與垂直 virtualization 處理大量資料。內建凍結欄、TreeGrid、排序、搜尋、編輯、群組、分頁、JSON 匯入匯出，以及 CSV、Excel 匯出等常用功能。
 
-`fabui.EditBox` 使用單一 class 提供文字、數字、日期、清單與顏色編輯，並可作為 FabGrid 的儲存格編輯器使用。日期、清單與顏色 popup 分別和 FabGrid 共用內部 `DatePopup`／`ComboPopup`／`ColorPopup`，統一採用 EditBox 的 DOM、互動與樣式。
+`fabui.EditBox` 使用單一 class 提供文字、數字、日期、清單與顏色編輯，並可作為 FabGrid 的儲存格編輯器使用。日期、清單與顏色 popup 分別和 FabGrid 共用內部 `DatePopup`／`ComboPopup`／`ColorPopup`，統一採用 EditBox 的 DOM、互動與樣式。Combo popup 預設以 EditBox 寬度為下限，選項內容較長時會自動加寬，並受 `panelMaxWidth` 與 viewport 限制。
+
+`fabui.Panel` 與 `fabui.Window` 的內建工具使用各主題對應的 `panel_tools.png` sprite；16 組主題的 Panel header／body／footer 與 Window frame／shadow／mask 樣式分別對應本機 `res/themes/<theme>/panel.css`、`window.css`。Panel 的收合／展開 icon，以及 Window 的最小化、最大化、還原、關閉、收合與展開 icon 不顯示滑鼠 hover 效果，正式 source 與 build 不依賴 `res/`。
+
+`fabui.Layout` 的收合／展開 icon 不顯示滑鼠 hover 效果；Splitter 只在實際拖曳時亮起目前操作的分隔線，hover 不變色。拖曳期間只移動分隔線預覽，放開滑鼠後才一次更新 Panel 尺寸，避免內容持續重繪。
+
+`fabui.Window` 疊合後只保留約 38px 高的標題列，展開時恢復原高度。
+
+`fabui.Window` 最小化後保留約 220×38px 的可見標題列並停靠可用範圍左下角；最小化工具會切換成還原，點擊後回到原位置與尺寸。
+
+`fabui.Window` 從四邊或四角縮放時只更新虛線預覽框，內容與實際視窗維持原尺寸；放開滑鼠後才一次套用新位置與尺寸，避免內部元件在拖曳過程持續 render。
 
 日期 editor 可設定 `showLunar: true`，在共用 DatePopup 的國曆日期下方顯示農曆日期；預設關閉。
 
@@ -39,18 +49,29 @@ Chart 是以 SVG 繪製的圖表元件，可獨立使用，也能與 FabGrid 或
 ### 開發測試
 
 - [Demo 索引](./demo/index.html)
-- 所有 source-mode 與 build-mode Demo 的預設主題統一為 `default`，仍可從各頁工具列切換其他 theme。
+- [開發版 Demo 索引](./demo/dev.html)
+- 所有 source-mode 與 build-mode Demo 的預設主題統一為 `default`，仍可從各頁工具列切換其他 theme；公開元件統一公布 16 組 theme metadata，附加到 `body` 的 validation 與 editor popup 會跟隨目前主題。
+- 除純 HTML 索引 `demo/dev.html` 與 `demo/index.html` 外，所有 Demo 的可操作欄位均優先由 FabUI 元件呈現；共用 `demo/js/demo-controls.js` 只補強尚未由頁面主元件接管的原生 host，開發版由 `src/` 注入 FabUI，正式版由 `dist/` 注入 FabUI，並保留既有表單與事件行為。Demo 樣式只處理版面，不覆蓋 FabUI 元件本身的視覺規則。`demo/dev.html` 以純文字 `<a>` 連結並列開發版與正式版，`demo/index.html` 只列正式版；兩個索引都不載入 FabUI CSS／JavaScript。
+- 核心多語系統一提供 `en`、`zh-TW`、`zh-CN`，並相容 `zh-Hant`／`zh_Hant_TW` 與 `zh-Hans`／`zh_CN` 語系別名。
 - `fabui.Button` Demo：[source-mode 開發版](./demo/dev-button.html) 與 [build-mode 正式版](./demo/button.html)。
 - `fabui.Calendar` Demo：[source-mode 開發版](./demo/dev-calendar.html) 與 [build-mode 正式版](./demo/calendar.html)。
+- `fabui.CheckBox` Demo：[source-mode 開發版](./demo/dev-checkbox.html) 與 [build-mode 正式版](./demo/checkbox.html)。
+- `fabui.SwitchButton` Demo：[source-mode 開發版](./demo/dev-switchbutton.html) 與 [build-mode 正式版](./demo/switchbutton.html)。
+- `fabui.CheckGroup` Demo：[source-mode 開發版](./demo/dev-checkgroup.html) 與 [build-mode 正式版](./demo/checkgroup.html)。
+- `fabui.RadioButton` Demo：[source-mode 開發版](./demo/dev-radiobutton.html) 與 [build-mode 正式版](./demo/radiobutton.html)。
+- `fabui.RadioGroup` Demo：[source-mode 開發版](./demo/dev-radiogroup.html) 與 [build-mode 正式版](./demo/radiogroup.html)。
+- `fabui.FileBox` Demo：[source-mode 開發版](./demo/dev-filebox.html) 與 [build-mode 正式版](./demo/filebox.html)。
+- `fabui.Form` Demo：[source-mode 開發版](./demo/dev-form.html) 與 [build-mode 正式版](./demo/form.html)。
 - `fabui.Tabs` Demo：[source-mode 開發版](./demo/dev-tabs.html) 與 [build-mode 正式版](./demo/tabs.html)。
 - `fabui.Tree` Demo：[source-mode 開發版](./demo/dev-tree.html) 與 [build-mode 正式版](./demo/tree.html)。
+- `fabui.PropertyGrid` Demo：[source-mode 開發版](./demo/dev-propertygrid.html) 與 [build-mode 正式版](./demo/propertygrid.html)。
+- `fabui.Diagram` Demo：[source-mode 開發版](./demo/dev-diagram.html) 與 [build-mode 正式版](./demo/diagram.html)。
 - `fabui.Tooltip` Demo：[source-mode 開發版](./demo/dev-tooltip.html) 與 [build-mode 正式版](./demo/tooltip.html)。
 - `fabui.Menu` Demo：[source-mode 開發版](./demo/dev-menu.html) 與 [build-mode 正式版](./demo/menu.html)。
 - `fabui.MenuButton` Demo：[source-mode 開發版](./demo/dev-menubutton.html) 與 [build-mode 正式版](./demo/menubutton.html)。
 - `fabui.SplitButton` Demo：[source-mode 開發版](./demo/dev-splitbutton.html) 與 [build-mode 正式版](./demo/splitbutton.html)。
 - `fabui.Messager` Demo：[source-mode 開發版](./demo/dev-messager.html) 與 [build-mode 正式版](./demo/messager.html)。
 - `fabui.EditBox` 本機 Demo：[source-mode 開發版](./demo/dev-editbox.html) 與 [build-mode 正式版](./demo/editbox.html)。
-- `fabui.EditBox` jQuery Demo：[source-mode 開發版](./demo/dev-editbox-jquery.html) 與 [build-mode 正式版](./demo/editbox-jquery.html)。
 - `fabui.Panel` Demo：[source-mode 開發版](./demo/dev-panel.html) 與 [build-mode 正式版](./demo/panel.html)。
 - `fabui.Window` Demo：[source-mode 開發版](./demo/dev-window.html) 與 [build-mode 正式版](./demo/window.html)。
 - `fabui.Layout` Demo：[source-mode 開發版](./demo/dev-layout.html) 與 [build-mode 正式版](./demo/layout.html)。
@@ -69,8 +90,17 @@ Chart 是以 SVG 繪製的圖表元件，可獨立使用，也能與 FabGrid 或
 - [Chart API 操作手冊](./docs/chart-api.md)
 - [`fabui.Button` API 操作手冊](./docs/button-api.md)
 - [`fabui.Calendar` API 操作手冊](./docs/calendar-api.md)
+- [`fabui.CheckBox` API 操作手冊](./docs/checkbox-api.md)
+- [`fabui.SwitchButton` API 操作手冊](./docs/switchbutton-api.md)
+- [`fabui.CheckGroup` API 操作手冊](./docs/checkgroup-api.md)
+- [`fabui.RadioButton` API 操作手冊](./docs/radiobutton-api.md)
+- [`fabui.RadioGroup` API 操作手冊](./docs/radiogroup-api.md)
+- [`fabui.FileBox` API 操作手冊](./docs/filebox-api.md)
+- [`fabui.Form` API 操作手冊](./docs/form-api.md)
 - [`fabui.Tabs` API 操作手冊](./docs/tabs-api.md)
 - [`fabui.Tree` API 操作手冊](./docs/tree-api.md)
+- [`fabui.PropertyGrid` API 操作手冊](./docs/propertygrid-api.md)
+- [`fabui.Diagram` API 操作手冊](./docs/diagram-api.md)
 - [`fabui.Tooltip` API 操作手冊](./docs/tooltip-api.md)
 - [`fabui.Menu` API 操作手冊](./docs/menu-api.md)
 - [`fabui.MenuButton` API 操作手冊](./docs/menubutton-api.md)
@@ -80,7 +110,6 @@ Chart 是以 SVG 繪製的圖表元件，可獨立使用，也能與 FabGrid 或
 - [`fabui.Panel` API 操作手冊](./docs/panel-api.md)
 - [`fabui.Window` API 操作手冊](./docs/window-api.md)
 - [`fabui.Layout` API 操作手冊](./docs/layout-api.md)
-- [`fabui.EditBox` jQuery Wrapper API](./docs/editbox-jquery-api.md)
 - [Vue 2 Wrapper API](./docs/vue-api.md)
 - [jQuery Wrapper API](./docs/jquery-api.md)
 
@@ -119,6 +148,8 @@ Chart 是以 SVG 繪製的圖表元件，可獨立使用，也能與 FabGrid 或
 
 ES module 使用者可由 `dist/fabui.esm.js` 匯入 `fabui`，再以 `new fabui.FabGrid(...)` 建立元件；完整範例與所有 API 請見 [API 操作手冊](./docs/fabgrid-api.md)。
 
+Vue 2 與 FabGrid jQuery wrapper 目前暫緩開發，既有原始碼與說明保留作為未來參考；預設 `npm run build` 只編譯 FabUI core，不會產生 wrapper bundle。
+
 Vue 2 Options API wrapper 位於 `packages/fabgrid-vue`，透過 `<fab-grid>` 使用 pure JavaScript core；Vue 不接管 cell rendering。
 
 jQuery wrapper 位於 `packages/fabgrid-jquery`，透過 `$(element).fabgrid(options)` 建立或操作同一套 pure JavaScript core；jQuery 不參與 cell rendering。jQuery Demo 的初始化、公開方法與事件綁定都明確經過 wrapper：
@@ -145,35 +176,7 @@ jQuery Demo 分成以下兩層：
 
 開發版入口為 `demo/dev-jquery-grid.html`；引用 build 輸出的 browser global 版本為 `demo/grid-jquery.html`。
 
-`fabui.EditBox` 的 jQuery wrapper 位於 `packages/fabeditbox-jquery`，註冊 `$.fn.fabeditbox`，並使用 FabUI core 已公開的 `fabui.EditBox`：
-
-```js
-$('#amount').fabeditbox({
-  editor: 'number',
-  precision: 2
-});
-
-$('#amount').fabeditbox('setValue', 1280.5);
-var value = $('#amount').fabeditbox('getValue');
-```
-
 FabGrid cell editor、Search Row 與 `fabui.EditBox` 的自訂 icon 都統一使用 `icons: [{ iconCls, title, ariaLabel, text, width, align, keepFocus, onClick }]`；完整範例與相容欄位請見 [EditBox API](./docs/editbox-api.md)。
-
-也支援 EasyUI 風格的宣告式初始化：
-
-```html
-<input class="fab-editbox"
-  data-options="editor:'text',iconCls:'icon-search'"
-  style="width:300px">
-
-<input class="fab-editbox"
-  data-options="editor:'text',iconCls:'icon-search',width:300">
-
-<input class="fab-editbox"
-  data-options="editor:'text',iconCls:'icon-search',width:'300px'">
-```
-
-Browser global 依序載入 jQuery、`dist/fabui.min.js`、`dist/wrapper/fabeditbox-jquery.min.js` 後，會在 DOM ready 自動解析 `.fab-editbox`；動態加入的內容可呼叫 `fabuiEditBoxJQuery.parse(container)`。
 
 ## 主要能力
 
@@ -205,17 +208,17 @@ Browser global 依序載入 jQuery、`dist/fabui.min.js`、`dist/wrapper/fabedit
 | `PivotGrid` | 繼承 FabGrid 的 virtualization、選取、剪貼簿、匯出與全螢幕；支援多層標頭、列／欄小計、群組展開收合、三態排序與原始明細檢視。 |
 | `PivotChart` | 將目前 Pivot view 顯示為 Column、Bar、Line 或 Pie；可跟隨 PivotGrid 的展開／收合狀態，並與彙總儲存格雙向同步選取。 |
 | `PivotSlicer` | 提供搜尋、多選、套用與清除，可與其他 Pivot 元件共用同一份篩選狀態。 |
-| `PivotWorkspace` | 整合 PivotPanel、PivotGrid 與 PivotChart，提供 RWD 三欄／三列版面、Splitter、Panel 顯示切換、彙總進度與 Pane 全螢幕。 |
+| `PivotWorkspace` | 整合 PivotPanel、PivotGrid 與 PivotChart，提供 RWD 三欄／三列版面、Splitter、Panel 顯示切換、彙總進度、Pane 全螢幕與 nested `fg-root` theme 同步。 |
 
 ### 其他 FabUI 能力
 
 | 類別 | 能力 |
 | --- | --- |
 | `fabui.EditBox` | 獨立使用文字、數字、日期、清單與顏色 editor，並與 FabGrid 共用 editor definitions、格式與 popup 行為。 |
-| Chart | 使用 SVG 繪製 Column、Bar、Line、Pie，可獨立使用或與 FabGrid、PivotGrid 連動。 |
+| Chart | 使用 SVG 繪製 Column、Bar、Line、Pie，可獨立使用或與 FabGrid、PivotGrid 連動；文字、背景、格線與 tooltip 跟隨 16 組 theme。 |
 | 多語系 | 內建 `en`、`zh-TW`、`zh-CN` locale。 |
 | 主題 | 提供多組內建主題，FabGrid、Pivot 與 Chart 共用一致的視覺變數。 |
-| 框架整合 | 提供 Vue 2 與 jQuery wrapper，包裝既有 pure JavaScript core，不接管資料格渲染。 |
+| 框架整合 | 保留既有 Vue 2 與 FabGrid jQuery wrapper 原始碼供未來恢復；目前暫緩開發且不納入預設 build。 |
 
 完整選項、方法、事件與範例請參考前述 [API 操作手冊](#api-操作手冊)。
 
@@ -223,27 +226,35 @@ Browser global 依序載入 jQuery、`dist/fabui.min.js`、`dist/wrapper/fabedit
 
 ### 發佈套件
 
-`fabui.EditBox` 已納入 FabUI core bundle，不再產生獨立 EditBox bundle。各框架 wrapper 維持分開發佈。
+`fabui.EditBox` 已納入 FabUI core bundle，不再產生獨立 EditBox bundle，也不提供 EditBox jQuery wrapper。Vue 2 與 FabGrid jQuery wrapper 目前暫緩，不納入預設 build；既有 wrapper package 與獨立 build 指令暫時保留。
 
 | 套件 | 發佈位置 | 公開入口 |
 | --- | --- | --- |
-| FabUI core | `dist/fabui*.js`、`dist/fabui*.css` | `fabui.FabGrid`、`fabui.Button`、`fabui.Calendar`、`fabui.Tabs`、`fabui.Tree`、`fabui.Tooltip`、`fabui.Menu`、`fabui.MenuButton`、`fabui.SplitButton`、`fabui.Messager`、`fabui.EditBox`、`fabui.Panel`、`fabui.Window`、`fabui.Layout`、`fabui.Chart`、`fabui.pivot` 與共用基礎 API |
-| FabGrid Vue 2 wrapper | `packages/fabgrid-vue/dist/`、`dist/wrapper/fabgrid-vue*.js` | Vue 2 `<fab-grid>` 元件 |
-| FabGrid jQuery wrapper | `packages/fabgrid-jquery/dist/`、`dist/wrapper/fabgrid-jquery.min.js` | `$.fn.fabgrid` |
-| `fabui.EditBox` jQuery wrapper | `packages/fabeditbox-jquery/dist/`、`dist/wrapper/fabeditbox-jquery.min.js` | `$.fn.fabeditbox` |
+| FabUI core | `dist/fabui*.js`、`dist/fabui*.css` | `fabui.FabGrid`、`fabui.Button`、`fabui.Calendar`、`fabui.CheckBox`、`fabui.CheckGroup`、`fabui.SwitchButton`、`fabui.RadioButton`、`fabui.RadioGroup`、`fabui.FileBox`、`fabui.Form`、`fabui.Tabs`、`fabui.Tree`、`fabui.PropertyGrid`、`fabui.Diagram`、`fabui.Tooltip`、`fabui.Menu`、`fabui.MenuButton`、`fabui.SplitButton`、`fabui.Messager`、`fabui.EditBox`、`fabui.Panel`、`fabui.Window`、`fabui.Layout`、`fabui.Chart`、`fabui.pivot` 與共用基礎 API |
+| FabGrid Vue 2 wrapper（暫緩） | `packages/fabgrid-vue/` | Vue 2 `<fab-grid>` 元件；不由預設 build 產生發佈檔 |
+| FabGrid jQuery wrapper（暫緩） | `packages/fabgrid-jquery/` | `$.fn.fabgrid`；不由預設 build 產生發佈檔 |
 | 主題 | `dist/theme/` | 各主題 CSS 與必要圖片 |
 
 Browser global 與 ES module 都以 `fabui` 作為最上層 namespace：
 
 | Namespace | 內容 |
 | --- | --- |
-| `fabui` | `FabGrid`、`Button`、`Calendar`、`Tabs`、`Tree`、`Tooltip`、`Menu`、`MenuButton`、`SplitButton`、`Messager`、`EditBox`、`Panel`、`Window`、`Layout`、`Chart`、`Control`、`CellType`、`editorDefinitions`、`FabGridLocales` |
+| `fabui` | `FabGrid`、`Button`、`Calendar`、`CheckBox`、`CheckGroup`、`SwitchButton`、`RadioButton`、`RadioGroup`、`FileBox`、`Form`、`Tabs`、`Tree`、`PropertyGrid`、`Diagram`、`Tooltip`、`Menu`、`MenuButton`、`SplitButton`、`Messager`、`EditBox`、`Panel`、`Window`、`Layout`、`Chart`、`Control`、`CellType`、`editorDefinitions`、`FabGridLocales` |
 | `fabui.pivot` | `PivotEngine`、`PivotField`、`PivotPanel`、`PivotGrid`、`PivotChart`、`PivotSlicer`、`PivotWorkspace` 與 Pivot 列舉 |
 | `fabui.FabGrid` | `Row`、`GroupRow` 等 FabGrid 專用類型 |
-| `fabui.Button` | Pure JavaScript LinkButton；提供 icon、尺寸、disabled、plain、toggle、group、theme 與 lifecycle。 |
+| `fabui.Button` | Pure JavaScript LinkButton；host 統一使用 `<a>`，提供 icon、尺寸、disabled、plain、toggle、group、theme 與 lifecycle。 |
 | `fabui.Calendar` | Pure JavaScript 月曆；與 DatePopup 共用 renderer，提供年月導覽、週次、日期格式／樣式／驗證、農民曆、theme 與 lifecycle。 |
-| `fabui.Tabs` | Pure JavaScript 頁籤；提供動態 panels、滑鼠拖曳排序開關、依拖曳方向顯示於目標左側或右側的補色插入提示、半透明 drag image、tools、四方向、overflow、遠端內容、theme 與 lifecycle。 |
-| `fabui.Tree` | Pure JavaScript 樹狀清單；提供 markup／data、checkbox、線條、圖示、動態 API、拖放、編輯、搜尋、鍵盤、lazy loading、theme 與 lifecycle。 |
+| `fabui.CheckBox` | Pure JavaScript 核取方塊；保留原生 input 的表單、label、鍵盤與 reset 語意，提供尺寸、狀態、label position／align、theme 與 lifecycle。 |
+| `fabui.CheckGroup` | Pure JavaScript 多選群組；直接組合 CheckBox，提供 data、name／value、水平／垂直排列、item style、原生表單、theme 與 lifecycle。 |
+| `fabui.SwitchButton` | Pure JavaScript 切換按鈕；保留原生 checkbox 的表單、label、鍵盤與 reset，提供 ON／OFF／handle、reversed、readonly、尺寸、16 組 theme 與 lifecycle。 |
+| `fabui.RadioButton` | Pure JavaScript 單選按鈕；保留原生 radio 的群組、表單、label、鍵盤與 reset 語意，提供尺寸、狀態、theme 與 lifecycle。 |
+| `fabui.RadioGroup` | Pure JavaScript 單選群組；直接組合 RadioButton，提供 data、name／value、水平／垂直排列、item style、原生表單、theme 與 lifecycle。 |
+| `fabui.FileBox` | Pure JavaScript 檔案選擇控件；組合 EditBox 與原生 file input，保留 FileList、表單、檔案條件、瀏覽器安全限制、theme 與 lifecycle。 |
+| `fabui.Form` | Pure JavaScript 表單控制器；管理原生欄位與既有 FabUI 控件，提供 Ajax／一般送出、本機／遠端 load、clear、reset、三語系且跟隨 theme 的 EasyUI 風格 constraint validation tip、dirty-only 與 lifecycle。 |
+| `fabui.Tabs` | Pure JavaScript 頁籤；`draggable: false` 時使用一般箭頭游標，啟用拖曳後只有標題文字是 drag handle；提供依拖曳方向顯示於目標左側或右側的補色插入提示、半透明 drag image、tools、四方向、overflow、遠端內容、theme 與 lifecycle。 |
+| `fabui.Tree` | Pure JavaScript 樹狀清單；提供 markup／data、checkbox、線條、依 theme 切換的 Tree sprite 圖示、動態 API、拖放、編輯、搜尋、鍵盤、lazy loading、theme 與 lifecycle。 |
+| `fabui.PropertyGrid` | Pure JavaScript 屬性表；提供群組、兩欄自訂、排序、共用 EditBox editor、變更追蹤、遠端載入、theme 與 lifecycle。 |
+| `fabui.Diagram` | Pure JavaScript SVG 圖表設計器；提供可疊合的一般／流程圖／DFD 工具箱、44 種空心 SVG 圖形預覽與 DFD 弧線 Data Flow 工具、node／connector、框選多選、群組移動／刪除、六點輪廓連線、node／connector 雙擊就地文字編輯（圖形內透明多行 EditBox）、八方向縮放、格線、屬性、歷程、JSON／SVG 匯出、theme 與 lifecycle。畫布空白處雙擊可開啟 FabUI modal 紙張設定，預設 A4 橫向，支援 A3／A4／A5／Letter／Legal、直向／橫向與 JSON `page` 保存。 |
 | `fabui.Tooltip` | Pure JavaScript 提示；提供四方向、HTML、滑鼠追蹤、延遲、viewport 定位、theme 與 lifecycle。 |
 | `fabui.Menu` | Pure JavaScript context／inline menu；提供巢狀 submenu、icon、separator、disabled、鍵盤、runtime item API、theme 與 lifecycle。 |
 | `fabui.MenuButton` | Pure JavaScript 下拉選單按鈕；組合既有 Button 與 Menu，提供 hover／click、對齊、箭頭、鍵盤、theme 與 lifecycle。 |
@@ -251,12 +262,12 @@ Browser global 與 ES module 都以 `fabui` 作為最上層 namespace：
 | `fabui.Messager` | Pure JavaScript singleton 訊息服務；提供 Alert、Confirm、Prompt、Toast、Progress、theme 與 lifecycle。 |
 | `fabui.EditBox` | FabUI core 直接提供；使用方式為 `new fabui.EditBox(...)` |
 | `fabui.Panel` | Pure JavaScript 內容容器；提供 Header、Footer、Tools、狀態過渡動畫、載入與 lifecycle。 |
-| `fabui.Window` | Pure JavaScript 浮動視窗；提供拖曳、縮放、Modal、狀態動畫、`iconCls: 'icon-xxx'` 標題 icon 與 lifecycle。 |
+| `fabui.Window` | Pure JavaScript 浮動視窗；提供拖曳、放開滑鼠才提交的縮放預覽、Modal、狀態動畫、`iconCls: 'icon-xxx'` 標題 icon 與 lifecycle。 |
 | `fabui.Layout` | 以 `fabui.Panel` 組成 north／south／east／west／center 五區、可拖曳 Splitter，以及同步 edge／center／collapsed bar 的收起展開動畫。 |
 
 `fabui.version` 使用 `YYYY.M.D` 格式，執行 build 時會依本機日期自動產生。
 
-目前發佈驗證基準為 2026-07-18：`fabui.version` 是 `2026.7.18`，FabUI core、Vue 2 wrapper、jQuery wrapper 與 EditBox jQuery wrapper 均已完成 build，285／285 項自動測試及完整 smoke test 全部通過。`dist/` 僅保留六個 FabUI 主檔與 theme／wrapper 輸出，不再產生獨立 `dist/editbox.*`。
+自 2026-07-19 起，預設發佈範圍只包含 FabUI core 的六個主檔與 `dist/theme/`；Vue 2 與 FabGrid jQuery wrapper 暫緩，不再由 `npm run build` 或 core smoke gate 編譯／驗證。EditBox jQuery wrapper 已移除，`dist/` 也不再產生獨立 `dist/editbox.*`。
 
 ### 原始碼目錄
 
@@ -266,6 +277,12 @@ Browser global 與 ES module 都以 `fabui` 作為最上層 namespace：
 | `src/core/` | Control 基礎類別、host element 與 instance registry |
 | `src/button/` | `fabui.Button` 核心與 EasyUI Default 基準的多主題樣式 |
 | `src/calendar/` | `fabui.Calendar` 公開 class 與嵌入式版面樣式；日曆 renderer 共用 `src/editbox/date-popup.js` |
+| `src/checkbox/` | `fabui.CheckBox` 核心、原生表單 lifecycle、label layout 與多主題樣式 |
+| `src/checkgroup/` | `fabui.CheckGroup` 核心、CheckBox 組合、水平／垂直排列、原生表單 lifecycle 與多主題樣式 |
+| `src/switchbutton/` | `fabui.SwitchButton` 核心、原生 checkbox／表單 lifecycle、滑動軌道與 16 組 EasyUI 對應主題 |
+| `src/radiobutton/` | `fabui.RadioButton` 核心、原生 radio 群組／表單 lifecycle、label layout 與多主題樣式 |
+| `src/radiogroup/` | `fabui.RadioGroup` 核心、RadioButton 組合、水平／垂直排列與原生表單 lifecycle |
+| `src/filebox/` | `fabui.FileBox` 核心、EditBox 組合、原生 FileList／表單 lifecycle 與多主題樣式 |
 | `src/grid/` | FabGrid 資料、rendering、virtualization、選取、編輯、篩選、TreeGrid、拖曳與匯出 |
 | `src/editbox/` | `fabui.EditBox`、各 editor 實作、FabGrid 共用的 DatePopup／ComboPopup／ColorPopup、共用 definitions 與樣式 |
 | `src/menu/` | `fabui.Menu` 核心、EasyUI Default 視覺基準、鍵盤、popup lifecycle 與多主題樣式 |
@@ -282,11 +299,12 @@ Browser global 與 ES module 都以 `fabui` 作為最上層 namespace：
 | `src/theme/` | 內建主題 CSS 與圖片資源 |
 | `src/tabs/` | `fabui.Tabs` 核心、EasyUI Default 視覺基準與多主題樣式 |
 | `src/tree/` | `fabui.Tree` 核心、階層資料、拖放／編輯／非同步載入與多主題樣式 |
+| `src/propertygrid/` | `fabui.PropertyGrid` 核心、群組、編輯、變更追蹤、遠端載入與多主題樣式 |
+| `src/diagram/` | `fabui.Diagram` SVG renderer、工具箱、互動、歷程、JSON／SVG 匯出與多主題樣式 |
 | `src/tooltip/` | `fabui.Tooltip` 核心、EasyUI Default 視覺基準與多主題樣式 |
 | `packages/fabgrid-vue/` | FabGrid Vue 2 wrapper、型別與獨立輸出 |
 | `packages/fabgrid-jquery/` | FabGrid jQuery wrapper、型別與獨立輸出 |
-| `packages/fabeditbox-jquery/` | `fabui.EditBox` jQuery wrapper、型別與獨立輸出 |
-| `build/` | FabUI core（包含 `fabui.EditBox`）、wrapper 的 build 與 smoke scripts |
+| `build/` | FabUI core（包含 `fabui.EditBox`）的預設 build／smoke，以及暫時保留的 Vue 2 與 FabGrid jQuery wrapper 獨立 build scripts |
 | `demo/` | Source-mode 開發頁面與 build-mode 正式 Demo |
 | `docs/` | API 操作手冊 |
 | `test/` | Node.js 自動測試 |
@@ -305,6 +323,8 @@ npm run serve
 npm run build
 ```
 
+此指令只編譯 FabUI core 與主題；不會編譯 Vue 2／FabGrid jQuery wrapper。
+
 ## 專案方向
 
-FabGrid 保持核心 pure JavaScript 與效能優先；現有 Vue 2 與 jQuery wrapper 僅負責 options、events、methods 與 lifecycle 對應，不接管 cell rendering。
+FabGrid 保持核心 pure JavaScript 與效能優先；Vue 2 與 FabGrid jQuery wrapper 目前暫緩，未來若恢復仍只負責 options、events、methods 與 lifecycle 對應，不接管 cell rendering。

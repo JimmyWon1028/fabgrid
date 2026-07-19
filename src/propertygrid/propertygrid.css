@@ -1,0 +1,198 @@
+.fui-propertygrid,
+.fui-propertygrid * {
+  box-sizing: border-box;
+}
+
+.fui-propertygrid {
+  --fui-propertygrid-border: #ddd;
+  --fui-propertygrid-strong-border: var(--fui-control-border, #95b8e7);
+  --fui-propertygrid-header-bg: var(--fui-control-trigger-bg, #e0ecff);
+  --fui-propertygrid-header-text: #0e2d5f;
+  --fui-propertygrid-cell-bg: var(--fui-panel-bg, var(--fg-cell-bg, #fff));
+  --fui-propertygrid-cell-text: var(--fui-panel-text, var(--fg-cell-text, #000));
+  --fui-propertygrid-group-bg: #e0ecff;
+  --fui-propertygrid-group-text: var(--fui-propertygrid-header-text);
+  --fui-propertygrid-hover-bg: var(--fui-control-hover, #eaf2ff);
+  --fui-propertygrid-hover-text: var(--fui-control-hover-text, #000);
+  --fui-propertygrid-selected-bg: var(--fui-control-selected, #ffe48d);
+  --fui-propertygrid-selected-text: var(--fui-control-selected-text, #000);
+  position: relative;
+  min-width: 180px;
+  min-height: 28px;
+  overflow: auto;
+  border: 1px solid var(--fui-propertygrid-strong-border);
+  background: var(--fui-propertygrid-cell-bg);
+  color: var(--fui-propertygrid-cell-text);
+  font: 14px Arial, Helvetica, sans-serif;
+}
+
+.fui-propertygrid-borderless {
+  border: 0;
+}
+
+.fui-propertygrid-table {
+  width: 100%;
+  border-spacing: 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.fui-propertygrid-header-cell,
+.fui-propertygrid-cell,
+.fui-propertygrid-group > td {
+  height: 28px;
+  padding: 4px 7px;
+  overflow: hidden;
+  border-right: 1px dotted var(--fui-propertygrid-border);
+  border-bottom: 1px dotted var(--fui-propertygrid-border);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fui-propertygrid-header-cell:last-child,
+.fui-propertygrid-cell:last-child {
+  border-right: 0;
+}
+
+.fui-propertygrid-header-cell {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  height: 29px;
+  border-bottom-style: solid;
+  background: var(--fui-propertygrid-header-bg);
+  color: var(--fui-propertygrid-header-text);
+  font-weight: 400;
+  user-select: none;
+}
+
+.fui-propertygrid-sortable {
+  cursor: pointer;
+}
+
+.fui-propertygrid-sortable:hover {
+  background: var(--fui-propertygrid-hover-bg);
+  color: var(--fui-propertygrid-hover-text);
+}
+
+.fui-propertygrid-sorted-asc span::after,
+.fui-propertygrid-sorted-desc span::after {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+}
+
+.fui-propertygrid-sorted-asc span::after {
+  content: "▲";
+}
+
+.fui-propertygrid-sorted-desc span::after {
+  content: "▼";
+}
+
+.fui-propertygrid-row {
+  background: var(--fui-propertygrid-cell-bg);
+}
+
+.fui-propertygrid-striped .fui-propertygrid-row:nth-of-type(even) {
+  background: color-mix(in srgb, var(--fui-propertygrid-cell-bg) 94%, var(--fui-propertygrid-header-bg));
+}
+
+.fui-propertygrid-row:hover {
+  background: var(--fui-propertygrid-hover-bg);
+  color: var(--fui-propertygrid-hover-text);
+}
+
+.fui-propertygrid-selected,
+.fui-propertygrid-selected:hover {
+  background: var(--fui-propertygrid-selected-bg);
+  color: var(--fui-propertygrid-selected-text);
+}
+
+.fui-propertygrid-name {
+  font-weight: 600;
+}
+
+.fui-propertygrid-group > td {
+  height: 25px;
+  padding: 0;
+  border-right: 0;
+  border-bottom-style: solid;
+  background: var(--fui-propertygrid-group-bg);
+  color: var(--fui-propertygrid-group-text);
+  font-weight: 700;
+}
+
+.fui-propertygrid-group-toggle {
+  position: relative;
+  width: 100%;
+  min-height: 24px;
+  margin: 0;
+  padding: 3px 7px 3px 24px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fui-propertygrid-group-toggle::before {
+  position: absolute;
+  top: 50%;
+  left: 9px;
+  width: 0;
+  height: 0;
+  border-top: 5px solid currentColor;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+  content: "";
+  transform: translateY(-35%);
+}
+
+.fui-propertygrid-group-toggle[aria-expanded="false"]::before {
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid currentColor;
+  transform: translateY(-50%);
+}
+
+.fui-propertygrid-group-toggle:focus-visible {
+  outline: 2px solid var(--fui-propertygrid-strong-border);
+  outline-offset: -2px;
+}
+
+.fui-propertygrid-editing {
+  padding: 0;
+  overflow: visible;
+}
+
+.fui-propertygrid-editing .fui-editbox,
+.fui-propertygrid-editing .fui-propertygrid-boolean-editor,
+.fui-propertygrid-editor-source {
+  width: 100%;
+  min-width: 0;
+}
+
+.fui-propertygrid-boolean-editor {
+  height: 100%;
+  min-height: 27px;
+  padding: 2px 5px;
+  border: 1px solid var(--fui-propertygrid-strong-border);
+  border-radius: 0;
+  background: var(--fui-propertygrid-cell-bg);
+  color: var(--fui-propertygrid-cell-text);
+  font: inherit;
+}
+
+@media (forced-colors: active) {
+  .fui-propertygrid {
+    border-color: CanvasText;
+  }
+
+  .fui-propertygrid-header-cell,
+  .fui-propertygrid-cell,
+  .fui-propertygrid-group > td {
+    border-color: CanvasText;
+  }
+}

@@ -723,6 +723,8 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     var width;
     var height;
     var isScrollableEditor;
+    var editorBorderInset;
+    var editorVerticalInset;
     if (!edit) {
       return;
     }
@@ -762,9 +764,11 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     this.editor.style.zIndex = isScrollableEditor ? '3' : '10';
     this.editorIconHost.style.zIndex = isScrollableEditor ? '3' : '11';
     if (this.editorConfig && (isDateLikeEditorType(this.editorConfig.type) || this.editorConfig.type === 'combo' || this.editorConfig.type === 'color' || (this.editorIconConfigs && this.editorIconConfigs.length))) {
-      this.editorIconHost.style.left = (left + width - this.getEditorIconHostWidth() - 2) + 'px';
-      this.editorIconHost.style.top = top + 'px';
-      this.editorIconHost.style.height = height + 'px';
+      editorBorderInset = Math.max(0, toNumber(this.options.activeCellBorder, 2));
+      editorVerticalInset = editorBorderInset + 1;
+      this.editorIconHost.style.left = (left + width - this.getEditorIconHostWidth() - editorBorderInset) + 'px';
+      this.editorIconHost.style.top = (top + editorVerticalInset) + 'px';
+      this.editorIconHost.style.height = Math.max(0, height - editorVerticalInset * 2) + 'px';
     }
     if (this.editorConfig && isDateLikeEditorType(this.editorConfig.type)) {
       this.positionDateboxPanel(left, top + height, width);
@@ -1167,6 +1171,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
         Boolean(target && target.column && target.column.showLunar === true),
       locale: this.locale,
       currentText: this.getText('datebox.today'),
+      currentMonthText: this.getText('datebox.currentMonth'),
       closeText: this.getText('datebox.close'),
       yearText: this.getText('aria.year'),
       weeks: this.getText('datebox.weekdays'),

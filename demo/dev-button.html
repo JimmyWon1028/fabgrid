@@ -75,63 +75,64 @@
       <option value="dark-hive">Dark Hive</option>
       <option value="black">Black</option>
     </select>
-    <button id="toggle-disabled" type="button">切換 Disabled</button>
-    <button id="change-dynamic" type="button">動態更新</button>
+    <a id="toggle-disabled" href="javascript:void(0)">切換 Disabled</a>
+    <a id="change-dynamic" href="javascript:void(0)">動態更新</a>
   </div>
   <div id="button-status" aria-live="polite"></div>
 
   <h2>Basic Buttons</h2>
   <div class="button-row">
     <a id="button-add" href="#button-status">新增</a>
-    <button id="button-remove" type="button">移除</button>
-    <button id="button-save" type="button">儲存</button>
-    <button id="button-cut" type="button">剪下</button>
-    <button id="button-text" type="button">純文字</button>
+    <a id="button-remove" href="javascript:void(0)">移除</a>
+    <a id="button-save" href="javascript:void(0)">儲存</a>
+    <a id="button-cut" href="javascript:void(0)">剪下</a>
+    <a id="button-text" href="javascript:void(0)">純文字</a>
   </div>
 
   <h2>Fixed／Fluid Width</h2>
   <div class="button-panel">
     <div class="button-row">
-      <button id="button-search" type="button">搜尋</button>
-      <button id="button-print" type="button">列印</button>
+      <a id="button-search" href="javascript:void(0)">搜尋</a>
+      <a id="button-print" href="javascript:void(0)">列印</a>
     </div>
     <div style="margin-top:10px">
-      <button id="button-fluid" type="button">50% 寬度</button>
+      <a id="button-fluid" href="javascript:void(0)">50% 寬度</a>
     </div>
   </div>
 
   <h2>Plain Buttons</h2>
   <div class="button-panel button-row">
-    <button id="button-plain-add" type="button">新增</button>
-    <button id="button-plain-help" type="button" aria-label="說明"></button>
+    <a id="button-plain-add" href="javascript:void(0)">新增</a>
+    <a id="button-plain-help" href="javascript:void(0)" aria-label="說明"></a>
   </div>
 
   <h2>Icon Align／Size</h2>
   <div class="button-row">
-    <button id="button-icon-left" type="button">Left</button>
-    <button id="button-icon-right" type="button">Right</button>
-    <button id="button-icon-top" type="button">Top</button>
-    <button id="button-icon-bottom" type="button">Bottom</button>
+    <a id="button-icon-left" href="javascript:void(0)">Left</a>
+    <a id="button-icon-right" href="javascript:void(0)">Right</a>
+    <a id="button-icon-top" href="javascript:void(0)">Top</a>
+    <a id="button-icon-bottom" href="javascript:void(0)">Bottom</a>
   </div>
 
   <h2>Toggle／Group</h2>
   <div class="button-row">
-    <button id="button-toggle" type="button">獨立 Toggle</button>
-    <button id="button-group-1" type="button">選項一</button>
-    <button id="button-group-2" type="button">選項二</button>
-    <button id="button-group-3" type="button">選項三</button>
+    <a id="button-toggle" href="javascript:void(0)">獨立 Toggle</a>
+    <a id="button-group-1" href="javascript:void(0)">選項一</a>
+    <a id="button-group-2" href="javascript:void(0)">選項二</a>
+    <a id="button-group-3" href="javascript:void(0)">選項三</a>
   </div>
 
   <h2>Runtime API</h2>
   <div class="button-row">
-    <button id="button-dynamic" type="button">動態 Button</button>
+    <a id="button-dynamic" href="javascript:void(0)">動態 Button</a>
   </div>
 
   <script src="./js/button-demo.js?v=20260718-button-icon-left-v2"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260718-final-audit-v1';
+    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
 
     window.mountFabUIButtonDemo(fabui);
   </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
 </body>
 </html>

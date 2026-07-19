@@ -8,10 +8,9 @@
   "module": "dist/fabui.esm.js",
   "style": "dist/fabui.css",
   "scripts": {
-    "build": "node build/build.cjs && node build/build-vue.cjs && node build/build-jquery.cjs && node build/build-editbox-jquery.cjs",
-    "build:editbox-jquery": "node build/build-editbox-jquery.cjs",
+    "build": "node build/build.cjs",
     "build:vue": "node build/build-vue.cjs",
-    "build:jquery": "node build/build-jquery.cjs && node build/build-editbox-jquery.cjs",
+    "build:jquery": "node build/build-jquery.cjs",
     "dev:vue": "python3 -m http.server 4174",
     "test": "node --test test/*.test.js",
     "test:jquery": "node --test test/jquery-wrapper.test.js",

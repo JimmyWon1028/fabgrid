@@ -1,7 +1,41 @@
+var CHART_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
 export function normalizeChartType(type) {
   type = String(type || 'column').toLowerCase();
   if (type === 'linesymbols') return 'line';
   return type === 'bar' || type === 'line' || type === 'pie' ? type : 'column';
+}
+
+export function normalizeChartLocale(value) {
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
+}
+
+export function normalizeChartTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return CHART_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function findChartTheme(element) {
+  var current = element && element.nodeType === 1 ? element : null;
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < CHART_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + CHART_THEMES[index])) {
+        return CHART_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
 }
 
 export function createChartFactory() {
@@ -25,10 +59,11 @@ export function createChartFactory() {
   function Chart(element, options) {
     this.host = typeof element === 'string' ? document.querySelector(element) : element;
     if (!this.host) throw new Error('fabui.Chart host element was not found.');
+    this._themeSource = this.host.parentElement || this.host;
     this.options = mergeOptions({
       chartType: null, type: 'column', header: '', footer: '', title: '', itemsSource: null,
       bindingX: '', bindingName: '', binding: '', categories: [], series: [], palette: null, colors: DEFAULT_COLORS,
-      legend: true, tooltip: true, padding: 16, locale: 'en', animation: true,
+      legend: true, tooltip: true, padding: 16, locale: 'en', theme: 'inherit', animation: true,
       observeData: true, dataRefreshInterval: 120,
       axisX: {}, axisY: {}, selectionMode: 'None', selection: null, selectedIndex: -1, selectionSource: null,
       selectedItemOffset: .1, selectedItemPosition: 'Top', isAnimated: true,
@@ -44,6 +79,8 @@ export function createChartFactory() {
     this._boundPointerLeave = this.hideTooltip.bind(this);
     this._boundClick = this.handleClick.bind(this);
     this.createDom();
+    this.options.locale = resolveChartLocale(this.options.locale);
+    this.setTheme(this.options.theme);
     this.bindEvents();
     this.refresh();
     this.startDataObserver();
@@ -63,14 +100,14 @@ export function createChartFactory() {
     this.svg.setAttribute('role', 'img');
     this.legendElement = document.createElement('div');
     this.legendElement.className = 'fui-chart-legend';
-    this.tooltip = document.createElement('div');
-    this.tooltip.className = 'fui-chart-tooltip';
-    this.tooltip.setAttribute('role', 'tooltip');
+    this.tooltipElement = document.createElement('div');
+    this.tooltipElement.className = 'fui-chart-tooltip';
+    this.tooltipElement.setAttribute('role', 'tooltip');
     this.body.appendChild(this.svg);
     this.root.appendChild(this.title);
     this.root.appendChild(this.body);
     this.root.appendChild(this.legendElement);
-    this.root.appendChild(this.tooltip);
+    this.root.appendChild(this.tooltipElement);
     this.host.appendChild(this.root);
   };
 
@@ -86,7 +123,42 @@ export function createChartFactory() {
 
   Chart.prototype.setType = function(type) { this.options.chartType = type; this.options.type = type; this.refresh(); return this; };
   Chart.prototype.setItemsSource = function(itemsSource) { this.options.itemsSource = Array.isArray(itemsSource) ? itemsSource : []; this.refresh(); return this; };
-  Chart.prototype.setOptions = function(options) { this.options = mergeOptions(this.options, options || {}); if (Object.prototype.hasOwnProperty.call(options || {}, 'selectionSource')) this.bindSelectionSource(this.options.selectionSource); this.refresh(); return this; };
+  Chart.prototype.setOptions = function(options) {
+    this.options = mergeOptions(this.options, options || {});
+    this.options.locale = resolveChartLocale(this.options.locale);
+    if (Object.prototype.hasOwnProperty.call(options || {}, 'selectionSource')) {
+      this.bindSelectionSource(this.options.selectionSource);
+    }
+    if (Object.prototype.hasOwnProperty.call(options || {}, 'theme')) {
+      this.setTheme(this.options.theme);
+    }
+    this.refresh();
+    return this;
+  };
+  Chart.prototype.setLocale = function(locale, messages) {
+    var name = String(locale || 'en').trim().replace(/_/g, '-');
+    if (messages) {
+      DEFAULT_MESSAGES[name] = mergeOptions(DEFAULT_MESSAGES.en, messages);
+    }
+    this.options.locale = resolveChartLocale(name);
+    this.refresh();
+    return this;
+  };
+  Chart.prototype.setTheme = function(theme) {
+    var index;
+    this.options.theme = theme == null ? 'inherit' : String(theme);
+    this.theme = this.options.theme === 'inherit' ?
+      findChartTheme(this._themeSource) :
+      normalizeChartTheme(this.options.theme);
+    if (!this.root) return this;
+    for (index = 0; index < CHART_THEMES.length; index += 1) {
+      this.root.classList.remove('fg-theme-' + CHART_THEMES[index]);
+    }
+    if (this.options.theme !== 'inherit') {
+      this.root.classList.add('fg-theme-' + this.theme);
+    }
+    return this;
+  };
   Chart.prototype.setSeries = function(series) { this.options.series = Array.isArray(series) ? series : []; this.refresh(); return this; };
   Chart.prototype.setData = function(data) {
     data = data || {};
@@ -388,13 +460,17 @@ export function createChartFactory() {
     var content;
     if (!target || this.options.tooltip === false) { this.hideTooltip(); return; }
     content = { series: target.dataset.series, category: target.dataset.category, value: Number(target.dataset.value), percent: target.dataset.percent ? Number(target.dataset.percent) : null };
-    this.tooltip.textContent = typeof this.options.formatTooltip === 'function' ? this.options.formatTooltip(content) :
+    this.tooltipElement.textContent = typeof this.options.formatTooltip === 'function' ? this.options.formatTooltip(content) :
       this.options.tooltip && typeof this.options.tooltip.content === 'function' ? this.options.tooltip.content(content) :
       this.options.tooltip && typeof this.options.tooltip.content === 'string' ? formatTemplate(this.options.tooltip.content, content) :
       (content.series ? content.series + ' · ' : '') + content.category + ': ' + this.formatValue(content.value) + (content.percent == null ? '' : ' (' + content.percent.toFixed(1) + '%)');
-    this.tooltip.style.left = event.offsetX + 12 + 'px'; this.tooltip.style.top = event.offsetY + 12 + 'px'; this.tooltip.classList.add('fui-chart-tooltip-visible');
+    this.tooltipElement.style.left = event.offsetX + 12 + 'px'; this.tooltipElement.style.top = event.offsetY + 12 + 'px'; this.tooltipElement.classList.add('fui-chart-tooltip-visible');
   };
-  Chart.prototype.hideTooltip = function() { if (this.tooltip) this.tooltip.classList.remove('fui-chart-tooltip-visible'); };
+  Chart.prototype.hideTooltip = function() {
+    if (this.tooltipElement && this.tooltipElement.classList) {
+      this.tooltipElement.classList.remove('fui-chart-tooltip-visible');
+    }
+  };
   Chart.prototype.formatValue = function(value) { return typeof this.options.formatValue === 'function' ? String(this.options.formatValue(value)) : String(Math.round(value * 100) / 100); };
   Chart.prototype.getColor = function(index) { var colors = this.options.palette || this.options.colors; colors = colors && colors.length ? colors : DEFAULT_COLORS; return colors[index % colors.length]; };
   Chart.prototype.getMessage = function(key) { var locale = DEFAULT_MESSAGES[this.options.locale] || DEFAULT_MESSAGES.en; return locale[key] || DEFAULT_MESSAGES.en[key] || key; };
@@ -410,6 +486,7 @@ export function createChartFactory() {
     this.svg.removeEventListener('pointerleave', this._boundPointerLeave);
     this.svg.removeEventListener('click', this._boundClick);
     this.host.innerHTML = '';
+    this.tooltipElement = null;
   };
 
   function svgElement(name, attrs) { var element = document.createElementNS(SVG_NS, name); Object.keys(attrs || {}).forEach(function(key) { element.setAttribute(key, attrs[key]); }); return element; }
@@ -457,6 +534,10 @@ export function createChartFactory() {
     series = series.map(function(item) { return mergeOptions(item, { data: items.map(function(source) { return getBoundValue(source, item.binding); }) }); });
     return { categories: categories, series: series, pieLegend: [] };
   }
+  function resolveChartLocale(value) {
+    value = String(value || 'en').trim().replace(/_/g, '-');
+    return DEFAULT_MESSAGES[value] ? value : normalizeChartLocale(value);
+  }
   function getBoundValue(item, binding) { if (!binding) return item; return String(binding).split('.').reduce(function(value, key) { return value == null ? value : value[key]; }, item); }
   function getLegendPosition(legend) { if (legend === false || legend && String(legend.position).toLowerCase() === 'none') return 'None'; return legend && legend.position ? String(legend.position) : 'Bottom'; }
   function formatTemplate(template, data) { return template.replace(/\{(seriesName|series|x|category|y|value|name|percent)\}/g, function(_, key) { var map = { seriesName: 'series', x: 'category', y: 'value', name: 'category' }; var value = data[map[key] || key]; return value == null ? '' : value; }); }
@@ -469,6 +550,15 @@ export function createChartFactory() {
   }
 
   Chart.locales = DEFAULT_MESSAGES;
+  Chart.themes = CHART_THEMES.slice();
+  Chart.addLocale = function(name, messages) {
+    if (name && messages) {
+      DEFAULT_MESSAGES[String(name)] = mergeOptions(DEFAULT_MESSAGES.en, messages);
+    }
+    return Chart;
+  };
+  Chart.normalizeLocale = normalizeChartLocale;
+  Chart.normalizeTheme = normalizeChartTheme;
   Chart.ChartType = { Column: 'Column', Bar: 'Bar', Line: 'Line', Pie: 'Pie' };
   Chart.Position = { None: 'None', Left: 'Left', Top: 'Top', Right: 'Right', Bottom: 'Bottom' };
   Chart.SelectionMode = { None: 'None', Point: 'Point', Series: 'Series' };

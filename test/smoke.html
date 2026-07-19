@@ -27,19 +27,34 @@
   <div id="headerLayoutGrid" style="position: absolute; left: -10000px; width: 240px; height: 90px; min-height: 90px;"></div>
   <div id="cellTemplateGrid" style="position: absolute; left: -10000px; width: 420px; height: 90px; min-height: 90px;"></div>
   <input id="editBoxSmoke" value="FabUI" style="position: absolute; left: -10000px;">
-  <button id="buttonSmoke" type="button" style="position: absolute; left: -10000px;">Button</button>
+  <a id="buttonSmoke" href="javascript:void(0)" style="position: absolute; left: -10000px;">Button</a>
   <div id="calendarSmoke" style="position: absolute; left: -10000px;"></div>
+  <input id="checkBoxSmoke" type="checkbox" name="smoke" value="original">
+  <input id="switchButtonSmoke" type="checkbox" name="switch-smoke" value="original">
+  <div id="checkGroupSmoke" class="checkgroup-smoke-sentinel" style="position:absolute;left:-10000px">Original</div>
+  <form id="radioSmokeForm" style="position:absolute;left:-10000px">
+    <input id="radioButtonSmokeA" type="radio" name="radio-smoke" value="a">
+    <input id="radioButtonSmokeB" type="radio" name="radio-smoke" value="b">
+    <div id="radioGroupSmoke" class="radiogroup-smoke-sentinel">Original</div>
+  </form>
+  <input id="fileBoxSmoke" type="file" name="file-smoke" accept=".txt">
+  <form id="formSmoke" class="form-smoke-sentinel" style="position:absolute;left:-10000px">
+    <input id="formSmokeName" name="name" value="Initial" required>
+    <input id="formSmokeAgree" type="checkbox" name="agree" value="yes">
+  </form>
   <div id="tabsSmoke" style="position:absolute;left:-10000px;width:320px;height:180px">
     <div title="First">First body</div>
     <div title="Second" closable="true">Second body</div>
   </div>
   <div id="treeSmoke" style="position:absolute;left:-10000px;width:320px;height:180px"></div>
+  <div id="propertyGridSmoke" style="position:absolute;left:-10000px;width:320px;height:180px">Original</div>
+  <div id="diagramSmoke" style="position:absolute;left:-10000px;width:480px;height:320px">Original diagram</div>
   <button id="tooltipSmoke" type="button" title="Smoke title" style="position:absolute;left:20px;top:20px;opacity:0">Tooltip</button>
-  <button id="menuButtonSmoke" type="button" style="position:absolute;left:-10000px">Actions</button>
+  <a id="menuButtonSmoke" href="javascript:void(0)" style="position:absolute;left:-10000px">Actions</a>
   <div id="menuButtonMenuSmoke" style="width:160px" hidden>
     <div data-options="name:'action',iconCls:'icon-edit'">Action</div>
   </div>
-  <button id="splitButtonSmoke" type="button" style="position:absolute;left:-10000px">Split Action</button>
+  <a id="splitButtonSmoke" href="javascript:void(0)" style="position:absolute;left:-10000px">Split Action</a>
   <div id="splitButtonMenuSmoke" style="width:160px" hidden>
     <div data-options="name:'split-action',iconCls:'icon-save'">Split Action</div>
   </div>
@@ -2002,6 +2017,215 @@
                 calendarSelectCount === 1 &&
                 window.fabui.Control.getControl('#calendarSmoke') === fabCalendar;
               fabCalendar.destroy();
+              var checkBoxSmoke = document.getElementById('checkBoxSmoke');
+              var checkBoxChangeCount = 0;
+              var fabCheckBox = new window.fabui.CheckBox(checkBoxSmoke, {
+                label: 'Smoke:',
+                value: 'checked',
+                checked: true,
+                onChange: function() {
+                  checkBoxChangeCount += 1;
+                }
+              });
+              fabCheckBox.uncheck();
+              fabCheckBox.check();
+              var checkBoxCoreBundleWorks =
+                fabCheckBox.isChecked() === true &&
+                fabCheckBox.getValue() === 'checked' &&
+                checkBoxChangeCount === 2 &&
+                checkBoxSmoke.closest('.fui-checkbox').querySelector('.fui-checkbox-label').textContent === 'Smoke:' &&
+                window.fabui.Control.getControl(checkBoxSmoke) === fabCheckBox;
+              fabCheckBox.disable();
+              checkBoxCoreBundleWorks = checkBoxCoreBundleWorks && checkBoxSmoke.disabled;
+              fabCheckBox.destroy();
+              checkBoxCoreBundleWorks = checkBoxCoreBundleWorks &&
+                checkBoxSmoke.value === 'original' &&
+                !checkBoxSmoke.disabled &&
+                window.fabui.Control.getControl(checkBoxSmoke) === null;
+              var switchButtonSmoke = document.getElementById('switchButtonSmoke');
+              var switchButtonChangeCount = 0;
+              var fabSwitchButton = new window.fabui.SwitchButton(switchButtonSmoke, {
+                label: 'Smoke:',
+                value: 'enabled',
+                checked: true,
+                onChange: function() {
+                  switchButtonChangeCount += 1;
+                }
+              });
+              fabSwitchButton.uncheck();
+              fabSwitchButton.check();
+              var switchButtonCoreBundleWorks =
+                fabSwitchButton.isChecked() === true &&
+                fabSwitchButton.getValue() === 'enabled' &&
+                fabSwitchButton.options().height === 30 &&
+                switchButtonChangeCount === 2 &&
+                switchButtonSmoke.closest('.fui-switchbutton').querySelector('.fui-switchbutton-label').textContent === 'Smoke:' &&
+                window.fabui.Control.getControl(switchButtonSmoke) === fabSwitchButton;
+              fabSwitchButton.readonly(true);
+              switchButtonCoreBundleWorks = switchButtonCoreBundleWorks &&
+                switchButtonSmoke.readOnly;
+              fabSwitchButton.disable();
+              switchButtonCoreBundleWorks = switchButtonCoreBundleWorks &&
+                switchButtonSmoke.disabled;
+              fabSwitchButton.destroy();
+              switchButtonCoreBundleWorks = switchButtonCoreBundleWorks &&
+                switchButtonSmoke.value === 'original' &&
+                !switchButtonSmoke.disabled &&
+                !switchButtonSmoke.readOnly &&
+                window.fabui.Control.getControl(switchButtonSmoke) === null;
+              var checkGroupSmoke = document.getElementById('checkGroupSmoke');
+              var checkGroupMarkup = checkGroupSmoke.innerHTML;
+              var checkGroupChangeCount = 0;
+              var fabCheckGroup = new window.fabui.CheckGroup(checkGroupSmoke, {
+                name: 'group-smoke',
+                value: ['1'],
+                data: [
+                  { value: '1', label: 'One' },
+                  { value: '2', label: 'Two', disabled: true },
+                  { value: '3', label: 'Three' }
+                ],
+                onChange: function() {
+                  checkGroupChangeCount += 1;
+                }
+              });
+              fabCheckGroup.setValue(['1', '3']);
+              var checkGroupCoreBundleWorks =
+                fabCheckGroup.getValue().join(',') === '1,3' &&
+                checkGroupChangeCount === 1 &&
+                checkGroupSmoke.querySelectorAll('.fui-checkbox').length === 3 &&
+                checkGroupSmoke.querySelectorAll('input[name="group-smoke"]:checked').length === 2 &&
+                fabCheckGroup.getCheckBox('2').options().disabled === true &&
+                window.fabui.Control.getControl(checkGroupSmoke) === fabCheckGroup;
+              fabCheckGroup.destroy();
+              checkGroupCoreBundleWorks = checkGroupCoreBundleWorks &&
+                checkGroupSmoke.innerHTML === checkGroupMarkup &&
+                checkGroupSmoke.className === 'checkgroup-smoke-sentinel' &&
+                window.fabui.Control.getControl(checkGroupSmoke) === null;
+              var radioButtonSmokeA = document.getElementById('radioButtonSmokeA');
+              var radioButtonSmokeB = document.getElementById('radioButtonSmokeB');
+              var radioButtonChangeCount = 0;
+              var fabRadioButtonA = new window.fabui.RadioButton(radioButtonSmokeA, {
+                label: 'A:',
+                checked: true,
+                onChange: function() {
+                  radioButtonChangeCount += 1;
+                }
+              });
+              var fabRadioButtonB = new window.fabui.RadioButton(radioButtonSmokeB, {
+                label: 'B:',
+                onChange: function() {
+                  radioButtonChangeCount += 1;
+                }
+              });
+              fabRadioButtonB.check();
+              var radioButtonCoreBundleWorks =
+                fabRadioButtonA.isChecked() === false &&
+                fabRadioButtonB.isChecked() === true &&
+                radioButtonChangeCount === 2 &&
+                radioButtonSmokeA.closest('.fui-radiobutton').querySelector('.fui-radiobutton-label').textContent === 'A:' &&
+                window.fabui.Control.getControl(radioButtonSmokeA) === fabRadioButtonA;
+              fabRadioButtonB.destroy();
+              fabRadioButtonA.destroy();
+              radioButtonCoreBundleWorks = radioButtonCoreBundleWorks &&
+                window.fabui.Control.getControl(radioButtonSmokeA) === null;
+              var radioGroupSmoke = document.getElementById('radioGroupSmoke');
+              var radioGroupMarkup = radioGroupSmoke.innerHTML;
+              var radioGroupChangeCount = 0;
+              var fabRadioGroup = new window.fabui.RadioGroup(radioGroupSmoke, {
+                name: 'group-radio-smoke',
+                value: '1',
+                data: [
+                  { value: '1', label: 'One' },
+                  { value: '2', label: 'Two', disabled: true },
+                  { value: '3', label: 'Three' }
+                ],
+                onChange: function() {
+                  radioGroupChangeCount += 1;
+                }
+              });
+              fabRadioGroup.setValue('3');
+              var radioGroupCoreBundleWorks =
+                fabRadioGroup.getValue() === '3' &&
+                radioGroupChangeCount === 1 &&
+                radioGroupSmoke.querySelectorAll('.fui-radiobutton').length === 3 &&
+                radioGroupSmoke.querySelectorAll('input[name="group-radio-smoke"]:checked').length === 1 &&
+                fabRadioGroup.getRadioButton('2').options().disabled === true &&
+                window.fabui.Control.getControl(radioGroupSmoke) === fabRadioGroup;
+              fabRadioGroup.destroy();
+              radioGroupCoreBundleWorks = radioGroupCoreBundleWorks &&
+                radioGroupSmoke.innerHTML === radioGroupMarkup &&
+                radioGroupSmoke.className === 'radiogroup-smoke-sentinel' &&
+                window.fabui.Control.getControl(radioGroupSmoke) === null;
+              var fileBoxSmoke = document.getElementById('fileBoxSmoke');
+              var fileBoxChangeCount = 0;
+              var fabFileBox = new window.fabui.FileBox(fileBoxSmoke, {
+                label: 'File:',
+                multiple: true,
+                separator: ' | ',
+                onChange: function() {
+                  fileBoxChangeCount += 1;
+                }
+              });
+              var fileTransfer = new DataTransfer();
+              fileTransfer.items.add(new File(['smoke'], 'smoke.txt', {
+                type: 'text/plain'
+              }));
+              fileBoxSmoke.files = fileTransfer.files;
+              fileBoxSmoke.dispatchEvent(new Event('change', { bubbles: true }));
+              var fileBoxCoreBundleWorks =
+                fabFileBox.files().length === 1 &&
+                fabFileBox.getValue() === 'smoke.txt' &&
+                fileBoxChangeCount === 1 &&
+                fileBoxSmoke.closest('.fui-filebox').querySelector('.fui-textbox-label').textContent === 'File:' &&
+                window.fabui.Control.getControl(fileBoxSmoke) === fabFileBox;
+              fabFileBox.clear();
+              fileBoxCoreBundleWorks = fileBoxCoreBundleWorks &&
+                fabFileBox.files().length === 0 &&
+                fileBoxChangeCount === 2;
+              fabFileBox.destroy();
+              fileBoxCoreBundleWorks = fileBoxCoreBundleWorks &&
+                fileBoxSmoke.accept === '.txt' &&
+                fileBoxSmoke.multiple === false &&
+                window.fabui.Control.getControl(fileBoxSmoke) === null;
+              var formSmoke = document.getElementById('formSmoke');
+              var formSmokeName = document.getElementById('formSmokeName');
+              var formSmokeAgree = document.getElementById('formSmokeAgree');
+              var formChangeCount = 0;
+              var fabForm = new window.fabui.Form(formSmoke, {
+                onChange: function() {
+                  formChangeCount += 1;
+                }
+              });
+              fabForm.load({
+                name: 'Loaded',
+                agree: true
+              });
+              var formCoreBundleWorks =
+                formSmokeName.value === 'Loaded' &&
+                formSmokeAgree.checked === true &&
+                fabForm.validate() === true &&
+                fabForm.isDirty() === false &&
+                window.fabui.Control.getControl(formSmoke) === fabForm;
+              formSmokeName.value = 'Changed';
+              formSmokeName.dispatchEvent(new Event('change', { bubbles: true }));
+              formCoreBundleWorks = formCoreBundleWorks &&
+                fabForm.isDirty('name') === true &&
+                formChangeCount === 3;
+              fabForm.clear();
+              formCoreBundleWorks = formCoreBundleWorks &&
+                formSmokeName.value === '' &&
+                formSmokeAgree.checked === false &&
+                fabForm.isDirty() === true;
+              fabForm.reset();
+              formCoreBundleWorks = formCoreBundleWorks &&
+                formSmokeName.value === 'Initial' &&
+                formSmokeAgree.checked === false &&
+                fabForm.isDirty() === false;
+              fabForm.destroy();
+              formCoreBundleWorks = formCoreBundleWorks &&
+                formSmoke.className === 'form-smoke-sentinel' &&
+                !formSmoke.hasAttribute('novalidate') &&
+                window.fabui.Control.getControl(formSmoke) === null;
               var tabsSelectTitle = '';
               var tabsInitialMarkup = document.getElementById('tabsSmoke').innerHTML;
               var fabTabs = new window.fabui.Tabs('#tabsSmoke', {
@@ -2058,6 +2282,77 @@
               fabTree.destroy();
               treeCoreBundleWorks = treeCoreBundleWorks &&
                 document.getElementById('treeSmoke').innerHTML === '';
+              var propertyGridSmokeHost = document.getElementById('propertyGridSmoke');
+              var propertyGridSmokeMarkup = propertyGridSmokeHost.innerHTML;
+              var fabPropertyGrid = new window.fabui.PropertyGrid(propertyGridSmokeHost, {
+                showGroup: true,
+                data: [{
+                  name: 'Name',
+                  value: 'Bill',
+                  group: 'Identity',
+                  editor: 'text'
+                }, {
+                  name: 'Age',
+                  value: 40,
+                  group: 'Identity',
+                  editor: 'number'
+                }, {
+                  name: 'Buyer',
+                  value: false,
+                  group: 'Marketing',
+                  editor: 'boolean'
+                }]
+              });
+              fabPropertyGrid.collapseGroup(0);
+              var propertyGridCoreBundleWorks =
+                fabPropertyGrid.groups().length === 2 &&
+                fabPropertyGrid.groups()[0].collapsed === true &&
+                propertyGridSmokeHost.querySelectorAll('.fui-propertygrid-row').length === 1 &&
+                window.fabui.Control.getControl(propertyGridSmokeHost) === fabPropertyGrid;
+              fabPropertyGrid.expandGroup(0);
+              fabPropertyGrid.selectRow(1).beginEdit(1);
+              var propertyGridEditor = fabPropertyGrid.getEditor(1);
+              propertyGridEditor.actions.setValue(41, true);
+              fabPropertyGrid.endEdit(1);
+              propertyGridCoreBundleWorks = propertyGridCoreBundleWorks &&
+                propertyGridEditor.actions instanceof window.fabui.EditBox &&
+                fabPropertyGrid.getRows()[1].value === 41 &&
+                fabPropertyGrid.getChanges('updated').length === 1;
+              fabPropertyGrid.destroy();
+              propertyGridCoreBundleWorks = propertyGridCoreBundleWorks &&
+                propertyGridSmokeHost.innerHTML === propertyGridSmokeMarkup &&
+                window.fabui.Control.getControl(propertyGridSmokeHost) === null;
+              var diagramSmokeHost = document.getElementById('diagramSmoke');
+              var diagramSmokeMarkup = diagramSmokeHost.innerHTML;
+              var fabDiagram = new window.fabui.Diagram(diagramSmokeHost, {
+                width: 480,
+                height: 320,
+                nodes: [
+                  { id: 'start', type: 'terminator', text: 'Start', x: 40, y: 40 },
+                  { id: 'end', type: 'process', text: 'End', x: 280, y: 40 }
+                ],
+                connectors: [
+                  { id: 'flow', from: 'start', to: 'end' }
+                ]
+              });
+              var diagramCoreBundleWorks =
+                fabDiagram.getData().nodes.length === 2 &&
+                fabDiagram.getData().connectors.length === 1 &&
+                diagramSmokeHost.querySelectorAll('.fui-diagram-node').length === 2 &&
+                diagramSmokeHost.querySelectorAll('.fui-diagram-connector').length === 1 &&
+                fabDiagram.getSvg().indexOf('<svg') >= 0 &&
+                window.fabui.Control.getControl(diagramSmokeHost) === fabDiagram;
+              fabDiagram.addNode({ id: 'extra', text: 'Extra' });
+              diagramCoreBundleWorks = diagramCoreBundleWorks &&
+                fabDiagram.canUndo() &&
+                fabDiagram.getData().nodes.length === 3;
+              fabDiagram.undo();
+              diagramCoreBundleWorks = diagramCoreBundleWorks &&
+                fabDiagram.getData().nodes.length === 2;
+              fabDiagram.destroy();
+              diagramCoreBundleWorks = diagramCoreBundleWorks &&
+                diagramSmokeHost.innerHTML === diagramSmokeMarkup &&
+                window.fabui.Control.getControl(diagramSmokeHost) === null;
               var tooltipShowCount = 0;
               var tooltipHideCount = 0;
               var fabTooltip = new window.fabui.Tooltip('#tooltipSmoke', {
@@ -2319,10 +2614,28 @@
                 buttonCoreBundleWorks: buttonCoreBundleWorks,
                 hasCalendar: !!window.fabui && typeof window.fabui.Calendar === 'function',
                 calendarCoreBundleWorks: calendarCoreBundleWorks,
+                hasCheckBox: !!window.fabui && typeof window.fabui.CheckBox === 'function',
+                checkBoxCoreBundleWorks: checkBoxCoreBundleWorks,
+                hasSwitchButton: !!window.fabui && typeof window.fabui.SwitchButton === 'function',
+                switchButtonCoreBundleWorks: switchButtonCoreBundleWorks,
+                hasCheckGroup: !!window.fabui && typeof window.fabui.CheckGroup === 'function',
+                checkGroupCoreBundleWorks: checkGroupCoreBundleWorks,
+                hasRadioButton: !!window.fabui && typeof window.fabui.RadioButton === 'function',
+                radioButtonCoreBundleWorks: radioButtonCoreBundleWorks,
+                hasRadioGroup: !!window.fabui && typeof window.fabui.RadioGroup === 'function',
+                radioGroupCoreBundleWorks: radioGroupCoreBundleWorks,
+                hasFileBox: !!window.fabui && typeof window.fabui.FileBox === 'function',
+                fileBoxCoreBundleWorks: fileBoxCoreBundleWorks,
+                hasForm: !!window.fabui && typeof window.fabui.Form === 'function',
+                formCoreBundleWorks: formCoreBundleWorks,
                 hasTabs: !!window.fabui && typeof window.fabui.Tabs === 'function',
                 tabsCoreBundleWorks: tabsCoreBundleWorks,
                 hasTree: !!window.fabui && typeof window.fabui.Tree === 'function',
                 treeCoreBundleWorks: treeCoreBundleWorks,
+                hasPropertyGrid: !!window.fabui && typeof window.fabui.PropertyGrid === 'function',
+                propertyGridCoreBundleWorks: propertyGridCoreBundleWorks,
+                hasDiagram: !!window.fabui && typeof window.fabui.Diagram === 'function',
+                diagramCoreBundleWorks: diagramCoreBundleWorks,
                 hasTooltip: !!window.fabui && typeof window.fabui.Tooltip === 'function',
                 tooltipCoreBundleWorks: tooltipCoreBundleWorks,
                 hasMenu: !!window.fabui && typeof window.fabui.Menu === 'function',

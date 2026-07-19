@@ -124,8 +124,10 @@ export function normalizeMenuAlign(value) {
 }
 
 export function normalizeMenuLocale(value) {
-  value = String(value || 'en');
-  return value === 'zh-TW' || value === 'zh-CN' ? value : 'en';
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
 }
 
 function findMenuTheme(element) {

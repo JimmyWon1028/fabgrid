@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>fabui.EditBox 開發版 Demo</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260718-tabs-v1">
+  <link rel="stylesheet" href="../src/fabui.css?v=20260719-i18n-theme-audit-v1">
   <style>
     body {
       max-width: 720px;
@@ -40,9 +40,8 @@
       min-height: 32px;
     }
 
-    .actions button {
+    .actions > .fui-button {
       margin-right: 8px;
-      padding: 7px 14px;
     }
 
     pre {
@@ -59,7 +58,7 @@
   <p class="intro">使用單一 <code>fabui.EditBox</code> class，透過 editor 選項切換文字、數字、日期、年月、清單與顏色編輯。</p>
 
   <div class="form-row">
-    <label for="calendar-theme">Calendar 主題</label>
+    <label for="calendar-theme">元件主題</label>
     <select id="calendar-theme">
       <option value="default" selected>Default</option>
       <option value="bootstrap">Bootstrap</option>
@@ -87,17 +86,18 @@
   <div class="form-row"><label for="edit-color">顏色</label><input id="edit-color" value="teal"></div>
 
   <div class="actions">
-    <button id="clear-all" type="button">全部清除</button>
-    <button id="reset-all" type="button">還原初始值</button>
+    <a data-fabui-button href="javascript:void(0)" id="clear-all">全部清除</a>
+    <a data-fabui-button href="javascript:void(0)" id="reset-all">還原初始值</a>
   </div>
 
   <pre id="editbox-output" aria-live="polite"></pre>
 
-  <script src="./js/editbox-demo.js?v=20260718-lunar-default-off-v1"></script>
+  <script src="./js/editbox-demo.js?v=20260719-i18n-theme-audit-v1"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260718-final-audit-v1';
+    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
 
     window.mountFabUIEditBoxDemo(fabui);
   </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
 </body>
 </html>

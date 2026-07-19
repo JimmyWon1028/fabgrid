@@ -209,9 +209,10 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
   };
 
   function normalizeLocale(value) {
+    value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh(?:-|_)?tw/i.test(value || '')) return 'zh-TW';
-    if (/^zh/i.test(value || '')) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
     return 'en';
   }
 
@@ -727,6 +728,7 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
   FabLayout.prototype._startSplit = function(event, region) {
     var record = this.regions[region];
     var rect;
+    var splitter;
     if (
       event.button !== 0 ||
       !record ||
@@ -740,8 +742,13 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      size: region === 'north' || region === 'south' ? rect.height : rect.width
+      size: region === 'north' || region === 'south' ? rect.height : rect.width,
+      pendingSize: region === 'north' || region === 'south' ?
+        rect.height :
+        rect.width
     };
+    splitter = this._splitters[region];
+    if (splitter) splitter.classList.add('fui-layout-splitter-dragging');
     this.hostElement.classList.add('fui-layout-resizing');
     this._bindDocumentSplit();
   };
@@ -769,21 +776,31 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
     var record = this.regions[region];
     var vertical = region === 'north' || region === 'south';
     if (!record) return;
-    size = clampLayoutValue(
-      size,
-      vertical ? record.options.minHeight : record.options.minWidth,
-      vertical ? record.options.maxHeight : record.options.maxWidth
-    );
+    size = this._normalizeRegionSize(region, size);
     if (vertical) record.options.height = size;
     else record.options.width = size;
     this._layoutRegions();
   };
 
+  FabLayout.prototype._normalizeRegionSize = function(region, size) {
+    var record = this.regions[region];
+    var vertical = region === 'north' || region === 'south';
+    if (!record) return 0;
+    return clampLayoutValue(
+      size,
+      vertical ? record.options.minHeight : record.options.minWidth,
+      vertical ? record.options.maxHeight : record.options.maxWidth
+    );
+  };
+
   FabLayout.prototype._handleSplitMove = function(event) {
     var state = this._interaction;
     var delta;
+    var offset;
     var size;
+    var splitter;
     if (!state || event.pointerId !== state.pointerId) return;
+    event.preventDefault();
     if (state.region === 'north' || state.region === 'south') {
       delta = event.clientY - state.startY;
       size = state.size + (state.region === 'north' ? delta : -delta);
@@ -791,17 +808,40 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
       delta = event.clientX - state.startX;
       size = state.size + (state.region === 'west' ? delta : -delta);
     }
-    this._setRegionSize(state.region, size);
+    size = this._normalizeRegionSize(state.region, size);
+    offset = size - state.size;
+    if (state.region === 'south' || state.region === 'east') offset *= -1;
+    state.pendingSize = size;
+    splitter = this._splitters[state.region];
+    if (splitter) {
+      splitter.style.transform =
+        state.region === 'north' || state.region === 'south' ?
+          'translateY(' + offset + 'px)' :
+          'translateX(' + offset + 'px)';
+    }
   };
 
   FabLayout.prototype._finishSplit = function(event) {
     var state = this._interaction;
+    var cancelled;
     var record;
+    var splitter;
     if (!state || event.pointerId !== state.pointerId) return;
+    cancelled = event.type === 'pointercancel';
+    if (!cancelled) this._handleSplitMove(event);
     record = this.regions[state.region];
+    splitter = this._splitters[state.region];
+    if (splitter) {
+      splitter.classList.remove('fui-layout-splitter-dragging');
+      splitter.style.removeProperty('transform');
+    }
     this._interaction = null;
     this.hostElement.classList.remove('fui-layout-resizing');
     this._unbindDocumentSplit();
+    if (cancelled || !record) return;
+    if (Math.abs(state.pendingSize - state.size) > 0.01) {
+      this._setRegionSize(state.region, state.pendingSize);
+    }
     this._fire('RegionResize', {
       region: state.region,
       width: record.panel.panel().offsetWidth,
@@ -1124,6 +1164,8 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
     collapsed: false
   };
   FabLayout.locales = localePacks;
+  FabLayout.themes = LAYOUT_THEMES.slice();
+  FabLayout.normalizeLocale = normalizeLocale;
   FabLayout.getControl = function(element) {
     element = resolveLayoutElement(element);
     return element && element.__fabuiLayout ? element.__fabuiLayout : null;

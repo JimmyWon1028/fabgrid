@@ -1,0 +1,8 @@
+{
+  "name": "FabUI Form",
+  "email": "form@example.com",
+  "subject": "Load Form Data",
+  "message": "這筆資料由遠端 JSON 載入。",
+  "language": "zh-TW",
+  "newsletter": true
+}

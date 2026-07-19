@@ -1298,5 +1298,6 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
   });
 
   PivotGrid.PivotEngine = PivotEngine;
+  PivotGrid.themes = (FabGrid.themes || []).slice();
   return PivotGrid;
 }

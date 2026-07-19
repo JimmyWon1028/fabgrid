@@ -1,3 +1,10 @@
+var PIVOT_WORKSPACE_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
 function resolvePivotWorkspaceHostElement(element) {
   if (typeof element === 'string') {
     if (typeof document === 'undefined') {
@@ -10,6 +17,35 @@ function resolvePivotWorkspaceHostElement(element) {
     }
   }
   return element && element.nodeType === 1 ? element : null;
+}
+
+export function normalizePivotWorkspaceTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return PIVOT_WORKSPACE_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function findPivotWorkspaceTheme(element) {
+  var current = resolvePivotWorkspaceHostElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < PIVOT_WORKSPACE_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + PIVOT_WORKSPACE_THEMES[index])) {
+        return PIVOT_WORKSPACE_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function applyPivotWorkspaceTheme(element, theme) {
+  var index;
+  if (!element || !element.classList) return;
+  for (index = 0; index < PIVOT_WORKSPACE_THEMES.length; index += 1) {
+    element.classList.remove('fg-theme-' + PIVOT_WORKSPACE_THEMES[index]);
+  }
+  if (theme) element.classList.add('fg-theme-' + theme);
 }
 
 function assign(target, source) {
@@ -132,6 +168,7 @@ export function normalizePivotWorkspaceOptions(options) {
   return assign({
     locale: 'en',
     messages: null,
+    theme: 'inherit',
     layout: 'Auto',
     compactBreakpoint: 1050,
     splitterSize: 7,
@@ -264,6 +301,7 @@ export function createPivotWorkspaceFactory(
     Control.call(this);
     this.hostElement = host;
     this.root = host;
+    this._themeSource = host.parentElement || host;
     this.options = normalizePivotWorkspaceOptions(options);
     this.options.layout = normalizeLayout(this.options.layout);
     this.locale = this.options.locale || 'en';
@@ -291,6 +329,7 @@ export function createPivotWorkspaceFactory(
     this._engine = source instanceof PivotEngine ? source : new PivotEngine(getEngineOptions(this.options));
     this._createDom();
     this._createChildren();
+    this.setTheme(this.options.theme);
     this._createControls();
     this._bindEngineEvents();
     this._bindEvents();
@@ -996,6 +1035,21 @@ export function createPivotWorkspaceFactory(
     return this;
   };
 
+  PivotWorkspace.prototype.setTheme = function(theme) {
+    this.options.theme = theme == null ? 'inherit' : String(theme);
+    this.theme = this.options.theme === 'inherit' ?
+      findPivotWorkspaceTheme(this._themeSource) :
+      normalizePivotWorkspaceTheme(this.options.theme);
+    applyPivotWorkspaceTheme(this.root, this.theme);
+    applyPivotWorkspaceTheme(this.panel && (this.panel.root || this.panel.hostElement), this.theme);
+    applyPivotWorkspaceTheme(this.grid && (this.grid.root || this.grid.hostElement), this.theme);
+    applyPivotWorkspaceTheme(this.chart && (this.chart.root || this.chart.hostElement), this.theme);
+    if (this.chart && this.chart.chart && typeof this.chart.chart.setTheme === 'function') {
+      this.chart.chart.setTheme('inherit');
+    }
+    return this;
+  };
+
   PivotWorkspace.prototype.setEngine = function(engine) {
     if (!(engine instanceof PivotEngine)) {
       throw new TypeError('PivotWorkspace engine must be a fabui.pivot.PivotEngine instance.');
@@ -1068,6 +1122,7 @@ export function createPivotWorkspaceFactory(
     }
     this.removeEventListener();
     unregisterControl(this.hostElement, this);
+    applyPivotWorkspaceTheme(this.hostElement, null);
     this.hostElement.innerHTML = '';
     this.hostElement.classList.remove(
       'fg-root',
@@ -1134,5 +1189,7 @@ export function createPivotWorkspaceFactory(
     }
   });
 
+  PivotWorkspace.themes = PIVOT_WORKSPACE_THEMES.slice();
+  PivotWorkspace.normalizeTheme = normalizePivotWorkspaceTheme;
   return PivotWorkspace;
 }

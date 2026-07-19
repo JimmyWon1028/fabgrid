@@ -704,5 +704,6 @@ export function createPivotChartFactory(Control, registerControl, unregisterCont
   });
 
   PivotChart.ChartType = Chart.ChartType;
+  PivotChart.themes = (Chart.themes || FabGrid.themes || []).slice();
   return PivotChart;
 }

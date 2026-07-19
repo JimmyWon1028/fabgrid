@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fabui.FileBox 開發版 Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260719-components-theme-v2">
+  <style>
+    body {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+      background: var(--fg-cell-bg, #fff);
+      color: var(--fg-cell-text, #333);
+      font: 14px Arial, sans-serif;
+    }
+    h1 { margin: 0 0 8px; }
+    h2 { margin: 28px 0 12px; font-size: 18px; }
+    .demo-toolbar,
+    .filebox-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .demo-toolbar {
+      margin: 18px 0;
+      padding: 12px;
+      border: 1px solid var(--fg-border, #ddd);
+      background: var(--fg-header-bg, #fafafa);
+    }
+    .filebox-panel {
+      display: grid;
+      max-width: 620px;
+      gap: 18px;
+      padding: 22px;
+      border: 1px solid var(--fg-border, #ddd);
+      background: var(--fg-cell-bg, #fff);
+    }
+    #filebox-status {
+      min-height: 20px;
+      margin: 12px 0;
+      color: var(--fg-muted-text, #666);
+    }
+    .filebox-actions { margin-top: 16px; }
+  </style>
+</head>
+<body class="fg-theme-default">
+  <h1>fabui.FileBox 開發版 Demo</h1>
+  <p>參考 jQuery EasyUI FileBox／Default theme，沿用 EditBox 外觀並保留原生 file input、FileList 與表單上傳語意。</p>
+
+  <div class="demo-toolbar">
+    <label for="filebox-theme">主題</label>
+    <select id="filebox-theme">
+      <option value="default" selected>Default</option>
+      <option value="bootstrap">Bootstrap</option>
+      <option value="cupertino">Cupertino</option>
+      <option value="material">Material</option>
+      <option value="material-blue">Material Blue</option>
+      <option value="material-teal">Material Teal</option>
+      <option value="metro">Metro</option>
+      <option value="metro-blue">Metro Blue</option>
+      <option value="metro-gray">Metro Gray</option>
+      <option value="metro-green">Metro Green</option>
+      <option value="metro-orange">Metro Orange</option>
+      <option value="metro-red">Metro Red</option>
+      <option value="sunny">Sunny</option>
+      <option value="pepper-grinder">Pepper Grinder</option>
+      <option value="dark-hive">Dark Hive</option>
+      <option value="black">Black</option>
+    </select>
+    <label for="filebox-locale">語系</label>
+    <select id="filebox-locale">
+      <option value="zh-TW" selected>繁體中文</option>
+      <option value="zh-CN">簡體中文</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+  <div id="filebox-status" aria-live="polite"></div>
+
+  <form id="filebox-form" enctype="multipart/form-data">
+    <h2>Basic／Multiple Files</h2>
+    <div class="filebox-panel">
+      <input id="filebox-basic" type="file" name="document">
+      <input id="filebox-multiple" type="file" name="images">
+      <a data-fabui-button href="javascript:void(0)" data-button-type="submit">檢查選取檔案</a>
+    </div>
+
+    <h2>Button Align／Disabled／Runtime API</h2>
+    <div class="filebox-panel">
+      <input id="filebox-left" type="file">
+      <input id="filebox-disabled" type="file">
+      <input id="filebox-dynamic" type="file">
+      <div class="filebox-actions">
+        <a data-fabui-button href="javascript:void(0)" id="filebox-clear">Clear</a>
+        <a data-fabui-button href="javascript:void(0)" id="filebox-toggle">Enable／Disable</a>
+        <a data-fabui-button href="javascript:void(0)" id="filebox-reset">Reset Form</a>
+      </div>
+    </div>
+  </form>
+
+  <script src="./js/filebox-demo.js?v=20260719-filebox-v1"></script>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
+
+    window.mountFabUIFileBoxDemo(fabui);
+  </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
+</body>
+</html>

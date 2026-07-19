@@ -197,7 +197,7 @@
   line-height: 28px;
   text-align: center;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: default;
 }
 
 .fui-tabs-tab:hover {
@@ -218,15 +218,15 @@
   cursor: default;
 }
 
-.fui-tabs-draggable .fui-tabs-tab:not(.fui-tabs-disabled) {
+.fui-tabs-draggable .fui-tabs-tab:not(.fui-tabs-disabled) .fui-tabs-title {
   cursor: grab;
 }
 
-.fui-tabs-dragging .fui-tabs-tab:not(.fui-tabs-tab-dragging) {
+.fui-tabs-dragging .fui-tabs-title {
   cursor: grabbing;
 }
 
-.fui-tabs-tab-dragging {
+.fui-tabs-tab-dragging .fui-tabs-title {
   cursor: grabbing !important;
 }
 

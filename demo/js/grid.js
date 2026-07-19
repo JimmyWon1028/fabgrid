@@ -93,6 +93,8 @@
   var columns = createColumns(DEMO_COLUMN_COUNT);
   var gridShell = document.querySelector(".grid-shell");
   var fullscreenButton = document.getElementById("fullscreenButton");
+  var toolbarIconOnly =
+    document.body.getAttribute("data-grid-toolbar-icon-only") === "true";
   var stats = {
     datasetSummary: document.getElementById("datasetSummary"),
     rowCount: document.getElementById("rowCount"),
@@ -441,6 +443,7 @@
       text = getDemoText("fullscreenUnavailable");
     }
     labels.fullscreen.disabled = !available;
+    labels.fullscreen.textContent = toolbarIconOnly ? "" : text;
     labels.fullscreen.setAttribute("aria-label", text);
     labels.fullscreen.setAttribute("title", text);
     labels.fullscreen.setAttribute("aria-pressed", active ? "true" : "false");
@@ -821,16 +824,16 @@
     footer = document.createElement("div");
     footer.className = "lookup-popup-footer";
 
-    clearButton = document.createElement("button");
-    clearButton.type = "button";
+    clearButton = document.createElement("a");
+    clearButton.href = "javascript:void(0)";
     clearButton.className = "lookup-popup-button icon-clear";
 
-    cancelButton = document.createElement("button");
-    cancelButton.type = "button";
+    cancelButton = document.createElement("a");
+    cancelButton.href = "javascript:void(0)";
     cancelButton.className = "lookup-popup-button icon-remove";
 
-    okButton = document.createElement("button");
-    okButton.type = "button";
+    okButton = document.createElement("a");
+    okButton.href = "javascript:void(0)";
     okButton.className = "lookup-popup-button icon-check";
 
     footer.appendChild(clearButton);
@@ -1482,8 +1485,14 @@
     updateGroupRowsOptions();
     labels.multiSelect.textContent = getDemoText("multiSelect");
     labels.editMode.textContent = getDemoText("editMode");
+    labels.exportCsv.textContent = toolbarIconOnly
+      ? ""
+      : getDemoText("exportCsv");
     labels.exportCsv.setAttribute("aria-label", getDemoText("exportCsv"));
     labels.exportCsv.setAttribute("title", getDemoText("exportCsv"));
+    labels.exportExcel.textContent = toolbarIconOnly
+      ? ""
+      : getDemoText("exportExcel");
     labels.exportExcel.setAttribute("aria-label", getDemoText("exportExcel"));
     labels.exportExcel.setAttribute("title", getDemoText("exportExcel"));
     updateFullscreenButton();

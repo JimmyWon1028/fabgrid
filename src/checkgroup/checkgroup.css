@@ -1,0 +1,40 @@
+.fui-checkgroup,
+.fui-checkgroup * {
+  box-sizing: border-box;
+}
+
+.fui-checkgroup {
+  --fui-checkgroup-text: var(--fui-control-label-text, var(--fg-cell-text, #000));
+  --fui-checkgroup-disabled-opacity: 0.6;
+  display: flex;
+  max-width: 100%;
+  color: var(--fui-checkgroup-text);
+  font: 14px Arial, Helvetica, sans-serif;
+}
+
+.fui-checkgroup-h {
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 0 14px;
+}
+
+.fui-checkgroup-v {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.fui-checkgroup-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+}
+
+.fui-checkgroup-disabled {
+  opacity: var(--fui-checkgroup-disabled-opacity);
+}
+
+@media (forced-colors: active) {
+  .fui-checkgroup-disabled {
+    opacity: 1;
+  }
+}

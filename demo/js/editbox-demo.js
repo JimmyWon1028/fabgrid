@@ -11,7 +11,7 @@
     var themeSelect = document.getElementById('calendar-theme');
     var render;
 
-    function applyCalendarTheme(theme) {
+    function applyTheme(theme) {
       Array.prototype.forEach.call(themeSelect.options, function(option) {
         document.body.classList.remove('fg-theme-' + option.value);
       });
@@ -22,7 +22,7 @@
       throw new Error('fabui.EditBox class is unavailable.');
     }
 
-    applyCalendarTheme(themeSelect.value);
+    applyTheme(themeSelect.value);
 
     boxes.name = new fabui.EditBox('#edit-name', {
       editor: 'text',
@@ -64,6 +64,7 @@
     boxes.status = new fabui.EditBox('#edit-status', {
       editor: 'combo',
       width: 280,
+      locale: 'zh-TW',
       editable: true,
       limitToList: true,
       showValueInList: true,
@@ -82,7 +83,7 @@
 
     render = function() {
       output.textContent = [
-        'Calendar 主題：' + themeSelect.value,
+        '元件主題：' + themeSelect.value,
         '姓名：' + text(boxes.name.getValue()),
         '金額：' + text(boxes.amount.getValue()),
         '日期：' + text(boxes.date.getValue()),
@@ -111,7 +112,7 @@
     });
 
     themeSelect.addEventListener('change', function() {
-      applyCalendarTheme(themeSelect.value);
+      applyTheme(themeSelect.value);
       render();
     });
 

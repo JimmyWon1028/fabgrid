@@ -14,7 +14,7 @@
         <h1>FabGrid Grid + Grid 拖曳</h1>
         <p>左右兩側都是一般 Grid，可在各自 Grid 內上下重排，也可拖曳到另一個 Grid。</p>
       </div>
-      <button id="resetGridGridDemo" type="button">重設資料</button>
+      <a data-fabui-button href="javascript:void(0)" id="resetGridGridDemo">重設資料</a>
     </header>
 
     <section class="grid-grid-layout">
@@ -52,11 +52,12 @@
 
   <script src="./js/grid-grid-data.js?v=20260715-grid-grid-drag-v1"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260718-row-drop-width-v1';
+    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
 
     window.fabui = fabui;
     await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260716-excel-filter-escape-v1');
     await import('./js/grid-grid.js?v=20260715-grid-grid-drag-v1');
   </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
 </body>
 </html>

@@ -10,7 +10,7 @@ SplitButton 分成主區域與右側箭頭區：
 ## 建立 SplitButton
 
 ```html
-<button id="editButton" type="button">編輯</button>
+<a id="editButton" href="javascript:void(0)">編輯</a>
 <div id="editMenu" style="width:160px" hidden>
   <div data-options="iconCls:'icon-undo'">復原</div>
   <div data-options="iconCls:'icon-redo'">重做</div>
@@ -53,11 +53,11 @@ SplitButton 沿用 Button／MenuButton 的文字、尺寸、disabled、plain、o
 Markup 可使用安全的 EasyUI 風格 `data-options`：
 
 ```html
-<button
+<a
   id="editButton"
   data-options="menu:'#editMenu',iconCls:'icon-edit',menuAlign:'right'">
   編輯
-</button>
+</a>
 ```
 
 `data-options` 只解析資料值，不執行 function 或任意程式碼。
@@ -66,7 +66,7 @@ Markup 可使用安全的 EasyUI 風格 `data-options`：
 
 | 名稱 | 說明 |
 | --- | --- |
-| `hostElement` | 原始 `<a>` 或 `<button>`。 |
+| `hostElement` | 原始 `<a>`。 |
 | `menuButton` | 內部共用的 `fabui.MenuButton` instance。 |
 | `button` | MenuButton 內部的 `fabui.Button` instance。 |
 | `menu` | MenuButton 內部共用或外部傳入的 `fabui.Menu` instance。 |

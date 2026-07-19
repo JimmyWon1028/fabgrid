@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CheckBox source smoke</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260719-checkbox-v1">
+</head>
+<body class="fg-theme-default">
+  <form id="checkbox-smoke-form">
+    <input id="checkbox-smoke" class="original-checkbox" type="checkbox" name="feature" value="original">
+  </form>
+  <pre id="result">{"complete":false}</pre>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260719-checkbox-v1';
+
+    var input = document.getElementById('checkbox-smoke');
+    var form = document.getElementById('checkbox-smoke-form');
+    var result = document.getElementById('result');
+    var changes = 0;
+    var checks = {};
+    var checkbox;
+
+    try {
+      checkbox = new fabui.CheckBox(input, {
+        label: 'Feature:',
+        labelPosition: 'before',
+        value: 'enabled',
+        checked: true,
+        locale: 'zh-TW',
+        onChange: function() {
+          changes += 1;
+        }
+      });
+      checks.published = typeof fabui.CheckBox === 'function';
+      checks.registered = fabui.Control.getControl(input) === checkbox;
+      checks.nativeInput = input.type === 'checkbox' &&
+        input.closest('.fui-checkbox') &&
+        input.labels.length === 1;
+      checks.initial = checkbox.isChecked() === true &&
+        checkbox.getValue() === 'enabled' &&
+        new FormData(form).get('feature') === 'enabled';
+      checkbox.uncheck().check();
+      checks.changes = changes === 2 && checkbox.isChecked() === true;
+      checkbox.disable();
+      checks.disabled = input.disabled === true &&
+        input.closest('.fui-checkbox').classList.contains('fui-checkbox-disabled');
+      checkbox.enable().clear();
+      checks.clear = input.disabled === false && checkbox.isChecked() === false;
+      checkbox.reset();
+      checks.reset = checkbox.isChecked() === true && checkbox.getValue() === 'enabled';
+      checkbox.setOptions({
+        label: 'Updated',
+        labelPosition: 'after',
+        labelAlign: 'right',
+        width: 28,
+        height: 28
+      });
+      checks.runtime = input.closest('.fui-checkbox').classList.contains('fui-checkbox-label-after') &&
+        input.closest('.fui-checkbox').querySelector('.fui-checkbox-label').textContent === 'Updated' &&
+        input.closest('.fui-checkbox-control').style.width === '28px';
+      checkbox.setLocale('zh-CN').setTheme('black');
+      checks.localeTheme = input.closest('.fui-checkbox').classList.contains('fg-theme-black');
+      checkbox.dispose();
+      checks.disposed = fabui.Control.getControl(input) === null &&
+        input.className === 'original-checkbox' &&
+        input.value === 'original' &&
+        input.checked === false &&
+        input.parentElement === form;
+      checks.complete = Object.keys(checks).every(function(key) {
+        return checks[key] === true;
+      });
+    } catch (error) {
+      checks.error = error && error.stack ? error.stack : String(error);
+      checks.complete = false;
+    }
+    result.textContent = JSON.stringify(checks);
+    document.title = checks.complete ? 'PASS CheckBox source smoke' : 'FAIL CheckBox source smoke';
+  </script>
+</body>
+</html>

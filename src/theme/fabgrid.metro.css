@@ -1,6 +1,6 @@
 /*! FabGrid theme metro | performance-first data grid */
-@import './metro/tabs.css?v=20260718-tabs-drag-right-v1';
-@import './metro/components.css';
+@import './metro/tabs.css?v=20260719-tabs-theme-v2';
+@import './metro/components.css?v=20260719-components-theme-v2';
 .fg-root.fg-theme-metro,
 .fui-tabs.fg-theme-metro {
   --fg-border: #ccc;

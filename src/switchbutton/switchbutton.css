@@ -1,0 +1,366 @@
+.fui-switchbutton,
+.fui-switchbutton * {
+  box-sizing: border-box;
+}
+
+.fui-switchbutton {
+  --fui-switchbutton-border: #bbb;
+  --fui-switchbutton-on-bg: #ffe48d;
+  --fui-switchbutton-on-text: #000;
+  --fui-switchbutton-off-bg: #fff;
+  --fui-switchbutton-off-text: #000;
+  --fui-switchbutton-handle-bg: #fff;
+  --fui-switchbutton-handle-text: #000;
+  --fui-switchbutton-radius: 5px;
+  --fui-switchbutton-font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  color: var(--fui-control-label-text, var(--fg-cell-text, #000));
+  font: var(--fui-switchbutton-font-size) Arial, Helvetica, sans-serif;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.fui-switchbutton-label-before {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+.fui-switchbutton-label-after {
+  flex-direction: row;
+}
+
+.fui-switchbutton-label-top {
+  flex-direction: column-reverse;
+  align-items: flex-start;
+}
+
+.fui-switchbutton-control {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  overflow: hidden;
+  width: 60px;
+  height: 30px;
+  border: 1px solid var(--fui-switchbutton-border);
+  border-radius: var(--fui-switchbutton-radius);
+  background: var(--fui-switchbutton-border);
+  cursor: pointer;
+}
+
+.fui-switchbutton-inner {
+  position: relative;
+  display: flex;
+  top: -1px;
+  left: -1px;
+  height: 30px;
+  transition: margin-left 200ms ease;
+  white-space: nowrap;
+}
+
+.fui-switchbutton-on,
+.fui-switchbutton-off,
+.fui-switchbutton-handle {
+  display: block;
+  flex: 0 0 auto;
+  overflow: hidden;
+  height: 100%;
+  border-radius: var(--fui-switchbutton-radius);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.fui-switchbutton-on {
+  border-radius: var(--fui-switchbutton-radius) 0 0 var(--fui-switchbutton-radius);
+  background: var(--fui-switchbutton-on-bg);
+  color: var(--fui-switchbutton-on-text);
+}
+
+.fui-switchbutton-off {
+  border-radius: 0 var(--fui-switchbutton-radius) var(--fui-switchbutton-radius) 0;
+  background: var(--fui-switchbutton-off-bg);
+  color: var(--fui-switchbutton-off-text);
+}
+
+.fui-switchbutton-handle {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 50%;
+  border: 1px solid var(--fui-switchbutton-border);
+  background: var(--fui-switchbutton-handle-bg);
+  box-shadow: 0 0 3px 0 var(--fui-switchbutton-border);
+  color: var(--fui-switchbutton-handle-text);
+}
+
+.fui-switchbutton-input {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.fui-switchbutton-reversed .fui-switchbutton-off {
+  border-radius: var(--fui-switchbutton-radius) 0 0 var(--fui-switchbutton-radius);
+}
+
+.fui-switchbutton-reversed .fui-switchbutton-on {
+  border-radius: 0 var(--fui-switchbutton-radius) var(--fui-switchbutton-radius) 0;
+}
+
+.fui-switchbutton-control:focus-within {
+  box-shadow: 0 0 3px 0 var(--fui-switchbutton-border);
+}
+
+.fui-switchbutton-label {
+  overflow: hidden;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.fui-switchbutton-label-before .fui-switchbutton-label {
+  margin-right: 8px;
+}
+
+.fui-switchbutton-label-after .fui-switchbutton-label {
+  margin-left: 8px;
+}
+
+.fui-switchbutton-label-top .fui-switchbutton-label {
+  margin-bottom: 5px;
+}
+
+.fui-switchbutton-disabled {
+  opacity: 0.5;
+}
+
+.fui-switchbutton-disabled .fui-switchbutton-input,
+.fui-switchbutton-disabled .fui-switchbutton-label,
+.fui-switchbutton-readonly .fui-switchbutton-input,
+.fui-switchbutton-readonly .fui-switchbutton-label {
+  cursor: default;
+}
+
+.fui-switchbutton.fg-theme-default {
+  --fui-switchbutton-border: #bbb;
+  --fui-switchbutton-on-bg: #ffe48d;
+  --fui-switchbutton-on-text: #000;
+  --fui-switchbutton-off-bg: #fff;
+  --fui-switchbutton-off-text: #000;
+  --fui-switchbutton-handle-bg: #fff;
+  --fui-switchbutton-handle-text: #000;
+  --fui-switchbutton-radius: 5px;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-bootstrap {
+  --fui-switchbutton-border: #bbb;
+  --fui-switchbutton-on-bg: #0081c2;
+  --fui-switchbutton-on-text: #fff;
+  --fui-switchbutton-off-bg: #fff;
+  --fui-switchbutton-off-text: #333;
+  --fui-switchbutton-handle-bg: #fff;
+  --fui-switchbutton-handle-text: #333;
+  --fui-switchbutton-radius: 5px;
+  --fui-switchbutton-font-size: 12px;
+}
+
+.fui-switchbutton.fg-theme-cupertino {
+  --fui-switchbutton-border: #aed0ea;
+  --fui-switchbutton-on-bg: #3baae3;
+  --fui-switchbutton-on-text: #fff;
+  --fui-switchbutton-off-bg: #f2f5f7;
+  --fui-switchbutton-off-text: #000;
+  --fui-switchbutton-handle-bg: #f2f5f7;
+  --fui-switchbutton-handle-text: #000;
+  --fui-switchbutton-radius: 5px;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-material {
+  --fui-switchbutton-border: #d9d9d9;
+  --fui-switchbutton-on-bg: #00bbee;
+  --fui-switchbutton-on-text: #fff;
+  --fui-switchbutton-off-bg: #fff;
+  --fui-switchbutton-off-text: #404040;
+  --fui-switchbutton-handle-bg: #fff;
+  --fui-switchbutton-handle-text: #404040;
+  --fui-switchbutton-radius: 4px;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-material-blue {
+  --fui-switchbutton-border: #2196f3;
+  --fui-switchbutton-on-bg: #eee;
+  --fui-switchbutton-on-text: #2196f3;
+  --fui-switchbutton-off-bg: #fff;
+  --fui-switchbutton-off-text: #404040;
+  --fui-switchbutton-handle-bg: #fff;
+  --fui-switchbutton-handle-text: #404040;
+  --fui-switchbutton-radius: 2px;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-material-teal {
+  --fui-switchbutton-border: #dfdfdf;
+  --fui-switchbutton-on-bg: #eee;
+  --fui-switchbutton-on-text: #39c;
+  --fui-switchbutton-off-bg: #fff;
+  --fui-switchbutton-off-text: #404040;
+  --fui-switchbutton-handle-bg: #fff;
+  --fui-switchbutton-handle-text: #404040;
+  --fui-switchbutton-radius: 4px;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-metro {
+  --fui-switchbutton-border: #ddd;
+  --fui-switchbutton-on-bg: #cce6ff;
+  --fui-switchbutton-on-text: #000;
+  --fui-switchbutton-off-bg: #fff;
+  --fui-switchbutton-off-text: #444;
+  --fui-switchbutton-handle-bg: #fff;
+  --fui-switchbutton-handle-text: #444;
+  --fui-switchbutton-radius: 0;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-metro-blue {
+  --fui-switchbutton-border: #1a7bc9;
+  --fui-switchbutton-on-bg: #6caef5;
+  --fui-switchbutton-on-text: #fff;
+  --fui-switchbutton-off-bg: #fafafa;
+  --fui-switchbutton-off-text: #404040;
+  --fui-switchbutton-handle-bg: #fafafa;
+  --fui-switchbutton-handle-text: #404040;
+  --fui-switchbutton-radius: 0;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-metro-gray {
+  --fui-switchbutton-border: #84909c;
+  --fui-switchbutton-on-bg: #84909c;
+  --fui-switchbutton-on-text: #fff;
+  --fui-switchbutton-off-bg: #fafafa;
+  --fui-switchbutton-off-text: #404040;
+  --fui-switchbutton-handle-bg: #fafafa;
+  --fui-switchbutton-handle-text: #404040;
+  --fui-switchbutton-radius: 0;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-metro-green {
+  --fui-switchbutton-border: #9ba842;
+  --fui-switchbutton-on-bg: #c8d47b;
+  --fui-switchbutton-on-text: #404040;
+  --fui-switchbutton-off-bg: #fafafa;
+  --fui-switchbutton-off-text: #404040;
+  --fui-switchbutton-handle-bg: #fafafa;
+  --fui-switchbutton-handle-text: #404040;
+  --fui-switchbutton-radius: 0;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-metro-orange {
+  --fui-switchbutton-border: #de8033;
+  --fui-switchbutton-on-bg: #f7cc8f;
+  --fui-switchbutton-on-text: #404040;
+  --fui-switchbutton-off-bg: #fafafa;
+  --fui-switchbutton-off-text: #404040;
+  --fui-switchbutton-handle-bg: #fafafa;
+  --fui-switchbutton-handle-text: #404040;
+  --fui-switchbutton-radius: 0;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-metro-red {
+  --fui-switchbutton-border: #c75252;
+  --fui-switchbutton-on-bg: #f09090;
+  --fui-switchbutton-on-text: #404040;
+  --fui-switchbutton-off-bg: #fafafa;
+  --fui-switchbutton-off-text: #404040;
+  --fui-switchbutton-handle-bg: #fafafa;
+  --fui-switchbutton-handle-text: #404040;
+  --fui-switchbutton-radius: 0;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-sunny {
+  --fui-switchbutton-border: #d19405;
+  --fui-switchbutton-on-bg: #fff;
+  --fui-switchbutton-on-text: #0074c7;
+  --fui-switchbutton-off-bg: #feeebd;
+  --fui-switchbutton-off-text: #000;
+  --fui-switchbutton-handle-bg: #feeebd;
+  --fui-switchbutton-handle-text: #000;
+  --fui-switchbutton-radius: 5px;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-pepper-grinder {
+  --fui-switchbutton-border: #cbc7bd;
+  --fui-switchbutton-on-bg: #b83400;
+  --fui-switchbutton-on-text: #fff;
+  --fui-switchbutton-off-bg: #eceadf;
+  --fui-switchbutton-off-text: #1f1f1f;
+  --fui-switchbutton-handle-bg: #eceadf;
+  --fui-switchbutton-handle-text: #1f1f1f;
+  --fui-switchbutton-radius: 5px;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-dark-hive {
+  --fui-switchbutton-border: #444;
+  --fui-switchbutton-on-bg: #0972a5;
+  --fui-switchbutton-on-text: #fff;
+  --fui-switchbutton-off-bg: #000;
+  --fui-switchbutton-off-text: #fff;
+  --fui-switchbutton-handle-bg: #000;
+  --fui-switchbutton-handle-text: #fff;
+  --fui-switchbutton-radius: 5px;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-switchbutton.fg-theme-black {
+  --fui-switchbutton-border: #555;
+  --fui-switchbutton-on-bg: #0052a3;
+  --fui-switchbutton-on-text: #fff;
+  --fui-switchbutton-off-bg: #666;
+  --fui-switchbutton-off-text: #fff;
+  --fui-switchbutton-handle-bg: #666;
+  --fui-switchbutton-handle-text: #fff;
+  --fui-switchbutton-radius: 5px;
+  --fui-switchbutton-font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fui-switchbutton-inner {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .fui-switchbutton-control,
+  .fui-switchbutton-handle {
+    border-color: CanvasText;
+    background: Canvas;
+    box-shadow: none;
+  }
+
+  .fui-switchbutton-on,
+  .fui-switchbutton-off,
+  .fui-switchbutton-handle {
+    color: CanvasText;
+  }
+
+  .fui-switchbutton-disabled {
+    opacity: 1;
+  }
+}

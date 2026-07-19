@@ -23,6 +23,11 @@
   --fui-control-selected: #eeeeee;
   --fui-control-selected-text: #2196f3;
   --fui-control-selected-border: #2196f3;
+  --fui-checkbox-accent: #2196f3;
+  --fui-propertygrid-border: #dfdfdf;
+  --fui-propertygrid-group-bg: #f5f5f5;
+  --fui-propertygrid-header-text: #404040;
+  --fui-propertygrid-group-text: #404040;
   --fui-panel-bg: #ffffff;
   --fui-panel-text: #404040;
   --fui-calendar-week-bg: #fafafa;

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fabui.CheckBox 開發版 Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260719-components-theme-v2">
+  <style>
+    body {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+      background: var(--fg-cell-bg, #fff);
+      color: var(--fg-cell-text, #333);
+      font: 14px Arial, sans-serif;
+    }
+    h1 { margin: 0 0 8px; }
+    h2 { margin: 28px 0 12px; font-size: 18px; }
+    .demo-toolbar,
+    .checkbox-row,
+    .checkbox-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+    }
+    .demo-toolbar {
+      gap: 8px;
+      margin: 18px 0;
+      padding: 12px;
+      border: 1px solid var(--fg-border, #ddd);
+      background: var(--fg-header-bg, #fafafa);
+    }
+    .checkbox-panel {
+      max-width: 640px;
+      padding: 18px;
+      border: 1px solid var(--fg-border, #ddd);
+      background: var(--fg-cell-bg, #fff);
+    }
+    .checkbox-column {
+      display: grid;
+      gap: 14px;
+    }
+    #checkbox-status {
+      min-height: 20px;
+      margin: 12px 0;
+      color: var(--fg-muted-text, #666);
+    }
+    .checkbox-actions { margin-top: 16px; gap: 8px; }
+  </style>
+</head>
+<body class="fg-theme-default">
+  <h1>fabui.CheckBox 開發版 Demo</h1>
+  <p>參考 jQuery EasyUI CheckBox／Default theme，保留原生表單、label、鍵盤與 reset 行為。</p>
+  <div class="demo-toolbar">
+    <label for="checkbox-theme">主題</label>
+    <select id="checkbox-theme">
+      <option value="default" selected>Default</option>
+      <option value="bootstrap">Bootstrap</option>
+      <option value="cupertino">Cupertino</option>
+      <option value="material">Material</option>
+      <option value="material-blue">Material Blue</option>
+      <option value="material-teal">Material Teal</option>
+      <option value="metro">Metro</option>
+      <option value="metro-blue">Metro Blue</option>
+      <option value="metro-gray">Metro Gray</option>
+      <option value="metro-green">Metro Green</option>
+      <option value="metro-orange">Metro Orange</option>
+      <option value="metro-red">Metro Red</option>
+      <option value="sunny">Sunny</option>
+      <option value="pepper-grinder">Pepper Grinder</option>
+      <option value="dark-hive">Dark Hive</option>
+      <option value="black">Black</option>
+    </select>
+    <label for="checkbox-locale">語系</label>
+    <select id="checkbox-locale">
+      <option value="zh-TW" selected>繁體中文</option>
+      <option value="zh-CN">簡體中文</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+  <div id="checkbox-status" aria-live="polite"></div>
+
+  <form id="checkbox-form">
+    <h2>Basic／Form Values</h2>
+    <div class="checkbox-panel checkbox-column">
+      <input id="checkbox-apple" type="checkbox" name="fruit">
+      <input id="checkbox-orange" type="checkbox" name="fruit">
+      <input id="checkbox-banana" type="checkbox" name="fruit">
+      <div class="checkbox-actions">
+        <a data-fabui-button href="javascript:void(0)" data-button-type="submit">送出表單</a>
+        <a data-fabui-button href="javascript:void(0)" id="checkbox-reset">Reset</a>
+      </div>
+    </div>
+
+    <h2>Label Position／Align</h2>
+    <div class="checkbox-panel checkbox-row">
+      <input id="checkbox-before" type="checkbox">
+      <input id="checkbox-after" type="checkbox">
+      <input id="checkbox-top" type="checkbox">
+      <input id="checkbox-label-right" type="checkbox">
+    </div>
+
+    <h2>Size／Disabled／Runtime API</h2>
+    <div class="checkbox-panel">
+      <div class="checkbox-row">
+        <input id="checkbox-large" type="checkbox">
+        <input id="checkbox-disabled" type="checkbox">
+        <input id="checkbox-dynamic" type="checkbox">
+      </div>
+      <div class="checkbox-actions">
+        <a data-fabui-button href="javascript:void(0)" id="checkbox-toggle">Check／Uncheck</a>
+        <a data-fabui-button href="javascript:void(0)" id="checkbox-enable">Enable／Disable</a>
+        <a data-fabui-button href="javascript:void(0)" id="checkbox-clear">Clear</a>
+      </div>
+    </div>
+  </form>
+
+  <script src="./js/checkbox-demo.js?v=20260719-checkbox-v1"></script>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
+
+    window.mountFabUICheckBoxDemo(fabui);
+  </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
+</body>
+</html>

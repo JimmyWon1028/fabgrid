@@ -4,7 +4,7 @@
 @import "./date-editbox.css?v=20260718-calendar-theme-v1";
 @import "./date-editbox-theme.css?v=20260718-calendar-theme-v1";
 @import "./combo-editbox.css?v=20260718-combo-popup-v1";
-@import "./color-editbox.css?v=20260718-color-popup-v1";
+@import "./color-editbox.css?v=20260719-i18n-theme-audit-v1";
 
 .fui-editbox-demo-note {
   color: var(--fg-muted, #666);

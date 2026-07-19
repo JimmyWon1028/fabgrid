@@ -1,0 +1,62 @@
+.fui-filebox {
+  --fui-filebox-button-bg: var(--fui-control-button-bg, #f4f4f4);
+  --fui-filebox-button-text: var(--fui-control-button-text, #444);
+  --fui-filebox-button-border: var(--fui-control-button-border, var(--fui-control-border, #95b8e7));
+  --fui-filebox-button-hover-bg: var(--fui-control-button-hover-bg, var(--fui-control-hover, #eaf2ff));
+  --fui-filebox-button-hover-text: var(--fui-control-button-hover-text, var(--fui-control-hover-text, #000));
+  position: relative;
+}
+
+.fui-filebox .fui-textbox {
+  cursor: pointer;
+}
+
+.fui-filebox .fui-textbox-text {
+  cursor: pointer;
+  user-select: none;
+}
+
+.fui-filebox .fui-textbox-button {
+  flex: 0 0 auto;
+  border-color: var(--fui-filebox-button-border);
+  background-color: var(--fui-filebox-button-bg);
+  color: var(--fui-filebox-button-text);
+  white-space: nowrap;
+}
+
+.fui-filebox .fui-textbox-button:hover {
+  background-color: var(--fui-filebox-button-hover-bg);
+  color: var(--fui-filebox-button-hover-text);
+}
+
+.fui-filebox-native {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  white-space: nowrap !important;
+}
+
+.fui-filebox.fui-textbox-disabled .fui-textbox,
+.fui-filebox.fui-textbox-readonly .fui-textbox,
+.fui-filebox.fui-textbox-disabled .fui-textbox-text,
+.fui-filebox.fui-textbox-readonly .fui-textbox-text {
+  cursor: default;
+}
+
+@media (forced-colors: active) {
+  .fui-filebox .fui-textbox {
+    border-color: CanvasText;
+  }
+
+  .fui-filebox .fui-textbox-button {
+    border-color: CanvasText;
+  }
+}

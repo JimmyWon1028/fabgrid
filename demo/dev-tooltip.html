@@ -34,15 +34,8 @@
       background: #fafafa;
     }
 
-    .tooltip-target {
+    .tooltip-target.fui-button {
       min-width: 110px;
-      padding: 9px 14px;
-      border: 1px solid #bbb;
-      border-radius: 4px;
-      background: #fff;
-      color: #333;
-      text-align: center;
-      cursor: pointer;
     }
 
     #tooltip-track {
@@ -96,17 +89,17 @@
 
   <h2>Basic／Position</h2>
   <div class="tooltip-row">
-    <button id="tooltip-basic" class="tooltip-target" type="button" title="由 title attribute 建立的 Tooltip">Basic</button>
-    <button id="tooltip-top" class="tooltip-target" type="button">Top</button>
-    <button id="tooltip-bottom" class="tooltip-target" type="button">Bottom</button>
-    <button id="tooltip-left" class="tooltip-target" type="button">Left</button>
-    <button id="tooltip-right" class="tooltip-target" type="button">Right</button>
+    <a data-fabui-button href="javascript:void(0)" id="tooltip-basic" class="tooltip-target" title="由 title attribute 建立的 Tooltip">Basic</a>
+    <a data-fabui-button href="javascript:void(0)" id="tooltip-top" class="tooltip-target">Top</a>
+    <a data-fabui-button href="javascript:void(0)" id="tooltip-bottom" class="tooltip-target">Bottom</a>
+    <a data-fabui-button href="javascript:void(0)" id="tooltip-left" class="tooltip-target">Left</a>
+    <a data-fabui-button href="javascript:void(0)" id="tooltip-right" class="tooltip-target">Right</a>
   </div>
 
   <h2>HTML／Click</h2>
   <div class="tooltip-row">
-    <button id="tooltip-html" class="tooltip-target" type="button">HTML Content</button>
-    <button id="tooltip-click" class="tooltip-target" type="button">Click Tooltip</button>
+    <a data-fabui-button href="javascript:void(0)" id="tooltip-html" class="tooltip-target">HTML Content</a>
+    <a data-fabui-button href="javascript:void(0)" id="tooltip-click" class="tooltip-target">Click Tooltip</a>
   </div>
 
   <h2>Track Mouse</h2>
@@ -114,17 +107,18 @@
 
   <h2>Methods</h2>
   <div id="tooltip-manual-host" class="tooltip-row">
-    <button class="tooltip-target" type="button">Manual Target</button>
-    <button id="tooltip-show" type="button">show()</button>
-    <button id="tooltip-update" type="button">update()</button>
-    <button id="tooltip-hide" type="button">hide()</button>
+    <a data-fabui-button href="javascript:void(0)" class="tooltip-target">Manual Target</a>
+    <a data-fabui-button href="javascript:void(0)" id="tooltip-show">show()</a>
+    <a data-fabui-button href="javascript:void(0)" id="tooltip-update">update()</a>
+    <a data-fabui-button href="javascript:void(0)" id="tooltip-hide">hide()</a>
   </div>
 
   <script src="./js/tooltip-demo.js?v=20260718-tooltip-v1"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260718-final-audit-v1';
+    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
 
     window.mountFabUITooltipDemo(fabui);
   </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
 </body>
 </html>

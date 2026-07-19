@@ -174,8 +174,8 @@ function createButtonFactory(Control, registerControl, unregisterControl) {
     if (!(this instanceof FabButton)) return new FabButton(element, options);
     if (!host) throw new Error('fabui.Button requires a host element.');
     if (host.__fabuiButton) return host.__fabuiButton;
-    if (!/^(?:A|BUTTON)$/i.test(host.tagName)) {
-      throw new Error('fabui.Button host must be an anchor or button element.');
+    if (host.tagName !== 'A') {
+      throw new Error('fabui.Button host must be an anchor element.');
     }
     Control.call(this);
     this.hostElement = host;
@@ -186,11 +186,12 @@ function createButtonFactory(Control, registerControl, unregisterControl) {
       className: host.getAttribute('class'),
       style: host.getAttribute('style'),
       id: host.getAttribute('id'),
+      href: host.getAttribute('href'),
       role: host.getAttribute('role'),
       tabIndex: host.getAttribute('tabindex'),
       ariaDisabled: host.getAttribute('aria-disabled'),
       ariaPressed: host.getAttribute('aria-pressed'),
-      disabled: Boolean(host.disabled)
+      disabled: host.getAttribute('disabled')
     };
     this._themeSource = host.parentElement || document.body;
     this.options = assignButtonOptions({}, FabButton.defaults, this._readElementOptions(), options || {});
@@ -226,7 +227,7 @@ function createButtonFactory(Control, registerControl, unregisterControl) {
     if (iconCls) options.iconCls = iconCls;
     if (width) options.width = width;
     if (height) options.height = height;
-    if (host.disabled || host.hasAttribute('disabled')) options.disabled = true;
+    if (host.hasAttribute('disabled')) options.disabled = true;
     value = host.getAttribute('data-icon-align');
     if (value) options.iconAlign = value;
     value = host.getAttribute('data-size');
@@ -259,10 +260,8 @@ function createButtonFactory(Control, registerControl, unregisterControl) {
     inner.appendChild(icon);
     inner.appendChild(text);
     host.appendChild(inner);
-    if (host.tagName === 'A' && !host.hasAttribute('href')) {
-      host.setAttribute('role', 'button');
-      if (!host.hasAttribute('tabindex')) host.tabIndex = 0;
-    }
+    if (!host.hasAttribute('href')) host.setAttribute('href', 'javascript:void(0)');
+    host.setAttribute('role', 'button');
     this.innerElement = inner;
     this.textElement = text;
     this.iconElement = icon;
@@ -289,12 +288,8 @@ function createButtonFactory(Control, registerControl, unregisterControl) {
       if (allowed === false) event.preventDefault();
     };
     this._onKeyDown = function(event) {
-      var isAnchor = self.hostElement.tagName === 'A';
       if (self.options.disabled) return;
-      if (
-        (event.key === ' ' && isAnchor) ||
-        (event.key === 'Enter' && isAnchor && !self.hostElement.hasAttribute('href'))
-      ) {
+      if (event.key === ' ') {
         event.preventDefault();
         self.hostElement.click();
       }
@@ -347,12 +342,10 @@ function createButtonFactory(Control, registerControl, unregisterControl) {
     } else {
       host.removeAttribute('aria-pressed');
     }
-    if ('disabled' in host) host.disabled = this.options.disabled === true;
     if (this.options.disabled) {
       host.tabIndex = -1;
     } else if (this._enabledTabIndex == null) {
-      if (host.tagName === 'A' && !host.hasAttribute('href')) host.tabIndex = 0;
-      else host.removeAttribute('tabindex');
+      host.removeAttribute('tabindex');
     } else {
       host.setAttribute('tabindex', this._enabledTabIndex);
     }
@@ -489,11 +482,12 @@ function createButtonFactory(Control, registerControl, unregisterControl) {
     restoreButtonAttribute(host, 'class', this._original.className);
     restoreButtonAttribute(host, 'style', this._original.style);
     restoreButtonAttribute(host, 'id', this._original.id);
+    restoreButtonAttribute(host, 'href', this._original.href);
     restoreButtonAttribute(host, 'role', this._original.role);
     restoreButtonAttribute(host, 'tabindex', this._original.tabIndex);
     restoreButtonAttribute(host, 'aria-disabled', this._original.ariaDisabled);
     restoreButtonAttribute(host, 'aria-pressed', this._original.ariaPressed);
-    if ('disabled' in host) host.disabled = this._original.disabled;
+    restoreButtonAttribute(host, 'disabled', this._original.disabled);
     this._listeners = {};
   };
 
@@ -521,6 +515,7 @@ function createButtonFactory(Control, registerControl, unregisterControl) {
     onUnselect: null,
     onResize: null
   };
+  FabButton.themes = BUTTON_THEMES.slice();
   FabButton.getControl = function(element) {
     element = resolveButtonElement(element);
     return element && element.__fabuiButton ? element.__fabuiButton : null;
@@ -603,9 +598,10 @@ function calendarDateOnly(date) {
 }
 
 function normalizeCalendarLocale(locale) {
-  var value = String(locale || '').replace('_', '-');
+  var value = String(locale || '').trim().replace(/_/g, '-');
   if (CALENDAR_LOCALES[value]) return value;
-  if (/^zh-TW/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value)) return 'zh-CN';
   if (/^zh/i.test(value)) return 'zh-CN';
   return 'en';
 }
@@ -989,6 +985,8 @@ function createCalendarFactory(Control, registerControl, unregisterControl) {
   };
 
   FabCalendar.locales = CALENDAR_LOCALES;
+  FabCalendar.themes = CALENDAR_THEMES.slice();
+  FabCalendar.normalizeLocale = normalizeCalendarLocale;
   FabCalendar.getControl = function(element) {
     element = resolveCalendarElement(element);
     return element && element.__fabuiCalendar ? element.__fabuiCalendar : null;
@@ -996,10 +994,2825 @@ function createCalendarFactory(Control, registerControl, unregisterControl) {
   return FabCalendar;
 }
 
+var CHECKBOX_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+var checkBoxSequence = 0;
+
+function checkBoxAssign(target) {
+  var source;
+  var key;
+  var index;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function checkBoxBoolean(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    value = value.trim().toLowerCase();
+    if (value === 'false' || value === '0' || value === 'no') return false;
+    if (value === 'true' || value === '1' || value === 'yes' || value === '') return true;
+  }
+  return Boolean(value);
+}
+
+function checkBoxSize(value, fallback) {
+  if (value == null || value === '') value = fallback;
+  if (value === 'auto') return 'auto';
+  return typeof value === 'number' ? value + 'px' : String(value);
+}
+
+function resolveCheckBoxElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function normalizeCheckBoxLocale(value) {
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
+}
+
+function normalizeCheckBoxTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return CHECKBOX_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function normalizeCheckBoxLabelPosition(value) {
+  value = String(value || 'before').toLowerCase();
+  return value === 'after' || value === 'top' ? value : 'before';
+}
+
+function normalizeCheckBoxLabelAlign(value) {
+  return String(value || 'left').toLowerCase() === 'right' ? 'right' : 'left';
+}
+
+function findCheckBoxTheme(element) {
+  var current = resolveCheckBoxElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < CHECKBOX_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + CHECKBOX_THEMES[index])) {
+        return CHECKBOX_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function restoreCheckBoxAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function createCheckBoxFactory(Control, registerControl, unregisterControl) {
+  'use strict';
+
+  var defaults = {
+    width: 20,
+    height: 20,
+    value: null,
+    checked: false,
+    disabled: false,
+    label: null,
+    labelWidth: 'auto',
+    labelPosition: 'before',
+    labelAlign: 'left',
+    locale: 'en',
+    theme: 'inherit',
+    cls: '',
+    ariaLabel: '',
+    onChange: null
+  };
+  var localePacks = {
+    en: {
+      checkbox: 'Checkbox'
+    },
+    'zh-TW': {
+      checkbox: '核取方塊'
+    },
+    'zh-CN': {
+      checkbox: '复选框'
+    }
+  };
+
+  function CheckBox(element, options) {
+    if (!(this instanceof CheckBox)) return new CheckBox(element, options);
+    this.hostElement = resolveCheckBoxElement(element);
+    if (
+      !this.hostElement ||
+      this.hostElement.tagName !== 'INPUT' ||
+      String(this.hostElement.type || '').toLowerCase() !== 'checkbox'
+    ) {
+      throw new Error('fabui.CheckBox requires an input[type="checkbox"] element.');
+    }
+    if (this.hostElement.__fabuiCheckBox) return this.hostElement.__fabuiCheckBox;
+    Control.call(this);
+    this._listeners = {};
+    this._destroyed = false;
+    this._changing = false;
+    this._original = {
+      className: this.hostElement.getAttribute('class'),
+      style: this.hostElement.getAttribute('style'),
+      id: this.hostElement.getAttribute('id'),
+      value: this.hostElement.getAttribute('value'),
+      checked: this.hostElement.checked,
+      checkedAttribute: this.hostElement.getAttribute('checked'),
+      disabled: this.hostElement.disabled,
+      disabledAttribute: this.hostElement.getAttribute('disabled'),
+      ariaLabel: this.hostElement.getAttribute('aria-label'),
+      tabIndex: this.hostElement.getAttribute('tabindex')
+    };
+    this._themeSource = this.hostElement.parentElement || document.body;
+    this._options = checkBoxAssign({}, defaults, this._readElementOptions(), options || {});
+    this._normalizeOptions();
+    this._initialChecked = this._options.checked;
+    this._initialValue = this._options.value;
+    this._build();
+    this._bind();
+    this._applyOptions(true);
+    this.hostElement.__fabuiCheckBox = this;
+    registerControl(this.hostElement, this);
+  }
+
+  CheckBox.prototype = Object.create(Control.prototype);
+  CheckBox.prototype.constructor = CheckBox;
+
+  CheckBox.prototype._readElementOptions = function() {
+    var input = this.hostElement;
+    var result = {
+      checked: input.checked,
+      disabled: input.disabled
+    };
+    var value;
+    value = input.getAttribute('value');
+    if (value != null) result.value = value;
+    value = input.getAttribute('label') || input.getAttribute('data-label');
+    if (value != null) result.label = value;
+    value = input.getAttribute('labelWidth') || input.getAttribute('data-label-width');
+    if (value != null) result.labelWidth = value;
+    value = input.getAttribute('labelPosition') || input.getAttribute('data-label-position');
+    if (value != null) result.labelPosition = value;
+    value = input.getAttribute('labelAlign') || input.getAttribute('data-label-align');
+    if (value != null) result.labelAlign = value;
+    value = input.getAttribute('data-width');
+    if (value != null) result.width = value;
+    value = input.getAttribute('data-height');
+    if (value != null) result.height = value;
+    value = input.getAttribute('data-theme') || input.getAttribute('theme');
+    if (value) result.theme = value;
+    value = input.getAttribute('data-locale') || input.getAttribute('locale');
+    if (value) result.locale = value;
+    value = input.getAttribute('aria-label');
+    if (value) result.ariaLabel = value;
+    return result;
+  };
+
+  CheckBox.prototype._normalizeOptions = function() {
+    this._options.checked = checkBoxBoolean(this._options.checked, false);
+    this._options.disabled = checkBoxBoolean(this._options.disabled, false);
+    this._options.labelPosition = normalizeCheckBoxLabelPosition(this._options.labelPosition);
+    this._options.labelAlign = normalizeCheckBoxLabelAlign(this._options.labelAlign);
+    this._options.locale = normalizeCheckBoxLocale(this._options.locale);
+  };
+
+  CheckBox.prototype._text = function(key) {
+    var pack = localePacks[this._options.locale] || localePacks.en;
+    return pack[key] || localePacks.en[key] || key;
+  };
+
+  CheckBox.prototype._build = function() {
+    var parent = this.hostElement.parentNode;
+    if (!parent) throw new Error('fabui.CheckBox input must be attached to the document.');
+    if (!this.hostElement.id) {
+      checkBoxSequence += 1;
+      this.hostElement.id = 'fui-checkbox-' + checkBoxSequence;
+    }
+    this.wrapper = document.createElement('span');
+    this.wrapper.className = 'fui-checkbox';
+    this.control = document.createElement('span');
+    this.control.className = 'fui-checkbox-control';
+    this.box = document.createElement('span');
+    this.box.className = 'fui-checkbox-box';
+    this.box.setAttribute('aria-hidden', 'true');
+    this.labelElement = document.createElement('label');
+    this.labelElement.className = 'fui-checkbox-label';
+    this.labelElement.setAttribute('for', this.hostElement.id);
+    parent.insertBefore(this.wrapper, this.hostElement);
+    this.control.appendChild(this.hostElement);
+    this.control.appendChild(this.box);
+    this.wrapper.appendChild(this.control);
+    this.wrapper.appendChild(this.labelElement);
+    this.hostElement.classList.add('fui-checkbox-input');
+  };
+
+  CheckBox.prototype._bind = function() {
+    var self = this;
+    this.addEventListener(this.hostElement, 'change', function(event) {
+      if (self._changing) return;
+      self._setChecked(self.hostElement.checked, false, event);
+    });
+    if (this.hostElement.form) {
+      this.addEventListener(this.hostElement.form, 'reset', function() {
+        setTimeout(function() {
+          if (self._destroyed) return;
+          self._setChecked(self._initialChecked, true);
+          self.setValue(self._initialValue);
+        }, 0);
+      });
+    }
+  };
+
+  CheckBox.prototype._applyOptions = function(initial) {
+    var label = this._options.label == null ? '' : String(this._options.label);
+    var theme = this._options.theme;
+    this.wrapper.className = 'fui-checkbox' +
+      (this._options.cls ? ' ' + String(this._options.cls) : '');
+    this.wrapper.classList.add('fui-checkbox-label-' + this._options.labelPosition);
+    this.wrapper.classList.toggle('fui-checkbox-with-label', Boolean(label));
+    this.labelElement.textContent = label;
+    this.labelElement.hidden = !label;
+    this.labelElement.style.width = checkBoxSize(this._options.labelWidth, 'auto');
+    this.labelElement.style.textAlign = this._options.labelAlign;
+    this.control.style.width = checkBoxSize(this._options.width, 20);
+    this.control.style.height = checkBoxSize(this._options.height, 20);
+    this.box.style.width = checkBoxSize(this._options.width, 20);
+    this.box.style.height = checkBoxSize(this._options.height, 20);
+    this.hostElement.disabled = this._options.disabled;
+    this.wrapper.classList.toggle('fui-checkbox-disabled', this._options.disabled);
+    if (this._options.value != null) this.hostElement.value = String(this._options.value);
+    else if (this._original.value == null) this.hostElement.removeAttribute('value');
+    this.hostElement.checked = this._options.checked;
+    this.wrapper.classList.toggle('fui-checkbox-checked', this._options.checked);
+    this.hostElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || label || this._text('checkbox')
+    );
+    this.setTheme(theme);
+    if (!initial) this._emit('refresh', { options: this.options() });
+    return this;
+  };
+
+  CheckBox.prototype._invoke = function(name) {
+    var handler = this._options[name];
+    var args = Array.prototype.slice.call(arguments, 1);
+    return typeof handler === 'function' ? handler.apply(this, args) : undefined;
+  };
+
+  CheckBox.prototype._emit = function(type, detail) {
+    var listeners = (this._listeners[type] || []).slice();
+    var event = {
+      type: type,
+      target: this,
+      detail: detail
+    };
+    listeners.forEach(function(listener) {
+      listener.call(this, event);
+    }, this);
+  };
+
+  CheckBox.prototype.on = function(type, listener) {
+    if (type && typeof listener === 'function') {
+      (this._listeners[String(type)] || (this._listeners[String(type)] = [])).push(listener);
+    }
+    return this;
+  };
+
+  CheckBox.prototype.off = function(type, listener) {
+    var list = this._listeners[String(type)] || [];
+    var index;
+    if (!listener) {
+      delete this._listeners[String(type)];
+      return this;
+    }
+    for (index = list.length - 1; index >= 0; index -= 1) {
+      if (list[index] === listener) list.splice(index, 1);
+    }
+    return this;
+  };
+
+  CheckBox.prototype._setChecked = function(checked, silent, originalEvent) {
+    var changed;
+    checked = Boolean(checked);
+    changed = this._options.checked !== checked;
+    this._options.checked = checked;
+    this._changing = true;
+    this.hostElement.checked = checked;
+    this._changing = false;
+    this.wrapper.classList.toggle('fui-checkbox-checked', checked);
+    if (changed && !silent) {
+      this._invoke('onChange', checked);
+      this._emit('change', {
+        checked: checked,
+        value: this.getValue(),
+        originalEvent: originalEvent || null
+      });
+    }
+    return this;
+  };
+
+  CheckBox.prototype.options = function() {
+    return checkBoxAssign({}, this._options);
+  };
+
+  CheckBox.prototype.setOptions = function(options) {
+    checkBoxAssign(this._options, options || {});
+    this._normalizeOptions();
+    return this._applyOptions(false);
+  };
+
+  CheckBox.prototype.getValue = function() {
+    return this.hostElement.value;
+  };
+
+  CheckBox.prototype.setValue = function(value) {
+    this._options.value = value;
+    if (value == null) this.hostElement.removeAttribute('value');
+    else this.hostElement.value = String(value);
+    return this;
+  };
+
+  CheckBox.prototype.isChecked = function() {
+    return this._options.checked;
+  };
+
+  CheckBox.prototype.check = function() {
+    return this._setChecked(true, false);
+  };
+
+  CheckBox.prototype.uncheck = function() {
+    return this._setChecked(false, false);
+  };
+
+  CheckBox.prototype.clear = function() {
+    return this.uncheck();
+  };
+
+  CheckBox.prototype.reset = function() {
+    this.setValue(this._initialValue);
+    return this._setChecked(this._initialChecked, false);
+  };
+
+  CheckBox.prototype.disable = function() {
+    this._options.disabled = true;
+    this.hostElement.disabled = true;
+    this.wrapper.classList.add('fui-checkbox-disabled');
+    return this;
+  };
+
+  CheckBox.prototype.enable = function() {
+    this._options.disabled = false;
+    this.hostElement.disabled = false;
+    this.wrapper.classList.remove('fui-checkbox-disabled');
+    return this;
+  };
+
+  CheckBox.prototype.resize = function(width, height) {
+    if (width != null) this._options.width = width;
+    if (height != null) this._options.height = height;
+    this.control.style.width = checkBoxSize(this._options.width, 20);
+    this.control.style.height = checkBoxSize(this._options.height, 20);
+    this.box.style.width = checkBoxSize(this._options.width, 20);
+    this.box.style.height = checkBoxSize(this._options.height, 20);
+    return this;
+  };
+
+  CheckBox.prototype.setLabel = function(label) {
+    this._options.label = label;
+    return this._applyOptions(false);
+  };
+
+  CheckBox.prototype.setLocale = function(locale, messages) {
+    if (locale && messages) {
+      localePacks[String(locale)] = checkBoxAssign({}, localePacks.en, messages);
+    }
+    this._options.locale = normalizeCheckBoxLocale(locale);
+    this.hostElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || this._options.label || this._text('checkbox')
+    );
+    return this;
+  };
+
+  CheckBox.prototype.setTheme = function(theme) {
+    var index;
+    this._options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this._options.theme === 'inherit' ?
+      findCheckBoxTheme(this._themeSource) :
+      normalizeCheckBoxTheme(this._options.theme);
+    for (index = 0; index < CHECKBOX_THEMES.length; index += 1) {
+      this.wrapper.classList.remove('fg-theme-' + CHECKBOX_THEMES[index]);
+    }
+    this.wrapper.classList.add('fg-theme-' + this.theme);
+    return this;
+  };
+
+  CheckBox.prototype.destroy = function() {
+    var parent;
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this.removeEventListener();
+    parent = this.wrapper.parentNode;
+    if (parent) {
+      parent.insertBefore(this.hostElement, this.wrapper);
+      parent.removeChild(this.wrapper);
+    }
+    restoreCheckBoxAttribute(this.hostElement, 'class', this._original.className);
+    restoreCheckBoxAttribute(this.hostElement, 'style', this._original.style);
+    restoreCheckBoxAttribute(this.hostElement, 'id', this._original.id);
+    restoreCheckBoxAttribute(this.hostElement, 'value', this._original.value);
+    restoreCheckBoxAttribute(this.hostElement, 'checked', this._original.checkedAttribute);
+    restoreCheckBoxAttribute(this.hostElement, 'disabled', this._original.disabledAttribute);
+    restoreCheckBoxAttribute(this.hostElement, 'aria-label', this._original.ariaLabel);
+    restoreCheckBoxAttribute(this.hostElement, 'tabindex', this._original.tabIndex);
+    this.hostElement.checked = this._original.checked;
+    this.hostElement.disabled = this._original.disabled;
+    unregisterControl(this.hostElement, this);
+    delete this.hostElement.__fabuiCheckBox;
+    this._listeners = {};
+    this.wrapper = null;
+    this.control = null;
+    this.box = null;
+    this.labelElement = null;
+  };
+
+  CheckBox.prototype.dispose = CheckBox.prototype.destroy;
+  CheckBox.defaults = defaults;
+  CheckBox.locales = localePacks;
+  CheckBox.themes = CHECKBOX_THEMES.slice();
+  CheckBox.addLocale = function(name, messages) {
+    if (name && messages) {
+      localePacks[String(name)] = checkBoxAssign({}, localePacks.en, messages);
+    }
+    return CheckBox;
+  };
+  CheckBox.getControl = function(element) {
+    element = resolveCheckBoxElement(element);
+    return element && element.__fabuiCheckBox ? element.__fabuiCheckBox : null;
+  };
+  CheckBox.normalizeTheme = normalizeCheckBoxTheme;
+  CheckBox.normalizeLocale = normalizeCheckBoxLocale;
+  return CheckBox;
+}
+
+var CHECKGROUP_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
+function checkGroupAssign(target) {
+  var source;
+  var key;
+  var index;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function resolveCheckGroupElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function checkGroupBoolean(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    value = value.trim().toLowerCase();
+    if (value === 'false' || value === '0' || value === 'no') return false;
+    if (value === 'true' || value === '1' || value === 'yes' || value === '') return true;
+  }
+  return Boolean(value);
+}
+
+function normalizeCheckGroupLocale(value) {
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
+}
+
+function normalizeCheckGroupTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return CHECKGROUP_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function normalizeCheckGroupDirection(value) {
+  return String(value || 'h').toLowerCase() === 'v' ? 'v' : 'h';
+}
+
+function normalizeCheckGroupLabelPosition(value) {
+  return String(value || 'after').toLowerCase() === 'before' ? 'before' : 'after';
+}
+
+function normalizeCheckGroupLabelAlign(value) {
+  return String(value || 'left').toLowerCase() === 'right' ? 'right' : 'left';
+}
+
+function findCheckGroupTheme(element) {
+  var current = resolveCheckGroupElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < CHECKGROUP_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + CHECKGROUP_THEMES[index])) {
+        return CHECKGROUP_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function normalizeCheckGroupValues(values) {
+  if (values == null || values === '') return [];
+  if (Array.isArray(values)) return values.slice();
+  return [values];
+}
+
+function checkGroupValueKey(value) {
+  return String(value == null ? '' : value);
+}
+
+function checkGroupValuesEqual(left, right) {
+  var index;
+  if (left.length !== right.length) return false;
+  for (index = 0; index < left.length; index += 1) {
+    if (checkGroupValueKey(left[index]) !== checkGroupValueKey(right[index])) return false;
+  }
+  return true;
+}
+
+function normalizeCheckGroupData(data) {
+  if (!Array.isArray(data)) return [];
+  return data.map(function(item, index) {
+    var source = item && typeof item === 'object' ?
+      item :
+      { value: item, label: item };
+    var value = Object.prototype.hasOwnProperty.call(source, 'value') ?
+      source.value :
+      index;
+    return {
+      value: value,
+      label: source.label == null ? String(value == null ? '' : value) : String(source.label),
+      disabled: checkGroupBoolean(source.disabled, false)
+    };
+  });
+}
+
+function checkGroupStyleValue(name, value) {
+  var unitless = {
+    flex: true,
+    flexGrow: true,
+    flexShrink: true,
+    fontWeight: true,
+    lineHeight: true,
+    opacity: true,
+    order: true,
+    zIndex: true
+  };
+  if (value == null) return '';
+  return typeof value === 'number' && !unitless[name] ? value + 'px' : String(value);
+}
+
+function restoreCheckGroupAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function createCheckGroupFactory(Control, registerControl, unregisterControl, CheckBox) {
+  'use strict';
+
+  var defaults = {
+    name: '',
+    value: [],
+    data: [],
+    dir: 'h',
+    itemStyle: { height: 30 },
+    labelWidth: 'auto',
+    labelPosition: 'after',
+    labelAlign: 'left',
+    disabled: false,
+    cls: '',
+    locale: 'en',
+    theme: 'inherit',
+    ariaLabel: '',
+    onChange: null
+  };
+  var localePacks = {
+    en: {
+      group: 'Checkbox group'
+    },
+    'zh-TW': {
+      group: '核取方塊群組'
+    },
+    'zh-CN': {
+      group: '复选框组'
+    }
+  };
+
+  function CheckGroup(element, options) {
+    var host = resolveCheckGroupElement(element);
+    if (!(this instanceof CheckGroup)) return new CheckGroup(element, options);
+    if (!host) throw new Error('fabui.CheckGroup requires a host element.');
+    if (host.__fabuiCheckGroup) return host.__fabuiCheckGroup;
+    if (typeof CheckBox !== 'function') {
+      throw new Error('fabui.CheckGroup requires fabui.CheckBox.');
+    }
+    Control.call(this);
+    this.hostElement = host;
+    this._listeners = {};
+    this._records = [];
+    this._destroyed = false;
+    this._suspendChange = false;
+    this._original = {
+      html: host.innerHTML,
+      className: host.getAttribute('class'),
+      style: host.getAttribute('style'),
+      role: host.getAttribute('role'),
+      ariaLabel: host.getAttribute('aria-label')
+    };
+    this._themeSource = host.parentElement || document.body;
+    this._options = checkGroupAssign(
+      {},
+      defaults,
+      this._readElementOptions(),
+      options || {}
+    );
+    this._normalizeOptions();
+    this._initialValue = this._options.value.slice();
+    this._build();
+    this._bind();
+    this.setValue(this._initialValue, true);
+    host.__fabuiCheckGroup = this;
+    registerControl(host, this);
+  }
+
+  CheckGroup.prototype = Object.create(Control.prototype);
+  CheckGroup.prototype.constructor = CheckGroup;
+
+  CheckGroup.prototype._readElementOptions = function() {
+    var host = this.hostElement;
+    var result = {};
+    var value;
+    value = host.getAttribute('name') || host.getAttribute('data-name');
+    if (value != null) result.name = value;
+    value = host.getAttribute('dir') || host.getAttribute('data-dir');
+    if (value != null) result.dir = value;
+    value = host.getAttribute('labelWidth') || host.getAttribute('data-label-width');
+    if (value != null) result.labelWidth = value;
+    value = host.getAttribute('labelPosition') || host.getAttribute('data-label-position');
+    if (value != null) result.labelPosition = value;
+    value = host.getAttribute('labelAlign') || host.getAttribute('data-label-align');
+    if (value != null) result.labelAlign = value;
+    value = host.getAttribute('data-disabled');
+    if (value != null) result.disabled = value;
+    value = host.getAttribute('data-locale') || host.getAttribute('locale');
+    if (value != null) result.locale = value;
+    value = host.getAttribute('data-theme') || host.getAttribute('theme');
+    if (value != null) result.theme = value;
+    value = host.getAttribute('aria-label');
+    if (value != null) result.ariaLabel = value;
+    value = host.getAttribute('data-value');
+    if (value != null) {
+      try {
+        result.value = JSON.parse(value);
+      } catch (error) {
+        result.value = value.split(',').map(function(item) {
+          return item.trim();
+        }).filter(Boolean);
+      }
+    }
+    value = host.getAttribute('data-items');
+    if (value != null) {
+      try {
+        result.data = JSON.parse(value);
+      } catch (error) {
+        result.data = [];
+      }
+    }
+    return result;
+  };
+
+  CheckGroup.prototype._normalizeOptions = function() {
+    this._options.value = normalizeCheckGroupValues(this._options.value);
+    this._options.data = normalizeCheckGroupData(this._options.data);
+    this._options.dir = normalizeCheckGroupDirection(this._options.dir);
+    this._options.labelPosition = normalizeCheckGroupLabelPosition(
+      this._options.labelPosition
+    );
+    this._options.labelAlign = normalizeCheckGroupLabelAlign(
+      this._options.labelAlign
+    );
+    this._options.disabled = checkGroupBoolean(this._options.disabled, false);
+    this._options.locale = normalizeCheckGroupLocale(this._options.locale);
+    this._options.itemStyle = this._options.itemStyle &&
+      typeof this._options.itemStyle === 'object' ?
+      checkGroupAssign({}, this._options.itemStyle) :
+      { height: 30 };
+  };
+
+  CheckGroup.prototype._text = function(key) {
+    var pack = localePacks[this._options.locale] || localePacks.en;
+    return pack[key] || localePacks.en[key] || key;
+  };
+
+  CheckGroup.prototype._build = function() {
+    this.hostElement.textContent = '';
+    this.hostElement.className = 'fui-checkgroup' +
+      (this._original.className ? ' ' + this._original.className : '') +
+      (this._options.cls ? ' ' + String(this._options.cls) : '');
+    this.hostElement.classList.add('fui-checkgroup-' + this._options.dir);
+    this.hostElement.classList.toggle(
+      'fui-checkgroup-disabled',
+      this._options.disabled
+    );
+    this.hostElement.setAttribute('role', 'group');
+    this.hostElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || this._text('group')
+    );
+    this._renderItems();
+    this.setTheme(this._options.theme);
+  };
+
+  CheckGroup.prototype._renderItems = function() {
+    var self = this;
+    this._disposeItems();
+    this.hostElement.textContent = '';
+    this._options.data.forEach(function(item, index) {
+      var itemElement = document.createElement('div');
+      var input = document.createElement('input');
+      var control;
+      itemElement.className = 'fui-checkgroup-item';
+      itemElement.setAttribute('data-index', String(index));
+      Object.keys(self._options.itemStyle).forEach(function(name) {
+        itemElement.style[name] = checkGroupStyleValue(
+          name,
+          self._options.itemStyle[name]
+        );
+      });
+      input.type = 'checkbox';
+      if (self._options.name) input.name = self._options.name;
+      input.value = item.value == null ? '' : String(item.value);
+      itemElement.appendChild(input);
+      self.hostElement.appendChild(itemElement);
+      control = new CheckBox(input, {
+        label: item.label,
+        labelWidth: self._options.labelWidth,
+        labelPosition: self._options.labelPosition,
+        labelAlign: self._options.labelAlign,
+        value: input.value,
+        checked: false,
+        disabled: self._options.disabled || item.disabled,
+        locale: self._options.locale,
+        theme: 'inherit',
+        onChange: function() {
+          self._handleItemChange();
+        }
+      });
+      self._records.push({
+        data: item,
+        element: itemElement,
+        input: input,
+        control: control
+      });
+    });
+  };
+
+  CheckGroup.prototype._disposeItems = function() {
+    this._records.forEach(function(record) {
+      record.control.destroy();
+    });
+    this._records = [];
+  };
+
+  CheckGroup.prototype._bind = function() {
+    var self = this;
+    var form = this.hostElement.closest('form');
+    if (form) {
+      this.addEventListener(form, 'reset', function() {
+        setTimeout(function() {
+          if (self._destroyed) return;
+          self.setValue(self._initialValue);
+        }, 0);
+      });
+    }
+  };
+
+  CheckGroup.prototype._handleItemChange = function() {
+    var oldValues;
+    var newValues;
+    if (this._suspendChange) return;
+    oldValues = this._options.value.slice();
+    newValues = this._collectValues();
+    this._options.value = newValues.slice();
+    if (!checkGroupValuesEqual(oldValues, newValues)) {
+      this._invoke('onChange', newValues.slice());
+      this._emit('change', {
+        values: newValues.slice(),
+        oldValues: oldValues
+      });
+    }
+  };
+
+  CheckGroup.prototype._collectValues = function() {
+    return this._records.filter(function(record) {
+      return record.control.isChecked();
+    }).map(function(record) {
+      return record.data.value;
+    });
+  };
+
+  CheckGroup.prototype._invoke = function(name) {
+    var handler = this._options[name];
+    return typeof handler === 'function' ?
+      handler.apply(this, Array.prototype.slice.call(arguments, 1)) :
+      undefined;
+  };
+
+  CheckGroup.prototype._emit = function(type, detail) {
+    var listeners = (this._listeners[type] || []).slice();
+    var event = {
+      type: type,
+      target: this,
+      detail: detail
+    };
+    listeners.forEach(function(listener) {
+      listener.call(this, event);
+    }, this);
+  };
+
+  CheckGroup.prototype.on = function(type, listener) {
+    if (type && typeof listener === 'function') {
+      (this._listeners[String(type)] || (this._listeners[String(type)] = [])).push(listener);
+    }
+    return this;
+  };
+
+  CheckGroup.prototype.off = function(type, listener) {
+    var list = this._listeners[String(type)] || [];
+    var index;
+    if (!listener) {
+      delete this._listeners[String(type)];
+      return this;
+    }
+    for (index = list.length - 1; index >= 0; index -= 1) {
+      if (list[index] === listener) list.splice(index, 1);
+    }
+    return this;
+  };
+
+  CheckGroup.prototype.options = function() {
+    var options = checkGroupAssign({}, this._options);
+    options.value = this._options.value.slice();
+    options.data = normalizeCheckGroupData(this._options.data);
+    options.itemStyle = checkGroupAssign({}, this._options.itemStyle);
+    return options;
+  };
+
+  CheckGroup.prototype.setOptions = function(options) {
+    var hasValue = Boolean(
+      options && Object.prototype.hasOwnProperty.call(options, 'value')
+    );
+    var values = hasValue ? options.value : this.getValue();
+    checkGroupAssign(this._options, options || {});
+    this._options.value = normalizeCheckGroupValues(values);
+    this._normalizeOptions();
+    this._build();
+    this.setValue(this._options.value, true);
+    this._emit('refresh', { options: this.options() });
+    return this;
+  };
+
+  CheckGroup.prototype.setValue = function(values, silent) {
+    var oldValues = this.getValue();
+    var normalized = normalizeCheckGroupValues(values);
+    var selected = Object.create(null);
+    var newValues;
+    normalized.forEach(function(value) {
+      selected[checkGroupValueKey(value)] = true;
+    });
+    this._suspendChange = true;
+    this._records.forEach(function(record) {
+      var checked = Boolean(selected[checkGroupValueKey(record.data.value)]);
+      if (checked) record.control.check();
+      else record.control.uncheck();
+    });
+    this._suspendChange = false;
+    newValues = this._collectValues();
+    this._options.value = newValues.slice();
+    if (!silent && !checkGroupValuesEqual(oldValues, newValues)) {
+      this._invoke('onChange', newValues.slice());
+      this._emit('change', {
+        values: newValues.slice(),
+        oldValues: oldValues
+      });
+    }
+    return this;
+  };
+
+  CheckGroup.prototype.getValue = function() {
+    return this._collectValues();
+  };
+
+  CheckGroup.prototype.getData = function() {
+    return normalizeCheckGroupData(this._options.data);
+  };
+
+  CheckGroup.prototype.getCheckBox = function(value) {
+    var key = checkGroupValueKey(value);
+    var record = this._records.find(function(item) {
+      return checkGroupValueKey(item.data.value) === key;
+    });
+    return record ? record.control : null;
+  };
+
+  CheckGroup.prototype.loadData = function(data, values) {
+    this._options.data = normalizeCheckGroupData(data);
+    this._renderItems();
+    return this.setValue(values == null ? this._options.value : values);
+  };
+
+  CheckGroup.prototype.check = function(value) {
+    var values = this.getValue();
+    var key = checkGroupValueKey(value);
+    if (!values.some(function(item) {
+      return checkGroupValueKey(item) === key;
+    })) {
+      values.push(value);
+    }
+    return this.setValue(values);
+  };
+
+  CheckGroup.prototype.uncheck = function(value) {
+    var key = checkGroupValueKey(value);
+    return this.setValue(this.getValue().filter(function(item) {
+      return checkGroupValueKey(item) !== key;
+    }));
+  };
+
+  CheckGroup.prototype.clear = function() {
+    return this.setValue([]);
+  };
+
+  CheckGroup.prototype.reset = function() {
+    return this.setValue(this._initialValue);
+  };
+
+  CheckGroup.prototype.disable = function() {
+    this._options.disabled = true;
+    this.hostElement.classList.add('fui-checkgroup-disabled');
+    this._records.forEach(function(record) {
+      record.control.disable();
+    });
+    return this;
+  };
+
+  CheckGroup.prototype.enable = function() {
+    this._options.disabled = false;
+    this.hostElement.classList.remove('fui-checkgroup-disabled');
+    this._records.forEach(function(record) {
+      if (record.data.disabled) record.control.disable();
+      else record.control.enable();
+    });
+    return this;
+  };
+
+  CheckGroup.prototype.setLocale = function(locale, messages) {
+    if (locale && messages) {
+      localePacks[String(locale)] = checkGroupAssign({}, localePacks.en, messages);
+    }
+    this._options.locale = normalizeCheckGroupLocale(locale);
+    this.hostElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || this._text('group')
+    );
+    this._records.forEach(function(record) {
+      record.control.setLocale(locale);
+    });
+    return this;
+  };
+
+  CheckGroup.prototype.setTheme = function(theme) {
+    var index;
+    this._options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this._options.theme === 'inherit' ?
+      findCheckGroupTheme(this._themeSource) :
+      normalizeCheckGroupTheme(this._options.theme);
+    for (index = 0; index < CHECKGROUP_THEMES.length; index += 1) {
+      this.hostElement.classList.remove('fg-theme-' + CHECKGROUP_THEMES[index]);
+    }
+    this.hostElement.classList.add('fg-theme-' + this.theme);
+    this._records.forEach(function(record) {
+      record.control.setTheme('inherit');
+    });
+    return this;
+  };
+
+  CheckGroup.prototype.destroy = function() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this.removeEventListener();
+    this._disposeItems();
+    this.hostElement.innerHTML = this._original.html;
+    restoreCheckGroupAttribute(this.hostElement, 'class', this._original.className);
+    restoreCheckGroupAttribute(this.hostElement, 'style', this._original.style);
+    restoreCheckGroupAttribute(this.hostElement, 'role', this._original.role);
+    restoreCheckGroupAttribute(this.hostElement, 'aria-label', this._original.ariaLabel);
+    unregisterControl(this.hostElement, this);
+    delete this.hostElement.__fabuiCheckGroup;
+    this._listeners = {};
+  };
+
+  CheckGroup.prototype.dispose = CheckGroup.prototype.destroy;
+  CheckGroup.defaults = defaults;
+  CheckGroup.locales = localePacks;
+  CheckGroup.themes = CHECKGROUP_THEMES.slice();
+  CheckGroup.addLocale = function(name, messages) {
+    if (name && messages) {
+      localePacks[String(name)] = checkGroupAssign({}, localePacks.en, messages);
+    }
+    return CheckGroup;
+  };
+  CheckGroup.getControl = function(element) {
+    element = resolveCheckGroupElement(element);
+    return element && element.__fabuiCheckGroup ? element.__fabuiCheckGroup : null;
+  };
+  CheckGroup.normalizeTheme = normalizeCheckGroupTheme;
+  CheckGroup.normalizeLocale = normalizeCheckGroupLocale;
+  return CheckGroup;
+}
+
+var SWITCHBUTTON_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+var switchButtonSequence = 0;
+
+function switchButtonAssign(target) {
+  var source;
+  var key;
+  var index;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function switchButtonBoolean(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    value = value.trim().toLowerCase();
+    if (value === 'false' || value === '0' || value === 'no') return false;
+    if (value === 'true' || value === '1' || value === 'yes' || value === '') return true;
+  }
+  return Boolean(value);
+}
+
+function switchButtonNumber(value, fallback, minimum) {
+  var number = parseFloat(value);
+  if (!Number.isFinite(number)) number = fallback;
+  return Math.max(minimum == null ? 0 : minimum, number);
+}
+
+function resolveSwitchButtonElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function normalizeSwitchButtonLocale(value) {
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
+}
+
+function normalizeSwitchButtonTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return SWITCHBUTTON_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function normalizeSwitchButtonLabelPosition(value) {
+  value = String(value || 'before').toLowerCase();
+  return value === 'after' || value === 'top' ? value : 'before';
+}
+
+function normalizeSwitchButtonLabelAlign(value) {
+  return String(value || 'left').toLowerCase() === 'right' ? 'right' : 'left';
+}
+
+function findSwitchButtonTheme(element) {
+  var current = resolveSwitchButtonElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < SWITCHBUTTON_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + SWITCHBUTTON_THEMES[index])) {
+        return SWITCHBUTTON_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function restoreSwitchButtonAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function createSwitchButtonFactory(Control, registerControl, unregisterControl) {
+  'use strict';
+
+  var defaults = {
+    handleWidth: 'auto',
+    width: 60,
+    height: 30,
+    checked: false,
+    disabled: false,
+    readonly: false,
+    reversed: false,
+    onText: 'ON',
+    offText: 'OFF',
+    handleText: '',
+    value: 'on',
+    label: null,
+    labelWidth: 'auto',
+    labelPosition: 'before',
+    labelAlign: 'left',
+    locale: 'en',
+    theme: 'inherit',
+    cls: '',
+    ariaLabel: '',
+    onChange: null
+  };
+  var localePacks = {
+    en: {
+      switchbutton: 'Switch button'
+    },
+    'zh-TW': {
+      switchbutton: '切換按鈕'
+    },
+    'zh-CN': {
+      switchbutton: '切换按钮'
+    }
+  };
+
+  function SwitchButton(element, options) {
+    if (!(this instanceof SwitchButton)) return new SwitchButton(element, options);
+    this.hostElement = resolveSwitchButtonElement(element);
+    if (
+      !this.hostElement ||
+      this.hostElement.tagName !== 'INPUT' ||
+      String(this.hostElement.type || '').toLowerCase() !== 'checkbox'
+    ) {
+      throw new Error('fabui.SwitchButton requires an input[type="checkbox"] element.');
+    }
+    if (this.hostElement.__fabuiSwitchButton) {
+      return this.hostElement.__fabuiSwitchButton;
+    }
+    Control.call(this);
+    this._listeners = {};
+    this._destroyed = false;
+    this._changing = false;
+    this._original = {
+      className: this.hostElement.getAttribute('class'),
+      style: this.hostElement.getAttribute('style'),
+      id: this.hostElement.getAttribute('id'),
+      value: this.hostElement.getAttribute('value'),
+      checked: this.hostElement.checked,
+      checkedAttribute: this.hostElement.getAttribute('checked'),
+      disabled: this.hostElement.disabled,
+      disabledAttribute: this.hostElement.getAttribute('disabled'),
+      readOnly: this.hostElement.readOnly,
+      readonlyAttribute: this.hostElement.getAttribute('readonly'),
+      ariaLabel: this.hostElement.getAttribute('aria-label'),
+      ariaReadonly: this.hostElement.getAttribute('aria-readonly'),
+      tabIndex: this.hostElement.getAttribute('tabindex')
+    };
+    this._themeSource = this.hostElement.parentElement || document.body;
+    this._options = switchButtonAssign(
+      {},
+      defaults,
+      this._readElementOptions(),
+      options || {}
+    );
+    this._normalizeOptions();
+    this._initialChecked = this._options.checked;
+    this._initialValue = this._options.value;
+    this._build();
+    this._bind();
+    this._applyOptions(true);
+    this.hostElement.__fabuiSwitchButton = this;
+    registerControl(this.hostElement, this);
+  }
+
+  SwitchButton.prototype = Object.create(Control.prototype);
+  SwitchButton.prototype.constructor = SwitchButton;
+
+  SwitchButton.prototype._readElementOptions = function() {
+    var input = this.hostElement;
+    var result = {
+      checked: input.checked,
+      disabled: input.disabled,
+      readonly: input.readOnly
+    };
+    var names = [
+      ['value', 'value'],
+      ['label', 'label'],
+      ['labelWidth', 'label-width'],
+      ['labelPosition', 'label-position'],
+      ['labelAlign', 'label-align'],
+      ['onText', 'on-text'],
+      ['offText', 'off-text'],
+      ['handleText', 'handle-text'],
+      ['handleWidth', 'handle-width'],
+      ['width', 'width'],
+      ['height', 'height'],
+      ['theme', 'theme'],
+      ['locale', 'locale'],
+      ['ariaLabel', 'aria-label']
+    ];
+    var index;
+    var value;
+    for (index = 0; index < names.length; index += 1) {
+      value = input.getAttribute(names[index][0]);
+      if (value == null) value = input.getAttribute('data-' + names[index][1]);
+      if (value != null) result[names[index][0]] = value;
+    }
+    value = input.getAttribute('reversed');
+    if (value == null) value = input.getAttribute('data-reversed');
+    if (value != null) result.reversed = value;
+    return result;
+  };
+
+  SwitchButton.prototype._normalizeOptions = function() {
+    this._options.width = switchButtonNumber(this._options.width, 60, 1);
+    this._options.height = switchButtonNumber(this._options.height, 30, 1);
+    if (this._options.handleWidth !== 'auto') {
+      this._options.handleWidth = switchButtonNumber(
+        this._options.handleWidth,
+        this._options.height,
+        1
+      );
+    }
+    this._options.checked = switchButtonBoolean(this._options.checked, false);
+    this._options.disabled = switchButtonBoolean(this._options.disabled, false);
+    this._options.readonly = switchButtonBoolean(this._options.readonly, false);
+    this._options.reversed = switchButtonBoolean(this._options.reversed, false);
+    this._options.labelPosition = normalizeSwitchButtonLabelPosition(
+      this._options.labelPosition
+    );
+    this._options.labelAlign = normalizeSwitchButtonLabelAlign(
+      this._options.labelAlign
+    );
+    this._options.locale = normalizeSwitchButtonLocale(this._options.locale);
+  };
+
+  SwitchButton.prototype._text = function(key) {
+    var pack = localePacks[this._options.locale] || localePacks.en;
+    return pack[key] || localePacks.en[key] || key;
+  };
+
+  SwitchButton.prototype._build = function() {
+    var parent = this.hostElement.parentNode;
+    if (!parent) {
+      throw new Error('fabui.SwitchButton input must be attached to the document.');
+    }
+    if (!this.hostElement.id) {
+      switchButtonSequence += 1;
+      this.hostElement.id = 'fui-switchbutton-' + switchButtonSequence;
+    }
+    this.wrapper = document.createElement('span');
+    this.wrapper.className = 'fui-switchbutton';
+    this.control = document.createElement('span');
+    this.control.className = 'fui-switchbutton-control';
+    this.inner = document.createElement('span');
+    this.inner.className = 'fui-switchbutton-inner';
+    this.onElement = document.createElement('span');
+    this.onElement.className = 'fui-switchbutton-on';
+    this.handleElement = document.createElement('span');
+    this.handleElement.className = 'fui-switchbutton-handle';
+    this.offElement = document.createElement('span');
+    this.offElement.className = 'fui-switchbutton-off';
+    this.labelElement = document.createElement('label');
+    this.labelElement.className = 'fui-switchbutton-label';
+    this.labelElement.setAttribute('for', this.hostElement.id);
+    this.inner.setAttribute('aria-hidden', 'true');
+    parent.insertBefore(this.wrapper, this.hostElement);
+    this.inner.appendChild(this.onElement);
+    this.inner.appendChild(this.handleElement);
+    this.inner.appendChild(this.offElement);
+    this.control.appendChild(this.inner);
+    this.control.appendChild(this.hostElement);
+    this.wrapper.appendChild(this.control);
+    this.wrapper.appendChild(this.labelElement);
+    this.hostElement.classList.add('fui-switchbutton-input');
+  };
+
+  SwitchButton.prototype._bind = function() {
+    var self = this;
+    this.addEventListener(this.hostElement, 'click', function(event) {
+      if (!self._options.readonly) return;
+      event.preventDefault();
+      self.hostElement.checked = self._options.checked;
+    });
+    this.addEventListener(this.hostElement, 'change', function(event) {
+      if (self._changing) return;
+      if (self._options.readonly) {
+        self.hostElement.checked = self._options.checked;
+        return;
+      }
+      self._setChecked(self.hostElement.checked, false, event);
+    });
+    if (this.hostElement.form) {
+      this.addEventListener(this.hostElement.form, 'reset', function() {
+        setTimeout(function() {
+          if (self._destroyed) return;
+          self.setValue(self._initialValue);
+          self._setChecked(self._initialChecked, true);
+        }, 0);
+      });
+    }
+  };
+
+  SwitchButton.prototype._layout = function() {
+    var width = this._options.width;
+    var height = this._options.height;
+    var handleWidth = this._options.handleWidth === 'auto' ?
+      height :
+      Math.min(width, this._options.handleWidth);
+    var labelWidth = width - handleWidth / 2;
+    var marginWidth = width - handleWidth;
+    var offset = this._options.reversed ?
+      (this._options.checked ? marginWidth : 0) :
+      (this._options.checked ? 0 : marginWidth);
+    this.control.style.width = width + 'px';
+    this.control.style.height = height + 'px';
+    this.inner.style.width = (width * 2 - handleWidth) + 'px';
+    this.inner.style.height = height + 'px';
+    this.inner.style.lineHeight = height + 'px';
+    this.inner.style.marginLeft = -offset + 'px';
+    this.onElement.style.width = labelWidth + 'px';
+    this.offElement.style.width = labelWidth + 'px';
+    this.handleElement.style.width = handleWidth + 'px';
+    this.handleElement.style.height = height + 'px';
+    this.handleElement.style.marginLeft = -(handleWidth / 2) + 'px';
+    this.onElement.style.textIndent = (
+      this._options.reversed ? handleWidth / 2 : -handleWidth / 2
+    ) + 'px';
+    this.offElement.style.textIndent = (
+      this._options.reversed ? -handleWidth / 2 : handleWidth / 2
+    ) + 'px';
+  };
+
+  SwitchButton.prototype._applyOptions = function(initial) {
+    var label = this._options.label == null ? '' : String(this._options.label);
+    this.wrapper.className = 'fui-switchbutton' +
+      (this._options.cls ? ' ' + String(this._options.cls) : '');
+    this.wrapper.classList.add(
+      'fui-switchbutton-label-' + this._options.labelPosition
+    );
+    this.wrapper.classList.toggle('fui-switchbutton-with-label', Boolean(label));
+    this.wrapper.classList.toggle('fui-switchbutton-checked', this._options.checked);
+    this.wrapper.classList.toggle('fui-switchbutton-disabled', this._options.disabled);
+    this.wrapper.classList.toggle('fui-switchbutton-readonly', this._options.readonly);
+    this.wrapper.classList.toggle('fui-switchbutton-reversed', this._options.reversed);
+    this.onElement.textContent = String(this._options.onText == null ? '' : this._options.onText);
+    this.offElement.textContent = String(this._options.offText == null ? '' : this._options.offText);
+    this.handleElement.textContent = String(
+      this._options.handleText == null ? '' : this._options.handleText
+    );
+    if (this._options.reversed) {
+      this.inner.appendChild(this.offElement);
+      this.inner.appendChild(this.handleElement);
+      this.inner.appendChild(this.onElement);
+    } else {
+      this.inner.appendChild(this.onElement);
+      this.inner.appendChild(this.handleElement);
+      this.inner.appendChild(this.offElement);
+    }
+    this.labelElement.textContent = label;
+    this.labelElement.hidden = !label;
+    this.labelElement.style.width = this._options.labelWidth === 'auto' ?
+      'auto' :
+      switchButtonNumber(this._options.labelWidth, 0, 0) + 'px';
+    this.labelElement.style.textAlign = this._options.labelAlign;
+    this.hostElement.disabled = this._options.disabled;
+    this.hostElement.readOnly = this._options.readonly;
+    this.hostElement.setAttribute('aria-readonly', String(this._options.readonly));
+    this.hostElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || label || this._text('switchbutton')
+    );
+    if (this._options.value != null) this.hostElement.value = String(this._options.value);
+    else if (this._original.value == null) this.hostElement.removeAttribute('value');
+    this.hostElement.checked = this._options.checked;
+    this._layout();
+    this.setTheme(this._options.theme);
+    if (!initial) this._emit('refresh', { options: this.options() });
+    return this;
+  };
+
+  SwitchButton.prototype._invoke = function(name) {
+    var handler = this._options[name];
+    var args = Array.prototype.slice.call(arguments, 1);
+    return typeof handler === 'function' ? handler.apply(this, args) : undefined;
+  };
+
+  SwitchButton.prototype._emit = function(type, detail) {
+    var listeners = (this._listeners[type] || []).slice();
+    var event = {
+      type: type,
+      target: this,
+      detail: detail
+    };
+    listeners.forEach(function(listener) {
+      listener.call(this, event);
+    }, this);
+  };
+
+  SwitchButton.prototype.on = function(type, listener) {
+    if (type && typeof listener === 'function') {
+      (this._listeners[String(type)] || (this._listeners[String(type)] = [])).push(listener);
+    }
+    return this;
+  };
+
+  SwitchButton.prototype.off = function(type, listener) {
+    var list = this._listeners[String(type)] || [];
+    var index;
+    if (!listener) {
+      delete this._listeners[String(type)];
+      return this;
+    }
+    for (index = list.length - 1; index >= 0; index -= 1) {
+      if (list[index] === listener) list.splice(index, 1);
+    }
+    return this;
+  };
+
+  SwitchButton.prototype._setChecked = function(checked, silent, originalEvent) {
+    var changed;
+    checked = Boolean(checked);
+    changed = this._options.checked !== checked;
+    this._options.checked = checked;
+    this._changing = true;
+    this.hostElement.checked = checked;
+    this._changing = false;
+    this.wrapper.classList.toggle('fui-switchbutton-checked', checked);
+    this._layout();
+    if (changed && !silent) {
+      this._invoke('onChange', checked);
+      this._emit('change', {
+        checked: checked,
+        value: this.getValue(),
+        originalEvent: originalEvent || null
+      });
+    }
+    return this;
+  };
+
+  SwitchButton.prototype.options = function() {
+    return switchButtonAssign({}, this._options);
+  };
+
+  SwitchButton.prototype.setOptions = function(options) {
+    switchButtonAssign(this._options, options || {});
+    this._normalizeOptions();
+    return this._applyOptions(false);
+  };
+
+  SwitchButton.prototype.getValue = function() {
+    return this.hostElement.value;
+  };
+
+  SwitchButton.prototype.setValue = function(value) {
+    this._options.value = value;
+    if (value == null) this.hostElement.removeAttribute('value');
+    else this.hostElement.value = String(value);
+    return this;
+  };
+
+  SwitchButton.prototype.isChecked = function() {
+    return this._options.checked;
+  };
+
+  SwitchButton.prototype.check = function() {
+    return this._setChecked(true, false);
+  };
+
+  SwitchButton.prototype.uncheck = function() {
+    return this._setChecked(false, false);
+  };
+
+  SwitchButton.prototype.clear = function() {
+    return this.uncheck();
+  };
+
+  SwitchButton.prototype.reset = function() {
+    this.setValue(this._initialValue);
+    return this._setChecked(this._initialChecked, false);
+  };
+
+  SwitchButton.prototype.disable = function() {
+    this._options.disabled = true;
+    this.hostElement.disabled = true;
+    this.wrapper.classList.add('fui-switchbutton-disabled');
+    return this;
+  };
+
+  SwitchButton.prototype.enable = function() {
+    this._options.disabled = false;
+    this.hostElement.disabled = false;
+    this.wrapper.classList.remove('fui-switchbutton-disabled');
+    return this;
+  };
+
+  SwitchButton.prototype.readonly = function(mode) {
+    this._options.readonly = mode == null ? true : Boolean(mode);
+    this.hostElement.readOnly = this._options.readonly;
+    this.hostElement.setAttribute('aria-readonly', String(this._options.readonly));
+    this.wrapper.classList.toggle('fui-switchbutton-readonly', this._options.readonly);
+    return this;
+  };
+
+  SwitchButton.prototype.resize = function(width, height) {
+    if (width && typeof width === 'object') {
+      if (width.width != null) this._options.width = width.width;
+      if (width.height != null) this._options.height = width.height;
+      if (width.handleWidth != null) this._options.handleWidth = width.handleWidth;
+    } else {
+      if (width != null) this._options.width = width;
+      if (height != null) this._options.height = height;
+    }
+    this._normalizeOptions();
+    this._layout();
+    return this;
+  };
+
+  SwitchButton.prototype.setLabel = function(label) {
+    this._options.label = label;
+    return this._applyOptions(false);
+  };
+
+  SwitchButton.prototype.setLocale = function(locale, messages) {
+    if (locale && messages) {
+      localePacks[String(locale)] = switchButtonAssign({}, localePacks.en, messages);
+    }
+    this._options.locale = normalizeSwitchButtonLocale(locale);
+    this.hostElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || this._options.label || this._text('switchbutton')
+    );
+    return this;
+  };
+
+  SwitchButton.prototype.setTheme = function(theme) {
+    var index;
+    this._options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this._options.theme === 'inherit' ?
+      findSwitchButtonTheme(this._themeSource) :
+      normalizeSwitchButtonTheme(this._options.theme);
+    for (index = 0; index < SWITCHBUTTON_THEMES.length; index += 1) {
+      this.wrapper.classList.remove('fg-theme-' + SWITCHBUTTON_THEMES[index]);
+    }
+    this.wrapper.classList.add('fg-theme-' + this.theme);
+    return this;
+  };
+
+  SwitchButton.prototype.destroy = function() {
+    var parent;
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this.removeEventListener();
+    parent = this.wrapper.parentNode;
+    if (parent) {
+      parent.insertBefore(this.hostElement, this.wrapper);
+      parent.removeChild(this.wrapper);
+    }
+    restoreSwitchButtonAttribute(this.hostElement, 'class', this._original.className);
+    restoreSwitchButtonAttribute(this.hostElement, 'style', this._original.style);
+    restoreSwitchButtonAttribute(this.hostElement, 'id', this._original.id);
+    restoreSwitchButtonAttribute(this.hostElement, 'value', this._original.value);
+    restoreSwitchButtonAttribute(
+      this.hostElement,
+      'checked',
+      this._original.checkedAttribute
+    );
+    restoreSwitchButtonAttribute(
+      this.hostElement,
+      'disabled',
+      this._original.disabledAttribute
+    );
+    restoreSwitchButtonAttribute(
+      this.hostElement,
+      'readonly',
+      this._original.readonlyAttribute
+    );
+    restoreSwitchButtonAttribute(this.hostElement, 'aria-label', this._original.ariaLabel);
+    restoreSwitchButtonAttribute(
+      this.hostElement,
+      'aria-readonly',
+      this._original.ariaReadonly
+    );
+    restoreSwitchButtonAttribute(this.hostElement, 'tabindex', this._original.tabIndex);
+    this.hostElement.checked = this._original.checked;
+    this.hostElement.disabled = this._original.disabled;
+    this.hostElement.readOnly = this._original.readOnly;
+    unregisterControl(this.hostElement, this);
+    delete this.hostElement.__fabuiSwitchButton;
+    this._listeners = {};
+    this.wrapper = null;
+    this.control = null;
+    this.inner = null;
+    this.onElement = null;
+    this.offElement = null;
+    this.handleElement = null;
+    this.labelElement = null;
+  };
+
+  SwitchButton.prototype.dispose = SwitchButton.prototype.destroy;
+  SwitchButton.defaults = defaults;
+  SwitchButton.locales = localePacks;
+  SwitchButton.themes = SWITCHBUTTON_THEMES.slice();
+  SwitchButton.addLocale = function(name, messages) {
+    if (name && messages) {
+      localePacks[String(name)] = switchButtonAssign({}, localePacks.en, messages);
+    }
+    return SwitchButton;
+  };
+  SwitchButton.getControl = function(element) {
+    element = resolveSwitchButtonElement(element);
+    return element && element.__fabuiSwitchButton ?
+      element.__fabuiSwitchButton :
+      null;
+  };
+  SwitchButton.normalizeTheme = normalizeSwitchButtonTheme;
+  SwitchButton.normalizeLocale = normalizeSwitchButtonLocale;
+  return SwitchButton;
+}
+
+var RADIOBUTTON_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+var radioButtonSequence = 0;
+
+function radioButtonAssign(target) {
+  var source;
+  var key;
+  var index;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function radioButtonBoolean(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    value = value.trim().toLowerCase();
+    if (value === 'false' || value === '0' || value === 'no') return false;
+    if (value === 'true' || value === '1' || value === 'yes' || value === '') return true;
+  }
+  return Boolean(value);
+}
+
+function radioButtonSize(value, fallback) {
+  if (value == null || value === '') value = fallback;
+  if (value === 'auto') return 'auto';
+  return typeof value === 'number' ? value + 'px' : String(value);
+}
+
+function resolveRadioButtonElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function normalizeRadioButtonLocale(value) {
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
+}
+
+function normalizeRadioButtonTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return RADIOBUTTON_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function normalizeRadioButtonLabelPosition(value) {
+  value = String(value || 'before').toLowerCase();
+  return value === 'after' || value === 'top' ? value : 'before';
+}
+
+function normalizeRadioButtonLabelAlign(value) {
+  return String(value || 'left').toLowerCase() === 'right' ? 'right' : 'left';
+}
+
+function findRadioButtonTheme(element) {
+  var current = resolveRadioButtonElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < RADIOBUTTON_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + RADIOBUTTON_THEMES[index])) {
+        return RADIOBUTTON_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function restoreRadioButtonAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function createRadioButtonFactory(Control, registerControl, unregisterControl) {
+  'use strict';
+
+  var defaults = {
+    width: 20,
+    height: 20,
+    value: null,
+    checked: false,
+    disabled: false,
+    label: null,
+    labelWidth: 'auto',
+    labelPosition: 'before',
+    labelAlign: 'left',
+    locale: 'en',
+    theme: 'inherit',
+    cls: '',
+    ariaLabel: '',
+    onChange: null
+  };
+  var localePacks = {
+    en: {
+      radiobutton: 'Radio button'
+    },
+    'zh-TW': {
+      radiobutton: '選項按鈕'
+    },
+    'zh-CN': {
+      radiobutton: '单选按钮'
+    }
+  };
+
+  function RadioButton(element, options) {
+    if (!(this instanceof RadioButton)) return new RadioButton(element, options);
+    this.hostElement = resolveRadioButtonElement(element);
+    if (
+      !this.hostElement ||
+      this.hostElement.tagName !== 'INPUT' ||
+      String(this.hostElement.type || '').toLowerCase() !== 'radio'
+    ) {
+      throw new Error('fabui.RadioButton requires an input[type="radio"] element.');
+    }
+    if (this.hostElement.__fabuiRadioButton) return this.hostElement.__fabuiRadioButton;
+    Control.call(this);
+    this._listeners = {};
+    this._destroyed = false;
+    this._changing = false;
+    this._original = {
+      className: this.hostElement.getAttribute('class'),
+      style: this.hostElement.getAttribute('style'),
+      id: this.hostElement.getAttribute('id'),
+      value: this.hostElement.getAttribute('value'),
+      checked: this.hostElement.checked,
+      checkedAttribute: this.hostElement.getAttribute('checked'),
+      disabled: this.hostElement.disabled,
+      disabledAttribute: this.hostElement.getAttribute('disabled'),
+      ariaLabel: this.hostElement.getAttribute('aria-label'),
+      tabIndex: this.hostElement.getAttribute('tabindex')
+    };
+    this._themeSource = this.hostElement.parentElement || document.body;
+    this._options = radioButtonAssign({}, defaults, this._readElementOptions(), options || {});
+    this._normalizeOptions();
+    this._initialChecked = this._options.checked;
+    this._initialValue = this._options.value;
+    this._build();
+    this._bind();
+    this._applyOptions(true);
+    this.hostElement.__fabuiRadioButton = this;
+    registerControl(this.hostElement, this);
+    this._syncGroup(null, true);
+  }
+
+  RadioButton.prototype = Object.create(Control.prototype);
+  RadioButton.prototype.constructor = RadioButton;
+
+  RadioButton.prototype._readElementOptions = function() {
+    var input = this.hostElement;
+    var result = {
+      checked: input.checked,
+      disabled: input.disabled
+    };
+    var value;
+    value = input.getAttribute('value');
+    if (value != null) result.value = value;
+    value = input.getAttribute('label') || input.getAttribute('data-label');
+    if (value != null) result.label = value;
+    value = input.getAttribute('labelWidth') || input.getAttribute('data-label-width');
+    if (value != null) result.labelWidth = value;
+    value = input.getAttribute('labelPosition') || input.getAttribute('data-label-position');
+    if (value != null) result.labelPosition = value;
+    value = input.getAttribute('labelAlign') || input.getAttribute('data-label-align');
+    if (value != null) result.labelAlign = value;
+    value = input.getAttribute('data-width');
+    if (value != null) result.width = value;
+    value = input.getAttribute('data-height');
+    if (value != null) result.height = value;
+    value = input.getAttribute('data-theme') || input.getAttribute('theme');
+    if (value) result.theme = value;
+    value = input.getAttribute('data-locale') || input.getAttribute('locale');
+    if (value) result.locale = value;
+    value = input.getAttribute('aria-label');
+    if (value) result.ariaLabel = value;
+    return result;
+  };
+
+  RadioButton.prototype._normalizeOptions = function() {
+    this._options.checked = radioButtonBoolean(this._options.checked, false);
+    this._options.disabled = radioButtonBoolean(this._options.disabled, false);
+    this._options.labelPosition = normalizeRadioButtonLabelPosition(
+      this._options.labelPosition
+    );
+    this._options.labelAlign = normalizeRadioButtonLabelAlign(this._options.labelAlign);
+    this._options.locale = normalizeRadioButtonLocale(this._options.locale);
+  };
+
+  RadioButton.prototype._text = function(key) {
+    var pack = localePacks[this._options.locale] || localePacks.en;
+    return pack[key] || localePacks.en[key] || key;
+  };
+
+  RadioButton.prototype._build = function() {
+    var parent = this.hostElement.parentNode;
+    if (!parent) throw new Error('fabui.RadioButton input must be attached to the document.');
+    if (!this.hostElement.id) {
+      radioButtonSequence += 1;
+      this.hostElement.id = 'fui-radiobutton-' + radioButtonSequence;
+    }
+    this.wrapper = document.createElement('span');
+    this.wrapper.className = 'fui-radiobutton';
+    this.control = document.createElement('span');
+    this.control.className = 'fui-radiobutton-control';
+    this.box = document.createElement('span');
+    this.box.className = 'fui-radiobutton-box';
+    this.box.setAttribute('aria-hidden', 'true');
+    this.labelElement = document.createElement('label');
+    this.labelElement.className = 'fui-radiobutton-label';
+    this.labelElement.setAttribute('for', this.hostElement.id);
+    parent.insertBefore(this.wrapper, this.hostElement);
+    this.control.appendChild(this.hostElement);
+    this.control.appendChild(this.box);
+    this.wrapper.appendChild(this.control);
+    this.wrapper.appendChild(this.labelElement);
+    this.hostElement.classList.add('fui-radiobutton-input');
+  };
+
+  RadioButton.prototype._bind = function() {
+    var self = this;
+    this.addEventListener(this.hostElement, 'change', function(event) {
+      if (self._changing) return;
+      self._syncGroup(event, false);
+    });
+    if (this.hostElement.form) {
+      this.addEventListener(this.hostElement.form, 'reset', function() {
+        setTimeout(function() {
+          if (self._destroyed) return;
+          self.setValue(self._initialValue);
+          self.hostElement.checked = self._initialChecked;
+          self._syncGroup(null, true);
+        }, 0);
+      });
+    }
+  };
+
+  RadioButton.prototype._getGroupInputs = function() {
+    var input = this.hostElement;
+    var name = input.name;
+    var root = input.form || document;
+    if (!name || !root || !root.querySelectorAll) return [input];
+    return Array.prototype.filter.call(
+      root.querySelectorAll('input[type="radio"]'),
+      function(candidate) {
+        return candidate.name === name && candidate.form === input.form;
+      }
+    );
+  };
+
+  RadioButton.prototype._syncGroup = function(originalEvent, silent) {
+    this._getGroupInputs().forEach(function(input) {
+      var control = input.__fabuiRadioButton;
+      if (control) control._setChecked(input.checked, silent, originalEvent);
+    });
+    return this;
+  };
+
+  RadioButton.prototype._applyOptions = function(initial) {
+    var label = this._options.label == null ? '' : String(this._options.label);
+    this.wrapper.className = 'fui-radiobutton' +
+      (this._options.cls ? ' ' + String(this._options.cls) : '');
+    this.wrapper.classList.add('fui-radiobutton-label-' + this._options.labelPosition);
+    this.wrapper.classList.toggle('fui-radiobutton-with-label', Boolean(label));
+    this.labelElement.textContent = label;
+    this.labelElement.hidden = !label;
+    this.labelElement.style.width = radioButtonSize(this._options.labelWidth, 'auto');
+    this.labelElement.style.textAlign = this._options.labelAlign;
+    this.resize(this._options.width, this._options.height);
+    this.hostElement.disabled = this._options.disabled;
+    this.wrapper.classList.toggle('fui-radiobutton-disabled', this._options.disabled);
+    if (this._options.value != null) this.hostElement.value = String(this._options.value);
+    else if (this._original.value == null) this.hostElement.removeAttribute('value');
+    this.hostElement.checked = this._options.checked;
+    this.wrapper.classList.toggle('fui-radiobutton-checked', this._options.checked);
+    this.hostElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || label || this._text('radiobutton')
+    );
+    this.setTheme(this._options.theme);
+    if (!initial) {
+      this._syncGroup(null, true);
+      this._emit('refresh', { options: this.options() });
+    }
+    return this;
+  };
+
+  RadioButton.prototype._invoke = function(name) {
+    var handler = this._options[name];
+    var args = Array.prototype.slice.call(arguments, 1);
+    return typeof handler === 'function' ? handler.apply(this, args) : undefined;
+  };
+
+  RadioButton.prototype._emit = function(type, detail) {
+    var listeners = (this._listeners[type] || []).slice();
+    var event = {
+      type: type,
+      target: this,
+      detail: detail
+    };
+    listeners.forEach(function(listener) {
+      listener.call(this, event);
+    }, this);
+  };
+
+  RadioButton.prototype.on = function(type, listener) {
+    if (type && typeof listener === 'function') {
+      (this._listeners[String(type)] || (this._listeners[String(type)] = [])).push(listener);
+    }
+    return this;
+  };
+
+  RadioButton.prototype.off = function(type, listener) {
+    var list = this._listeners[String(type)] || [];
+    var index;
+    if (!listener) {
+      delete this._listeners[String(type)];
+      return this;
+    }
+    for (index = list.length - 1; index >= 0; index -= 1) {
+      if (list[index] === listener) list.splice(index, 1);
+    }
+    return this;
+  };
+
+  RadioButton.prototype._setChecked = function(checked, silent, originalEvent) {
+    var changed;
+    checked = Boolean(checked);
+    changed = this._options.checked !== checked;
+    this._options.checked = checked;
+    this._changing = true;
+    this.hostElement.checked = checked;
+    this._changing = false;
+    this.wrapper.classList.toggle('fui-radiobutton-checked', checked);
+    if (changed && !silent) {
+      this._invoke('onChange', checked);
+      this._emit('change', {
+        checked: checked,
+        value: this.getValue(),
+        originalEvent: originalEvent || null
+      });
+    }
+    return this;
+  };
+
+  RadioButton.prototype.options = function() {
+    return radioButtonAssign({}, this._options);
+  };
+
+  RadioButton.prototype.setOptions = function(options) {
+    radioButtonAssign(this._options, options || {});
+    this._normalizeOptions();
+    return this._applyOptions(false);
+  };
+
+  RadioButton.prototype.getValue = function() {
+    return this.hostElement.value;
+  };
+
+  RadioButton.prototype.setValue = function(value) {
+    this._options.value = value;
+    if (value == null) this.hostElement.removeAttribute('value');
+    else this.hostElement.value = String(value);
+    return this;
+  };
+
+  RadioButton.prototype.isChecked = function() {
+    return this._options.checked;
+  };
+
+  RadioButton.prototype.check = function() {
+    this.hostElement.checked = true;
+    return this._syncGroup(null, false);
+  };
+
+  RadioButton.prototype.uncheck = function() {
+    this.hostElement.checked = false;
+    return this._syncGroup(null, false);
+  };
+
+  RadioButton.prototype.clear = function() {
+    return this.uncheck();
+  };
+
+  RadioButton.prototype.reset = function() {
+    this.setValue(this._initialValue);
+    this.hostElement.checked = this._initialChecked;
+    return this._syncGroup(null, false);
+  };
+
+  RadioButton.prototype.disable = function() {
+    this._options.disabled = true;
+    this.hostElement.disabled = true;
+    this.wrapper.classList.add('fui-radiobutton-disabled');
+    return this;
+  };
+
+  RadioButton.prototype.enable = function() {
+    this._options.disabled = false;
+    this.hostElement.disabled = false;
+    this.wrapper.classList.remove('fui-radiobutton-disabled');
+    return this;
+  };
+
+  RadioButton.prototype.resize = function(width, height) {
+    if (width != null) this._options.width = width;
+    if (height != null) this._options.height = height;
+    this.control.style.width = radioButtonSize(this._options.width, 20);
+    this.control.style.height = radioButtonSize(this._options.height, 20);
+    this.box.style.width = radioButtonSize(this._options.width, 20);
+    this.box.style.height = radioButtonSize(this._options.height, 20);
+    return this;
+  };
+
+  RadioButton.prototype.setLabel = function(label) {
+    this._options.label = label;
+    return this._applyOptions(false);
+  };
+
+  RadioButton.prototype.setLocale = function(locale, messages) {
+    if (locale && messages) {
+      localePacks[String(locale)] = radioButtonAssign({}, localePacks.en, messages);
+    }
+    this._options.locale = normalizeRadioButtonLocale(locale);
+    this.hostElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || this._options.label || this._text('radiobutton')
+    );
+    return this;
+  };
+
+  RadioButton.prototype.setTheme = function(theme) {
+    var index;
+    this._options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this._options.theme === 'inherit' ?
+      findRadioButtonTheme(this._themeSource) :
+      normalizeRadioButtonTheme(this._options.theme);
+    for (index = 0; index < RADIOBUTTON_THEMES.length; index += 1) {
+      this.wrapper.classList.remove('fg-theme-' + RADIOBUTTON_THEMES[index]);
+    }
+    this.wrapper.classList.add('fg-theme-' + this.theme);
+    return this;
+  };
+
+  RadioButton.prototype.destroy = function() {
+    var parent;
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this.removeEventListener();
+    parent = this.wrapper.parentNode;
+    if (parent) {
+      parent.insertBefore(this.hostElement, this.wrapper);
+      parent.removeChild(this.wrapper);
+    }
+    restoreRadioButtonAttribute(this.hostElement, 'class', this._original.className);
+    restoreRadioButtonAttribute(this.hostElement, 'style', this._original.style);
+    restoreRadioButtonAttribute(this.hostElement, 'id', this._original.id);
+    restoreRadioButtonAttribute(this.hostElement, 'value', this._original.value);
+    restoreRadioButtonAttribute(
+      this.hostElement,
+      'checked',
+      this._original.checkedAttribute
+    );
+    restoreRadioButtonAttribute(
+      this.hostElement,
+      'disabled',
+      this._original.disabledAttribute
+    );
+    restoreRadioButtonAttribute(this.hostElement, 'aria-label', this._original.ariaLabel);
+    restoreRadioButtonAttribute(this.hostElement, 'tabindex', this._original.tabIndex);
+    this.hostElement.checked = this._original.checked;
+    this.hostElement.disabled = this._original.disabled;
+    unregisterControl(this.hostElement, this);
+    delete this.hostElement.__fabuiRadioButton;
+    this._listeners = {};
+    this.wrapper = null;
+    this.control = null;
+    this.box = null;
+    this.labelElement = null;
+  };
+
+  RadioButton.prototype.dispose = RadioButton.prototype.destroy;
+  RadioButton.defaults = defaults;
+  RadioButton.locales = localePacks;
+  RadioButton.themes = RADIOBUTTON_THEMES.slice();
+  RadioButton.addLocale = function(name, messages) {
+    if (name && messages) {
+      localePacks[String(name)] = radioButtonAssign({}, localePacks.en, messages);
+    }
+    return RadioButton;
+  };
+  RadioButton.getControl = function(element) {
+    element = resolveRadioButtonElement(element);
+    return element && element.__fabuiRadioButton ? element.__fabuiRadioButton : null;
+  };
+  RadioButton.normalizeTheme = normalizeRadioButtonTheme;
+  RadioButton.normalizeLocale = normalizeRadioButtonLocale;
+  return RadioButton;
+}
+
+var RADIOGROUP_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
+function radioGroupAssign(target) {
+  var source;
+  var key;
+  var index;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function resolveRadioGroupElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function radioGroupBoolean(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    value = value.trim().toLowerCase();
+    if (value === 'false' || value === '0' || value === 'no') return false;
+    if (value === 'true' || value === '1' || value === 'yes' || value === '') return true;
+  }
+  return Boolean(value);
+}
+
+function normalizeRadioGroupLocale(value) {
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
+}
+
+function normalizeRadioGroupTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return RADIOGROUP_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function normalizeRadioGroupDirection(value) {
+  return String(value || 'h').toLowerCase() === 'v' ? 'v' : 'h';
+}
+
+function normalizeRadioGroupLabelPosition(value) {
+  return String(value || 'after').toLowerCase() === 'before' ? 'before' : 'after';
+}
+
+function normalizeRadioGroupLabelAlign(value) {
+  return String(value || 'left').toLowerCase() === 'right' ? 'right' : 'left';
+}
+
+function findRadioGroupTheme(element) {
+  var current = resolveRadioGroupElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < RADIOGROUP_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + RADIOGROUP_THEMES[index])) {
+        return RADIOGROUP_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function radioGroupValueKey(value) {
+  return String(value == null ? '' : value);
+}
+
+function radioGroupValuesEqual(left, right) {
+  if (left == null || right == null) return left == null && right == null;
+  return radioGroupValueKey(left) === radioGroupValueKey(right);
+}
+
+function normalizeRadioGroupData(data) {
+  if (!Array.isArray(data)) return [];
+  return data.map(function(item, index) {
+    var source = item && typeof item === 'object' ?
+      item :
+      { value: item, label: item };
+    var value = Object.prototype.hasOwnProperty.call(source, 'value') ?
+      source.value :
+      index;
+    return {
+      value: value,
+      label: source.label == null ? String(value == null ? '' : value) : String(source.label),
+      disabled: radioGroupBoolean(source.disabled, false)
+    };
+  });
+}
+
+function radioGroupStyleValue(name, value) {
+  var unitless = {
+    flex: true,
+    flexGrow: true,
+    flexShrink: true,
+    fontWeight: true,
+    lineHeight: true,
+    opacity: true,
+    order: true,
+    zIndex: true
+  };
+  if (value == null) return '';
+  return typeof value === 'number' && !unitless[name] ? value + 'px' : String(value);
+}
+
+function restoreRadioGroupAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function createRadioGroupFactory(
+  Control,
+  registerControl,
+  unregisterControl,
+  RadioButton
+) {
+  'use strict';
+
+  var defaults = {
+    name: '',
+    value: null,
+    data: [],
+    dir: 'h',
+    itemStyle: { height: 30 },
+    labelWidth: 'auto',
+    labelPosition: 'after',
+    labelAlign: 'left',
+    disabled: false,
+    cls: '',
+    locale: 'en',
+    theme: 'inherit',
+    ariaLabel: '',
+    onChange: null
+  };
+  var localePacks = {
+    en: {
+      group: 'Radio group'
+    },
+    'zh-TW': {
+      group: '單選群組'
+    },
+    'zh-CN': {
+      group: '单选组'
+    }
+  };
+
+  function RadioGroup(element, options) {
+    var host = resolveRadioGroupElement(element);
+    if (!(this instanceof RadioGroup)) return new RadioGroup(element, options);
+    if (!host) throw new Error('fabui.RadioGroup requires a host element.');
+    if (host.__fabuiRadioGroup) return host.__fabuiRadioGroup;
+    if (typeof RadioButton !== 'function') {
+      throw new Error('fabui.RadioGroup requires fabui.RadioButton.');
+    }
+    Control.call(this);
+    this.hostElement = host;
+    this._listeners = {};
+    this._records = [];
+    this._destroyed = false;
+    this._suspendChange = false;
+    this._original = {
+      html: host.innerHTML,
+      className: host.getAttribute('class'),
+      style: host.getAttribute('style'),
+      role: host.getAttribute('role'),
+      ariaLabel: host.getAttribute('aria-label')
+    };
+    this._themeSource = host.parentElement || document.body;
+    this._options = radioGroupAssign(
+      {},
+      defaults,
+      this._readElementOptions(),
+      options || {}
+    );
+    this._normalizeOptions();
+    this._initialValue = this._options.value;
+    this._build();
+    this._bind();
+    this.setValue(this._initialValue, true);
+    host.__fabuiRadioGroup = this;
+    registerControl(host, this);
+  }
+
+  RadioGroup.prototype = Object.create(Control.prototype);
+  RadioGroup.prototype.constructor = RadioGroup;
+
+  RadioGroup.prototype._readElementOptions = function() {
+    var host = this.hostElement;
+    var result = {};
+    var value;
+    value = host.getAttribute('name') || host.getAttribute('data-name');
+    if (value != null) result.name = value;
+    value = host.getAttribute('dir') || host.getAttribute('data-dir');
+    if (value != null) result.dir = value;
+    value = host.getAttribute('labelWidth') || host.getAttribute('data-label-width');
+    if (value != null) result.labelWidth = value;
+    value = host.getAttribute('labelPosition') || host.getAttribute('data-label-position');
+    if (value != null) result.labelPosition = value;
+    value = host.getAttribute('labelAlign') || host.getAttribute('data-label-align');
+    if (value != null) result.labelAlign = value;
+    value = host.getAttribute('data-disabled');
+    if (value != null) result.disabled = value;
+    value = host.getAttribute('data-locale') || host.getAttribute('locale');
+    if (value != null) result.locale = value;
+    value = host.getAttribute('data-theme') || host.getAttribute('theme');
+    if (value != null) result.theme = value;
+    value = host.getAttribute('aria-label');
+    if (value != null) result.ariaLabel = value;
+    value = host.getAttribute('data-value');
+    if (value != null) result.value = value;
+    value = host.getAttribute('data-items');
+    if (value != null) {
+      try {
+        result.data = JSON.parse(value);
+      } catch (error) {
+        result.data = [];
+      }
+    }
+    return result;
+  };
+
+  RadioGroup.prototype._normalizeOptions = function() {
+    this._options.data = normalizeRadioGroupData(this._options.data);
+    this._options.dir = normalizeRadioGroupDirection(this._options.dir);
+    this._options.labelPosition = normalizeRadioGroupLabelPosition(
+      this._options.labelPosition
+    );
+    this._options.labelAlign = normalizeRadioGroupLabelAlign(
+      this._options.labelAlign
+    );
+    this._options.disabled = radioGroupBoolean(this._options.disabled, false);
+    this._options.locale = normalizeRadioGroupLocale(this._options.locale);
+    this._options.itemStyle = this._options.itemStyle &&
+      typeof this._options.itemStyle === 'object' ?
+      radioGroupAssign({}, this._options.itemStyle) :
+      { height: 30 };
+  };
+
+  RadioGroup.prototype._text = function(key) {
+    var pack = localePacks[this._options.locale] || localePacks.en;
+    return pack[key] || localePacks.en[key] || key;
+  };
+
+  RadioGroup.prototype._build = function() {
+    this.hostElement.textContent = '';
+    this.hostElement.className = 'fui-radiogroup' +
+      (this._original.className ? ' ' + this._original.className : '') +
+      (this._options.cls ? ' ' + String(this._options.cls) : '');
+    this.hostElement.classList.add('fui-radiogroup-' + this._options.dir);
+    this.hostElement.classList.toggle(
+      'fui-radiogroup-disabled',
+      this._options.disabled
+    );
+    this.hostElement.setAttribute('role', 'radiogroup');
+    this.hostElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || this._text('group')
+    );
+    this._renderItems();
+    this.setTheme(this._options.theme);
+  };
+
+  RadioGroup.prototype._renderItems = function() {
+    var self = this;
+    this._disposeItems();
+    this.hostElement.textContent = '';
+    this._options.data.forEach(function(item, index) {
+      var itemElement = document.createElement('div');
+      var input = document.createElement('input');
+      var control;
+      itemElement.className = 'fui-radiogroup-item';
+      itemElement.setAttribute('data-index', String(index));
+      Object.keys(self._options.itemStyle).forEach(function(name) {
+        itemElement.style[name] = radioGroupStyleValue(
+          name,
+          self._options.itemStyle[name]
+        );
+      });
+      input.type = 'radio';
+      if (self._options.name) input.name = self._options.name;
+      input.value = item.value == null ? '' : String(item.value);
+      itemElement.appendChild(input);
+      self.hostElement.appendChild(itemElement);
+      control = new RadioButton(input, {
+        label: item.label,
+        labelWidth: self._options.labelWidth,
+        labelPosition: self._options.labelPosition,
+        labelAlign: self._options.labelAlign,
+        value: input.value,
+        checked: false,
+        disabled: self._options.disabled || item.disabled,
+        locale: self._options.locale,
+        theme: 'inherit',
+        onChange: function(checked) {
+          if (checked) self._handleItemChange(item.value);
+        }
+      });
+      self._records.push({
+        data: item,
+        element: itemElement,
+        input: input,
+        control: control
+      });
+    });
+  };
+
+  RadioGroup.prototype._disposeItems = function() {
+    this._records.forEach(function(record) {
+      record.control.destroy();
+    });
+    this._records = [];
+  };
+
+  RadioGroup.prototype._bind = function() {
+    var self = this;
+    var form = this.hostElement.closest('form');
+    if (form) {
+      this.addEventListener(form, 'reset', function() {
+        setTimeout(function() {
+          if (self._destroyed) return;
+          self.setValue(self._initialValue);
+        }, 0);
+      });
+    }
+  };
+
+  RadioGroup.prototype._handleItemChange = function(value) {
+    if (this._suspendChange) return;
+    this.setValue(value);
+  };
+
+  RadioGroup.prototype._collectValue = function() {
+    var record = this._records.find(function(item) {
+      return item.control.isChecked();
+    });
+    return record ? record.data.value : null;
+  };
+
+  RadioGroup.prototype._invoke = function(name) {
+    var handler = this._options[name];
+    return typeof handler === 'function' ?
+      handler.apply(this, Array.prototype.slice.call(arguments, 1)) :
+      undefined;
+  };
+
+  RadioGroup.prototype._emit = function(type, detail) {
+    var listeners = (this._listeners[type] || []).slice();
+    var event = {
+      type: type,
+      target: this,
+      detail: detail
+    };
+    listeners.forEach(function(listener) {
+      listener.call(this, event);
+    }, this);
+  };
+
+  RadioGroup.prototype.on = function(type, listener) {
+    if (type && typeof listener === 'function') {
+      (this._listeners[String(type)] || (this._listeners[String(type)] = [])).push(listener);
+    }
+    return this;
+  };
+
+  RadioGroup.prototype.off = function(type, listener) {
+    var list = this._listeners[String(type)] || [];
+    var index;
+    if (!listener) {
+      delete this._listeners[String(type)];
+      return this;
+    }
+    for (index = list.length - 1; index >= 0; index -= 1) {
+      if (list[index] === listener) list.splice(index, 1);
+    }
+    return this;
+  };
+
+  RadioGroup.prototype.options = function() {
+    var options = radioGroupAssign({}, this._options);
+    options.data = normalizeRadioGroupData(this._options.data);
+    options.itemStyle = radioGroupAssign({}, this._options.itemStyle);
+    return options;
+  };
+
+  RadioGroup.prototype.setOptions = function(options) {
+    var hasValue = Boolean(
+      options && Object.prototype.hasOwnProperty.call(options, 'value')
+    );
+    var value = hasValue ? options.value : this.getValue();
+    radioGroupAssign(this._options, options || {});
+    this._options.value = value;
+    this._normalizeOptions();
+    this._build();
+    this.setValue(this._options.value, true);
+    this._emit('refresh', { options: this.options() });
+    return this;
+  };
+
+  RadioGroup.prototype.setValue = function(value, silent) {
+    var oldValue = this._options.value;
+    var selectedKey = value == null ? null : radioGroupValueKey(value);
+    var matched = false;
+    var newValue;
+    this._suspendChange = true;
+    this._records.forEach(function(record) {
+      var checked = selectedKey != null &&
+        radioGroupValueKey(record.data.value) === selectedKey;
+      if (checked) matched = true;
+      if (checked) record.control.check();
+      else record.control.uncheck();
+    });
+    this._suspendChange = false;
+    if (!matched) {
+      this._records.forEach(function(record) {
+        record.control.uncheck();
+      });
+    }
+    newValue = this._collectValue();
+    this._options.value = newValue;
+    if (!silent && !radioGroupValuesEqual(oldValue, newValue)) {
+      this._invoke('onChange', newValue);
+      this._emit('change', {
+        value: newValue,
+        oldValue: oldValue
+      });
+    }
+    return this;
+  };
+
+  RadioGroup.prototype.getValue = function() {
+    return this._collectValue();
+  };
+
+  RadioGroup.prototype.getData = function() {
+    return normalizeRadioGroupData(this._options.data);
+  };
+
+  RadioGroup.prototype.getRadioButton = function(value) {
+    var key = radioGroupValueKey(value);
+    var record = this._records.find(function(item) {
+      return radioGroupValueKey(item.data.value) === key;
+    });
+    return record ? record.control : null;
+  };
+
+  RadioGroup.prototype.loadData = function(data, value) {
+    this._options.data = normalizeRadioGroupData(data);
+    this._renderItems();
+    return this.setValue(value === undefined ? this._options.value : value);
+  };
+
+  RadioGroup.prototype.check = function(value) {
+    return this.setValue(value);
+  };
+
+  RadioGroup.prototype.clear = function() {
+    return this.setValue(null);
+  };
+
+  RadioGroup.prototype.reset = function() {
+    return this.setValue(this._initialValue);
+  };
+
+  RadioGroup.prototype.disable = function() {
+    this._options.disabled = true;
+    this.hostElement.classList.add('fui-radiogroup-disabled');
+    this._records.forEach(function(record) {
+      record.control.disable();
+    });
+    return this;
+  };
+
+  RadioGroup.prototype.enable = function() {
+    this._options.disabled = false;
+    this.hostElement.classList.remove('fui-radiogroup-disabled');
+    this._records.forEach(function(record) {
+      if (record.data.disabled) record.control.disable();
+      else record.control.enable();
+    });
+    return this;
+  };
+
+  RadioGroup.prototype.setLocale = function(locale, messages) {
+    if (locale && messages) {
+      localePacks[String(locale)] = radioGroupAssign({}, localePacks.en, messages);
+    }
+    this._options.locale = normalizeRadioGroupLocale(locale);
+    this.hostElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || this._text('group')
+    );
+    this._records.forEach(function(record) {
+      record.control.setLocale(locale);
+    });
+    return this;
+  };
+
+  RadioGroup.prototype.setTheme = function(theme) {
+    var index;
+    this._options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this._options.theme === 'inherit' ?
+      findRadioGroupTheme(this._themeSource) :
+      normalizeRadioGroupTheme(this._options.theme);
+    for (index = 0; index < RADIOGROUP_THEMES.length; index += 1) {
+      this.hostElement.classList.remove('fg-theme-' + RADIOGROUP_THEMES[index]);
+    }
+    this.hostElement.classList.add('fg-theme-' + this.theme);
+    this._records.forEach(function(record) {
+      record.control.setTheme('inherit');
+    });
+    return this;
+  };
+
+  RadioGroup.prototype.destroy = function() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this.removeEventListener();
+    this._disposeItems();
+    this.hostElement.innerHTML = this._original.html;
+    restoreRadioGroupAttribute(this.hostElement, 'class', this._original.className);
+    restoreRadioGroupAttribute(this.hostElement, 'style', this._original.style);
+    restoreRadioGroupAttribute(this.hostElement, 'role', this._original.role);
+    restoreRadioGroupAttribute(
+      this.hostElement,
+      'aria-label',
+      this._original.ariaLabel
+    );
+    unregisterControl(this.hostElement, this);
+    delete this.hostElement.__fabuiRadioGroup;
+    this._listeners = {};
+  };
+
+  RadioGroup.prototype.dispose = RadioGroup.prototype.destroy;
+  RadioGroup.defaults = defaults;
+  RadioGroup.locales = localePacks;
+  RadioGroup.themes = RADIOGROUP_THEMES.slice();
+  RadioGroup.addLocale = function(name, messages) {
+    if (name && messages) {
+      localePacks[String(name)] = radioGroupAssign({}, localePacks.en, messages);
+    }
+    return RadioGroup;
+  };
+  RadioGroup.getControl = function(element) {
+    element = resolveRadioGroupElement(element);
+    return element && element.__fabuiRadioGroup ? element.__fabuiRadioGroup : null;
+  };
+  RadioGroup.normalizeTheme = normalizeRadioGroupTheme;
+  RadioGroup.normalizeLocale = normalizeRadioGroupLocale;
+  return RadioGroup;
+}
+
+var CHART_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
 function normalizeChartType(type) {
   type = String(type || 'column').toLowerCase();
   if (type === 'linesymbols') return 'line';
   return type === 'bar' || type === 'line' || type === 'pie' ? type : 'column';
+}
+
+function normalizeChartLocale(value) {
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
+}
+
+function normalizeChartTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return CHART_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function findChartTheme(element) {
+  var current = element && element.nodeType === 1 ? element : null;
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < CHART_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + CHART_THEMES[index])) {
+        return CHART_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
 }
 
 function createChartFactory() {
@@ -1023,10 +3836,11 @@ function createChartFactory() {
   function Chart(element, options) {
     this.host = typeof element === 'string' ? document.querySelector(element) : element;
     if (!this.host) throw new Error('fabui.Chart host element was not found.');
+    this._themeSource = this.host.parentElement || this.host;
     this.options = mergeOptions({
       chartType: null, type: 'column', header: '', footer: '', title: '', itemsSource: null,
       bindingX: '', bindingName: '', binding: '', categories: [], series: [], palette: null, colors: DEFAULT_COLORS,
-      legend: true, tooltip: true, padding: 16, locale: 'en', animation: true,
+      legend: true, tooltip: true, padding: 16, locale: 'en', theme: 'inherit', animation: true,
       observeData: true, dataRefreshInterval: 120,
       axisX: {}, axisY: {}, selectionMode: 'None', selection: null, selectedIndex: -1, selectionSource: null,
       selectedItemOffset: .1, selectedItemPosition: 'Top', isAnimated: true,
@@ -1042,6 +3856,8 @@ function createChartFactory() {
     this._boundPointerLeave = this.hideTooltip.bind(this);
     this._boundClick = this.handleClick.bind(this);
     this.createDom();
+    this.options.locale = resolveChartLocale(this.options.locale);
+    this.setTheme(this.options.theme);
     this.bindEvents();
     this.refresh();
     this.startDataObserver();
@@ -1061,14 +3877,14 @@ function createChartFactory() {
     this.svg.setAttribute('role', 'img');
     this.legendElement = document.createElement('div');
     this.legendElement.className = 'fui-chart-legend';
-    this.tooltip = document.createElement('div');
-    this.tooltip.className = 'fui-chart-tooltip';
-    this.tooltip.setAttribute('role', 'tooltip');
+    this.tooltipElement = document.createElement('div');
+    this.tooltipElement.className = 'fui-chart-tooltip';
+    this.tooltipElement.setAttribute('role', 'tooltip');
     this.body.appendChild(this.svg);
     this.root.appendChild(this.title);
     this.root.appendChild(this.body);
     this.root.appendChild(this.legendElement);
-    this.root.appendChild(this.tooltip);
+    this.root.appendChild(this.tooltipElement);
     this.host.appendChild(this.root);
   };
 
@@ -1084,7 +3900,42 @@ function createChartFactory() {
 
   Chart.prototype.setType = function(type) { this.options.chartType = type; this.options.type = type; this.refresh(); return this; };
   Chart.prototype.setItemsSource = function(itemsSource) { this.options.itemsSource = Array.isArray(itemsSource) ? itemsSource : []; this.refresh(); return this; };
-  Chart.prototype.setOptions = function(options) { this.options = mergeOptions(this.options, options || {}); if (Object.prototype.hasOwnProperty.call(options || {}, 'selectionSource')) this.bindSelectionSource(this.options.selectionSource); this.refresh(); return this; };
+  Chart.prototype.setOptions = function(options) {
+    this.options = mergeOptions(this.options, options || {});
+    this.options.locale = resolveChartLocale(this.options.locale);
+    if (Object.prototype.hasOwnProperty.call(options || {}, 'selectionSource')) {
+      this.bindSelectionSource(this.options.selectionSource);
+    }
+    if (Object.prototype.hasOwnProperty.call(options || {}, 'theme')) {
+      this.setTheme(this.options.theme);
+    }
+    this.refresh();
+    return this;
+  };
+  Chart.prototype.setLocale = function(locale, messages) {
+    var name = String(locale || 'en').trim().replace(/_/g, '-');
+    if (messages) {
+      DEFAULT_MESSAGES[name] = mergeOptions(DEFAULT_MESSAGES.en, messages);
+    }
+    this.options.locale = resolveChartLocale(name);
+    this.refresh();
+    return this;
+  };
+  Chart.prototype.setTheme = function(theme) {
+    var index;
+    this.options.theme = theme == null ? 'inherit' : String(theme);
+    this.theme = this.options.theme === 'inherit' ?
+      findChartTheme(this._themeSource) :
+      normalizeChartTheme(this.options.theme);
+    if (!this.root) return this;
+    for (index = 0; index < CHART_THEMES.length; index += 1) {
+      this.root.classList.remove('fg-theme-' + CHART_THEMES[index]);
+    }
+    if (this.options.theme !== 'inherit') {
+      this.root.classList.add('fg-theme-' + this.theme);
+    }
+    return this;
+  };
   Chart.prototype.setSeries = function(series) { this.options.series = Array.isArray(series) ? series : []; this.refresh(); return this; };
   Chart.prototype.setData = function(data) {
     data = data || {};
@@ -1386,13 +4237,17 @@ function createChartFactory() {
     var content;
     if (!target || this.options.tooltip === false) { this.hideTooltip(); return; }
     content = { series: target.dataset.series, category: target.dataset.category, value: Number(target.dataset.value), percent: target.dataset.percent ? Number(target.dataset.percent) : null };
-    this.tooltip.textContent = typeof this.options.formatTooltip === 'function' ? this.options.formatTooltip(content) :
+    this.tooltipElement.textContent = typeof this.options.formatTooltip === 'function' ? this.options.formatTooltip(content) :
       this.options.tooltip && typeof this.options.tooltip.content === 'function' ? this.options.tooltip.content(content) :
       this.options.tooltip && typeof this.options.tooltip.content === 'string' ? formatTemplate(this.options.tooltip.content, content) :
       (content.series ? content.series + ' · ' : '') + content.category + ': ' + this.formatValue(content.value) + (content.percent == null ? '' : ' (' + content.percent.toFixed(1) + '%)');
-    this.tooltip.style.left = event.offsetX + 12 + 'px'; this.tooltip.style.top = event.offsetY + 12 + 'px'; this.tooltip.classList.add('fui-chart-tooltip-visible');
+    this.tooltipElement.style.left = event.offsetX + 12 + 'px'; this.tooltipElement.style.top = event.offsetY + 12 + 'px'; this.tooltipElement.classList.add('fui-chart-tooltip-visible');
   };
-  Chart.prototype.hideTooltip = function() { if (this.tooltip) this.tooltip.classList.remove('fui-chart-tooltip-visible'); };
+  Chart.prototype.hideTooltip = function() {
+    if (this.tooltipElement && this.tooltipElement.classList) {
+      this.tooltipElement.classList.remove('fui-chart-tooltip-visible');
+    }
+  };
   Chart.prototype.formatValue = function(value) { return typeof this.options.formatValue === 'function' ? String(this.options.formatValue(value)) : String(Math.round(value * 100) / 100); };
   Chart.prototype.getColor = function(index) { var colors = this.options.palette || this.options.colors; colors = colors && colors.length ? colors : DEFAULT_COLORS; return colors[index % colors.length]; };
   Chart.prototype.getMessage = function(key) { var locale = DEFAULT_MESSAGES[this.options.locale] || DEFAULT_MESSAGES.en; return locale[key] || DEFAULT_MESSAGES.en[key] || key; };
@@ -1408,6 +4263,7 @@ function createChartFactory() {
     this.svg.removeEventListener('pointerleave', this._boundPointerLeave);
     this.svg.removeEventListener('click', this._boundClick);
     this.host.innerHTML = '';
+    this.tooltipElement = null;
   };
 
   function svgElement(name, attrs) { var element = document.createElementNS(SVG_NS, name); Object.keys(attrs || {}).forEach(function(key) { element.setAttribute(key, attrs[key]); }); return element; }
@@ -1455,6 +4311,10 @@ function createChartFactory() {
     series = series.map(function(item) { return mergeOptions(item, { data: items.map(function(source) { return getBoundValue(source, item.binding); }) }); });
     return { categories: categories, series: series, pieLegend: [] };
   }
+  function resolveChartLocale(value) {
+    value = String(value || 'en').trim().replace(/_/g, '-');
+    return DEFAULT_MESSAGES[value] ? value : normalizeChartLocale(value);
+  }
   function getBoundValue(item, binding) { if (!binding) return item; return String(binding).split('.').reduce(function(value, key) { return value == null ? value : value[key]; }, item); }
   function getLegendPosition(legend) { if (legend === false || legend && String(legend.position).toLowerCase() === 'none') return 'None'; return legend && legend.position ? String(legend.position) : 'Bottom'; }
   function formatTemplate(template, data) { return template.replace(/\{(seriesName|series|x|category|y|value|name|percent)\}/g, function(_, key) { var map = { seriesName: 'series', x: 'category', y: 'value', name: 'category' }; var value = data[map[key] || key]; return value == null ? '' : value; }); }
@@ -1467,10 +4327,3876 @@ function createChartFactory() {
   }
 
   Chart.locales = DEFAULT_MESSAGES;
+  Chart.themes = CHART_THEMES.slice();
+  Chart.addLocale = function(name, messages) {
+    if (name && messages) {
+      DEFAULT_MESSAGES[String(name)] = mergeOptions(DEFAULT_MESSAGES.en, messages);
+    }
+    return Chart;
+  };
+  Chart.normalizeLocale = normalizeChartLocale;
+  Chart.normalizeTheme = normalizeChartTheme;
   Chart.ChartType = { Column: 'Column', Bar: 'Bar', Line: 'Line', Pie: 'Pie' };
   Chart.Position = { None: 'None', Left: 'Left', Top: 'Top', Right: 'Right', Bottom: 'Bottom' };
   Chart.SelectionMode = { None: 'None', Point: 'Point', Series: 'Series' };
   return Chart;
+}
+
+var DIAGRAM_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+var DIAGRAM_SVG_NS = 'http://www.w3.org/2000/svg';
+var nextDiagramItemId = 1;
+var nextDiagramInstanceId = 1;
+var DIAGRAM_PAPER_SIZES = {
+  A3: { width: 1123, height: 1587 },
+  A4: { width: 794, height: 1123 },
+  A5: { width: 559, height: 794 },
+  Letter: { width: 816, height: 1056 },
+  Legal: { width: 816, height: 1344 }
+};
+var DIAGRAM_SHAPES = [
+  { type: 'text', category: 'general', label: 'textShape' },
+  { type: 'rectangle', category: 'general', label: 'rectangle' },
+  { type: 'ellipse', category: 'general', label: 'ellipse' },
+  { type: 'cross', category: 'general', label: 'cross' },
+  { type: 'triangle', category: 'general', label: 'triangle' },
+  { type: 'diamond', category: 'general', label: 'diamond' },
+  { type: 'heart', category: 'general', label: 'heart' },
+  { type: 'pentagon', category: 'general', label: 'pentagon' },
+  { type: 'hexagon', category: 'general', label: 'hexagon' },
+  { type: 'octagon', category: 'general', label: 'octagon' },
+  { type: 'star', category: 'general', label: 'star' },
+  { type: 'arrowUp', category: 'general', label: 'arrowUp' },
+  { type: 'arrowDown', category: 'general', label: 'arrowDown' },
+  { type: 'arrowLeft', category: 'general', label: 'arrowLeft' },
+  { type: 'arrowRight', category: 'general', label: 'arrowRight' },
+  { type: 'arrowUpDown', category: 'general', label: 'arrowUpDown' },
+  { type: 'arrowLeftRight', category: 'general', label: 'arrowLeftRight' },
+  { type: 'roundedRectangle', category: 'general', label: 'roundedRectangle' },
+  { type: 'cloud', category: 'general', label: 'cloud' },
+  { type: 'process', category: 'flowchart', label: 'process' },
+  { type: 'decision', category: 'flowchart', label: 'decision' },
+  { type: 'terminator', category: 'flowchart', label: 'terminator' },
+  { type: 'predefinedProcess', category: 'flowchart', label: 'predefinedProcess' },
+  { type: 'document', category: 'flowchart', label: 'document' },
+  { type: 'multipleDocuments', category: 'flowchart', label: 'multipleDocuments' },
+  { type: 'manualInput', category: 'flowchart', label: 'manualInput' },
+  { type: 'preparation', category: 'flowchart', label: 'preparation' },
+  { type: 'data', category: 'flowchart', label: 'dataShape' },
+  { type: 'database', category: 'flowchart', label: 'database' },
+  { type: 'directData', category: 'flowchart', label: 'directData' },
+  { type: 'internalStorage', category: 'flowchart', label: 'internalStorage' },
+  { type: 'paperTape', category: 'flowchart', label: 'paperTape' },
+  { type: 'manualOperation', category: 'flowchart', label: 'manualOperation' },
+  { type: 'delay', category: 'flowchart', label: 'delay' },
+  { type: 'storedData', category: 'flowchart', label: 'storedData' },
+  { type: 'sequentialData', category: 'flowchart', label: 'sequentialData' },
+  { type: 'merge', category: 'flowchart', label: 'merge' },
+  { type: 'onPageReference', category: 'flowchart', label: 'onPageReference' },
+  { type: 'summingJunction', category: 'flowchart', label: 'summingJunction' },
+  { type: 'orJunction', category: 'flowchart', label: 'orJunction' },
+  { type: 'display', category: 'flowchart', label: 'display' },
+  {
+    type: 'dfdEntity',
+    category: 'dfd',
+    label: 'dfdEntity',
+    width: 140,
+    height: 70
+  },
+  {
+    type: 'dfdProcess',
+    category: 'dfd',
+    label: 'dfdProcess',
+    width: 100,
+    height: 100
+  },
+  {
+    type: 'dfdDataStore',
+    category: 'dfd',
+    label: 'dfdDataStore',
+    width: 140,
+    height: 60
+  }
+];
+var DIAGRAM_CONNECTOR_TOOLS = [
+  {
+    type: 'dfdDataFlow',
+    category: 'dfd',
+    label: 'dfdDataFlow',
+    connectorType: 'curved'
+  }
+];
+var DIAGRAM_TOOLBOX_ITEMS = DIAGRAM_SHAPES.concat(DIAGRAM_CONNECTOR_TOOLS);
+var DIAGRAM_CONNECTION_POINTS = [
+  { name: 'top', x: 0.5, y: 0 },
+  { name: 'rightTop', x: 1, y: 1 / 3 },
+  { name: 'rightBottom', x: 1, y: 2 / 3 },
+  { name: 'bottom', x: 0.5, y: 1 },
+  { name: 'leftBottom', x: 0, y: 2 / 3 },
+  { name: 'leftTop', x: 0, y: 1 / 3 }
+];
+
+function diagramAssign(target) {
+  var source;
+  var key;
+  var index;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function diagramNumber(value, fallback) {
+  value = Number(value);
+  return isFinite(value) ? value : fallback;
+}
+
+function diagramBoolean(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    value = value.trim().toLowerCase();
+    if (value === 'false' || value === '0' || value === 'no') return false;
+    if (value === 'true' || value === '1' || value === 'yes' || value === '') return true;
+  }
+  return Boolean(value);
+}
+
+function diagramClamp(value, minimum, maximum) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function diagramClone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function diagramSize(value, fallback) {
+  if (value == null || value === '') value = fallback;
+  return typeof value === 'number' ? value + 'px' : String(value);
+}
+
+function normalizeDiagramPaperSize(value) {
+  value = String(value || 'A4');
+  return DIAGRAM_PAPER_SIZES[value] ? value : 'A4';
+}
+
+function normalizeDiagramPaperOrientation(value) {
+  return String(value || '').toLowerCase() === 'portrait' ?
+    'portrait' :
+    'landscape';
+}
+
+function getDiagramPaperDimensions(size, orientation) {
+  var definition = DIAGRAM_PAPER_SIZES[normalizeDiagramPaperSize(size)];
+  orientation = normalizeDiagramPaperOrientation(orientation);
+  return orientation === 'landscape' ? {
+    width: definition.height,
+    height: definition.width
+  } : {
+    width: definition.width,
+    height: definition.height
+  };
+}
+
+function resolveDiagramElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function restoreDiagramAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function createDiagramSvgElement(name, attributes) {
+  var element = document.createElementNS(DIAGRAM_SVG_NS, name);
+  var key;
+  attributes = attributes || {};
+  for (key in attributes) {
+    if (Object.prototype.hasOwnProperty.call(attributes, key)) {
+      element.setAttribute(key, String(attributes[key]));
+    }
+  }
+  return element;
+}
+
+function diagramItemId(prefix) {
+  var id = prefix + nextDiagramItemId;
+  nextDiagramItemId += 1;
+  return id;
+}
+
+function normalizeDiagramShapeType(value) {
+  value = String(value || 'rectangle');
+  return DIAGRAM_SHAPES.some(function(shape) {
+    return shape.type === value;
+  }) ? value : 'rectangle';
+}
+
+function normalizeDiagramNode(node, index) {
+  var result = diagramAssign({}, node || {});
+  result.id = String(result.id == null || result.id === '' ?
+    diagramItemId('node-') :
+    result.id);
+  result.type = normalizeDiagramShapeType(result.type);
+  result.text = String(result.text == null ? ('Node ' + (index + 1)) : result.text);
+  result.x = diagramNumber(result.x, 80 + (index % 4) * 190);
+  result.y = diagramNumber(result.y, 70 + Math.floor(index / 4) * 130);
+  result.width = Math.max(40, diagramNumber(result.width, 140));
+  result.height = Math.max(30, diagramNumber(result.height, 72));
+  result.fill = String(result.fill || '#ffffff');
+  result.stroke = String(result.stroke || '#5b6b7c');
+  result.strokeWidth = Math.max(1, diagramNumber(result.strokeWidth, 1.5));
+  result.textColor = String(result.textColor || '#1f2937');
+  return result;
+}
+
+function normalizeDiagramConnector(connector, index) {
+  var result = diagramAssign({}, connector || {});
+  result.id = String(result.id == null || result.id === '' ?
+    diagramItemId('connector-') :
+    result.id);
+  result.from = String(result.from == null ? '' : result.from);
+  result.to = String(result.to == null ? '' : result.to);
+  result.fromPoint = normalizeDiagramConnectionPoint(result.fromPoint);
+  result.toPoint = normalizeDiagramConnectionPoint(result.toPoint);
+  result.type = ['straight', 'curved'].indexOf(result.type) >= 0 ?
+    result.type :
+    'orthogonal';
+  result.text = String(result.text == null ? '' : result.text);
+  result.stroke = String(result.stroke || '#4b5563');
+  result.strokeWidth = Math.max(1, diagramNumber(result.strokeWidth, 1.5));
+  result.lineStyle = result.lineStyle === 'dashed' ? 'dashed' : 'solid';
+  result._index = index;
+  return result;
+}
+
+function normalizeDiagramData(data) {
+  var nodes = Array.isArray(data) ? data : data && Array.isArray(data.nodes) ? data.nodes : [];
+  var connectors = data && Array.isArray(data.connectors) ?
+    data.connectors :
+    data && Array.isArray(data.edges) ? data.edges : [];
+  var normalizedNodes = nodes.map(normalizeDiagramNode);
+  var nodeIds = Object.create(null);
+  normalizedNodes.forEach(function(node) {
+    nodeIds[node.id] = true;
+  });
+  return {
+    nodes: normalizedNodes,
+    connectors: connectors.map(normalizeDiagramConnector).filter(function(connector) {
+      return nodeIds[connector.from] && nodeIds[connector.to] && connector.from !== connector.to;
+    }).map(function(connector) {
+      delete connector._index;
+      return connector;
+    })
+  };
+}
+
+function normalizeDiagramTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return DIAGRAM_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function normalizeDiagramLocale(value) {
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
+}
+
+function findDiagramTheme(element) {
+  var current = resolveDiagramElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < DIAGRAM_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + DIAGRAM_THEMES[index])) {
+        return DIAGRAM_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function diagramNodeCenter(node) {
+  return {
+    x: node.x + node.width / 2,
+    y: node.y + node.height / 2
+  };
+}
+
+function diagramShapePolygon(node) {
+  var x = node.x;
+  var y = node.y;
+  var width = node.width;
+  var height = node.height;
+  var centerX = x + width / 2;
+  var centerY = y + height / 2;
+  var points;
+  var index;
+  var angle;
+  var radius;
+  if (node.type === 'triangle') {
+    return [
+      { x: centerX, y: y },
+      { x: x + width, y: y + height },
+      { x: x, y: y + height }
+    ];
+  }
+  if (node.type === 'decision' || node.type === 'diamond') {
+    return [
+      { x: centerX, y: y },
+      { x: x + width, y: centerY },
+      { x: centerX, y: y + height },
+      { x: x, y: centerY }
+    ];
+  }
+  if (node.type === 'pentagon') {
+    return [
+      { x: centerX, y: y },
+      { x: x + width, y: y + height * 0.38 },
+      { x: x + width * 0.82, y: y + height },
+      { x: x + width * 0.18, y: y + height },
+      { x: x, y: y + height * 0.38 }
+    ];
+  }
+  if (node.type === 'heart') {
+    return [
+      { x: centerX, y: y + height * 0.22 },
+      { x: x + width * 0.68, y: y },
+      { x: x + width * 0.92, y: y + height * 0.05 },
+      { x: x + width, y: y + height * 0.25 },
+      { x: x + width * 0.95, y: y + height * 0.48 },
+      { x: centerX, y: y + height },
+      { x: x + width * 0.05, y: y + height * 0.48 },
+      { x: x, y: y + height * 0.25 },
+      { x: x + width * 0.08, y: y + height * 0.05 },
+      { x: x + width * 0.32, y: y }
+    ];
+  }
+  if (node.type === 'hexagon' || node.type === 'preparation') {
+    return [
+      { x: x + width * 0.2, y: y },
+      { x: x + width * 0.8, y: y },
+      { x: x + width, y: centerY },
+      { x: x + width * 0.8, y: y + height },
+      { x: x + width * 0.2, y: y + height },
+      { x: x, y: centerY }
+    ];
+  }
+  if (node.type === 'octagon') {
+    return [
+      { x: x + width * 0.28, y: y },
+      { x: x + width * 0.72, y: y },
+      { x: x + width, y: y + height * 0.28 },
+      { x: x + width, y: y + height * 0.72 },
+      { x: x + width * 0.72, y: y + height },
+      { x: x + width * 0.28, y: y + height },
+      { x: x, y: y + height * 0.72 },
+      { x: x, y: y + height * 0.28 }
+    ];
+  }
+  if (node.type === 'star') {
+    points = [];
+    for (index = 0; index < 10; index += 1) {
+      angle = -Math.PI / 2 + index * Math.PI / 5;
+      radius = index % 2 === 0 ? 1 : 0.42;
+      points.push({
+        x: centerX + Math.cos(angle) * width / 2 * radius,
+        y: centerY + Math.sin(angle) * height / 2 * radius
+      });
+    }
+    return points;
+  }
+  if (node.type === 'cross') {
+    return [
+      { x: x + width * 0.35, y: y },
+      { x: x + width * 0.65, y: y },
+      { x: x + width * 0.65, y: y + height * 0.35 },
+      { x: x + width, y: y + height * 0.35 },
+      { x: x + width, y: y + height * 0.65 },
+      { x: x + width * 0.65, y: y + height * 0.65 },
+      { x: x + width * 0.65, y: y + height },
+      { x: x + width * 0.35, y: y + height },
+      { x: x + width * 0.35, y: y + height * 0.65 },
+      { x: x, y: y + height * 0.65 },
+      { x: x, y: y + height * 0.35 },
+      { x: x + width * 0.35, y: y + height * 0.35 }
+    ];
+  }
+  if (node.type === 'arrowLeft') {
+    return [
+      { x: x, y: centerY },
+      { x: x + width * 0.42, y: y },
+      { x: x + width * 0.42, y: y + height * 0.3 },
+      { x: x + width, y: y + height * 0.3 },
+      { x: x + width, y: y + height * 0.7 },
+      { x: x + width * 0.42, y: y + height * 0.7 },
+      { x: x + width * 0.42, y: y + height }
+    ];
+  }
+  if (node.type === 'arrowRight') {
+    return [
+      { x: x + width, y: centerY },
+      { x: x + width * 0.58, y: y },
+      { x: x + width * 0.58, y: y + height * 0.3 },
+      { x: x, y: y + height * 0.3 },
+      { x: x, y: y + height * 0.7 },
+      { x: x + width * 0.58, y: y + height * 0.7 },
+      { x: x + width * 0.58, y: y + height }
+    ];
+  }
+  if (node.type === 'arrowUp') {
+    return [
+      { x: centerX, y: y },
+      { x: x + width, y: y + height * 0.42 },
+      { x: x + width * 0.65, y: y + height * 0.42 },
+      { x: x + width * 0.65, y: y + height },
+      { x: x + width * 0.35, y: y + height },
+      { x: x + width * 0.35, y: y + height * 0.42 },
+      { x: x, y: y + height * 0.42 }
+    ];
+  }
+  if (node.type === 'arrowDown') {
+    return [
+      { x: x + width * 0.35, y: y },
+      { x: x + width * 0.65, y: y },
+      { x: x + width * 0.65, y: y + height * 0.58 },
+      { x: x + width, y: y + height * 0.58 },
+      { x: centerX, y: y + height },
+      { x: x, y: y + height * 0.58 },
+      { x: x + width * 0.35, y: y + height * 0.58 }
+    ];
+  }
+  if (node.type === 'arrowUpDown') {
+    return [
+      { x: centerX, y: y },
+      { x: x + width, y: y + height * 0.28 },
+      { x: x + width * 0.65, y: y + height * 0.28 },
+      { x: x + width * 0.65, y: y + height * 0.72 },
+      { x: x + width, y: y + height * 0.72 },
+      { x: centerX, y: y + height },
+      { x: x, y: y + height * 0.72 },
+      { x: x + width * 0.35, y: y + height * 0.72 },
+      { x: x + width * 0.35, y: y + height * 0.28 },
+      { x: x, y: y + height * 0.28 }
+    ];
+  }
+  if (node.type === 'arrowLeftRight') {
+    return [
+      { x: x, y: centerY },
+      { x: x + width * 0.28, y: y },
+      { x: x + width * 0.28, y: y + height * 0.35 },
+      { x: x + width * 0.72, y: y + height * 0.35 },
+      { x: x + width * 0.72, y: y },
+      { x: x + width, y: centerY },
+      { x: x + width * 0.72, y: y + height },
+      { x: x + width * 0.72, y: y + height * 0.65 },
+      { x: x + width * 0.28, y: y + height * 0.65 },
+      { x: x + width * 0.28, y: y + height }
+    ];
+  }
+  if (node.type === 'data' || node.type === 'manualInput') {
+    return [
+      {
+        x: x + width * (node.type === 'manualInput' ? 0.18 : 0.15),
+        y: y
+      },
+      { x: x + width, y: y },
+      {
+        x: x + width * (node.type === 'manualInput' ? 1 : 0.85),
+        y: y + height
+      },
+      { x: x, y: y + height }
+    ];
+  }
+  if (node.type === 'manualOperation') {
+    return [
+      { x: x, y: y },
+      { x: x + width, y: y },
+      { x: x + width * 0.82, y: y + height },
+      { x: x + width * 0.18, y: y + height }
+    ];
+  }
+  if (node.type === 'merge') {
+    return [
+      { x: x, y: y },
+      { x: x + width, y: y },
+      { x: centerX, y: y + height }
+    ];
+  }
+  if (node.type === 'paperTape') {
+    return [
+      { x: x, y: y + height * 0.18 },
+      { x: x + width * 0.25, y: y + height * 0.08 },
+      { x: x + width * 0.5, y: y + height * 0.18 },
+      { x: x + width * 0.75, y: y + height * 0.28 },
+      { x: x + width, y: y + height * 0.18 },
+      { x: x + width, y: y + height * 0.82 },
+      { x: x + width * 0.75, y: y + height * 0.72 },
+      { x: x + width * 0.5, y: y + height * 0.82 },
+      { x: x + width * 0.25, y: y + height * 0.92 },
+      { x: x, y: y + height * 0.82 }
+    ];
+  }
+  if (node.type === 'storedData') {
+    return [
+      { x: x + width * 0.12, y: y },
+      { x: x + width * 0.88, y: y },
+      { x: x + width, y: centerY },
+      { x: x + width * 0.88, y: y + height },
+      { x: x + width * 0.12, y: y + height },
+      { x: x, y: centerY }
+    ];
+  }
+  if (node.type === 'display') {
+    return [
+      { x: x + width * 0.16, y: y },
+      { x: x + width * 0.72, y: y },
+      { x: x + width, y: centerY },
+      { x: x + width * 0.72, y: y + height },
+      { x: x + width * 0.16, y: y + height },
+      { x: x, y: centerY }
+    ];
+  }
+  if (node.type === 'delay') {
+    return [
+      { x: x, y: y },
+      { x: x + width * 0.56, y: y },
+      { x: x + width * 0.83, y: y + height * 0.08 },
+      { x: x + width, y: centerY },
+      { x: x + width * 0.83, y: y + height * 0.92 },
+      { x: x + width * 0.56, y: y + height },
+      { x: x, y: y + height }
+    ];
+  }
+  if (node.type === 'document') {
+    return [
+      { x: x, y: y },
+      { x: x + width, y: y },
+      { x: x + width, y: y + height * 0.82 },
+      { x: x + width * 0.75, y: y + height * 0.73 },
+      { x: x + width * 0.5, y: y + height * 0.82 },
+      { x: x + width * 0.25, y: y + height * 0.91 },
+      { x: x, y: y + height * 0.82 }
+    ];
+  }
+  return null;
+}
+
+function diagramRayPolygonIntersection(center, target, points) {
+  var rayX = target.x - center.x;
+  var rayY = target.y - center.y;
+  var result = null;
+  var bestDistance = Infinity;
+  var index;
+  var start;
+  var end;
+  var edgeX;
+  var edgeY;
+  var offsetX;
+  var offsetY;
+  var denominator;
+  var distance;
+  var edgePosition;
+  for (index = 0; index < points.length; index += 1) {
+    start = points[index];
+    end = points[(index + 1) % points.length];
+    edgeX = end.x - start.x;
+    edgeY = end.y - start.y;
+    offsetX = start.x - center.x;
+    offsetY = start.y - center.y;
+    denominator = rayX * edgeY - rayY * edgeX;
+    if (Math.abs(denominator) < 0.000001) continue;
+    distance = (offsetX * edgeY - offsetY * edgeX) / denominator;
+    edgePosition = (offsetX * rayY - offsetY * rayX) / denominator;
+    if (
+      distance >= 0 &&
+      edgePosition >= 0 &&
+      edgePosition <= 1 &&
+      distance < bestDistance
+    ) {
+      bestDistance = distance;
+      result = {
+        x: center.x + rayX * distance,
+        y: center.y + rayY * distance
+      };
+    }
+  }
+  return result;
+}
+
+function getDiagramShapeBoundaryPoint(node, target) {
+  var center = diagramNodeCenter(node);
+  var dx = target.x - center.x;
+  var dy = target.y - center.y;
+  var radiusX = node.width / 2;
+  var radiusY = node.height / 2;
+  var scale;
+  var polygon;
+  var intersection;
+  if (!dx && !dy) return center;
+  polygon = diagramShapePolygon(node);
+  if (polygon) {
+    intersection = diagramRayPolygonIntersection(center, target, polygon);
+    if (intersection) return intersection;
+  }
+  if (
+    node.type === 'ellipse' ||
+    node.type === 'dfdProcess' ||
+    node.type === 'terminator' ||
+    node.type === 'cloud' ||
+    node.type === 'directData' ||
+    node.type === 'sequentialData' ||
+    node.type === 'onPageReference' ||
+    node.type === 'summingJunction' ||
+    node.type === 'orJunction'
+  ) {
+    scale = 1 / Math.sqrt(
+      (dx * dx) / (radiusX * radiusX) +
+      (dy * dy) / (radiusY * radiusY)
+    );
+  } else {
+    scale = Math.min(
+      dx ? radiusX / Math.abs(dx) : Infinity,
+      dy ? radiusY / Math.abs(dy) : Infinity
+    );
+  }
+  return {
+    x: center.x + dx * scale,
+    y: center.y + dy * scale
+  };
+}
+
+function diagramConnectorPoint(node, target) {
+  var other = diagramNodeCenter(target);
+  return getDiagramShapeBoundaryPoint(node, other);
+}
+
+function getDiagramConnectionPoint(node, name) {
+  var descriptor = DIAGRAM_CONNECTION_POINTS.find(function(point) {
+    return point.name === name;
+  });
+  if (!descriptor) return null;
+  return getDiagramShapeBoundaryPoint(node, {
+    x: node.x + node.width * descriptor.x,
+    y: node.y + node.height * descriptor.y
+  });
+}
+
+function findDiagramNodesInRect(nodes, rect) {
+  var left = Math.min(rect.x, rect.x + rect.width);
+  var top = Math.min(rect.y, rect.y + rect.height);
+  var right = Math.max(rect.x, rect.x + rect.width);
+  var bottom = Math.max(rect.y, rect.y + rect.height);
+  return (nodes || []).filter(function(node) {
+    return node.x <= right &&
+      node.x + node.width >= left &&
+      node.y <= bottom &&
+      node.y + node.height >= top;
+  });
+}
+
+function normalizeDiagramConnectionPoint(value) {
+  value = String(value == null ? '' : value);
+  return DIAGRAM_CONNECTION_POINTS.some(function(point) {
+    return point.name === value;
+  }) ? value : '';
+}
+
+function calculateDiagramCurve(start, end) {
+  var dx = end.x - start.x;
+  var dy = end.y - start.y;
+  var length = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+  var bend = Math.min(90, Math.max(28, length * 0.18));
+  var control = {
+    x: (start.x + end.x) / 2 - dy / length * bend,
+    y: (start.y + end.y) / 2 + dx / length * bend
+  };
+  return {
+    path: 'M ' + start.x + ' ' + start.y +
+      ' Q ' + control.x + ' ' + control.y +
+      ' ' + end.x + ' ' + end.y,
+    label: {
+      x: start.x * 0.25 + control.x * 0.5 + end.x * 0.25,
+      y: start.y * 0.25 + control.y * 0.5 + end.y * 0.25
+    }
+  };
+}
+
+function calculateDiagramConnectorPath(
+  fromNode,
+  toNode,
+  type,
+  fromPoint,
+  toPoint
+) {
+  var start = getDiagramConnectionPoint(fromNode, fromPoint) ||
+    diagramConnectorPoint(fromNode, toNode);
+  var end = getDiagramConnectionPoint(toNode, toPoint) ||
+    diagramConnectorPoint(toNode, fromNode);
+  var middle;
+  var curve;
+  var path;
+  if (type === 'straight') {
+    path = 'M ' + start.x + ' ' + start.y + ' L ' + end.x + ' ' + end.y;
+    middle = {
+      x: (start.x + end.x) / 2,
+      y: (start.y + end.y) / 2
+    };
+  } else if (type === 'curved') {
+    curve = calculateDiagramCurve(start, end);
+    path = curve.path;
+    middle = curve.label;
+  } else if (Math.abs(end.x - start.x) >= Math.abs(end.y - start.y)) {
+    middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+    path = 'M ' + start.x + ' ' + start.y +
+      ' H ' + middle.x +
+      ' V ' + end.y +
+      ' H ' + end.x;
+  } else {
+    middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+    path = 'M ' + start.x + ' ' + start.y +
+      ' V ' + middle.y +
+      ' H ' + end.x +
+      ' V ' + end.y;
+  }
+  return {
+    path: path,
+    start: start,
+    end: end,
+    label: middle
+  };
+}
+
+function calculateDiagramNodeResize(node, direction, dx, dy, minWidth, minHeight) {
+  var result = diagramAssign({}, node);
+  var right = node.x + node.width;
+  var bottom = node.y + node.height;
+  minWidth = Math.max(20, diagramNumber(minWidth, 40));
+  minHeight = Math.max(20, diagramNumber(minHeight, 30));
+  direction = String(direction || '');
+  if (direction.indexOf('e') >= 0) result.width = Math.max(minWidth, node.width + dx);
+  if (direction.indexOf('s') >= 0) result.height = Math.max(minHeight, node.height + dy);
+  if (direction.indexOf('w') >= 0) {
+    result.width = Math.max(minWidth, node.width - dx);
+    result.x = right - result.width;
+  }
+  if (direction.indexOf('n') >= 0) {
+    result.height = Math.max(minHeight, node.height - dy);
+    result.y = bottom - result.height;
+  }
+  return result;
+}
+
+function diagramDownloadBlob(blob, filename) {
+  var anchor = document.createElement('a');
+  var url = URL.createObjectURL(blob);
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  setTimeout(function() {
+    URL.revokeObjectURL(url);
+  }, 0);
+}
+
+function createDiagramFactory(
+  Control,
+  registerControl,
+  unregisterControl,
+  Button,
+  EditBox,
+  Window
+) {
+  var localePacks = {
+    en: {
+      diagram: 'Diagram',
+      toolbox: 'Toolbox',
+      searchShapes: 'Search shapes',
+      general: 'General',
+      flowchart: 'Flowchart',
+      dfd: 'DFD',
+      dfdEntity: 'Entity',
+      dfdProcess: 'Process',
+      dfdDataStore: 'Data Store',
+      dfdDataFlow: 'Data Flow',
+      paperSettings: 'Paper Settings',
+      paperSize: 'Paper Size',
+      paperOrientation: 'Orientation',
+      portrait: 'Portrait',
+      landscape: 'Landscape',
+      apply: 'Apply',
+      cancel: 'Cancel',
+      rectangle: 'Rectangle',
+      roundedRectangle: 'Rounded rectangle',
+      ellipse: 'Ellipse',
+      triangle: 'Triangle',
+      diamond: 'Diamond',
+      heart: 'Heart',
+      pentagon: 'Pentagon',
+      hexagon: 'Hexagon',
+      octagon: 'Octagon',
+      star: 'Star',
+      cross: 'Cross',
+      arrowUp: 'Up arrow',
+      arrowDown: 'Down arrow',
+      arrowLeft: 'Left arrow',
+      arrowRight: 'Right arrow',
+      arrowUpDown: 'Up-down arrow',
+      arrowLeftRight: 'Left-right arrow',
+      cloud: 'Cloud',
+      textShape: 'Text',
+      process: 'Process',
+      decision: 'Decision',
+      terminator: 'Terminator',
+      document: 'Document',
+      multipleDocuments: 'Multiple documents',
+      dataShape: 'Data',
+      database: 'Database',
+      predefinedProcess: 'Predefined process',
+      manualInput: 'Manual input',
+      preparation: 'Preparation',
+      directData: 'Direct data',
+      internalStorage: 'Internal storage',
+      paperTape: 'Paper tape',
+      manualOperation: 'Manual operation',
+      delay: 'Delay',
+      storedData: 'Stored data',
+      sequentialData: 'Sequential data',
+      merge: 'Merge',
+      onPageReference: 'On-page reference',
+      summingJunction: 'Summing junction',
+      orJunction: 'OR',
+      display: 'Display',
+      undo: 'Undo',
+      redo: 'Redo',
+      deleteItem: 'Delete',
+      connect: 'Connect',
+      properties: 'Properties',
+      noSelection: 'Select a shape or connector.',
+      multipleSelection: '{0} shapes selected.',
+      text: 'Text',
+      x: 'X',
+      y: 'Y',
+      width: 'Width',
+      height: 'Height',
+      fill: 'Fill',
+      stroke: 'Stroke',
+      lineStyle: 'Line style',
+      solid: 'Solid',
+      dashed: 'Dashed',
+      zoomOut: 'Zoom out',
+      zoomIn: 'Zoom in',
+      fit: 'Fit to content',
+      grid: 'Grid',
+      fullscreen: 'Full screen',
+      exitFullscreen: 'Exit full screen',
+      connectSource: 'Select the source shape.',
+      connectTarget: 'Select the target shape.',
+      itemAdded: 'Item added',
+      itemChanged: 'Item changed',
+      itemRemoved: 'Item removed'
+    },
+    'zh-TW': {
+      diagram: '圖表設計器',
+      toolbox: '工具箱',
+      searchShapes: '搜尋圖形',
+      general: '一般',
+      flowchart: '流程圖',
+      dfd: 'DFD',
+      dfdEntity: '外部實體',
+      dfdProcess: '處理程序',
+      dfdDataStore: '資料儲存',
+      dfdDataFlow: '資料流',
+      paperSettings: '紙張設定',
+      paperSize: '紙張尺寸',
+      paperOrientation: '紙張方向',
+      portrait: '直向',
+      landscape: '橫向',
+      apply: '套用',
+      cancel: '取消',
+      rectangle: '矩形',
+      roundedRectangle: '圓角矩形',
+      ellipse: '橢圓',
+      triangle: '三角形',
+      diamond: '菱形',
+      heart: '愛心',
+      pentagon: '五邊形',
+      hexagon: '六邊形',
+      octagon: '八邊形',
+      star: '星形',
+      cross: '十字形',
+      arrowUp: '向上箭頭',
+      arrowDown: '向下箭頭',
+      arrowLeft: '向左箭頭',
+      arrowRight: '向右箭頭',
+      arrowUpDown: '上下箭頭',
+      arrowLeftRight: '左右箭頭',
+      cloud: '雲朵',
+      textShape: '文字',
+      process: '處理程序',
+      decision: '判斷',
+      terminator: '開始／結束',
+      document: '文件',
+      multipleDocuments: '多重文件',
+      dataShape: '資料',
+      database: '資料庫',
+      predefinedProcess: '預定義處理',
+      manualInput: '手動輸入',
+      preparation: '準備',
+      directData: '直接資料',
+      internalStorage: '內部儲存',
+      paperTape: '紙帶',
+      manualOperation: '手動操作',
+      delay: '延遲',
+      storedData: '儲存資料',
+      sequentialData: '循序資料',
+      merge: '合併',
+      onPageReference: '頁內連接點',
+      summingJunction: '加總接點',
+      orJunction: 'OR 接點',
+      display: '顯示',
+      undo: '復原',
+      redo: '重做',
+      deleteItem: '刪除',
+      connect: '連線',
+      properties: '屬性',
+      noSelection: '請選取圖形或連線。',
+      multipleSelection: '已選取 {0} 個圖形。',
+      text: '文字',
+      x: 'X',
+      y: 'Y',
+      width: '寬度',
+      height: '高度',
+      fill: '填滿',
+      stroke: '框線',
+      lineStyle: '線條',
+      solid: '實線',
+      dashed: '虛線',
+      zoomOut: '縮小',
+      zoomIn: '放大',
+      fit: '符合內容',
+      grid: '格線',
+      fullscreen: '全螢幕',
+      exitFullscreen: '離開全螢幕',
+      connectSource: '請選擇起點圖形。',
+      connectTarget: '請選擇終點圖形。',
+      itemAdded: '已新增項目',
+      itemChanged: '已修改項目',
+      itemRemoved: '已刪除項目'
+    },
+    'zh-CN': {
+      diagram: '图表设计器',
+      toolbox: '工具箱',
+      searchShapes: '搜索图形',
+      general: '常规',
+      flowchart: '流程图',
+      dfd: 'DFD',
+      dfdEntity: '外部实体',
+      dfdProcess: '处理过程',
+      dfdDataStore: '数据存储',
+      dfdDataFlow: '数据流',
+      paperSettings: '纸张设置',
+      paperSize: '纸张尺寸',
+      paperOrientation: '纸张方向',
+      portrait: '纵向',
+      landscape: '横向',
+      apply: '应用',
+      cancel: '取消',
+      rectangle: '矩形',
+      roundedRectangle: '圆角矩形',
+      ellipse: '椭圆',
+      triangle: '三角形',
+      diamond: '菱形',
+      heart: '爱心',
+      pentagon: '五边形',
+      hexagon: '六边形',
+      octagon: '八边形',
+      star: '星形',
+      cross: '十字形',
+      arrowUp: '向上箭头',
+      arrowDown: '向下箭头',
+      arrowLeft: '向左箭头',
+      arrowRight: '向右箭头',
+      arrowUpDown: '上下箭头',
+      arrowLeftRight: '左右箭头',
+      cloud: '云朵',
+      textShape: '文本',
+      process: '处理程序',
+      decision: '判断',
+      terminator: '开始／结束',
+      document: '文档',
+      multipleDocuments: '多重文档',
+      dataShape: '数据',
+      database: '数据库',
+      predefinedProcess: '预定义处理',
+      manualInput: '手动输入',
+      preparation: '准备',
+      directData: '直接数据',
+      internalStorage: '内部存储',
+      paperTape: '纸带',
+      manualOperation: '手动操作',
+      delay: '延迟',
+      storedData: '存储数据',
+      sequentialData: '顺序数据',
+      merge: '合并',
+      onPageReference: '页内连接点',
+      summingJunction: '汇总接点',
+      orJunction: 'OR 接点',
+      display: '显示',
+      undo: '撤销',
+      redo: '重做',
+      deleteItem: '删除',
+      connect: '连接',
+      properties: '属性',
+      noSelection: '请选择图形或连接线。',
+      multipleSelection: '已选择 {0} 个图形。',
+      text: '文本',
+      x: 'X',
+      y: 'Y',
+      width: '宽度',
+      height: '高度',
+      fill: '填充',
+      stroke: '边框',
+      lineStyle: '线条',
+      solid: '实线',
+      dashed: '虚线',
+      zoomOut: '缩小',
+      zoomIn: '放大',
+      fit: '适合内容',
+      grid: '网格',
+      fullscreen: '全屏',
+      exitFullscreen: '退出全屏',
+      connectSource: '请选择起点图形。',
+      connectTarget: '请选择终点图形。',
+      itemAdded: '已添加项目',
+      itemChanged: '已修改项目',
+      itemRemoved: '已删除项目'
+    }
+  };
+  var defaults = {
+    width: '100%',
+    height: 620,
+    nodes: [],
+    connectors: [],
+    paperSize: 'A4',
+    paperOrientation: 'landscape',
+    pageWidth: 1123,
+    pageHeight: 794,
+    pageColor: '#ffffff',
+    showGrid: true,
+    snapToGrid: true,
+    gridSize: 20,
+    zoomLevel: 1,
+    minZoom: 0.25,
+    maxZoom: 2,
+    toolbox: true,
+    toolboxSearch: true,
+    propertiesPanel: true,
+    mainToolbar: true,
+    viewToolbar: true,
+    readOnly: false,
+    disabled: false,
+    locale: 'en',
+    theme: 'inherit',
+    ariaLabel: '',
+    onSelectionChanged: null,
+    onItemClick: null,
+    onItemDblClick: null,
+    onChanged: null
+  };
+
+  function Diagram(element, options) {
+    var paperDimensions;
+    var sourceOptions = options || {};
+    if (!(this instanceof Diagram)) return new Diagram(element, options);
+    this.hostElement = resolveDiagramElement(element);
+    if (!this.hostElement) throw new Error('fabui.Diagram requires a host element.');
+    if (this.hostElement.__fabuiDiagram) return this.hostElement.__fabuiDiagram;
+    Control.call(this);
+    this._listeners = {};
+    this._destroyed = false;
+    this._interaction = null;
+    this._selected = null;
+    this._selectedNodeIds = [];
+    this._suppressClick = false;
+    this._inlineTextEditor = null;
+    this._paperDialog = null;
+    this._lastItemClick = null;
+    this._connectMode = false;
+    this._connectType = 'orthogonal';
+    this._connectSourceId = '';
+    this._buttonControls = [];
+    this._toolboxButtonControls = [];
+    this._toolbarButtons = {};
+    this._editBoxControls = [];
+    this._propertyEditors = [];
+    this._toolboxCollapsed = {
+      general: false,
+      flowchart: false,
+      dfd: false
+    };
+    this._toolboxFilter = '';
+    this._instanceId = nextDiagramInstanceId;
+    nextDiagramInstanceId += 1;
+    this._original = {
+      html: this.hostElement.innerHTML,
+      className: this.hostElement.getAttribute('class'),
+      style: this.hostElement.getAttribute('style'),
+      role: this.hostElement.getAttribute('role'),
+      ariaLabel: this.hostElement.getAttribute('aria-label'),
+      tabIndex: this.hostElement.getAttribute('tabindex')
+    };
+    this._themeSource = this.hostElement.parentElement || document.body;
+    this.options = diagramAssign({}, defaults, sourceOptions);
+    this.options.locale = normalizeDiagramLocale(this.options.locale);
+    this.options.paperSize = normalizeDiagramPaperSize(this.options.paperSize);
+    this.options.paperOrientation = normalizeDiagramPaperOrientation(
+      this.options.paperOrientation
+    );
+    if (
+      !Object.prototype.hasOwnProperty.call(sourceOptions, 'pageWidth') &&
+      !Object.prototype.hasOwnProperty.call(sourceOptions, 'pageHeight')
+    ) {
+      paperDimensions = getDiagramPaperDimensions(
+        this.options.paperSize,
+        this.options.paperOrientation
+      );
+      this.options.pageWidth = paperDimensions.width;
+      this.options.pageHeight = paperDimensions.height;
+    }
+    this.options.gridSize = Math.max(5, diagramNumber(this.options.gridSize, 20));
+    this.options.pageWidth = Math.max(300, diagramNumber(this.options.pageWidth, 1200));
+    this.options.pageHeight = Math.max(240, diagramNumber(this.options.pageHeight, 800));
+    this.options.minZoom = Math.max(0.1, diagramNumber(this.options.minZoom, 0.25));
+    this.options.maxZoom = Math.max(
+      this.options.minZoom,
+      diagramNumber(this.options.maxZoom, 2)
+    );
+    this.options.zoomLevel = diagramClamp(
+      diagramNumber(this.options.zoomLevel, 1),
+      this.options.minZoom,
+      this.options.maxZoom
+    );
+    this._data = normalizeDiagramData({
+      nodes: this.options.nodes,
+      connectors: this.options.connectors
+    });
+    this._resetHistory();
+    this._build();
+    this._bind();
+    this.setLocale(this.options.locale);
+    this.setTheme(this.options.theme);
+    this.render();
+    this.hostElement.__fabuiDiagram = this;
+    registerControl(this.hostElement, this);
+    this._fire('ContentReady');
+  }
+
+  Diagram.prototype = Object.create(Control.prototype);
+  Diagram.prototype.constructor = Diagram;
+
+  Diagram.prototype._build = function() {
+    var root = this.hostElement;
+    var workspace = document.createElement('div');
+    var toolbox = document.createElement('aside');
+    var toolboxHeader = document.createElement('div');
+    var searchHost = document.createElement('input');
+    var toolboxGroups = document.createElement('div');
+    var viewport = document.createElement('div');
+    var svg = createDiagramSvgElement('svg', {
+      class: 'fui-diagram-svg',
+      role: 'img'
+    });
+    var properties = document.createElement('aside');
+    var propertiesHeader = document.createElement('div');
+    var propertiesBody = document.createElement('div');
+    var toolbar = document.createElement('div');
+    var viewToolbar = document.createElement('div');
+    root.textContent = '';
+    root.classList.add('fui-diagram');
+    root.style.width = diagramSize(this.options.width, '100%');
+    root.style.height = diagramSize(this.options.height, 620);
+    root.setAttribute('role', 'application');
+    root.setAttribute('aria-label', this.options.ariaLabel || localePacks.en.diagram);
+    root.setAttribute('aria-disabled', this.options.disabled ? 'true' : 'false');
+    root.tabIndex = this.options.disabled ? -1 : 0;
+    toolbar.className = 'fui-diagram-toolbar';
+    toolbar.setAttribute('role', 'toolbar');
+    toolbox.className = 'fui-diagram-toolbox';
+    toolboxHeader.className = 'fui-diagram-pane-header';
+    searchHost.className = 'fui-diagram-toolbox-search-source';
+    searchHost.type = 'text';
+    toolboxGroups.className = 'fui-diagram-toolbox-groups';
+    toolbox.appendChild(toolboxHeader);
+    if (this.options.toolboxSearch) toolbox.appendChild(searchHost);
+    toolbox.appendChild(toolboxGroups);
+    viewport.className = 'fui-diagram-viewport';
+    viewport.tabIndex = -1;
+    svg.setAttribute('viewBox', '0 0 ' + this.options.pageWidth + ' ' + this.options.pageHeight);
+    viewport.appendChild(svg);
+    properties.className = 'fui-diagram-properties';
+    propertiesHeader.className = 'fui-diagram-pane-header';
+    propertiesBody.className = 'fui-diagram-properties-body';
+    properties.appendChild(propertiesHeader);
+    properties.appendChild(propertiesBody);
+    workspace.className = 'fui-diagram-workspace';
+    workspace.appendChild(toolbox);
+    workspace.appendChild(viewport);
+    workspace.appendChild(properties);
+    viewToolbar.className = 'fui-diagram-view-toolbar';
+    viewToolbar.setAttribute('role', 'toolbar');
+    root.appendChild(toolbar);
+    root.appendChild(workspace);
+    root.appendChild(viewToolbar);
+    this.toolbarElement = toolbar;
+    this.workspaceElement = workspace;
+    this.toolboxElement = toolbox;
+    this.toolboxHeaderElement = toolboxHeader;
+    this.toolboxSearchElement = searchHost;
+    this.toolboxGroupsElement = toolboxGroups;
+    this.viewportElement = viewport;
+    this.svgElement = svg;
+    this.propertiesElement = properties;
+    this.propertiesHeaderElement = propertiesHeader;
+    this.propertiesBodyElement = propertiesBody;
+    this.viewToolbarElement = viewToolbar;
+    this._renderToolbars();
+    this._renderToolbox();
+    this._mountToolboxSearch();
+    this._syncStructure();
+  };
+
+  Diagram.prototype._createToolbarButton = function(container, name, text, handler, toggle) {
+    var self = this;
+    var host = document.createElement('a');
+    var control;
+    host.href = 'javascript:void(0)';
+    host.className = 'fui-diagram-command fui-diagram-command-' + name;
+    host.textContent = text;
+    host.setAttribute('data-diagram-command', name);
+    container.appendChild(host);
+    control = new Button(host, {
+      text: text,
+      iconCls: '',
+      plain: true,
+      toggle: toggle === true,
+      disabled: this.options.disabled === true,
+      theme: 'inherit',
+      onClick: function() {
+        handler.call(self);
+      }
+    });
+    this._buttonControls.push(control);
+    this._toolbarButtons[name] = control;
+    return control;
+  };
+
+  Diagram.prototype._renderToolbars = function() {
+    var self = this;
+    this.toolbarElement.textContent = '';
+    this.viewToolbarElement.textContent = '';
+    this._buttonControls.forEach(function(control) {
+      control.dispose();
+    });
+    this._buttonControls = [];
+    this._toolbarButtons = {};
+    if (this.options.mainToolbar && !this.options.readOnly) {
+      this._createToolbarButton(this.toolbarElement, 'undo', '↶', this.undo);
+      this._createToolbarButton(this.toolbarElement, 'redo', '↷', this.redo);
+      this._createToolbarButton(this.toolbarElement, 'delete', 'Delete', this.removeSelected);
+      this._createToolbarButton(this.toolbarElement, 'connect', 'Connect', function() {
+        self.setConnectMode(!self._connectMode, 'orthogonal');
+      }, true);
+      this._createToolbarButton(this.toolbarElement, 'properties', 'Properties', function() {
+        self.options.propertiesPanel = !self.options.propertiesPanel;
+        self._syncStructure();
+        self._syncToolbarStates();
+      }, true);
+    }
+    if (this.options.viewToolbar) {
+      this._createToolbarButton(this.viewToolbarElement, 'zoomOut', '−', function() {
+        self.setZoom(self.options.zoomLevel - 0.1);
+      });
+      this.zoomLabelElement = document.createElement('span');
+      this.zoomLabelElement.className = 'fui-diagram-zoom-label';
+      this.viewToolbarElement.appendChild(this.zoomLabelElement);
+      this._createToolbarButton(this.viewToolbarElement, 'zoomIn', '+', function() {
+        self.setZoom(self.options.zoomLevel + 0.1);
+      });
+      this._createToolbarButton(this.viewToolbarElement, 'fit', 'Fit', this.fitToContent);
+      this._createToolbarButton(this.viewToolbarElement, 'grid', 'Grid', function() {
+        self.setShowGrid(!self.options.showGrid);
+      }, true);
+      this._createToolbarButton(this.viewToolbarElement, 'fullscreen', 'Full screen', this.toggleFullscreen);
+    }
+  };
+
+  Diagram.prototype._mountToolboxSearch = function() {
+    var self = this;
+    if (!this.options.toolboxSearch || !this.toolboxSearchElement) return;
+    this.toolboxSearchControl = new EditBox(this.toolboxSearchElement, {
+      editor: 'text',
+      width: '100%',
+      prompt: localePacks[this.options.locale].searchShapes,
+      theme: 'inherit',
+      onChange: function(value) {
+        self._filterToolbox(value);
+      }
+    });
+    this._editBoxControls.push(this.toolboxSearchControl);
+  };
+
+  Diagram.prototype._createToolboxPreview = function(type) {
+    var vertical = [
+      'arrowUp',
+      'arrowDown',
+      'arrowUpDown'
+    ].indexOf(type) >= 0;
+    var circular = type === 'dfdProcess';
+    var svg = createDiagramSvgElement('svg', {
+      class: 'fui-diagram-shape-preview',
+      viewBox: '0 0 60 42',
+      'aria-hidden': 'true',
+      focusable: 'false',
+      'data-diagram-preview-shape': type
+    });
+    var node = {
+      type: type,
+      x: vertical ? 17 : circular ? 13 : 6,
+      y: vertical ? 2 : circular ? 4 : 6,
+      width: vertical ? 26 : circular ? 34 : 48,
+      height: vertical ? 38 : circular ? 34 : 30,
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: 1.5
+    };
+    var shape;
+    if (type === 'dfdDataFlow') {
+      shape = createDiagramSvgElement('path', {
+        d: 'M 5 29 Q 28 5 55 24 M 47 18 L 55 24 L 47 28',
+        fill: 'none',
+        stroke: 'currentColor',
+        'stroke-width': 1.5,
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round'
+      });
+    } else if (type === 'text') {
+      shape = createDiagramSvgElement('text', {
+        x: 30,
+        y: 31,
+        fill: 'currentColor',
+        'font-family': 'Arial, sans-serif',
+        'font-size': 28,
+        'font-weight': 700,
+        'text-anchor': 'middle'
+      });
+      shape.textContent = 'T';
+    } else {
+      shape = this._createShapeElement(node);
+      shape.setAttribute('class', 'fui-diagram-toolbox-preview-shape');
+    }
+    svg.appendChild(shape);
+    return svg;
+  };
+
+  Diagram.prototype._renderToolbox = function() {
+    var self = this;
+    var categories = ['general', 'flowchart', 'dfd'];
+    this._toolboxButtonControls.forEach(function(control) {
+      control.dispose();
+    });
+    this._toolboxButtonControls = [];
+    this.toolboxGroupsElement.textContent = '';
+    categories.forEach(function(category) {
+      var group = document.createElement('section');
+      var title = document.createElement('h3');
+      var toggle = document.createElement('a');
+      var items = document.createElement('div');
+      var label = self.messages ? self.messages[category] : category;
+      var control;
+      group.className = 'fui-diagram-toolbox-group';
+      group.setAttribute('data-diagram-category', category);
+      title.className = 'fui-diagram-toolbox-title';
+      toggle.href = 'javascript:void(0)';
+      toggle.className = 'fui-diagram-toolbox-toggle';
+      toggle.setAttribute('data-diagram-toolbox-toggle', category);
+      toggle.setAttribute(
+        'aria-controls',
+        'fui-diagram-toolbox-' + self._instanceId + '-' + category
+      );
+      items.className = 'fui-diagram-toolbox-items';
+      items.id = 'fui-diagram-toolbox-' + self._instanceId + '-' + category;
+      DIAGRAM_TOOLBOX_ITEMS.filter(function(shape) {
+        return shape.category === category;
+      }).forEach(function(shape) {
+        var button = document.createElement('button');
+        var preview = self._createToolboxPreview(shape.type);
+        var label = document.createElement('span');
+        button.type = 'button';
+        button.className = 'fui-diagram-shape-item';
+        button.draggable = !shape.connectorType;
+        if (shape.connectorType) {
+          button.setAttribute('data-diagram-connector-tool', shape.connectorType);
+          button.setAttribute('aria-pressed', 'false');
+        } else {
+          button.setAttribute('data-diagram-shape', shape.type);
+          if (shape.category === 'dfd') {
+            button.setAttribute(
+              'data-diagram-default-text',
+              self.messages ? self.messages[shape.label] : shape.type
+            );
+          }
+          if (shape.width) {
+            button.setAttribute('data-diagram-default-width', shape.width);
+          }
+          if (shape.height) {
+            button.setAttribute('data-diagram-default-height', shape.height);
+          }
+        }
+        button.setAttribute('data-search-text', String(
+          self.messages ? self.messages[shape.label] : shape.type
+        ).toLowerCase());
+        label.className = 'fui-diagram-shape-label';
+        label.textContent = self.messages ? self.messages[shape.label] : shape.type;
+        button.appendChild(preview);
+        button.appendChild(label);
+        items.appendChild(button);
+      });
+      title.appendChild(toggle);
+      group.appendChild(title);
+      group.appendChild(items);
+      self.toolboxGroupsElement.appendChild(group);
+      control = new Button(toggle, {
+        text: label,
+        plain: true,
+        disabled: self.options.disabled === true,
+        theme: 'inherit'
+      });
+      self._toolboxButtonControls.push(control);
+    });
+    this._filterToolbox(this._toolboxFilter);
+  };
+
+  Diagram.prototype._filterToolbox = function(value) {
+    var search = String(value || '').trim().toLowerCase();
+    var self = this;
+    var connectorTools;
+    var index;
+    this._toolboxFilter = search;
+    Array.prototype.forEach.call(
+      this.toolboxGroupsElement.querySelectorAll('.fui-diagram-shape-item'),
+      function(item) {
+        item.hidden = Boolean(search) &&
+          item.getAttribute('data-search-text').indexOf(search) < 0;
+      }
+    );
+    Array.prototype.forEach.call(
+      this.toolboxGroupsElement.querySelectorAll('.fui-diagram-toolbox-group'),
+      function(group) {
+        var category = group.getAttribute('data-diagram-category');
+        var collapsed = Boolean(self._toolboxCollapsed[category]);
+        var items = group.querySelector('.fui-diagram-toolbox-items');
+        var toggle = group.querySelector('[data-diagram-toolbox-toggle]');
+        group.hidden = !group.querySelector('.fui-diagram-shape-item:not([hidden])');
+        items.hidden = collapsed;
+        group.classList.toggle('fui-diagram-toolbox-group-collapsed', collapsed);
+        toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      }
+    );
+    connectorTools = this.toolboxGroupsElement.querySelectorAll(
+      '[data-diagram-connector-tool]'
+    );
+    for (index = 0; index < connectorTools.length; index += 1) {
+      connectorTools[index].classList.toggle(
+        'fui-diagram-shape-item-selected',
+        this._connectMode &&
+        connectorTools[index].getAttribute('data-diagram-connector-tool') ===
+          this._connectType
+      );
+      connectorTools[index].setAttribute(
+        'aria-pressed',
+        this._connectMode &&
+        connectorTools[index].getAttribute('data-diagram-connector-tool') ===
+          this._connectType ?
+          'true' :
+          'false'
+      );
+    }
+  };
+
+  Diagram.prototype._syncStructure = function() {
+    this.toolboxElement.hidden = !this.options.toolbox || this.options.readOnly;
+    this.propertiesElement.hidden = !this.options.propertiesPanel || this.options.readOnly;
+    this.toolbarElement.hidden = !this.options.mainToolbar || this.options.readOnly;
+    this.viewToolbarElement.hidden = !this.options.viewToolbar;
+    this.workspaceElement.classList.toggle(
+      'fui-diagram-no-toolbox',
+      this.toolboxElement.hidden
+    );
+    this.workspaceElement.classList.toggle(
+      'fui-diagram-no-properties',
+      this.propertiesElement.hidden
+    );
+  };
+
+  Diagram.prototype._bind = function() {
+    var self = this;
+    this._onSvgPointerDown = function(event) {
+      self._handlePointerDown(event);
+    };
+    this._onSvgClick = function(event) {
+      self._handleSvgClick(event);
+    };
+    this._onSvgDblClick = function(event) {
+      self._handleSvgDblClick(event);
+    };
+    this._onToolboxClick = function(event) {
+      var toggle = event.target.closest('[data-diagram-toolbox-toggle]');
+      var connectorTool = event.target.closest('[data-diagram-connector-tool]');
+      var category;
+      var item = event.target.closest('[data-diagram-shape]');
+      var nodeOptions;
+      if (toggle && !self.options.disabled && !self.options.readOnly) {
+        category = toggle.getAttribute('data-diagram-toolbox-toggle');
+        self._toolboxCollapsed[category] = !self._toolboxCollapsed[category];
+        self._filterToolbox(self._toolboxFilter);
+        return;
+      }
+      if (connectorTool && !self.options.disabled && !self.options.readOnly) {
+        self.setConnectMode(
+          !(self._connectMode && self._connectType ===
+            connectorTool.getAttribute('data-diagram-connector-tool')),
+          connectorTool.getAttribute('data-diagram-connector-tool')
+        );
+        return;
+      }
+      if (item && !self.options.disabled && !self.options.readOnly) {
+        nodeOptions = {
+          type: item.getAttribute('data-diagram-shape')
+        };
+        if (item.hasAttribute('data-diagram-default-text')) {
+          nodeOptions.text = item.getAttribute('data-diagram-default-text');
+        }
+        if (item.hasAttribute('data-diagram-default-width')) {
+          nodeOptions.width = Number(
+            item.getAttribute('data-diagram-default-width')
+          );
+        }
+        if (item.hasAttribute('data-diagram-default-height')) {
+          nodeOptions.height = Number(
+            item.getAttribute('data-diagram-default-height')
+          );
+        }
+        self.addNode(nodeOptions);
+      }
+    };
+    this._onToolboxDragStart = function(event) {
+      var item = event.target.closest('[data-diagram-shape]');
+      if (
+        !item ||
+        !event.dataTransfer ||
+        self.options.disabled ||
+        self.options.readOnly
+      ) return;
+      event.dataTransfer.setData('text/x-fabui-diagram-shape', item.getAttribute('data-diagram-shape'));
+      event.dataTransfer.setData(
+        'text/x-fabui-diagram-shape-text',
+        item.getAttribute('data-diagram-default-text') || ''
+      );
+      event.dataTransfer.setData(
+        'text/x-fabui-diagram-shape-width',
+        item.getAttribute('data-diagram-default-width') || ''
+      );
+      event.dataTransfer.setData(
+        'text/x-fabui-diagram-shape-height',
+        item.getAttribute('data-diagram-default-height') || ''
+      );
+      event.dataTransfer.effectAllowed = 'copy';
+    };
+    this._onViewportDragOver = function(event) {
+      if (event.dataTransfer) event.preventDefault();
+    };
+    this._onViewportDrop = function(event) {
+      var type = event.dataTransfer ?
+        event.dataTransfer.getData('text/x-fabui-diagram-shape') :
+        '';
+      var text = event.dataTransfer ?
+        event.dataTransfer.getData('text/x-fabui-diagram-shape-text') :
+        '';
+      var width = event.dataTransfer ?
+        event.dataTransfer.getData('text/x-fabui-diagram-shape-width') :
+        '';
+      var height = event.dataTransfer ?
+        event.dataTransfer.getData('text/x-fabui-diagram-shape-height') :
+        '';
+      var point;
+      var nodeOptions;
+      if (!type || self.options.disabled || self.options.readOnly) return;
+      event.preventDefault();
+      point = self._eventPoint(event);
+      nodeOptions = {
+        type: type,
+        x: point.x - (width ? Number(width) / 2 : 70),
+        y: point.y - (height ? Number(height) / 2 : 36)
+      };
+      if (text) nodeOptions.text = text;
+      if (width) nodeOptions.width = Number(width);
+      if (height) nodeOptions.height = Number(height);
+      self.addNode(nodeOptions);
+    };
+    this._onKeyDown = function(event) {
+      self._handleKeyDown(event);
+    };
+    this._onFullscreenChange = function() {
+      self._syncToolbarStates();
+    };
+    this.addEventListener(this.svgElement, 'pointerdown', this._onSvgPointerDown);
+    this.addEventListener(this.svgElement, 'click', this._onSvgClick);
+    this.addEventListener(this.svgElement, 'dblclick', this._onSvgDblClick);
+    this.addEventListener(this.toolboxGroupsElement, 'click', this._onToolboxClick);
+    this.addEventListener(this.toolboxGroupsElement, 'dragstart', this._onToolboxDragStart);
+    this.addEventListener(this.viewportElement, 'dragover', this._onViewportDragOver);
+    this.addEventListener(this.viewportElement, 'drop', this._onViewportDrop);
+    this.addEventListener(this.hostElement, 'keydown', this._onKeyDown);
+    this.addEventListener(document, 'fullscreenchange', this._onFullscreenChange);
+  };
+
+  Diagram.prototype._eventPoint = function(event) {
+    var rect = this.svgElement.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * this.options.pageWidth / rect.width,
+      y: (event.clientY - rect.top) * this.options.pageHeight / rect.height
+    };
+  };
+
+  Diagram.prototype._snap = function(value) {
+    return this.options.snapToGrid ?
+      Math.round(value / this.options.gridSize) * this.options.gridSize :
+      value;
+  };
+
+  Diagram.prototype._isNodeSelected = function(id) {
+    return this._selectedNodeIds.indexOf(String(id)) >= 0;
+  };
+
+  Diagram.prototype._setNodeSelection = function(ids, primaryId, silent) {
+    var self = this;
+    var unique = [];
+    (ids || []).forEach(function(id) {
+      id = String(id);
+      if (self.getNode(id) && unique.indexOf(id) < 0) unique.push(id);
+    });
+    primaryId = String(primaryId == null ? '' : primaryId);
+    if (unique.length && unique.indexOf(primaryId) < 0) primaryId = unique[unique.length - 1];
+    this._selectedNodeIds = unique;
+    this._selected = unique.length ? {
+      type: 'node',
+      id: primaryId || unique[unique.length - 1]
+    } : null;
+    this._renderCanvas();
+    this._renderProperties();
+    if (!silent) this._fireSelectionChanged();
+    return this;
+  };
+
+  Diagram.prototype._fireSelectionChanged = function() {
+    var item = this._selected ?
+      (this._selected.type === 'node' ?
+        this.getNode(this._selected.id) :
+        this.getConnector(this._selected.id)) :
+      null;
+    this._fire('SelectionChanged', {
+      itemType: this._selected ? this._selected.type : null,
+      item: item,
+      selection: this._selected ? diagramAssign({}, this._selected) : null,
+      selections: this.getSelections()
+    });
+  };
+
+  Diagram.prototype._handlePointerDown = function(event) {
+    var connectionPoint = event.target.closest('[data-diagram-connection-point]');
+    var resizeHandle = event.target.closest('[data-diagram-resize]');
+    var nodeElement = event.target.closest('[data-diagram-node]');
+    var connectorElement = event.target.closest('[data-diagram-connector]');
+    var node;
+    var point;
+    var additive;
+    var selectedIds;
+    var now;
+    var isDoubleClick;
+    if (
+      event.button !== 0 ||
+      this.options.disabled ||
+      this.options.readOnly
+    ) return;
+    if (this._inlineTextEditor) this._closeInlineTextEditor(true);
+    point = this._eventPoint(event);
+    additive = event.shiftKey || event.ctrlKey || event.metaKey;
+    if (connectionPoint) {
+      node = this.getNode(connectionPoint.getAttribute('data-node-id'));
+      if (!node) return;
+      event.preventDefault();
+      this._interaction = {
+        pointerId: event.pointerId,
+        type: 'connect',
+        connectorType: this._connectMode ? this._connectType : 'orthogonal',
+        nodeId: node.id,
+        sourcePoint: connectionPoint.getAttribute('data-diagram-connection-point'),
+        startPoint: getDiagramConnectionPoint(
+          node,
+          connectionPoint.getAttribute('data-diagram-connection-point')
+        ),
+        currentPoint: point,
+        targetNodeId: '',
+        targetPoint: '',
+        changed: false
+      };
+      this.hostElement.classList.add('fui-diagram-interacting');
+      this._bindDocumentInteraction();
+      this._renderCanvas();
+      return;
+    }
+    if (connectorElement) return;
+    if (!resizeHandle && !nodeElement) {
+      now = Date.now();
+      isDoubleClick = this._lastItemClick &&
+        this._lastItemClick.type === 'canvas' &&
+        now - this._lastItemClick.time <= 700;
+      this._lastItemClick = isDoubleClick ? null : {
+        type: 'canvas',
+        time: now
+      };
+      if (isDoubleClick) {
+        event.preventDefault();
+        this._openPaperSettings();
+        return;
+      }
+      event.preventDefault();
+      this._interaction = {
+        pointerId: event.pointerId,
+        type: 'marquee',
+        startPoint: point,
+        currentPoint: point,
+        startSelection: this._selectedNodeIds.slice(),
+        additive: additive,
+        changed: false
+      };
+      if (!additive) {
+        this._selected = null;
+        this._selectedNodeIds = [];
+        this._renderCanvas();
+        this._renderProperties();
+      }
+      this.hostElement.classList.add('fui-diagram-interacting');
+      this._bindDocumentInteraction();
+      return;
+    }
+    node = this.getNode(
+      (resizeHandle || nodeElement).getAttribute('data-node-id')
+    );
+    if (!node) return;
+    event.preventDefault();
+    now = Date.now();
+    isDoubleClick = !resizeHandle &&
+      this._lastItemClick &&
+      this._lastItemClick.type === 'node' &&
+      this._lastItemClick.id === node.id &&
+      now - this._lastItemClick.time <= 450;
+    this._lastItemClick = isDoubleClick ? null : {
+      type: 'node',
+      id: node.id,
+      time: now
+    };
+    if (isDoubleClick) {
+      this.selectItem('node', node.id);
+      this._fire('ItemDblClick', {
+        itemType: 'node',
+        item: node
+      });
+      this._beginNodeTextEdit(node.id);
+      this._suppressClick = true;
+      return;
+    }
+    selectedIds = this._selectedNodeIds.slice();
+    if (additive && !resizeHandle) {
+      if (this._isNodeSelected(node.id)) {
+        selectedIds = selectedIds.filter(function(id) {
+          return id !== node.id;
+        });
+      } else {
+        selectedIds.push(node.id);
+      }
+      this._setNodeSelection(selectedIds, node.id);
+      this._suppressClick = true;
+      if (!this._isNodeSelected(node.id)) return;
+    } else if (!this._isNodeSelected(node.id) || resizeHandle) {
+      this._setNodeSelection([node.id], node.id);
+    }
+    this._interaction = {
+      pointerId: event.pointerId,
+      type: resizeHandle ? 'resize' : 'move',
+      direction: resizeHandle ?
+        resizeHandle.getAttribute('data-diagram-resize') :
+        '',
+      nodeId: node.id,
+      startPoint: point,
+      startNode: diagramAssign({}, node),
+      startNodes: this._selectedNodeIds.map(function(id) {
+        return diagramAssign({}, this.getNode(id));
+      }, this),
+      changed: false
+    };
+    this.hostElement.classList.add('fui-diagram-interacting');
+    this._bindDocumentInteraction();
+  };
+
+  Diagram.prototype._bindDocumentInteraction = function() {
+    var self = this;
+    this._unbindDocumentInteraction();
+    this._onDocumentPointerMove = function(event) {
+      self._handlePointerMove(event);
+    };
+    this._onDocumentPointerEnd = function(event) {
+      self._finishPointerInteraction(event);
+    };
+    document.addEventListener('pointermove', this._onDocumentPointerMove);
+    document.addEventListener('pointerup', this._onDocumentPointerEnd);
+    document.addEventListener('pointercancel', this._onDocumentPointerEnd);
+  };
+
+  Diagram.prototype._unbindDocumentInteraction = function() {
+    if (!this._onDocumentPointerMove) return;
+    document.removeEventListener('pointermove', this._onDocumentPointerMove);
+    document.removeEventListener('pointerup', this._onDocumentPointerEnd);
+    document.removeEventListener('pointercancel', this._onDocumentPointerEnd);
+    this._onDocumentPointerMove = null;
+    this._onDocumentPointerEnd = null;
+  };
+
+  Diagram.prototype._handlePointerMove = function(event) {
+    var state = this._interaction;
+    var node;
+    var point;
+    var dx;
+    var dy;
+    var resized;
+    var rect;
+    var selectedIds;
+    var target;
+    if (!state || event.pointerId !== state.pointerId) return;
+    event.preventDefault();
+    point = this._eventPoint(event);
+    if (state.type === 'marquee') {
+      state.currentPoint = point;
+      rect = {
+        x: state.startPoint.x,
+        y: state.startPoint.y,
+        width: point.x - state.startPoint.x,
+        height: point.y - state.startPoint.y
+      };
+      selectedIds = findDiagramNodesInRect(this._data.nodes, rect).map(function(item) {
+        return item.id;
+      });
+      if (state.additive) {
+        state.startSelection.forEach(function(id) {
+          if (selectedIds.indexOf(id) < 0) selectedIds.push(id);
+        });
+      }
+      this._selectedNodeIds = selectedIds;
+      this._selected = selectedIds.length ? {
+        type: 'node',
+        id: selectedIds[selectedIds.length - 1]
+      } : null;
+      state.changed = Math.abs(rect.width) > 2 || Math.abs(rect.height) > 2;
+      this._renderCanvas();
+      this._renderProperties();
+      return;
+    }
+    if (state.type === 'connect') {
+      state.currentPoint = point;
+      target = document.elementFromPoint(event.clientX, event.clientY);
+      target = target && target.closest ?
+        target.closest('[data-diagram-connection-point]') :
+        null;
+      state.targetNodeId = target ? target.getAttribute('data-node-id') : '';
+      state.targetPoint = target ?
+        target.getAttribute('data-diagram-connection-point') :
+        '';
+      if (state.targetNodeId === state.nodeId) {
+        state.targetNodeId = '';
+        state.targetPoint = '';
+      }
+      state.changed = true;
+      this._renderCanvas();
+      return;
+    }
+    node = this.getNode(state.nodeId);
+    if (!node) return;
+    dx = point.x - state.startPoint.x;
+    dy = point.y - state.startPoint.y;
+    if (state.type === 'move') {
+      state.startNodes.forEach(function(startNode) {
+        var current = this.getNode(startNode.id);
+        if (!current) return;
+        current.x = this._snap(startNode.x + dx);
+        current.y = this._snap(startNode.y + dy);
+      }, this);
+    } else {
+      resized = calculateDiagramNodeResize(
+        state.startNode,
+        state.direction,
+        dx,
+        dy,
+        40,
+        30
+      );
+      node.x = this._snap(resized.x);
+      node.y = this._snap(resized.y);
+      node.width = Math.max(40, this._snap(resized.width));
+      node.height = Math.max(30, this._snap(resized.height));
+    }
+    state.changed = true;
+    this._renderCanvas();
+  };
+
+  Diagram.prototype._finishPointerInteraction = function(event) {
+    var state = this._interaction;
+    var node;
+    var target;
+    var changedSelection;
+    if (!state || event.pointerId !== state.pointerId) return;
+    if (state.type === 'connect' && event.type !== 'pointercancel') {
+      target = document.elementFromPoint(event.clientX, event.clientY);
+      target = target && target.closest ?
+        target.closest('[data-diagram-connection-point]') :
+        null;
+      if (target) {
+        state.targetNodeId = target.getAttribute('data-node-id');
+        state.targetPoint = target.getAttribute('data-diagram-connection-point');
+      }
+      if (state.targetNodeId && state.targetNodeId !== state.nodeId) {
+        this.addConnector({
+          from: state.nodeId,
+          to: state.targetNodeId,
+          fromPoint: state.sourcePoint,
+          toPoint: state.targetPoint,
+          type: state.connectorType
+        });
+      }
+    }
+    if (state.type === 'marquee') {
+      changedSelection = state.startSelection.join('|') !==
+        this._selectedNodeIds.join('|');
+    }
+    node = this.getNode(state.nodeId);
+    if (event.type === 'pointercancel') {
+      if (state.startNodes) {
+        state.startNodes.forEach(function(startNode) {
+          var current = this.getNode(startNode.id);
+          if (current) diagramAssign(current, startNode);
+        }, this);
+      }
+      if (state.type === 'marquee') {
+        this._selectedNodeIds = state.startSelection.slice();
+        this._selected = this._selectedNodeIds.length ? {
+          type: 'node',
+          id: this._selectedNodeIds[this._selectedNodeIds.length - 1]
+        } : null;
+      }
+      this._renderCanvas();
+    }
+    this._interaction = null;
+    this.hostElement.classList.remove('fui-diagram-interacting');
+    this._unbindDocumentInteraction();
+    if (event.type !== 'pointercancel' && state.type === 'marquee') {
+      if (state.changed) this._suppressClick = true;
+      if (changedSelection) this._fireSelectionChanged();
+      this._renderCanvas();
+      this._renderProperties();
+    } else if (
+      event.type !== 'pointercancel' &&
+      (state.type === 'move' || state.type === 'resize') &&
+      state.changed
+    ) {
+      this._lastItemClick = null;
+      this._suppressClick = true;
+      this._commit('change', {
+        itemType: 'node',
+        item: node,
+        items: this._selectedNodeIds.map(this.getNode.bind(this))
+      });
+      this._renderProperties();
+    } else if (state.type === 'connect') {
+      this._suppressClick = true;
+      this._renderCanvas();
+    }
+  };
+
+  Diagram.prototype._handleSvgClick = function(event) {
+    var nodeElement = event.target.closest('[data-diagram-node]');
+    var connectorElement = event.target.closest('[data-diagram-connector]');
+    var id;
+    var now;
+    var isDoubleClick;
+    if (this._suppressClick) {
+      this._suppressClick = false;
+      return;
+    }
+    if (event.target.closest('[data-diagram-connection-point]')) return;
+    if (nodeElement) {
+      this._lastItemClick = null;
+      id = nodeElement.getAttribute('data-node-id');
+      if (this._connectMode) {
+        this._handleConnectNode(id);
+        return;
+      }
+      this.selectItem('node', id);
+      this._fire('ItemClick', { itemType: 'node', item: this.getNode(id) });
+      return;
+    }
+    if (connectorElement) {
+      id = connectorElement.getAttribute('data-connector-id');
+      now = Date.now();
+      isDoubleClick = this._lastItemClick &&
+        this._lastItemClick.type === 'connector' &&
+        this._lastItemClick.id === id &&
+        now - this._lastItemClick.time <= 450;
+      this._lastItemClick = isDoubleClick ? null : {
+        type: 'connector',
+        id: id,
+        time: now
+      };
+      this.selectItem('connector', id);
+      this._fire('ItemClick', {
+        itemType: 'connector',
+        item: this.getConnector(id)
+      });
+      if (isDoubleClick && !this.options.readOnly && !this.options.disabled) {
+        this._fire('ItemDblClick', {
+          itemType: 'connector',
+          item: this.getConnector(id)
+        });
+        this._beginConnectorTextEdit(id);
+      }
+      return;
+    }
+    if (!event.target.closest('[data-diagram-resize]')) this.clearSelection();
+  };
+
+  Diagram.prototype._handleSvgDblClick = function(event) {
+    var nodeElement = event.target.closest('[data-diagram-node]');
+    var connectorElement = event.target.closest('[data-diagram-connector]');
+    var type;
+    var id;
+    if (!nodeElement && !connectorElement) {
+      if (
+        !this.options.readOnly &&
+        !this.options.disabled &&
+        (
+          event.target === this.svgElement ||
+          event.target.classList.contains('fui-diagram-page')
+        )
+      ) {
+        event.preventDefault();
+        this._openPaperSettings();
+      }
+      return;
+    }
+    type = nodeElement ? 'node' : 'connector';
+    id = (nodeElement || connectorElement).getAttribute(
+      nodeElement ? 'data-node-id' : 'data-connector-id'
+    );
+    if (
+      this._inlineTextEditor &&
+      this._inlineTextEditor.itemType === type &&
+      this._inlineTextEditor.itemId === id
+    ) {
+      event.preventDefault();
+      return;
+    }
+    this._fire('ItemDblClick', {
+      itemType: type,
+      item: type === 'node' ? this.getNode(id) : this.getConnector(id)
+    });
+    if (
+      !this._inlineTextEditor &&
+      !this.options.readOnly &&
+      !this.options.disabled
+    ) {
+      event.preventDefault();
+      this.selectItem(type, id);
+      if (type === 'node') this._beginNodeTextEdit(id);
+      else this._beginConnectorTextEdit(id);
+    }
+  };
+
+  Diagram.prototype._disposePaperDialog = function() {
+    var state = this._paperDialog;
+    if (!state) return;
+    this._paperDialog = null;
+    state.host.removeEventListener('keydown', state.onKeyDown);
+    state.sizeControl.dispose();
+    state.orientationControl.dispose();
+    state.applyButton.dispose();
+    state.cancelButton.dispose();
+    state.window.destroy(true);
+    if (state.host.parentNode) state.host.parentNode.removeChild(state.host);
+  };
+
+  Diagram.prototype._openPaperSettings = function() {
+    var self = this;
+    var state = this._paperDialog;
+    var host;
+    var form;
+    var sizeRow;
+    var sizeLabel;
+    var sizeInput;
+    var orientationRow;
+    var orientationLabel;
+    var orientationInput;
+    var footer;
+    var applyHost;
+    var cancelHost;
+    if (!Window || this.options.readOnly || this.options.disabled) return this;
+    if (!state) {
+      host = document.createElement('div');
+      form = document.createElement('div');
+      sizeRow = document.createElement('label');
+      sizeLabel = document.createElement('span');
+      sizeInput = document.createElement('input');
+      orientationRow = document.createElement('label');
+      orientationLabel = document.createElement('span');
+      orientationInput = document.createElement('input');
+      footer = document.createElement('div');
+      applyHost = document.createElement('a');
+      cancelHost = document.createElement('a');
+      host.className = 'fui-diagram-paper-dialog';
+      form.className = 'fui-diagram-paper-form';
+      sizeRow.className = 'fui-diagram-paper-field';
+      sizeLabel.className = 'fui-diagram-paper-label';
+      orientationRow.className = 'fui-diagram-paper-field';
+      orientationLabel.className = 'fui-diagram-paper-label';
+      footer.className = 'fui-diagram-paper-actions';
+      applyHost.href = 'javascript:void(0)';
+      cancelHost.href = 'javascript:void(0)';
+      sizeLabel.textContent = this.messages.paperSize;
+      orientationLabel.textContent = this.messages.paperOrientation;
+      sizeRow.appendChild(sizeLabel);
+      sizeRow.appendChild(sizeInput);
+      orientationRow.appendChild(orientationLabel);
+      orientationRow.appendChild(orientationInput);
+      form.appendChild(sizeRow);
+      form.appendChild(orientationRow);
+      host.appendChild(form);
+      footer.appendChild(applyHost);
+      footer.appendChild(cancelHost);
+      document.body.appendChild(host);
+      state = {
+        host: host,
+        sizeLabel: sizeLabel,
+        orientationLabel: orientationLabel,
+        sizeControl: new EditBox(sizeInput, {
+          editor: 'combo',
+          width: '100%',
+          editable: false,
+          limitToList: true,
+          data: Object.keys(DIAGRAM_PAPER_SIZES).map(function(size) {
+            return { value: size, text: size };
+          }),
+          theme: this.theme
+        }),
+        orientationControl: new EditBox(orientationInput, {
+          editor: 'combo',
+          width: '100%',
+          editable: false,
+          limitToList: true,
+          data: [
+            { value: 'landscape', text: this.messages.landscape },
+            { value: 'portrait', text: this.messages.portrait }
+          ],
+          theme: this.theme
+        }),
+        applyButton: null,
+        cancelButton: null,
+        window: null,
+        onKeyDown: null
+      };
+      state.applyButton = new Button(applyHost, {
+        text: this.messages.apply,
+        theme: this.theme,
+        onClick: function() {
+          self.setPaper(
+            state.sizeControl.getValue(),
+            state.orientationControl.getValue()
+          );
+          state.window.close(true);
+        }
+      });
+      state.cancelButton = new Button(cancelHost, {
+        text: this.messages.cancel,
+        theme: this.theme,
+        onClick: function() {
+          state.window.close(true);
+        }
+      });
+      state.window = new Window(host, {
+        title: this.messages.paperSettings,
+        width: 360,
+        height: 220,
+        minWidth: 320,
+        minHeight: 200,
+        modal: true,
+        draggable: true,
+        resizable: false,
+        maximizable: false,
+        minimizable: false,
+        collapsible: false,
+        closable: true,
+        constrain: true,
+        fixed: true,
+        footer: footer,
+        closed: true,
+        theme: this.theme,
+        locale: this.options.locale
+      });
+      state.onKeyDown = function(event) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          state.window.close(true);
+        } else if (
+          event.key === 'Enter' &&
+          !event.target.closest('.fui-editbox')
+        ) {
+          event.preventDefault();
+          state.applyButton.hostElement.click();
+        }
+      };
+      host.addEventListener('keydown', state.onKeyDown);
+      this._paperDialog = state;
+    }
+    state.sizeControl.setValue(this.options.paperSize);
+    state.orientationControl.setValue(this.options.paperOrientation);
+    state.window.open().center();
+    state.sizeControl.textbox().focus();
+    return this;
+  };
+
+  Diagram.prototype._positionInlineTextEditor = function() {
+    var state = this._inlineTextEditor;
+    var node;
+    var nodeElements;
+    var nodeElement;
+    var connector;
+    var from;
+    var to;
+    var geometry;
+    var zoom;
+    var index;
+    if (!state) return;
+    if (state.itemType === 'node') {
+      node = this.getNode(state.itemId);
+      if (!node) {
+        this._closeInlineTextEditor(false);
+        return;
+      }
+      zoom = this.options.zoomLevel;
+      state.host.style.width = Math.max(
+        24,
+        node.width * zoom - 8
+      ) + 'px';
+      state.host.style.height = Math.max(
+        22,
+        node.height * zoom - 8
+      ) + 'px';
+      state.host.style.left = Math.round(
+        (node.x + node.width / 2) * zoom
+      ) + 'px';
+      state.host.style.top = Math.round(
+        (node.y + node.height / 2) * zoom
+      ) + 'px';
+      state.host.style.setProperty(
+        '--fui-diagram-inline-font-size',
+        Math.max(10, 14 * zoom) + 'px'
+      );
+      state.host.style.setProperty(
+        '--fui-diagram-inline-text-color',
+        node.textColor
+      );
+      if (state.nodeElement) {
+        state.nodeElement.classList.remove('fui-diagram-node-editing');
+      }
+      state.nodeElement = null;
+      nodeElements = this.svgElement.querySelectorAll('[data-diagram-node]');
+      for (index = 0; index < nodeElements.length; index += 1) {
+        if (nodeElements[index].getAttribute('data-node-id') === state.itemId) {
+          nodeElement = nodeElements[index];
+          break;
+        }
+      }
+      if (nodeElement) {
+        nodeElement.classList.add('fui-diagram-node-editing');
+        state.nodeElement = nodeElement;
+      }
+      if (state.resizeEditor) state.resizeEditor();
+      return;
+    }
+    connector = this.getConnector(state.itemId);
+    if (!connector) {
+      this._closeInlineTextEditor(false);
+      return;
+    }
+    from = this.getNode(connector.from);
+    to = this.getNode(connector.to);
+    if (!from || !to) {
+      this._closeInlineTextEditor(false);
+      return;
+    }
+    geometry = calculateDiagramConnectorPath(
+      from,
+      to,
+      connector.type,
+      connector.fromPoint,
+      connector.toPoint
+    );
+    state.host.style.width = '180px';
+    state.host.style.left =
+      Math.round(geometry.label.x * this.options.zoomLevel) + 'px';
+    state.host.style.top =
+      Math.round(geometry.label.y * this.options.zoomLevel) + 'px';
+  };
+
+  Diagram.prototype._beginInlineTextEdit = function(type, id) {
+    var self = this;
+    var item = type === 'node' ? this.getNode(id) : this.getConnector(id);
+    var host;
+    var input;
+    var control;
+    var textbox;
+    var state;
+    if (!item) return;
+    this._closeInlineTextEditor(true);
+    host = document.createElement('div');
+    input = document.createElement(type === 'node' ? 'textarea' : 'input');
+    host.className = 'fui-diagram-inline-text-editor fui-diagram-inline-' +
+      type + '-editor';
+    if (type === 'node') {
+      input.rows = 1;
+    } else {
+      input.type = 'text';
+    }
+    input.value = item.text;
+    host.appendChild(input);
+    this.viewportElement.appendChild(host);
+    control = new EditBox(input, {
+      editor: 'text',
+      width: '100%',
+      height: type === 'node' ? '100%' : 30,
+      multiline: type === 'node',
+      value: item.text,
+      theme: 'inherit'
+    });
+    textbox = control.textbox();
+    state = {
+      itemType: type,
+      itemId: item.id,
+      host: host,
+      control: control,
+      textbox: textbox,
+      onKeyDown: null,
+      onBlur: null,
+      onInput: null,
+      onPointerDown: null
+    };
+    state.resizeEditor = function() {
+      var maximumHeight;
+      if (state.itemType !== 'node') return;
+      maximumHeight = Math.max(18, state.host.clientHeight - 4);
+      state.textbox.style.height = '1px';
+      state.textbox.style.height = Math.min(
+        maximumHeight,
+        Math.max(18, state.textbox.scrollHeight)
+      ) + 'px';
+    };
+    state.onKeyDown = function(event) {
+      if (
+        event.key === 'Enter' &&
+        (state.itemType !== 'node' || event.ctrlKey || event.metaKey)
+      ) {
+        event.preventDefault();
+        self._closeInlineTextEditor(true);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        self._closeInlineTextEditor(false);
+      }
+    };
+    state.onInput = function() {
+      state.resizeEditor();
+    };
+    state.onBlur = function() {
+      setTimeout(function() {
+        if (self._inlineTextEditor === state) {
+          self._closeInlineTextEditor(true);
+        }
+      }, 0);
+    };
+    state.onPointerDown = function(event) {
+      event.stopPropagation();
+    };
+    textbox.addEventListener('keydown', state.onKeyDown);
+    textbox.addEventListener('input', state.onInput);
+    textbox.addEventListener('blur', state.onBlur);
+    host.addEventListener('pointerdown', state.onPointerDown);
+    this._inlineTextEditor = state;
+    this._positionInlineTextEditor();
+    textbox.focus();
+    textbox.select();
+  };
+
+  Diagram.prototype._beginNodeTextEdit = function(id) {
+    this._beginInlineTextEdit('node', id);
+  };
+
+  Diagram.prototype._beginConnectorTextEdit = function(id) {
+    this._beginInlineTextEdit('connector', id);
+  };
+
+  Diagram.prototype._closeInlineTextEditor = function(commit) {
+    var state = this._inlineTextEditor;
+    var item;
+    var value;
+    var changed = false;
+    if (!state) return;
+    this._inlineTextEditor = null;
+    state.textbox.removeEventListener('keydown', state.onKeyDown);
+    state.textbox.removeEventListener('input', state.onInput);
+    state.textbox.removeEventListener('blur', state.onBlur);
+    state.host.removeEventListener('pointerdown', state.onPointerDown);
+    if (state.nodeElement) {
+      state.nodeElement.classList.remove('fui-diagram-node-editing');
+    }
+    item = state.itemType === 'node' ?
+      this.getNode(state.itemId) :
+      this.getConnector(state.itemId);
+    value = state.control.getValue();
+    state.control.dispose();
+    if (state.host.parentNode) state.host.parentNode.removeChild(state.host);
+    if (commit && item && item.text !== String(value == null ? '' : value)) {
+      item.text = String(value == null ? '' : value);
+      changed = true;
+    }
+    if (changed) {
+      this._commit('change', {
+        itemType: state.itemType,
+        item: item
+      });
+      this.render();
+    }
+  };
+
+  Diagram.prototype._closeConnectorTextEditor = function(commit) {
+    this._closeInlineTextEditor(commit);
+  };
+
+  Diagram.prototype._handleConnectNode = function(id) {
+    if (!this._connectSourceId) {
+      this._connectSourceId = id;
+      this.selectItem('node', id);
+      this._renderCanvas();
+      return;
+    }
+    if (this._connectSourceId !== id) {
+      this.addConnector({
+        from: this._connectSourceId,
+        to: id,
+        type: this._connectType
+      });
+    }
+    this._connectSourceId = '';
+    this.setConnectMode(false);
+  };
+
+  Diagram.prototype._handleKeyDown = function(event) {
+    var selectedNodes;
+    var delta = event.shiftKey ? 10 : 1;
+    var modifier = event.ctrlKey || event.metaKey;
+    if (this.options.disabled) return;
+    if (modifier && String(event.key).toLowerCase() === 'z') {
+      event.preventDefault();
+      if (event.shiftKey) this.redo();
+      else this.undo();
+      return;
+    }
+    if (modifier && String(event.key).toLowerCase() === 'y') {
+      event.preventDefault();
+      this.redo();
+      return;
+    }
+    if ((event.key === 'Delete' || event.key === 'Backspace') && !this.options.readOnly) {
+      event.preventDefault();
+      this.removeSelected();
+      return;
+    }
+    if (event.key === 'Escape') {
+      this.setConnectMode(false);
+      this.clearSelection();
+      return;
+    }
+    if (!this._selected || this._selected.type !== 'node' || this.options.readOnly) return;
+    selectedNodes = this._selectedNodeIds.map(this.getNode.bind(this)).filter(Boolean);
+    if (!selectedNodes.length) return;
+    if (event.key === 'ArrowLeft') {
+      selectedNodes.forEach(function(node) { node.x -= delta; });
+    } else if (event.key === 'ArrowRight') {
+      selectedNodes.forEach(function(node) { node.x += delta; });
+    } else if (event.key === 'ArrowUp') {
+      selectedNodes.forEach(function(node) { node.y -= delta; });
+    } else if (event.key === 'ArrowDown') {
+      selectedNodes.forEach(function(node) { node.y += delta; });
+    } else {
+      return;
+    }
+    event.preventDefault();
+    this._renderCanvas();
+    this._commit('change', {
+      itemType: 'node',
+      item: selectedNodes[selectedNodes.length - 1],
+      items: selectedNodes
+    });
+    this._renderProperties();
+  };
+
+  Diagram.prototype._createShapeElement = function(node) {
+    var shape;
+    var points;
+    var path;
+    var centerX = node.x + node.width / 2;
+    var centerY = node.y + node.height / 2;
+    var radiusX = node.width / 2;
+    var radiusY = node.height / 2;
+    var index;
+    var angle;
+    var radius;
+    points = [
+      'triangle', 'decision', 'diamond', 'pentagon', 'hexagon',
+      'preparation', 'octagon', 'star', 'cross', 'arrowUp',
+      'arrowDown', 'arrowLeft', 'arrowRight', 'arrowUpDown',
+      'arrowLeftRight', 'data', 'manualInput', 'manualOperation', 'merge'
+    ].indexOf(node.type) >= 0 ? diagramShapePolygon(node) : null;
+    if (node.type === 'heart') {
+      path = 'M ' + centerX + ' ' + (node.y + node.height) +
+        ' C ' + (node.x + node.width * 0.42) + ' ' + (node.y + node.height * 0.78) +
+        ' ' + node.x + ' ' + (node.y + node.height * 0.52) +
+        ' ' + node.x + ' ' + (node.y + node.height * 0.28) +
+        ' C ' + node.x + ' ' + (node.y + node.height * 0.02) +
+        ' ' + (node.x + node.width * 0.32) + ' ' + node.y +
+        ' ' + centerX + ' ' + (node.y + node.height * 0.22) +
+        ' C ' + (node.x + node.width * 0.68) + ' ' + node.y +
+        ' ' + (node.x + node.width) + ' ' + (node.y + node.height * 0.02) +
+        ' ' + (node.x + node.width) + ' ' + (node.y + node.height * 0.28) +
+        ' C ' + (node.x + node.width) + ' ' + (node.y + node.height * 0.52) +
+        ' ' + (node.x + node.width * 0.58) + ' ' + (node.y + node.height * 0.78) +
+        ' ' + centerX + ' ' + (node.y + node.height) + ' Z';
+      shape = createDiagramSvgElement('path', { d: path });
+    } else if (points) {
+      shape = createDiagramSvgElement('polygon', {
+        points: points.map(function(point) {
+          return point.x + ',' + point.y;
+        }).join(' ')
+      });
+    } else if (
+      node.type === 'summingJunction' ||
+      node.type === 'orJunction'
+    ) {
+      shape = createDiagramSvgElement('g');
+      shape.appendChild(createDiagramSvgElement('ellipse', {
+        cx: centerX,
+        cy: centerY,
+        rx: radiusX,
+        ry: radiusY
+      }));
+      if (node.type === 'summingJunction') {
+        shape.appendChild(createDiagramSvgElement('path', {
+          d: 'M ' + centerX + ' ' + node.y +
+            ' V ' + (node.y + node.height) +
+            ' M ' + node.x + ' ' + centerY +
+            ' H ' + (node.x + node.width),
+          fill: 'none'
+        }));
+      } else {
+        shape.appendChild(createDiagramSvgElement('path', {
+          d: 'M ' + (node.x + node.width * 0.15) + ' ' +
+            (node.y + node.height * 0.15) +
+            ' L ' + (node.x + node.width * 0.85) + ' ' +
+            (node.y + node.height * 0.85) +
+            ' M ' + (node.x + node.width * 0.85) + ' ' +
+            (node.y + node.height * 0.15) +
+            ' L ' + (node.x + node.width * 0.15) + ' ' +
+            (node.y + node.height * 0.85),
+          fill: 'none'
+        }));
+      }
+    } else if (
+      node.type === 'ellipse' ||
+      node.type === 'dfdProcess' ||
+      node.type === 'terminator' ||
+      node.type === 'onPageReference'
+    ) {
+      shape = createDiagramSvgElement('ellipse', {
+        cx: centerX,
+        cy: centerY,
+        rx: radiusX,
+        ry: radiusY
+      });
+    } else if (node.type === 'dfdDataStore') {
+      shape = createDiagramSvgElement('g');
+      shape.appendChild(createDiagramSvgElement('rect', {
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+        fill: node.fill,
+        stroke: 'none'
+      }));
+      shape.appendChild(createDiagramSvgElement('path', {
+        d: 'M ' + node.x + ' ' + node.y +
+          ' H ' + (node.x + node.width) +
+          ' M ' + node.x + ' ' + (node.y + node.height) +
+          ' H ' + (node.x + node.width),
+        fill: 'none'
+      }));
+    } else if (node.type === 'multipleDocuments') {
+      shape = createDiagramSvgElement('g');
+      [
+        { x: node.x + node.width * 0.16, y: node.y, width: node.width * 0.84 },
+        { x: node.x + node.width * 0.08, y: node.y + node.height * 0.1, width: node.width * 0.84 },
+        { x: node.x, y: node.y + node.height * 0.2, width: node.width * 0.84 }
+      ].forEach(function(page) {
+        shape.appendChild(createDiagramSvgElement('path', {
+          d: 'M ' + page.x + ' ' + page.y +
+            ' H ' + (page.x + page.width) +
+            ' V ' + (node.y + node.height * 0.84) +
+            ' Q ' + (page.x + page.width * 0.75) + ' ' +
+            (node.y + node.height * 0.68) +
+            ' ' + (page.x + page.width * 0.5) + ' ' +
+            (node.y + node.height * 0.84) +
+            ' Q ' + (page.x + page.width * 0.25) + ' ' +
+            (node.y + node.height) +
+            ' ' + page.x + ' ' + (node.y + node.height * 0.84) + ' Z'
+        }));
+      });
+    } else if (node.type === 'directData' || node.type === 'sequentialData') {
+      path = 'M ' + (node.x + node.width * 0.15) + ' ' + node.y +
+        ' H ' + (node.x + node.width * 0.85) +
+        ' C ' + (node.x + node.width) + ' ' + node.y +
+        ' ' + (node.x + node.width) + ' ' + (node.y + node.height) +
+        ' ' + (node.x + node.width * 0.85) + ' ' + (node.y + node.height) +
+        ' H ' + (node.x + node.width * 0.15) +
+        ' C ' + node.x + ' ' + (node.y + node.height) +
+        ' ' + node.x + ' ' + node.y +
+        ' ' + (node.x + node.width * 0.15) + ' ' + node.y + ' Z';
+      shape = createDiagramSvgElement('path', { d: path });
+    } else if (node.type === 'internalStorage') {
+      shape = createDiagramSvgElement('g');
+      shape.appendChild(createDiagramSvgElement('rect', {
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height
+      }));
+      shape.appendChild(createDiagramSvgElement('path', {
+        d: 'M ' + (node.x + node.width * 0.14) + ' ' + node.y +
+          ' V ' + (node.y + node.height) +
+          ' M ' + node.x + ' ' + (node.y + node.height * 0.18) +
+          ' H ' + (node.x + node.width),
+        fill: 'none'
+      }));
+    } else if (node.type === 'paperTape') {
+      path = 'M ' + node.x + ' ' + (node.y + node.height * 0.18) +
+        ' Q ' + (node.x + node.width * 0.25) + ' ' + node.y +
+        ' ' + (node.x + node.width * 0.5) + ' ' + (node.y + node.height * 0.18) +
+        ' Q ' + (node.x + node.width * 0.75) + ' ' +
+        (node.y + node.height * 0.36) +
+        ' ' + (node.x + node.width) + ' ' + (node.y + node.height * 0.18) +
+        ' V ' + (node.y + node.height * 0.82) +
+        ' Q ' + (node.x + node.width * 0.75) + ' ' +
+        (node.y + node.height) +
+        ' ' + (node.x + node.width * 0.5) + ' ' + (node.y + node.height * 0.82) +
+        ' Q ' + (node.x + node.width * 0.25) + ' ' +
+        (node.y + node.height * 0.64) +
+        ' ' + node.x + ' ' + (node.y + node.height * 0.82) + ' Z';
+      shape = createDiagramSvgElement('path', { d: path });
+    } else if (node.type === 'storedData') {
+      path = 'M ' + (node.x + node.width * 0.15) + ' ' + node.y +
+        ' H ' + (node.x + node.width * 0.85) +
+        ' C ' + (node.x + node.width) + ' ' + node.y +
+        ' ' + (node.x + node.width) + ' ' + (node.y + node.height) +
+        ' ' + (node.x + node.width * 0.85) + ' ' + (node.y + node.height) +
+        ' H ' + (node.x + node.width * 0.15) +
+        ' C ' + (node.x + node.width * 0.32) + ' ' +
+        (node.y + node.height * 0.75) +
+        ' ' + (node.x + node.width * 0.32) + ' ' +
+        (node.y + node.height * 0.25) +
+        ' ' + (node.x + node.width * 0.15) + ' ' + node.y + ' Z';
+      shape = createDiagramSvgElement('path', { d: path });
+    } else if (node.type === 'decision' || node.type === 'triangle') {
+      points = node.type === 'triangle' ? [
+        centerX + ',' + node.y,
+        (node.x + node.width) + ',' + (node.y + node.height),
+        node.x + ',' + (node.y + node.height)
+      ] : [
+        centerX + ',' + node.y,
+        (node.x + node.width) + ',' + centerY,
+        centerX + ',' + (node.y + node.height),
+        node.x + ',' + centerY
+      ];
+      shape = createDiagramSvgElement('polygon', { points: points.join(' ') });
+    } else if (
+      node.type === 'pentagon' ||
+      node.type === 'hexagon' ||
+      node.type === 'preparation'
+    ) {
+      points = node.type === 'pentagon' ? [
+        centerX + ',' + node.y,
+        (node.x + node.width) + ',' + (node.y + node.height * 0.38),
+        (node.x + node.width * 0.82) + ',' + (node.y + node.height),
+        (node.x + node.width * 0.18) + ',' + (node.y + node.height),
+        node.x + ',' + (node.y + node.height * 0.38)
+      ] : [
+        (node.x + node.width * 0.2) + ',' + node.y,
+        (node.x + node.width * 0.8) + ',' + node.y,
+        (node.x + node.width) + ',' + centerY,
+        (node.x + node.width * 0.8) + ',' + (node.y + node.height),
+        (node.x + node.width * 0.2) + ',' + (node.y + node.height),
+        node.x + ',' + centerY
+      ];
+      shape = createDiagramSvgElement('polygon', { points: points.join(' ') });
+    } else if (node.type === 'star') {
+      points = [];
+      for (index = 0; index < 10; index += 1) {
+        angle = -Math.PI / 2 + index * Math.PI / 5;
+        radius = index % 2 === 0 ? 1 : 0.42;
+        points.push(
+          (centerX + Math.cos(angle) * radiusX * radius) + ',' +
+          (centerY + Math.sin(angle) * radiusY * radius)
+        );
+      }
+      shape = createDiagramSvgElement('polygon', { points: points.join(' ') });
+    } else if (node.type === 'cross') {
+      points = [
+        (node.x + node.width * 0.35) + ',' + node.y,
+        (node.x + node.width * 0.65) + ',' + node.y,
+        (node.x + node.width * 0.65) + ',' + (node.y + node.height * 0.35),
+        (node.x + node.width) + ',' + (node.y + node.height * 0.35),
+        (node.x + node.width) + ',' + (node.y + node.height * 0.65),
+        (node.x + node.width * 0.65) + ',' + (node.y + node.height * 0.65),
+        (node.x + node.width * 0.65) + ',' + (node.y + node.height),
+        (node.x + node.width * 0.35) + ',' + (node.y + node.height),
+        (node.x + node.width * 0.35) + ',' + (node.y + node.height * 0.65),
+        node.x + ',' + (node.y + node.height * 0.65),
+        node.x + ',' + (node.y + node.height * 0.35),
+        (node.x + node.width * 0.35) + ',' + (node.y + node.height * 0.35)
+      ];
+      shape = createDiagramSvgElement('polygon', { points: points.join(' ') });
+    } else if (node.type === 'arrowLeft' || node.type === 'arrowRight') {
+      points = node.type === 'arrowLeft' ? [
+        node.x + ',' + centerY,
+        (node.x + node.width * 0.42) + ',' + node.y,
+        (node.x + node.width * 0.42) + ',' + (node.y + node.height * 0.3),
+        (node.x + node.width) + ',' + (node.y + node.height * 0.3),
+        (node.x + node.width) + ',' + (node.y + node.height * 0.7),
+        (node.x + node.width * 0.42) + ',' + (node.y + node.height * 0.7),
+        (node.x + node.width * 0.42) + ',' + (node.y + node.height)
+      ] : [
+        (node.x + node.width) + ',' + centerY,
+        (node.x + node.width * 0.58) + ',' + node.y,
+        (node.x + node.width * 0.58) + ',' + (node.y + node.height * 0.3),
+        node.x + ',' + (node.y + node.height * 0.3),
+        node.x + ',' + (node.y + node.height * 0.7),
+        (node.x + node.width * 0.58) + ',' + (node.y + node.height * 0.7),
+        (node.x + node.width * 0.58) + ',' + (node.y + node.height)
+      ];
+      shape = createDiagramSvgElement('polygon', { points: points.join(' ') });
+    } else if (
+      node.type === 'data' ||
+      node.type === 'manualInput'
+    ) {
+      points = [
+        (node.x + node.width * (node.type === 'manualInput' ? 0.18 : 0.15)) +
+          ',' + node.y,
+        (node.x + node.width) + ',' + node.y,
+        (node.x + node.width * (node.type === 'manualInput' ? 1 : 0.85)) +
+          ',' + (node.y + node.height),
+        node.x + ',' + (node.y + node.height)
+      ];
+      shape = createDiagramSvgElement('polygon', { points: points.join(' ') });
+    } else if (node.type === 'document') {
+      path = 'M ' + node.x + ' ' + node.y +
+        ' H ' + (node.x + node.width) +
+        ' V ' + (node.y + node.height * 0.82) +
+        ' Q ' + (node.x + node.width * 0.75) + ' ' + (node.y + node.height * 0.65) +
+        ' ' + (node.x + node.width * 0.5) + ' ' + (node.y + node.height * 0.82) +
+        ' Q ' + (node.x + node.width * 0.25) + ' ' + (node.y + node.height) +
+        ' ' + node.x + ' ' + (node.y + node.height * 0.82) + ' Z';
+      shape = createDiagramSvgElement('path', { d: path });
+    } else if (node.type === 'database') {
+      path = 'M ' + node.x + ' ' + (node.y + node.height * 0.16) +
+        ' C ' + node.x + ' ' + node.y +
+        ' ' + (node.x + node.width) + ' ' + node.y +
+        ' ' + (node.x + node.width) + ' ' + (node.y + node.height * 0.16) +
+        ' V ' + (node.y + node.height * 0.84) +
+        ' C ' + (node.x + node.width) + ' ' + (node.y + node.height) +
+        ' ' + node.x + ' ' + (node.y + node.height) +
+        ' ' + node.x + ' ' + (node.y + node.height * 0.84) + ' Z' +
+        ' M ' + node.x + ' ' + (node.y + node.height * 0.16) +
+        ' C ' + node.x + ' ' + (node.y + node.height * 0.32) +
+        ' ' + (node.x + node.width) + ' ' + (node.y + node.height * 0.32) +
+        ' ' + (node.x + node.width) + ' ' + (node.y + node.height * 0.16);
+      shape = createDiagramSvgElement('path', { d: path });
+    } else if (node.type === 'predefinedProcess') {
+      path = 'M ' + node.x + ' ' + node.y +
+        ' H ' + (node.x + node.width) +
+        ' V ' + (node.y + node.height) +
+        ' H ' + node.x + ' Z' +
+        ' M ' + (node.x + node.width * 0.14) + ' ' + node.y +
+        ' V ' + (node.y + node.height) +
+        ' M ' + (node.x + node.width * 0.86) + ' ' + node.y +
+        ' V ' + (node.y + node.height);
+      shape = createDiagramSvgElement('path', { d: path });
+    } else if (node.type === 'delay') {
+      path = 'M ' + node.x + ' ' + node.y +
+        ' H ' + (node.x + node.width * 0.56) +
+        ' C ' + (node.x + node.width) + ' ' + node.y +
+        ' ' + (node.x + node.width) + ' ' + (node.y + node.height) +
+        ' ' + (node.x + node.width * 0.56) + ' ' + (node.y + node.height) +
+        ' H ' + node.x + ' Z';
+      shape = createDiagramSvgElement('path', { d: path });
+    } else if (node.type === 'display') {
+      path = 'M ' + (node.x + node.width * 0.16) + ' ' + node.y +
+        ' H ' + (node.x + node.width * 0.72) +
+        ' Q ' + (node.x + node.width) + ' ' + centerY +
+        ' ' + (node.x + node.width * 0.72) + ' ' + (node.y + node.height) +
+        ' H ' + (node.x + node.width * 0.16) +
+        ' Q ' + node.x + ' ' + centerY +
+        ' ' + (node.x + node.width * 0.16) + ' ' + node.y + ' Z';
+      shape = createDiagramSvgElement('path', { d: path });
+    } else if (node.type === 'cloud') {
+      path = 'M ' + (node.x + node.width * 0.2) + ' ' + (node.y + node.height * 0.78) +
+        ' C ' + (node.x - node.width * 0.03) + ' ' + (node.y + node.height * 0.72) +
+        ' ' + node.x + ' ' + (node.y + node.height * 0.36) +
+        ' ' + (node.x + node.width * 0.23) + ' ' + (node.y + node.height * 0.38) +
+        ' C ' + (node.x + node.width * 0.24) + ' ' + (node.y + node.height * 0.08) +
+        ' ' + (node.x + node.width * 0.58) + ' ' + (node.y + node.height * 0.02) +
+        ' ' + (node.x + node.width * 0.68) + ' ' + (node.y + node.height * 0.27) +
+        ' C ' + (node.x + node.width * 0.96) + ' ' + (node.y + node.height * 0.18) +
+        ' ' + (node.x + node.width * 1.08) + ' ' + (node.y + node.height * 0.57) +
+        ' ' + (node.x + node.width * 0.86) + ' ' + (node.y + node.height * 0.72) +
+        ' C ' + (node.x + node.width * 0.7) + ' ' + (node.y + node.height) +
+        ' ' + (node.x + node.width * 0.35) + ' ' + (node.y + node.height * 0.98) +
+        ' ' + (node.x + node.width * 0.2) + ' ' + (node.y + node.height * 0.78) + ' Z';
+      shape = createDiagramSvgElement('path', { d: path });
+    } else {
+      shape = createDiagramSvgElement('rect', {
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+        rx: node.type === 'roundedRectangle' ? 12 : 0,
+        ry: node.type === 'roundedRectangle' ? 12 : 0
+      });
+    }
+    shape.setAttribute('class', 'fui-diagram-node-shape');
+    shape.setAttribute('fill', node.type === 'text' ? 'transparent' : node.fill);
+    shape.setAttribute('stroke', node.type === 'text' ? 'transparent' : node.stroke);
+    shape.setAttribute('stroke-width', node.strokeWidth);
+    return shape;
+  };
+
+  Diagram.prototype._renderNodeText = function(group, node) {
+    var source = String(node.text || '');
+    var text = createDiagramSvgElement('text', {
+      x: node.x + node.width / 2,
+      y: node.y + node.height / 2,
+      fill: node.textColor,
+      'text-anchor': 'middle',
+      class: 'fui-diagram-node-text'
+    });
+    var paragraphs = source.split(/\r?\n/);
+    var lines = [];
+    var maxChars = Math.max(8, Math.floor(node.width / 8));
+    paragraphs.forEach(function(paragraph) {
+      var hasWhitespace = /\s/.test(paragraph);
+      var words = hasWhitespace ? paragraph.split(/\s+/) : paragraph.split('');
+      var line = '';
+      if (!paragraph) {
+        lines.push('');
+        return;
+      }
+      words.forEach(function(word) {
+        var next = line ? line + (hasWhitespace ? ' ' : '') + word : word;
+        if (next.length > maxChars && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = next;
+        }
+      });
+      lines.push(line);
+    });
+    if (!lines.length) lines.push('');
+    lines = lines.slice(0, 4);
+    lines.forEach(function(value, index) {
+      var tspan = createDiagramSvgElement('tspan', {
+        x: node.x + node.width / 2,
+        dy: index === 0 ? (-(lines.length - 1) * 8) : 18
+      });
+      tspan.textContent = value;
+      text.appendChild(tspan);
+    });
+    group.appendChild(text);
+  };
+
+  Diagram.prototype._renderConnectionPoints = function(layer, node) {
+    var state = this._interaction;
+    if (this.options.readOnly) return;
+    DIAGRAM_CONNECTION_POINTS.forEach(function(descriptor) {
+      var point = getDiagramConnectionPoint(node, descriptor.name);
+      var isTarget = state && state.type === 'connect' &&
+        state.targetNodeId === node.id &&
+        state.targetPoint === descriptor.name;
+      var handle = createDiagramSvgElement('circle', {
+        cx: point.x,
+        cy: point.y,
+        r: 5,
+        class: 'fui-diagram-connection-point' +
+          (isTarget ? ' fui-diagram-connection-point-target' : ''),
+        'data-diagram-connection-point': descriptor.name,
+        'data-node-id': node.id
+      });
+      layer.appendChild(handle);
+    });
+  };
+
+  Diagram.prototype._renderSelection = function(layer, node, primary) {
+    var directions = [
+      ['nw', node.x, node.y],
+      ['n', node.x + node.width / 2, node.y],
+      ['ne', node.x + node.width, node.y],
+      ['e', node.x + node.width, node.y + node.height / 2],
+      ['se', node.x + node.width, node.y + node.height],
+      ['s', node.x + node.width / 2, node.y + node.height],
+      ['sw', node.x, node.y + node.height],
+      ['w', node.x, node.y + node.height / 2]
+    ];
+    var outline = createDiagramSvgElement('rect', {
+      x: node.x - 4,
+      y: node.y - 4,
+      width: node.width + 8,
+      height: node.height + 8,
+      class: 'fui-diagram-selection-outline'
+    });
+    layer.appendChild(outline);
+    if (this.options.readOnly) return;
+    if (primary) {
+      directions.forEach(function(item) {
+        var handle = createDiagramSvgElement('rect', {
+          x: item[1] - 4,
+          y: item[2] - 4,
+          width: 8,
+          height: 8,
+          class: 'fui-diagram-resize-handle fui-diagram-resize-' + item[0],
+          'data-diagram-resize': item[0],
+          'data-node-id': node.id
+        });
+        layer.appendChild(handle);
+      });
+    }
+    this._renderConnectionPoints(layer, node);
+  };
+
+  Diagram.prototype._renderCanvas = function() {
+    var self = this;
+    var svg = this.svgElement;
+    var previewCurve;
+    var previewPath;
+    var defs = createDiagramSvgElement('defs');
+    var pattern = createDiagramSvgElement('pattern', {
+      id: 'fui-diagram-grid-' + this._instanceId,
+      width: this.options.gridSize,
+      height: this.options.gridSize,
+      patternUnits: 'userSpaceOnUse'
+    });
+    var gridBackground = createDiagramSvgElement('rect', {
+      x: 0,
+      y: 0,
+      width: this.options.gridSize,
+      height: this.options.gridSize,
+      fill: this.options.pageColor
+    });
+    var gridPath = createDiagramSvgElement('path', {
+      d: 'M ' + this.options.gridSize + ' 0 L 0 0 0 ' + this.options.gridSize,
+      class: 'fui-diagram-grid-line',
+      fill: 'none',
+      stroke: '#d1d5db',
+      'stroke-width': 1
+    });
+    var marker = createDiagramSvgElement('marker', {
+      id: 'fui-diagram-arrow-' + this._instanceId,
+      viewBox: '0 0 10 10',
+      refX: 9,
+      refY: 5,
+      markerWidth: 7,
+      markerHeight: 7,
+      orient: 'auto-start-reverse'
+    });
+    var markerPath = createDiagramSvgElement('path', {
+      d: 'M 0 0 L 10 5 L 0 10 z',
+      class: 'fui-diagram-arrow',
+      fill: 'context-stroke'
+    });
+    var page = createDiagramSvgElement('rect', {
+      x: 0,
+      y: 0,
+      width: this.options.pageWidth,
+      height: this.options.pageHeight,
+      fill: this.options.showGrid ?
+        'url(#fui-diagram-grid-' + this._instanceId + ')' :
+        this.options.pageColor,
+      class: 'fui-diagram-page'
+    });
+    var connectorLayer = createDiagramSvgElement('g', {
+      class: 'fui-diagram-connectors'
+    });
+    var nodeLayer = createDiagramSvgElement('g', {
+      class: 'fui-diagram-nodes'
+    });
+    var selectionLayer = createDiagramSvgElement('g', {
+      class: 'fui-diagram-selection'
+    });
+    svg.textContent = '';
+    pattern.appendChild(gridBackground);
+    pattern.appendChild(gridPath);
+    marker.appendChild(markerPath);
+    defs.appendChild(pattern);
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+    svg.appendChild(page);
+    this._data.connectors.forEach(function(connector) {
+      var from = self.getNode(connector.from);
+      var to = self.getNode(connector.to);
+      var geometry;
+      var group;
+      var hitPath;
+      var path;
+      var label;
+      if (!from || !to) return;
+      geometry = calculateDiagramConnectorPath(
+        from,
+        to,
+        connector.type,
+        connector.fromPoint,
+        connector.toPoint
+      );
+      group = createDiagramSvgElement('g', {
+        class: 'fui-diagram-connector' +
+          (self._selected && self._selected.type === 'connector' &&
+          self._selected.id === connector.id ? ' fui-diagram-connector-selected' : ''),
+        'data-diagram-connector': '',
+        'data-connector-id': connector.id
+      });
+      hitPath = createDiagramSvgElement('path', {
+        d: geometry.path,
+        class: 'fui-diagram-connector-hit',
+        fill: 'none',
+        stroke: 'transparent',
+        'stroke-width': 14
+      });
+      path = createDiagramSvgElement('path', {
+        d: geometry.path,
+        class: 'fui-diagram-connector-line',
+        fill: 'none',
+        stroke: connector.stroke,
+        'stroke-width': connector.strokeWidth,
+        'stroke-dasharray': connector.lineStyle === 'dashed' ? '7 5' : '',
+        'marker-end': 'url(#fui-diagram-arrow-' + self._instanceId + ')'
+      });
+      group.appendChild(hitPath);
+      group.appendChild(path);
+      if (connector.text) {
+        label = createDiagramSvgElement('text', {
+          x: geometry.label.x,
+          y: geometry.label.y - 7,
+          class: 'fui-diagram-connector-label',
+          'text-anchor': 'middle'
+        });
+        label.textContent = connector.text;
+        group.appendChild(label);
+      }
+      connectorLayer.appendChild(group);
+    });
+    this._data.nodes.forEach(function(node) {
+      var group = createDiagramSvgElement('g', {
+        class: 'fui-diagram-node' +
+          (self._isNodeSelected(node.id) ? ' fui-diagram-node-selected' : '') +
+          (self._connectSourceId === node.id ? ' fui-diagram-connect-source' : ''),
+        'data-diagram-node': '',
+        'data-node-id': node.id
+      });
+      group.appendChild(self._createShapeElement(node));
+      self._renderNodeText(group, node);
+      nodeLayer.appendChild(group);
+      if (self._isNodeSelected(node.id)) {
+        self._renderSelection(
+          selectionLayer,
+          node,
+          self._selected && self._selected.id === node.id
+        );
+      }
+    });
+    if (this._interaction && this._interaction.type === 'connect') {
+      this._data.nodes.forEach(function(node) {
+        if (!self._isNodeSelected(node.id)) {
+          self._renderConnectionPoints(selectionLayer, node);
+        }
+      });
+      if (this._interaction.connectorType === 'curved') {
+        previewCurve = calculateDiagramCurve(
+          this._interaction.startPoint,
+          this._interaction.currentPoint
+        );
+        previewPath = previewCurve.path;
+      } else {
+        previewPath = 'M ' + this._interaction.startPoint.x + ' ' +
+          this._interaction.startPoint.y + ' L ' +
+          this._interaction.currentPoint.x + ' ' +
+          this._interaction.currentPoint.y;
+      }
+      selectionLayer.appendChild(createDiagramSvgElement('path', {
+        d: previewPath,
+        class: 'fui-diagram-connector-preview'
+      }));
+    }
+    if (this._interaction && this._interaction.type === 'marquee') {
+      selectionLayer.appendChild(createDiagramSvgElement('rect', {
+        x: Math.min(
+          this._interaction.startPoint.x,
+          this._interaction.currentPoint.x
+        ),
+        y: Math.min(
+          this._interaction.startPoint.y,
+          this._interaction.currentPoint.y
+        ),
+        width: Math.abs(
+          this._interaction.currentPoint.x - this._interaction.startPoint.x
+        ),
+        height: Math.abs(
+          this._interaction.currentPoint.y - this._interaction.startPoint.y
+        ),
+        class: 'fui-diagram-marquee'
+      }));
+    }
+    svg.appendChild(connectorLayer);
+    svg.appendChild(nodeLayer);
+    svg.appendChild(selectionLayer);
+    svg.style.width = Math.round(this.options.pageWidth * this.options.zoomLevel) + 'px';
+    svg.style.height = Math.round(this.options.pageHeight * this.options.zoomLevel) + 'px';
+    this._positionInlineTextEditor();
+    this._syncToolbarStates();
+  };
+
+  Diagram.prototype._disposePropertyEditors = function() {
+    this._propertyEditors.forEach(function(control) {
+      control.dispose();
+    });
+    this._propertyEditors = [];
+  };
+
+  Diagram.prototype._propertyField = function(label, item, key, editor, options) {
+    var self = this;
+    var row = document.createElement('label');
+    var caption = document.createElement('span');
+    var input = document.createElement('input');
+    var control;
+    caption.textContent = label;
+    row.className = 'fui-diagram-property-row';
+    caption.className = 'fui-diagram-property-label';
+    input.value = item[key] == null ? '' : String(item[key]);
+    row.appendChild(caption);
+    row.appendChild(input);
+    this.propertiesBodyElement.appendChild(row);
+    control = new EditBox(input, diagramAssign({
+      editor: editor,
+      width: '100%',
+      theme: 'inherit',
+      value: item[key],
+      onChange: function(value) {
+        if (editor === 'number') {
+          value = diagramNumber(value, item[key]);
+          if (key === 'width') value = Math.max(40, value);
+          if (key === 'height') value = Math.max(30, value);
+        }
+        item[key] = value;
+        self._renderCanvas();
+        self._commit('change', {
+          itemType: self._selected.type,
+          item: item
+        });
+      }
+    }, options || {}));
+    this._propertyEditors.push(control);
+  };
+
+  Diagram.prototype._renderProperties = function() {
+    var item;
+    this._disposePropertyEditors();
+    this.propertiesBodyElement.textContent = '';
+    if (!this._selected) {
+      this.propertiesBodyElement.textContent = this.messages.noSelection;
+      return;
+    }
+    if (this._selected.type === 'node' && this._selectedNodeIds.length > 1) {
+      this.propertiesBodyElement.textContent = this.messages.multipleSelection.replace(
+        '{0}',
+        String(this._selectedNodeIds.length)
+      );
+      return;
+    }
+    item = this._selected.type === 'node' ?
+      this.getNode(this._selected.id) :
+      this.getConnector(this._selected.id);
+    if (!item) {
+      this.propertiesBodyElement.textContent = this.messages.noSelection;
+      return;
+    }
+    this._propertyField(this.messages.text, item, 'text', 'text');
+    if (this._selected.type === 'node') {
+      this._propertyField(this.messages.x, item, 'x', 'number', { precision: 0 });
+      this._propertyField(this.messages.y, item, 'y', 'number', { precision: 0 });
+      this._propertyField(this.messages.width, item, 'width', 'number', { precision: 0, min: 40 });
+      this._propertyField(this.messages.height, item, 'height', 'number', { precision: 0, min: 30 });
+      this._propertyField(this.messages.fill, item, 'fill', 'color');
+      this._propertyField(this.messages.stroke, item, 'stroke', 'color');
+    } else {
+      this._propertyField(this.messages.stroke, item, 'stroke', 'color');
+      this._propertyField(this.messages.lineStyle, item, 'lineStyle', 'combo', {
+        editable: false,
+        limitToList: true,
+        data: [
+          { value: 'solid', text: this.messages.solid },
+          { value: 'dashed', text: this.messages.dashed }
+        ]
+      });
+    }
+  };
+
+  Diagram.prototype._syncToolbarStates = function() {
+    var undo = this._toolbarButtons.undo;
+    var redo = this._toolbarButtons.redo;
+    var remove = this._toolbarButtons.delete;
+    var connect = this._toolbarButtons.connect;
+    var properties = this._toolbarButtons.properties;
+    var grid = this._toolbarButtons.grid;
+    var fullscreen = this._toolbarButtons.fullscreen;
+    if (undo) (this.canUndo() ? undo.enable() : undo.disable());
+    if (redo) (this.canRedo() ? redo.enable() : redo.disable());
+    if (remove) (this._selected ? remove.enable() : remove.disable());
+    if (connect) {
+      if (this._connectMode) connect.select(true);
+      else connect.unselect(true);
+    }
+    if (properties) {
+      if (this.options.propertiesPanel) properties.select(true);
+      else properties.unselect(true);
+    }
+    if (grid) {
+      if (this.options.showGrid) grid.select(true);
+      else grid.unselect(true);
+    }
+    if (this.zoomLabelElement) {
+      this.zoomLabelElement.textContent = Math.round(this.options.zoomLevel * 100) + '%';
+    }
+    if (fullscreen) {
+      fullscreen.setText(
+        document.fullscreenElement === this.hostElement ?
+          this.messages.exitFullscreen :
+          this.messages.fullscreen
+      );
+    }
+  };
+
+  Diagram.prototype._resetHistory = function() {
+    this._history = [diagramClone(this._data)];
+    this._historyIndex = 0;
+    this.hasChanges = false;
+  };
+
+  Diagram.prototype._commit = function(action, detail) {
+    this._history = this._history.slice(0, this._historyIndex + 1);
+    this._history.push(diagramClone(this._data));
+    this._historyIndex = this._history.length - 1;
+    this.hasChanges = true;
+    this._syncToolbarStates();
+    this._fire('Changed', diagramAssign({
+      action: action,
+      data: this.getData()
+    }, detail || {}));
+  };
+
+  Diagram.prototype._fire = function(name, detail) {
+    var callback = this.options['on' + name];
+    var listeners = (this._listeners[name.toLowerCase()] || []).slice();
+    var eventDetail = diagramAssign({ diagram: this }, detail || {});
+    if (typeof callback === 'function') {
+      callback.call(this.hostElement, this, eventDetail);
+    }
+    listeners.forEach(function(listener) {
+      listener.call(this, eventDetail);
+    }, this);
+  };
+
+  Diagram.prototype.render = function() {
+    this._renderCanvas();
+    this._renderProperties();
+    this._syncToolbarStates();
+    return this;
+  };
+
+  Diagram.prototype.getData = function() {
+    var data = diagramClone(this._data);
+    data.page = this.getPaper();
+    return data;
+  };
+
+  Diagram.prototype.setData = function(data, preserveHistory) {
+    var page = data && data.page;
+    var dimensions;
+    this._closeInlineTextEditor(false);
+    if (page) {
+      this.options.paperSize = normalizeDiagramPaperSize(page.size);
+      this.options.paperOrientation = normalizeDiagramPaperOrientation(
+        page.orientation
+      );
+      dimensions = getDiagramPaperDimensions(
+        this.options.paperSize,
+        this.options.paperOrientation
+      );
+      this.options.pageWidth = Math.max(
+        300,
+        diagramNumber(page.width, dimensions.width)
+      );
+      this.options.pageHeight = Math.max(
+        240,
+        diagramNumber(page.height, dimensions.height)
+      );
+      if (page.color != null) {
+        this.options.pageColor = String(page.color);
+      }
+    }
+    this._data = normalizeDiagramData(data);
+    this.options.nodes = this._data.nodes;
+    this.options.connectors = this._data.connectors;
+    this._selected = null;
+    this._selectedNodeIds = [];
+    this._connectSourceId = '';
+    if (!preserveHistory) this._resetHistory();
+    this.render();
+    return this;
+  };
+
+  Diagram.prototype.getNode = function(id) {
+    id = String(id == null ? '' : id);
+    return this._data.nodes.find(function(node) {
+      return node.id === id;
+    }) || null;
+  };
+
+  Diagram.prototype.getConnector = function(id) {
+    id = String(id == null ? '' : id);
+    return this._data.connectors.find(function(connector) {
+      return connector.id === id;
+    }) || null;
+  };
+
+  Diagram.prototype.addNode = function(node) {
+    var viewportRect;
+    var normalized;
+    node = diagramAssign({}, node || {});
+    if (node.x == null || node.y == null) {
+      viewportRect = {
+        x: this.viewportElement.scrollLeft / this.options.zoomLevel +
+          this.viewportElement.clientWidth / this.options.zoomLevel / 2,
+        y: this.viewportElement.scrollTop / this.options.zoomLevel +
+          this.viewportElement.clientHeight / this.options.zoomLevel / 2
+      };
+      if (node.x == null) node.x = viewportRect.x - 70;
+      if (node.y == null) node.y = viewportRect.y - 36;
+    }
+    node.x = this._snap(node.x);
+    node.y = this._snap(node.y);
+    normalized = normalizeDiagramNode(node, this._data.nodes.length);
+    this._data.nodes.push(normalized);
+    this.selectItem('node', normalized.id, true);
+    this._commit('add', { itemType: 'node', item: normalized });
+    this.render();
+    return normalized;
+  };
+
+  Diagram.prototype.addConnector = function(connector) {
+    var normalized = normalizeDiagramConnector(connector, this._data.connectors.length);
+    if (
+      !this.getNode(normalized.from) ||
+      !this.getNode(normalized.to) ||
+      normalized.from === normalized.to
+    ) return null;
+    delete normalized._index;
+    this._data.connectors.push(normalized);
+    this.selectItem('connector', normalized.id, true);
+    this._commit('add', { itemType: 'connector', item: normalized });
+    this.render();
+    return normalized;
+  };
+
+  Diagram.prototype.removeSelected = function() {
+    var selected = this._selected;
+    var removed;
+    var removedIds;
+    var removedItems;
+    if (!selected || this.options.readOnly) return this;
+    this._closeInlineTextEditor(false);
+    if (selected.type === 'node') {
+      removed = this.getNode(selected.id);
+      removedIds = this._selectedNodeIds.slice();
+      removedItems = removedIds.map(this.getNode.bind(this)).filter(Boolean);
+      this._data.nodes = this._data.nodes.filter(function(node) {
+        return removedIds.indexOf(node.id) < 0;
+      });
+      this._data.connectors = this._data.connectors.filter(function(connector) {
+        return removedIds.indexOf(connector.from) < 0 &&
+          removedIds.indexOf(connector.to) < 0;
+      });
+    } else {
+      removed = this.getConnector(selected.id);
+      this._data.connectors = this._data.connectors.filter(function(connector) {
+        return connector.id !== selected.id;
+      });
+    }
+    this._selected = null;
+    this._selectedNodeIds = [];
+    this._commit('remove', {
+      itemType: selected.type,
+      item: removed,
+      items: removedItems || (removed ? [removed] : [])
+    });
+    this.render();
+    return this;
+  };
+
+  Diagram.prototype.selectItem = function(type, id, silent) {
+    var item = type === 'node' ? this.getNode(id) : this.getConnector(id);
+    if (!item) return this;
+    if (type === 'node') {
+      if (
+        this._selectedNodeIds.length === 1 &&
+        this._selectedNodeIds[0] === String(id)
+      ) return this;
+      return this._setNodeSelection([id], id, silent);
+    }
+    if (
+      this._selected &&
+      this._selected.type === type &&
+      this._selected.id === String(id)
+    ) return this;
+    this._selectedNodeIds = [];
+    this._selected = { type: type, id: String(id) };
+    this._renderCanvas();
+    this._renderProperties();
+    if (!silent) this._fireSelectionChanged();
+    return this;
+  };
+
+  Diagram.prototype.clearSelection = function() {
+    if (!this._selected && !this._selectedNodeIds.length) return this;
+    this._selected = null;
+    this._selectedNodeIds = [];
+    this._renderCanvas();
+    this._renderProperties();
+    this._fireSelectionChanged();
+    return this;
+  };
+
+  Diagram.prototype.getSelection = function() {
+    return this._selected ? diagramAssign({}, this._selected) : null;
+  };
+
+  Diagram.prototype.getSelections = function() {
+    if (this._selectedNodeIds.length) {
+      return this._selectedNodeIds.map(function(id) {
+        return { type: 'node', id: id };
+      });
+    }
+    return this._selected ? [diagramAssign({}, this._selected)] : [];
+  };
+
+  Diagram.prototype.setConnectMode = function(enabled, type) {
+    var connectorTools;
+    var index;
+    if (type != null) {
+      this._connectType = ['straight', 'curved'].indexOf(type) >= 0 ?
+        type :
+        'orthogonal';
+    }
+    this._connectMode = Boolean(enabled) && !this.options.readOnly;
+    if (!this._connectMode) this._connectSourceId = '';
+    this.hostElement.classList.toggle('fui-diagram-connect-mode', this._connectMode);
+    connectorTools = this.toolboxGroupsElement.querySelectorAll(
+      '[data-diagram-connector-tool]'
+    );
+    for (index = 0; index < connectorTools.length; index += 1) {
+      connectorTools[index].classList.toggle(
+        'fui-diagram-shape-item-selected',
+        this._connectMode &&
+        connectorTools[index].getAttribute('data-diagram-connector-tool') ===
+          this._connectType
+      );
+      connectorTools[index].setAttribute(
+        'aria-pressed',
+        this._connectMode &&
+        connectorTools[index].getAttribute('data-diagram-connector-tool') ===
+          this._connectType ?
+          'true' :
+          'false'
+      );
+    }
+    this._renderCanvas();
+    this._syncToolbarStates();
+    return this;
+  };
+
+  Diagram.prototype.canUndo = function() {
+    return this._historyIndex > 0;
+  };
+
+  Diagram.prototype.canRedo = function() {
+    return this._historyIndex < this._history.length - 1;
+  };
+
+  Diagram.prototype.undo = function() {
+    if (!this.canUndo()) return this;
+    this._closeInlineTextEditor(false);
+    this._historyIndex -= 1;
+    this._data = diagramClone(this._history[this._historyIndex]);
+    this._selected = null;
+    this._selectedNodeIds = [];
+    this.hasChanges = this._historyIndex !== 0;
+    this.render();
+    this._fire('Changed', { action: 'undo', data: this.getData() });
+    return this;
+  };
+
+  Diagram.prototype.redo = function() {
+    if (!this.canRedo()) return this;
+    this._closeInlineTextEditor(false);
+    this._historyIndex += 1;
+    this._data = diagramClone(this._history[this._historyIndex]);
+    this._selected = null;
+    this._selectedNodeIds = [];
+    this.hasChanges = true;
+    this.render();
+    this._fire('Changed', { action: 'redo', data: this.getData() });
+    return this;
+  };
+
+  Diagram.prototype.setZoom = function(value) {
+    var oldZoom = this.options.zoomLevel;
+    var centerX = (this.viewportElement.scrollLeft + this.viewportElement.clientWidth / 2) / oldZoom;
+    var centerY = (this.viewportElement.scrollTop + this.viewportElement.clientHeight / 2) / oldZoom;
+    this.options.zoomLevel = diagramClamp(
+      diagramNumber(value, oldZoom),
+      this.options.minZoom,
+      this.options.maxZoom
+    );
+    this._renderCanvas();
+    this.viewportElement.scrollLeft =
+      centerX * this.options.zoomLevel - this.viewportElement.clientWidth / 2;
+    this.viewportElement.scrollTop =
+      centerY * this.options.zoomLevel - this.viewportElement.clientHeight / 2;
+    return this;
+  };
+
+  Diagram.prototype.fitToContent = function() {
+    var bounds;
+    var padding = 80;
+    var width;
+    var height;
+    var zoom;
+    if (!this._data.nodes.length) return this.setZoom(1);
+    bounds = this._data.nodes.reduce(function(result, node) {
+      result.left = Math.min(result.left, node.x);
+      result.top = Math.min(result.top, node.y);
+      result.right = Math.max(result.right, node.x + node.width);
+      result.bottom = Math.max(result.bottom, node.y + node.height);
+      return result;
+    }, {
+      left: Infinity,
+      top: Infinity,
+      right: -Infinity,
+      bottom: -Infinity
+    });
+    width = bounds.right - bounds.left + padding * 2;
+    height = bounds.bottom - bounds.top + padding * 2;
+    zoom = Math.min(
+      this.viewportElement.clientWidth / width,
+      this.viewportElement.clientHeight / height
+    );
+    this.setZoom(zoom);
+    this.viewportElement.scrollLeft = Math.max(
+      0,
+      (bounds.left - padding) * this.options.zoomLevel
+    );
+    this.viewportElement.scrollTop = Math.max(
+      0,
+      (bounds.top - padding) * this.options.zoomLevel
+    );
+    return this;
+  };
+
+  Diagram.prototype.setShowGrid = function(value) {
+    this.options.showGrid = diagramBoolean(value, true);
+    this._renderCanvas();
+    return this;
+  };
+
+  Diagram.prototype.getPaper = function() {
+    return {
+      size: this.options.paperSize,
+      orientation: this.options.paperOrientation,
+      width: this.options.pageWidth,
+      height: this.options.pageHeight,
+      color: this.options.pageColor
+    };
+  };
+
+  Diagram.prototype.setPaper = function(size, orientation) {
+    var dimensions;
+    var changed;
+    size = normalizeDiagramPaperSize(size);
+    orientation = normalizeDiagramPaperOrientation(orientation);
+    dimensions = getDiagramPaperDimensions(size, orientation);
+    changed = this.options.paperSize !== size ||
+      this.options.paperOrientation !== orientation ||
+      this.options.pageWidth !== dimensions.width ||
+      this.options.pageHeight !== dimensions.height;
+    this.options.paperSize = size;
+    this.options.paperOrientation = orientation;
+    this.options.pageWidth = dimensions.width;
+    this.options.pageHeight = dimensions.height;
+    this.render();
+    if (changed) {
+      this.hasChanges = true;
+      this._fire('Changed', {
+        action: 'pageChange',
+        itemType: 'page',
+        item: this.getPaper(),
+        data: this.getData()
+      });
+    }
+    return this;
+  };
+
+  Diagram.prototype.toggleFullscreen = function() {
+    if (document.fullscreenElement === this.hostElement) {
+      if (document.exitFullscreen) document.exitFullscreen();
+    } else if (this.hostElement.requestFullscreen) {
+      this.hostElement.requestFullscreen();
+    }
+    return this;
+  };
+
+  Diagram.prototype.import = function(source) {
+    var data = typeof source === 'string' ? JSON.parse(source) : source;
+    return this.setData(data);
+  };
+
+  Diagram.prototype.export = function(filename) {
+    var json = JSON.stringify(this.getData(), null, 2);
+    if (filename) {
+      diagramDownloadBlob(
+        new Blob([json], { type: 'application/json;charset=utf-8' }),
+        filename
+      );
+    }
+    return json;
+  };
+
+  Diagram.prototype.getSvg = function() {
+    var clone = this.svgElement.cloneNode(true);
+    var selection = clone.querySelector('.fui-diagram-selection');
+    var serializer = new XMLSerializer();
+    clone.setAttribute('xmlns', DIAGRAM_SVG_NS);
+    clone.style.width = this.options.pageWidth + 'px';
+    clone.style.height = this.options.pageHeight + 'px';
+    if (selection) selection.parentNode.removeChild(selection);
+    return serializer.serializeToString(clone);
+  };
+
+  Diagram.prototype.exportSvg = function(filename) {
+    var svg = this.getSvg();
+    if (filename) {
+      diagramDownloadBlob(
+        new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }),
+        filename
+      );
+    }
+    return svg;
+  };
+
+  Diagram.prototype.setLocale = function(locale) {
+    this._disposePaperDialog();
+    this.options.locale = normalizeDiagramLocale(locale);
+    this.messages = localePacks[this.options.locale];
+    this.hostElement.setAttribute(
+      'aria-label',
+      this.options.ariaLabel || this.messages.diagram
+    );
+    this.toolboxHeaderElement.textContent = this.messages.toolbox;
+    this.propertiesHeaderElement.textContent = this.messages.properties;
+    if (this.toolboxSearchControl) {
+      this.toolboxSearchControl.textbox().setAttribute(
+        'placeholder',
+        this.messages.searchShapes
+      );
+    }
+    this._renderToolbox();
+    if (this._toolbarButtons.delete) this._toolbarButtons.delete.setText(this.messages.deleteItem);
+    if (this._toolbarButtons.connect) this._toolbarButtons.connect.setText(this.messages.connect);
+    if (this._toolbarButtons.properties) this._toolbarButtons.properties.setText(this.messages.properties);
+    if (this._toolbarButtons.fit) this._toolbarButtons.fit.setText(this.messages.fit);
+    if (this._toolbarButtons.grid) this._toolbarButtons.grid.setText(this.messages.grid);
+    if (this._toolbarButtons.undo) {
+      this._toolbarButtons.undo.hostElement.title = this.messages.undo;
+    }
+    if (this._toolbarButtons.redo) {
+      this._toolbarButtons.redo.hostElement.title = this.messages.redo;
+    }
+    this._renderProperties();
+    this._syncToolbarStates();
+    return this;
+  };
+
+  Diagram.prototype.setTheme = function(theme) {
+    var index;
+    this._disposePaperDialog();
+    this.options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this.options.theme === 'inherit' ?
+      findDiagramTheme(this._themeSource) :
+      normalizeDiagramTheme(this.options.theme);
+    for (index = 0; index < DIAGRAM_THEMES.length; index += 1) {
+      this.hostElement.classList.remove('fg-theme-' + DIAGRAM_THEMES[index]);
+    }
+    this.hostElement.classList.add('fg-theme-' + this.theme);
+    this._buttonControls.forEach(function(control) {
+      control.setTheme('inherit');
+    });
+    this._editBoxControls.concat(this._propertyEditors).forEach(function(control) {
+      if (control._control && typeof control._control.setTheme === 'function') {
+        control.setTheme('inherit');
+      }
+    });
+    return this;
+  };
+
+  Diagram.prototype.setReadOnly = function(value) {
+    this.options.readOnly = diagramBoolean(value, false);
+    if (this.options.readOnly) this._closeInlineTextEditor(false);
+    this.setConnectMode(false);
+    this._syncStructure();
+    this.render();
+    return this;
+  };
+
+  Diagram.prototype.on = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!name || typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  Diagram.prototype.off = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!this._listeners[name]) return this;
+    this._listeners[name] = listener ?
+      this._listeners[name].filter(function(item) { return item !== listener; }) :
+      [];
+    return this;
+  };
+
+  Diagram.prototype.destroy = function() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this._closeInlineTextEditor(false);
+    this._disposePaperDialog();
+    this._unbindDocumentInteraction();
+    this.removeEventListener();
+    this._buttonControls.forEach(function(control) {
+      control.dispose();
+    });
+    this._toolboxButtonControls.forEach(function(control) {
+      control.dispose();
+    });
+    this._editBoxControls.forEach(function(control) {
+      control.dispose();
+    });
+    this._disposePropertyEditors();
+    unregisterControl(this.hostElement, this);
+    delete this.hostElement.__fabuiDiagram;
+    restoreDiagramAttribute(this.hostElement, 'class', this._original.className);
+    restoreDiagramAttribute(this.hostElement, 'style', this._original.style);
+    restoreDiagramAttribute(this.hostElement, 'role', this._original.role);
+    restoreDiagramAttribute(this.hostElement, 'aria-label', this._original.ariaLabel);
+    restoreDiagramAttribute(this.hostElement, 'tabindex', this._original.tabIndex);
+    this.hostElement.innerHTML = this._original.html;
+    this._listeners = {};
+  };
+
+  Diagram.prototype.dispose = Diagram.prototype.destroy;
+  Diagram.defaults = defaults;
+  Diagram.locales = localePacks;
+  Diagram.themes = DIAGRAM_THEMES.slice();
+  Diagram.shapes = DIAGRAM_SHAPES.map(function(shape) {
+    return diagramAssign({}, shape);
+  });
+  Diagram.connectorTools = DIAGRAM_CONNECTOR_TOOLS.map(function(tool) {
+    return diagramAssign({}, tool);
+  });
+  Diagram.paperSizes = diagramClone(DIAGRAM_PAPER_SIZES);
+  Diagram.connectionPoints = DIAGRAM_CONNECTION_POINTS.map(function(point) {
+    return diagramAssign({}, point);
+  });
+  Diagram.getControl = function(element) {
+    element = resolveDiagramElement(element);
+    return element && element.__fabuiDiagram ? element.__fabuiDiagram : null;
+  };
+  Diagram.normalizeLocale = normalizeDiagramLocale;
+  Diagram.normalizeTheme = normalizeDiagramTheme;
+  Diagram.normalizeData = normalizeDiagramData;
+  return Diagram;
 }
 
 var CellType = Object.freeze({
@@ -6282,6 +13008,7 @@ function installFabGridView(FabGrid, context) {
     }
     this.pager.style.height = height + 'px';
     this.pager.style.display = height ? 'block' : 'none';
+    this.pagination.setAttribute('aria-label', this.getText('pagination.ariaLabel'));
     this.pagination.style.height = '100%';
     this.pagination.style.display = height ? 'flex' : 'none';
     if (!height) {
@@ -11570,6 +18297,8 @@ function installFabGridEditorRuntime(FabGrid, context) {
     var width;
     var height;
     var isScrollableEditor;
+    var editorBorderInset;
+    var editorVerticalInset;
     if (!edit) {
       return;
     }
@@ -11609,9 +18338,11 @@ function installFabGridEditorRuntime(FabGrid, context) {
     this.editor.style.zIndex = isScrollableEditor ? '3' : '10';
     this.editorIconHost.style.zIndex = isScrollableEditor ? '3' : '11';
     if (this.editorConfig && (isDateLikeEditorType(this.editorConfig.type) || this.editorConfig.type === 'combo' || this.editorConfig.type === 'color' || (this.editorIconConfigs && this.editorIconConfigs.length))) {
-      this.editorIconHost.style.left = (left + width - this.getEditorIconHostWidth() - 2) + 'px';
-      this.editorIconHost.style.top = top + 'px';
-      this.editorIconHost.style.height = height + 'px';
+      editorBorderInset = Math.max(0, toNumber(this.options.activeCellBorder, 2));
+      editorVerticalInset = editorBorderInset + 1;
+      this.editorIconHost.style.left = (left + width - this.getEditorIconHostWidth() - editorBorderInset) + 'px';
+      this.editorIconHost.style.top = (top + editorVerticalInset) + 'px';
+      this.editorIconHost.style.height = Math.max(0, height - editorVerticalInset * 2) + 'px';
     }
     if (this.editorConfig && isDateLikeEditorType(this.editorConfig.type)) {
       this.positionDateboxPanel(left, top + height, width);
@@ -12014,6 +18745,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
         Boolean(target && target.column && target.column.showLunar === true),
       locale: this.locale,
       currentText: this.getText('datebox.today'),
+      currentMonthText: this.getText('datebox.currentMonth'),
       closeText: this.getText('datebox.close'),
       yearText: this.getText('aria.year'),
       weeks: this.getText('datebox.weekdays'),
@@ -14343,6 +21075,7 @@ DatePopup.defaults = {
   weekNumberHeader: '',
   locale: 'zh-TW',
   currentText: 'Today',
+  currentMonthText: 'Current month',
   closeText: 'Close',
   yearText: 'Year',
   previousYearText: 'Previous year',
@@ -14837,7 +21570,12 @@ DatePopup.prototype._renderMonthMenu = function() {
 
 DatePopup.prototype._renderButtons = function() {
   var buttons = Array.isArray(this.options.buttons) ? this.options.buttons : [
-    { text: this.options.currentText, action: 'today' },
+    {
+      text: this.options.calendarMode === 'months' ?
+        this.options.currentMonthText :
+        this.options.currentText,
+      action: 'today'
+    },
     { text: this.options.closeText, action: 'close' }
   ];
   var index;
@@ -15169,7 +21907,9 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
 
   var localePacks = {
     en: {
+      openCalendarText: 'Open calendar',
       currentText: 'Today',
+      currentMonthText: 'Current month',
       closeText: 'Close',
       okText: 'Ok',
       yearText: 'Year',
@@ -15179,7 +21919,9 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
       months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     },
     'zh-TW': {
+      openCalendarText: '開啟日曆',
       currentText: '今天',
+      currentMonthText: '當月',
       closeText: '關閉',
       okText: '確定',
       yearText: '年份',
@@ -15189,7 +21931,9 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
       months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
     },
     'zh-CN': {
+      openCalendarText: '打开日历',
       currentText: '今天',
+      currentMonthText: '当月',
       closeText: '关闭',
       okText: '确定',
       yearText: '年份',
@@ -15206,11 +21950,13 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
     panelHeight: 'auto',
     theme: 'inherit',
     locale: 'en',
+    openCalendarText: null,
     firstDay: 0,
     showWeek: false,
     showLunar: false,
     weekNumberHeader: '',
     currentText: null,
+    currentMonthText: null,
     closeText: null,
     okText: null,
     yearText: null,
@@ -15308,9 +22054,10 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
   }
 
   function normalizeLocale(name) {
+    name = String(name || 'en').trim().replace(/_/g, '-');
     if (localePacks[name]) return name;
-    if (/^zh(?:-|_)?tw/i.test(name || '')) return 'zh-TW';
-    if (/^zh/i.test(name || '')) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) return 'zh-TW';
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) return 'zh-CN';
     return 'en';
   }
 
@@ -15344,7 +22091,9 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
     this._editorDefinition = editorDefinitions[this._options.editorType] || editorDefinition;
     locale = localePacks[normalizeLocale(this._options.locale)];
     this._options.locale = normalizeLocale(this._options.locale);
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'openCalendarText')) this._options.openCalendarText = locale.openCalendarText;
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'currentText')) this._options.currentText = locale.currentText;
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'currentMonthText')) this._options.currentMonthText = locale.currentMonthText;
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'closeText')) this._options.closeText = locale.closeText;
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'okText')) this._options.okText = locale.okText;
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'yearText')) this._options.yearText = locale.yearText;
@@ -15359,7 +22108,7 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
       iconCls: 'icon-datebox fui-datebox-trigger',
       align: 'right',
       width: this._options.iconWidth,
-      title: 'Calendar',
+      title: this._options.openCalendarText,
       onClick: function() {
         self.togglePanel();
       }
@@ -15381,6 +22130,7 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
     this._editor.inputMode = this._editorDefinition && this._editorDefinition.inputMode ? this._editorDefinition.inputMode : 'numeric';
     this._field = this._editor.closest('.fui-textbox-field');
     this._shell = this._editor.closest('.fui-textbox');
+    this._trigger = this._textbox.getIcon(icons.length - 1);
     this._buildPanel();
     this._bind();
     source.__fabuiDateBox = this;
@@ -15483,6 +22233,7 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
       weekNumberHeader: this._options.weekNumberHeader,
       locale: this._options.locale,
       currentText: this._options.currentText,
+      currentMonthText: this._options.currentMonthText,
       closeText: this._options.closeText,
       yearText: this._options.yearText,
       previousYearText: this._options.previousYearText,
@@ -15645,6 +22396,30 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
     return this;
   };
 
+  DateBox.prototype.setLocale = function(locale, messages) {
+    var name = String(locale || 'en').trim().replace(/_/g, '-');
+    var pack;
+    if (messages) localePacks[name] = assign({}, localePacks.en, messages);
+    this._options.locale = normalizeLocale(name);
+    pack = localePacks[this._options.locale] || localePacks.en;
+    this._options.openCalendarText = pack.openCalendarText;
+    this._options.currentText = pack.currentText;
+    this._options.currentMonthText = pack.currentMonthText;
+    this._options.closeText = pack.closeText;
+    this._options.okText = pack.okText;
+    this._options.yearText = pack.yearText;
+    this._options.previousYearText = pack.previousYearText;
+    this._options.nextYearText = pack.nextYearText;
+    this._options.weeks = pack.weeks.slice();
+    this._options.months = pack.months.slice();
+    if (this._trigger) {
+      this._trigger.title = this._options.openCalendarText;
+      this._trigger.setAttribute('aria-label', this._options.openCalendarText);
+    }
+    this._syncDatePopup();
+    return this;
+  };
+
   DateBox.prototype.showPanel = function() {
     if (this._options.disabled || this._panelVisible) return this;
     if (this._editor.value) this.setValue(this._editor.value, true);
@@ -15728,6 +22503,12 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
 }
 
 var activeComboPopup = null;
+var COMBO_POPUP_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
 
 function assignComboPopupOptions(target) {
   var index;
@@ -15746,6 +22527,26 @@ function assignComboPopupOptions(target) {
 
 function resolveComboPopupElement(element) {
   return typeof element === 'string' ? document.querySelector(element) : element;
+}
+
+function normalizeComboPopupTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return COMBO_POPUP_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function findComboPopupTheme(element) {
+  var current = resolveComboPopupElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < COMBO_POPUP_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + COMBO_POPUP_THEMES[index])) {
+        return COMBO_POPUP_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
 }
 
 function comboPopupCssSize(value, fallback) {
@@ -15774,12 +22575,15 @@ function ComboPopup(options) {
   this.activeIndex = -1;
   this._normalizeOptions();
   this._build();
+  this.setTheme(this.options.theme);
   this._bind();
   this.render();
 }
 
 ComboPopup.defaults = {
   anchor: null,
+  theme: 'inherit',
+  themeSource: null,
   className: '',
   ariaLabel: 'Combo box options',
   panelWidth: null,
@@ -15912,6 +22716,7 @@ ComboPopup.prototype.setOptions = function(options) {
   assignComboPopupOptions(this.options, options || {});
   this._normalizeOptions();
   this.panel.className = ('fui-combobox-panel ' + (this.options.className || '')).trim();
+  this.setTheme(this.options.theme);
   this.panel.setAttribute('aria-label', this.options.ariaLabel);
   this.panel.setAttribute(
     'aria-multiselectable',
@@ -15924,6 +22729,21 @@ ComboPopup.prototype.setOptions = function(options) {
 
 ComboPopup.prototype.setLayout = function(options) {
   assignComboPopupOptions(this.options, options || {});
+  return this;
+};
+
+ComboPopup.prototype.setTheme = function(theme) {
+  var index;
+  var source;
+  this.options.theme = theme == null ? 'inherit' : String(theme);
+  source = this.options.themeSource || this.options.anchor;
+  this.theme = this.options.theme === 'inherit' ?
+    findComboPopupTheme(source) :
+    normalizeComboPopupTheme(this.options.theme);
+  for (index = 0; index < COMBO_POPUP_THEMES.length; index += 1) {
+    this.panel.classList.remove('fg-theme-' + COMBO_POPUP_THEMES[index]);
+  }
+  this.panel.classList.add('fg-theme-' + this.theme);
   return this;
 };
 
@@ -16090,6 +22910,7 @@ ComboPopup.prototype.show = function() {
   var openClassHost;
   if (this.destroyed || this.visible) return this;
   if (activeComboPopup && activeComboPopup !== this) activeComboPopup.hide();
+  this.setTheme(this.options.theme);
   this.visible = true;
   this.panel.hidden = false;
   this._bindOpenEvents();
@@ -16100,6 +22921,8 @@ ComboPopup.prototype.show = function() {
   if (typeof this.options.onShow === 'function') this.options.onShow(this);
   return this;
 };
+
+ComboPopup.themes = COMBO_POPUP_THEMES.slice();
 
 ComboPopup.prototype.hide = function() {
   var openClassHost;
@@ -16269,6 +23092,7 @@ function createComboBoxFactory(TextBox, editorDefinitions) {
     panelMaxHeight: null,
     panelAlign: 'left',
     panelValign: 'auto',
+    fitContent: true,
     multiple: false,
     multiline: false,
     separator: ',',
@@ -16325,7 +23149,7 @@ function createComboBoxFactory(TextBox, editorDefinitions) {
     var options = {};
     var stringNames = ['valueField', 'textField', 'groupField', 'groupPosition', 'mode', 'method', 'url', 'separator', 'panelAlign', 'panelValign'];
     var numberNames = ['panelWidth', 'panelHeight', 'panelMinWidth', 'panelMaxWidth', 'panelMinHeight', 'panelMaxHeight', 'delay'];
-    var booleanNames = ['multiple', 'multiline', 'hasDownArrow', 'selectOnNavigation', 'showItemIcon', 'showValueInList', 'limitToList'];
+    var booleanNames = ['fitContent', 'multiple', 'multiline', 'hasDownArrow', 'selectOnNavigation', 'showItemIcon', 'showValueInList', 'limitToList'];
     var index;
     var value;
     for (index = 0; index < stringNames.length; index += 1) {
@@ -16352,9 +23176,10 @@ function createComboBoxFactory(TextBox, editorDefinitions) {
   }
 
   function normalizeLocale(name) {
+    name = String(name || 'en').trim().replace(/_/g, '-');
     if (localePacks[name]) return name;
-    if (/^zh(?:-|_)?tw/i.test(name || '')) return 'zh-TW';
-    if (/^zh/i.test(name || '')) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) return 'zh-TW';
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) return 'zh-CN';
     return 'en';
   }
 
@@ -16453,6 +23278,7 @@ function createComboBoxFactory(TextBox, editorDefinitions) {
     }
     this._field = this._editor.closest('.fui-textbox-field');
     this._shell = this._editor.closest('.fui-textbox');
+    this._trigger = this._options.hasDownArrow ? this._textbox.getIcon(icons.length - 1) : null;
     this._comboPopup = new ComboPopup({
       anchor: this._shell,
       openClassHost: this._shell,
@@ -16746,6 +23572,7 @@ function createComboBoxFactory(TextBox, editorDefinitions) {
       panelMaxHeight: this._options.panelMaxHeight,
       panelAlign: this._options.panelAlign,
       panelValign: this._options.panelValign,
+      fitContent: this._options.fitContent,
       multiple: this._options.multiple,
       closeOnSelect: !this._options.multiple,
       items: descriptors,
@@ -16996,6 +23823,25 @@ function createComboBoxFactory(TextBox, editorDefinitions) {
     return this;
   };
 
+  ComboBox.prototype.setLocale = function(locale, messages) {
+    var name = String(locale || 'en').trim().replace(/_/g, '-');
+    if (messages) localePacks[name] = assign({}, localePacks.en, messages);
+    this._options.locale = normalizeLocale(name);
+    this._options.openListText =
+      (localePacks[this._options.locale] || localePacks.en).openListText;
+    if (this._trigger) {
+      this._trigger.title = this._options.openListText;
+      this._trigger.setAttribute('aria-label', this._options.openListText);
+    }
+    this._comboPopup.setOptions({ ariaLabel: this._options.openListText });
+    return this;
+  };
+
+  ComboBox.prototype.setTheme = function(theme) {
+    this._comboPopup.setTheme(theme);
+    return this;
+  };
+
   ComboBox.prototype.disable = function() { this.hidePanel(); this._textbox.disable(); this._options.disabled = true; return this; };
   ComboBox.prototype.enable = function() { this._textbox.enable(); this._options.disabled = false; return this; };
   ComboBox.prototype.readonly = function(mode) { this._textbox.readonly(mode); this._options.readonly = mode !== false; return this; };
@@ -17045,6 +23891,12 @@ function createComboBoxFactory(TextBox, editorDefinitions) {
 }
 
 var activeColorPopup = null;
+var COLOR_POPUP_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
 
 function assignColorPopupOptions(target) {
   var index;
@@ -17063,6 +23915,26 @@ function assignColorPopupOptions(target) {
 
 function resolveColorPopupElement(element) {
   return typeof element === 'string' ? document.querySelector(element) : element;
+}
+
+function normalizeColorPopupTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return COLOR_POPUP_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function findColorPopupTheme(element) {
+  var current = resolveColorPopupElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < COLOR_POPUP_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + COLOR_POPUP_THEMES[index])) {
+        return COLOR_POPUP_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
 }
 
 function clampColorPopup(value, min, max) {
@@ -17174,12 +24046,15 @@ function ColorPopup(options) {
   this.state = null;
   this._normalizeOptions();
   this._build();
+  this.setTheme(this.options.theme);
   this._bind();
   this.render();
 }
 
 ColorPopup.defaults = {
   anchor: null,
+  theme: 'inherit',
+  themeSource: null,
   className: '',
   panelWidth: 420,
   ariaLabel: 'Color picker',
@@ -17284,8 +24159,24 @@ ColorPopup.prototype.setOptions = function(options) {
   assignColorPopupOptions(this.options, options || {});
   this._normalizeOptions();
   this.panel.className = ('fui-colorbox-panel ' + (this.options.className || '')).trim();
+  this.setTheme(this.options.theme);
   this.panel.setAttribute('aria-label', this.options.ariaLabel);
   this.render();
+  return this;
+};
+
+ColorPopup.prototype.setTheme = function(theme) {
+  var index;
+  var source;
+  this.options.theme = theme == null ? 'inherit' : String(theme);
+  source = this.options.themeSource || this.options.anchor;
+  this.theme = this.options.theme === 'inherit' ?
+    findColorPopupTheme(source) :
+    normalizeColorPopupTheme(this.options.theme);
+  for (index = 0; index < COLOR_POPUP_THEMES.length; index += 1) {
+    this.panel.classList.remove('fg-theme-' + COLOR_POPUP_THEMES[index]);
+  }
+  this.panel.classList.add('fg-theme-' + this.theme);
   return this;
 };
 
@@ -17500,6 +24391,7 @@ ColorPopup.prototype.show = function() {
   var openClassHost;
   if (this.destroyed || this.visible) return this;
   if (activeColorPopup && activeColorPopup !== this) activeColorPopup.hide();
+  this.setTheme(this.options.theme);
   this.visible = true;
   this.panel.hidden = false;
   this._bindOpenEvents();
@@ -17510,6 +24402,8 @@ ColorPopup.prototype.show = function() {
   if (typeof this.options.onShow === 'function') this.options.onShow(this);
   return this;
 };
+
+ColorPopup.themes = COLOR_POPUP_THEMES.slice();
 
 ColorPopup.prototype.hide = function() {
   var openClassHost;
@@ -17662,9 +24556,10 @@ function createColorEditBoxFactory(TextBox, editorDefinitions) {
   }
 
   function normalizeLocale(name) {
+    name = String(name || 'en').trim().replace(/_/g, '-');
     if (localePacks[name]) return name;
-    if (/^zh(?:-|_)?tw/i.test(name || '')) return 'zh-TW';
-    if (/^zh/i.test(name || '')) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) return 'zh-TW';
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) return 'zh-CN';
     return 'en';
   }
 
@@ -17845,6 +24740,34 @@ function createColorEditBoxFactory(TextBox, editorDefinitions) {
     return this;
   };
 
+  ColorEditBox.prototype.setLocale = function(locale, messages) {
+    var name = String(locale || 'en').trim().replace(/_/g, '-');
+    var pack;
+    if (messages) localePacks[name] = assign({}, localePacks.en, messages);
+    this._options.locale = normalizeLocale(name);
+    pack = localePacks[this._options.locale] || localePacks.en;
+    this._options.openColorText = pack.openColorText;
+    this._options.saturationText = pack.saturationText;
+    this._options.hueText = pack.hueText;
+    this._options.alphaText = pack.alphaText;
+    if (this._trigger) {
+      this._trigger.title = this._options.openColorText;
+      this._trigger.setAttribute('aria-label', this._options.openColorText);
+    }
+    this._colorPopup.setOptions({
+      ariaLabel: this._options.openColorText,
+      saturationText: this._options.saturationText,
+      hueText: this._options.hueText,
+      alphaText: this._options.alphaText
+    });
+    return this;
+  };
+
+  ColorEditBox.prototype.setTheme = function(theme) {
+    this._colorPopup.setTheme(theme);
+    return this;
+  };
+
   ColorEditBox.prototype.showPanel = function() {
     if (this._options.disabled || this._options.readonly) return this;
     this._colorPopup.setOptions({
@@ -17934,6 +24857,11 @@ function createColorEditBoxFactory(TextBox, editorDefinitions) {
 
   ColorEditBox.defaults = defaults;
   ColorEditBox.editorDefinition = editorDefinition;
+  ColorEditBox.locales = localePacks;
+  ColorEditBox.addLocale = function(name, pack) {
+    if (name && pack) localePacks[name] = assign({}, localePacks.en, pack);
+    return ColorEditBox;
+  };
   return ColorEditBox;
 }
 
@@ -17945,6 +24873,12 @@ function createColorEditBoxFactory(TextBox, editorDefinitions) {
 
 
 var EDITOR_TYPES = ['text', 'number', 'date', 'combo', 'color'];
+var EDITBOX_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
 
 function assignEditBoxOptions(target) {
   var index;
@@ -18209,6 +25143,13 @@ function createEditBoxFactory(editorDefinitions) {
     return this;
   };
 
+  EditBox.prototype.setLocale = function(locale, messages) {
+    if (typeof this._control.setLocale === 'function') {
+      this._control.setLocale(locale, messages);
+    }
+    return this;
+  };
+
   EditBox.prototype.fix = function() {
     if (typeof this._control.fix === 'function') this._control.fix();
     return this;
@@ -18276,6 +25217,27 @@ function createEditBoxFactory(editorDefinitions) {
 
   EditBox.editorDefinitions = definitions;
   EditBox.editorTypes = EDITOR_TYPES.slice();
+  EditBox.themes = EDITBOX_THEMES.slice();
+  EditBox.locales = {
+    en: assignEditBoxOptions(
+      {},
+      DateBox.locales.en,
+      ComboBox.locales.en,
+      ColorEditBox.locales.en
+    ),
+    'zh-TW': assignEditBoxOptions(
+      {},
+      DateBox.locales['zh-TW'],
+      ComboBox.locales['zh-TW'],
+      ColorEditBox.locales['zh-TW']
+    ),
+    'zh-CN': assignEditBoxOptions(
+      {},
+      DateBox.locales['zh-CN'],
+      ComboBox.locales['zh-CN'],
+      ColorEditBox.locales['zh-CN']
+    )
+  };
   EditBox.getEditorDefinition = function(name) {
     return definitions[normalizeDefinitionName(name)] || null;
   };
@@ -18289,6 +25251,1951 @@ function createEditBoxFactory(editorDefinitions) {
 var editorDefinitions = createEditorDefinitions();
 var EditBox = createEditBoxFactory(editorDefinitions);
 
+
+var FILEBOX_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+var fileBoxSequence = 0;
+
+function fileBoxAssign(target) {
+  var source;
+  var key;
+  var index;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function resolveFileBoxElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function fileBoxBoolean(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    value = value.trim().toLowerCase();
+    if (value === 'false' || value === '0' || value === 'no') return false;
+    if (value === 'true' || value === '1' || value === 'yes' || value === '') return true;
+  }
+  return Boolean(value);
+}
+
+function fileBoxAttribute(element, names) {
+  var index;
+  var value;
+  for (index = 0; index < names.length; index += 1) {
+    value = element.getAttribute(names[index]);
+    if (value != null) return value;
+  }
+  return null;
+}
+
+function restoreFileBoxAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function normalizeFileBoxLocale(value) {
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
+}
+
+function normalizeFileBoxTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return FILEBOX_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function normalizeFileBoxButtonAlign(value) {
+  return String(value || 'right').toLowerCase() === 'left' ? 'left' : 'right';
+}
+
+function normalizeFileBoxLabelPosition(value) {
+  value = String(value || 'before').toLowerCase();
+  return value === 'after' || value === 'top' ? value : 'before';
+}
+
+function findFileBoxTheme(element) {
+  var current = resolveFileBoxElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < FILEBOX_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + FILEBOX_THEMES[index])) {
+        return FILEBOX_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function createFileBoxFactory(Control, registerControl, unregisterControl, EditBox) {
+  'use strict';
+
+  var defaults = {
+    width: 200,
+    height: 30,
+    cls: '',
+    prompt: '',
+    label: '',
+    labelWidth: 80,
+    labelPosition: 'before',
+    labelAlign: 'left',
+    buttonText: 'Choose File',
+    buttonIcon: null,
+    buttonAlign: 'right',
+    accept: '',
+    multiple: false,
+    separator: ',',
+    capture: null,
+    disabled: false,
+    readonly: false,
+    required: false,
+    locale: 'en',
+    theme: 'inherit',
+    ariaLabel: '',
+    onChange: null,
+    onResize: null,
+    onClickButton: null
+  };
+  var localePacks = {
+    en: {
+      chooseFile: 'Choose File',
+      fileBox: 'File upload'
+    },
+    'zh-TW': {
+      chooseFile: '選擇檔案',
+      fileBox: '檔案上傳'
+    },
+    'zh-CN': {
+      chooseFile: '选择文件',
+      fileBox: '文件上传'
+    }
+  };
+
+  function FileBox(element, options) {
+    var host = resolveFileBoxElement(element);
+    if (!(this instanceof FileBox)) return new FileBox(element, options);
+    if (
+      !host ||
+      host.tagName !== 'INPUT' ||
+      String(host.type || '').toLowerCase() !== 'file'
+    ) {
+      throw new Error('fabui.FileBox requires an input[type="file"] element.');
+    }
+    if (!host.parentNode) {
+      throw new Error('fabui.FileBox input must be attached to the document.');
+    }
+    if (host.__fabuiFileBox) return host.__fabuiFileBox;
+    if (typeof EditBox !== 'function') {
+      throw new Error('fabui.FileBox requires fabui.EditBox.');
+    }
+    Control.call(this);
+    this.hostElement = host;
+    this._listeners = {};
+    this._destroyed = false;
+    this._customButtonText = Boolean(
+      options && Object.prototype.hasOwnProperty.call(options, 'buttonText')
+    );
+    this._original = {
+      className: host.getAttribute('class'),
+      style: host.getAttribute('style'),
+      id: host.getAttribute('id'),
+      accept: host.getAttribute('accept'),
+      multiple: host.getAttribute('multiple'),
+      capture: host.getAttribute('capture'),
+      disabledAttribute: host.getAttribute('disabled'),
+      requiredAttribute: host.getAttribute('required'),
+      ariaLabel: host.getAttribute('aria-label'),
+      ariaHidden: host.getAttribute('aria-hidden'),
+      tabIndex: host.getAttribute('tabindex'),
+      value: host.getAttribute('value'),
+      disabled: host.disabled,
+      required: host.required,
+      multipleProperty: host.multiple
+    };
+    this._themeSource = host.parentElement || document.body;
+    this._options = fileBoxAssign({}, defaults, this._readElementOptions(), options || {});
+    this._normalizeOptions();
+    if (!this._customButtonText && this._options.locale !== 'en') {
+      this._options.buttonText = this._text('chooseFile');
+    }
+    this._build();
+    this._bind();
+    this._applyOptions(true);
+    this._syncFiles(true);
+    host.__fabuiFileBox = this;
+    registerControl(host, this);
+  }
+
+  FileBox.prototype = Object.create(Control.prototype);
+  FileBox.prototype.constructor = FileBox;
+
+  FileBox.prototype._readElementOptions = function() {
+    var host = this.hostElement;
+    var result = {
+      accept: host.getAttribute('accept') || '',
+      multiple: host.multiple,
+      disabled: host.disabled,
+      required: host.required,
+      ariaLabel: host.getAttribute('aria-label') || ''
+    };
+    var value;
+    value = fileBoxAttribute(host, ['data-width']);
+    if (value != null) result.width = value;
+    else if (host.style.width) result.width = host.style.width;
+    value = fileBoxAttribute(host, ['data-height']);
+    if (value != null) result.height = value;
+    else if (host.style.height) result.height = host.style.height;
+    value = fileBoxAttribute(host, ['prompt', 'data-prompt', 'placeholder']);
+    if (value != null) result.prompt = value;
+    value = fileBoxAttribute(host, ['label', 'data-label']);
+    if (value != null) result.label = value;
+    value = fileBoxAttribute(host, ['labelWidth', 'data-label-width']);
+    if (value != null) result.labelWidth = value;
+    value = fileBoxAttribute(host, ['labelPosition', 'data-label-position']);
+    if (value != null) result.labelPosition = value;
+    value = fileBoxAttribute(host, ['labelAlign', 'data-label-align']);
+    if (value != null) result.labelAlign = value;
+    value = fileBoxAttribute(host, ['buttonText', 'data-button-text']);
+    if (value != null) {
+      result.buttonText = value;
+      this._customButtonText = true;
+    }
+    value = fileBoxAttribute(host, ['buttonIcon', 'data-button-icon']);
+    if (value != null) result.buttonIcon = value;
+    value = fileBoxAttribute(host, ['buttonAlign', 'data-button-align']);
+    if (value != null) result.buttonAlign = value;
+    value = fileBoxAttribute(host, ['separator', 'data-separator']);
+    if (value != null) result.separator = value;
+    value = fileBoxAttribute(host, ['capture', 'data-capture']);
+    if (value != null) result.capture = value;
+    value = fileBoxAttribute(host, ['data-readonly']);
+    if (value != null) result.readonly = value;
+    value = fileBoxAttribute(host, ['data-theme', 'theme']);
+    if (value) result.theme = value;
+    value = fileBoxAttribute(host, ['data-locale', 'locale']);
+    if (value) result.locale = value;
+    return result;
+  };
+
+  FileBox.prototype._normalizeOptions = function() {
+    this._options.buttonAlign = normalizeFileBoxButtonAlign(this._options.buttonAlign);
+    this._options.labelPosition = normalizeFileBoxLabelPosition(this._options.labelPosition);
+    this._options.locale = normalizeFileBoxLocale(this._options.locale);
+    this._options.multiple = fileBoxBoolean(this._options.multiple, false);
+    this._options.disabled = fileBoxBoolean(this._options.disabled, false);
+    this._options.readonly = fileBoxBoolean(this._options.readonly, false);
+    this._options.required = fileBoxBoolean(this._options.required, false);
+    this._options.separator = this._options.separator == null ? ',' : String(this._options.separator);
+  };
+
+  FileBox.prototype._text = function(key) {
+    var pack = localePacks[this._options.locale] || localePacks.en;
+    return pack[key] || localePacks.en[key] || key;
+  };
+
+  FileBox.prototype._build = function() {
+    var parent = this.hostElement.parentNode;
+    var self = this;
+    if (!this.hostElement.id) {
+      fileBoxSequence += 1;
+      this.hostElement.id = 'fui-filebox-' + fileBoxSequence;
+    }
+    this.proxyElement = document.createElement('input');
+    this.proxyElement.type = 'text';
+    this.proxyElement.className = 'fui-filebox-proxy';
+    parent.insertBefore(this.proxyElement, this.hostElement);
+    this.editBox = new EditBox(this.proxyElement, {
+      editor: 'text',
+      width: this._options.width,
+      height: this._options.height,
+      cls: 'fui-filebox' + (this._options.cls ? ' ' + String(this._options.cls) : ''),
+      prompt: this._options.prompt,
+      label: this._options.label || '\u200b',
+      labelWidth: this._options.labelWidth,
+      labelPosition: this._options.labelPosition,
+      labelAlign: this._options.labelAlign,
+      editable: false,
+      readonly: this._options.readonly,
+      disabled: this._options.disabled,
+      required: false,
+      buttonText: this._options.buttonText,
+      buttonIcon: this._options.buttonIcon || '',
+      buttonAlign: this._options.buttonAlign,
+      ariaLabel: this._options.ariaLabel || this._options.label || this._text('fileBox'),
+      onClickButton: function() {
+        self._invoke('onClickButton');
+        self._emit('buttonClick', { button: self.button() });
+        self._openPicker();
+      },
+      onResize: function(width, height) {
+        self._invoke('onResize', width, height);
+        self._emit('resize', { width: width, height: height });
+      }
+    });
+    this.fieldElement = this.proxyElement.closest('.fui-textbox-field');
+    this.textboxElement = this.editBox.textbox();
+    this.buttonElement = this.editBox.button();
+    this.labelElement = this.fieldElement.querySelector('.fui-textbox-label');
+    this._appliedCustomClasses = String(this._options.cls || '').split(/\s+/).filter(Boolean);
+    this.fieldElement.appendChild(this.hostElement);
+    this.hostElement.classList.add('fui-filebox-native');
+    this.hostElement.setAttribute('aria-hidden', 'true');
+    this.hostElement.tabIndex = -1;
+    this.textboxElement.setAttribute('role', 'button');
+    this.textboxElement.setAttribute('aria-controls', this.hostElement.id);
+    this._applyLabel();
+  };
+
+  FileBox.prototype._bind = function() {
+    var self = this;
+    this.addEventListener(this.hostElement, 'change', function(event) {
+      self._syncFiles(false, event);
+    });
+    this.addEventListener(this.textboxElement, 'click', function() {
+      self._openPicker();
+    });
+    this.addEventListener(this.textboxElement, 'keydown', function(event) {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      self._openPicker();
+    });
+    if (this.hostElement.form) {
+      this.addEventListener(this.hostElement.form, 'reset', function() {
+        setTimeout(function() {
+          if (!self._destroyed) self._syncFiles(false);
+        }, 0);
+      });
+    }
+  };
+
+  FileBox.prototype._openPicker = function() {
+    if (this._options.disabled || this._options.readonly) return this;
+    this.hostElement.click();
+    return this;
+  };
+
+  FileBox.prototype._fileNames = function() {
+    var fileList = this.hostElement.files;
+    var names = [];
+    var value;
+    var index;
+    if (fileList && typeof fileList.length === 'number') {
+      for (index = 0; index < fileList.length; index += 1) {
+        if (fileList[index]) names.push(fileList[index].name || '');
+      }
+    }
+    if (names.length) return names.join(this._options.separator);
+    value = this.hostElement.value || '';
+    return value.replace(/^.*[\\/]/, '');
+  };
+
+  FileBox.prototype._syncFiles = function(silent, originalEvent) {
+    var oldValue = this.editBox.getValue();
+    var newValue = this._fileNames();
+    this.editBox.setValue(newValue, true);
+    if (!silent && newValue !== oldValue) {
+      this._invoke('onChange', newValue, oldValue);
+      this._emit('change', {
+        value: newValue,
+        oldValue: oldValue,
+        files: this.files(),
+        originalEvent: originalEvent || null
+      });
+    }
+    return this;
+  };
+
+  FileBox.prototype._applyLabel = function() {
+    var label = this._options.label == null ? '' : String(this._options.label);
+    var position = this._options.labelPosition;
+    var shell = this.fieldElement.querySelector('.fui-textbox');
+    this.labelElement.textContent = label || '\u200b';
+    this.labelElement.hidden = !label;
+    this.labelElement.className = 'fui-textbox-label fui-textbox-label-' + position;
+    this.labelElement.style.textAlign = this._options.labelAlign;
+    this.labelElement.style.width = typeof this._options.labelWidth === 'number' ?
+      this._options.labelWidth + 'px' :
+      String(this._options.labelWidth == null ? 80 : this._options.labelWidth);
+    this.fieldElement.classList.toggle('fui-textbox-label-top-field', position === 'top');
+    if (position === 'after') {
+      this.fieldElement.insertBefore(shell, this.labelElement);
+    } else {
+      this.fieldElement.insertBefore(this.labelElement, shell);
+    }
+  };
+
+  FileBox.prototype._applyButton = function() {
+    var button = this.buttonElement;
+    var before = this.fieldElement.querySelector('.fui-textbox-addon-left');
+    var after = this.fieldElement.querySelector('.fui-textbox-addon-right');
+    var icon = this._options.buttonIcon || '';
+    button.textContent = this._options.buttonText == null ? '' : String(this._options.buttonText);
+    button.className = 'fui-textbox-button' +
+      (icon ? ' ' + String(icon) : '') +
+      (button.textContent && icon ?
+        ' fui-textbox-button-with-icon' :
+        ' fui-textbox-button-icon-only');
+    if (this._options.buttonAlign === 'left') before.insertBefore(button, before.firstChild);
+    else after.appendChild(button);
+    button.setAttribute('aria-label', button.textContent || this._text('chooseFile'));
+  };
+
+  FileBox.prototype._applyClass = function() {
+    var field = this.fieldElement;
+    var next = String(this._options.cls || '').split(/\s+/).filter(Boolean);
+    (this._appliedCustomClasses || []).forEach(function(className) {
+      field.classList.remove(className);
+    });
+    next.forEach(function(className) {
+      field.classList.add(className);
+    });
+    this._appliedCustomClasses = next;
+  };
+
+  FileBox.prototype._applyOptions = function(initial) {
+    var accept = this._options.accept == null ? '' : String(this._options.accept);
+    var capture = this._options.capture;
+    this.hostElement.accept = accept;
+    this.hostElement.multiple = this._options.multiple;
+    this.hostElement.disabled = this._options.disabled;
+    this.hostElement.required = this._options.required;
+    if (capture == null || capture === false || capture === '') {
+      this.hostElement.removeAttribute('capture');
+    } else {
+      this.hostElement.setAttribute('capture', capture === true ? '' : String(capture));
+    }
+    this.textboxElement.placeholder = this._options.prompt || '';
+    this.textboxElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || this._options.label || this._text('fileBox')
+    );
+    this.textboxElement.setAttribute('aria-disabled', String(this._options.disabled));
+    this.textboxElement.setAttribute('aria-readonly', String(this._options.readonly));
+    if (this._options.disabled) this.editBox.disable();
+    else this.editBox.enable();
+    this.editBox.readonly(this._options.readonly);
+    if (!initial) this.editBox.resize(this._options.width, this._options.height);
+    this._applyClass();
+    this._applyLabel();
+    this._applyButton();
+    this.setTheme(this._options.theme);
+    if (!initial) {
+      this._syncFiles(true);
+      this._emit('refresh', { options: this.options() });
+    }
+    return this;
+  };
+
+  FileBox.prototype._invoke = function(name) {
+    var handler = this._options[name];
+    return typeof handler === 'function' ?
+      handler.apply(this, Array.prototype.slice.call(arguments, 1)) :
+      undefined;
+  };
+
+  FileBox.prototype._emit = function(type, detail) {
+    var listeners = (this._listeners[type] || []).slice();
+    var event = {
+      type: type,
+      target: this,
+      detail: detail
+    };
+    listeners.forEach(function(listener) {
+      listener.call(this, event);
+    }, this);
+  };
+
+  FileBox.prototype.on = function(type, listener) {
+    if (type && typeof listener === 'function') {
+      (this._listeners[String(type)] || (this._listeners[String(type)] = [])).push(listener);
+    }
+    return this;
+  };
+
+  FileBox.prototype.off = function(type, listener) {
+    var list = this._listeners[String(type)] || [];
+    var index;
+    if (!listener) {
+      delete this._listeners[String(type)];
+      return this;
+    }
+    for (index = list.length - 1; index >= 0; index -= 1) {
+      if (list[index] === listener) list.splice(index, 1);
+    }
+    return this;
+  };
+
+  FileBox.prototype.options = function() {
+    return fileBoxAssign({}, this._options);
+  };
+
+  FileBox.prototype.setOptions = function(options) {
+    var localeChanged = Boolean(
+      options && Object.prototype.hasOwnProperty.call(options, 'locale')
+    );
+    if (options && Object.prototype.hasOwnProperty.call(options, 'buttonText')) {
+      this._customButtonText = true;
+    }
+    fileBoxAssign(this._options, options || {});
+    this._normalizeOptions();
+    if (localeChanged && !this._customButtonText) {
+      this._options.buttonText = this._text('chooseFile');
+    }
+    return this._applyOptions(false);
+  };
+
+  FileBox.prototype.textbox = function() {
+    return this.textboxElement;
+  };
+
+  FileBox.prototype.button = function() {
+    return this.buttonElement;
+  };
+
+  FileBox.prototype.files = function() {
+    return this.hostElement.files;
+  };
+
+  FileBox.prototype.getValue = function() {
+    return this.editBox.getValue();
+  };
+
+  FileBox.prototype.setValue = function(value) {
+    if (value != null && String(value) !== '') {
+      throw new Error('fabui.FileBox cannot set a non-empty file value for browser security.');
+    }
+    return this.clear();
+  };
+
+  FileBox.prototype.clear = function() {
+    var oldValue = this.getValue();
+    this.hostElement.value = '';
+    this.editBox.setValue('', true);
+    if (oldValue !== '') {
+      this._invoke('onChange', '', oldValue);
+      this._emit('change', {
+        value: '',
+        oldValue: oldValue,
+        files: this.files(),
+        originalEvent: null
+      });
+    }
+    return this;
+  };
+
+  FileBox.prototype.reset = function() {
+    return this.clear();
+  };
+
+  FileBox.prototype.focus = function() {
+    this.editBox.focus();
+    return this;
+  };
+
+  FileBox.prototype.resize = function(width, height) {
+    if (width != null) this._options.width = width;
+    if (height != null) this._options.height = height;
+    this.editBox.resize(this._options.width, this._options.height);
+    return this;
+  };
+
+  FileBox.prototype.disable = function() {
+    this._options.disabled = true;
+    this.hostElement.disabled = true;
+    this.editBox.disable();
+    this.textboxElement.setAttribute('aria-disabled', 'true');
+    return this;
+  };
+
+  FileBox.prototype.enable = function() {
+    this._options.disabled = false;
+    this.hostElement.disabled = false;
+    this.editBox.enable();
+    this.textboxElement.setAttribute('aria-disabled', 'false');
+    return this;
+  };
+
+  FileBox.prototype.readonly = function(mode) {
+    this._options.readonly = mode !== false;
+    this.editBox.readonly(this._options.readonly);
+    this.textboxElement.setAttribute('aria-readonly', String(this._options.readonly));
+    return this;
+  };
+
+  FileBox.prototype.setLocale = function(locale, messages) {
+    if (locale && messages) {
+      localePacks[String(locale)] = fileBoxAssign({}, localePacks.en, messages);
+    }
+    this._options.locale = normalizeFileBoxLocale(locale);
+    if (!this._customButtonText) {
+      this._options.buttonText = this._text('chooseFile');
+      this._applyButton();
+    }
+    this.textboxElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || this._options.label || this._text('fileBox')
+    );
+    return this;
+  };
+
+  FileBox.prototype.setTheme = function(theme) {
+    var index;
+    this._options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this._options.theme === 'inherit' ?
+      findFileBoxTheme(this._themeSource) :
+      normalizeFileBoxTheme(this._options.theme);
+    for (index = 0; index < FILEBOX_THEMES.length; index += 1) {
+      this.fieldElement.classList.remove('fg-theme-' + FILEBOX_THEMES[index]);
+    }
+    this.fieldElement.classList.add('fg-theme-' + this.theme);
+    return this;
+  };
+
+  FileBox.prototype.destroy = function() {
+    var parent;
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this.removeEventListener();
+    parent = this.fieldElement && this.fieldElement.parentNode;
+    if (parent) parent.insertBefore(this.hostElement, this.fieldElement);
+    if (this.editBox) this.editBox.destroy();
+    if (this.proxyElement && this.proxyElement.parentNode) {
+      this.proxyElement.parentNode.removeChild(this.proxyElement);
+    }
+    restoreFileBoxAttribute(this.hostElement, 'class', this._original.className);
+    restoreFileBoxAttribute(this.hostElement, 'style', this._original.style);
+    restoreFileBoxAttribute(this.hostElement, 'id', this._original.id);
+    restoreFileBoxAttribute(this.hostElement, 'accept', this._original.accept);
+    restoreFileBoxAttribute(this.hostElement, 'multiple', this._original.multiple);
+    restoreFileBoxAttribute(this.hostElement, 'capture', this._original.capture);
+    restoreFileBoxAttribute(this.hostElement, 'disabled', this._original.disabledAttribute);
+    restoreFileBoxAttribute(this.hostElement, 'required', this._original.requiredAttribute);
+    restoreFileBoxAttribute(this.hostElement, 'aria-label', this._original.ariaLabel);
+    restoreFileBoxAttribute(this.hostElement, 'aria-hidden', this._original.ariaHidden);
+    restoreFileBoxAttribute(this.hostElement, 'tabindex', this._original.tabIndex);
+    restoreFileBoxAttribute(this.hostElement, 'value', this._original.value);
+    this.hostElement.disabled = this._original.disabled;
+    this.hostElement.required = this._original.required;
+    this.hostElement.multiple = this._original.multipleProperty;
+    unregisterControl(this.hostElement, this);
+    delete this.hostElement.__fabuiFileBox;
+    this._listeners = {};
+    this.editBox = null;
+    this.proxyElement = null;
+    this.fieldElement = null;
+    this.textboxElement = null;
+    this.buttonElement = null;
+    this.labelElement = null;
+  };
+
+  FileBox.prototype.dispose = FileBox.prototype.destroy;
+  FileBox.defaults = defaults;
+  FileBox.locales = localePacks;
+  FileBox.themes = FILEBOX_THEMES.slice();
+  FileBox.addLocale = function(name, messages) {
+    if (name && messages) {
+      localePacks[String(name)] = fileBoxAssign({}, localePacks.en, messages);
+    }
+    return FileBox;
+  };
+  FileBox.getControl = function(element) {
+    element = resolveFileBoxElement(element);
+    return element && element.__fabuiFileBox ? element.__fabuiFileBox : null;
+  };
+  FileBox.normalizeTheme = normalizeFileBoxTheme;
+  FileBox.normalizeLocale = normalizeFileBoxLocale;
+  return FileBox;
+}
+
+var FORM_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
+function formAssign(target) {
+  var source;
+  var key;
+  var index;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function resolveFormElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function formBoolean(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    value = value.trim().toLowerCase();
+    if (value === 'false' || value === '0' || value === 'no') return false;
+    if (value === 'true' || value === '1' || value === 'yes' || value === '') return true;
+  }
+  return Boolean(value);
+}
+
+function normalizeFormTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return FORM_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function findFormTheme(element) {
+  var current = resolveFormElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < FORM_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + FORM_THEMES[index])) {
+        return FORM_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function normalizeFormLocale(value) {
+  value = String(value || 'en').trim().replace(/_/g, '-').toLowerCase();
+  if (/^zh-(?:tw|hant)(?:-|$)/.test(value)) {
+    return 'zh-TW';
+  }
+  if (/^zh-(?:cn|hans)(?:-|$)/.test(value) || value === 'zh') {
+    return 'zh-CN';
+  }
+  return 'en';
+}
+
+function formatFormMessage(message, values) {
+  return String(message || '').replace(/\{([^}]+)\}/g, function(match, key) {
+    return Object.prototype.hasOwnProperty.call(values || {}, key) ?
+      String(values[key]) :
+      match;
+  });
+}
+
+function formArray(value) {
+  return Array.isArray(value) ? value.slice() : [value];
+}
+
+function formValueKey(value) {
+  return String(value == null ? '' : value);
+}
+
+function formValuesEqual(left, right) {
+  return JSON.stringify(left || []) === JSON.stringify(right || []);
+}
+
+function formFileSignature(file) {
+  if (!file) return '';
+  return [
+    file.name || '',
+    file.size == null ? '' : file.size,
+    file.type || '',
+    file.lastModified == null ? '' : file.lastModified
+  ].join(':');
+}
+
+function fieldState(field) {
+  var type = String(field.type || '').toLowerCase();
+  var files;
+  var values;
+  if (type === 'checkbox' || type === 'radio') {
+    return (field.checked ? 'checked:' : 'unchecked:') + formValueKey(field.value);
+  }
+  if (type === 'file') {
+    files = Array.prototype.slice.call(field.files || []);
+    return 'files:' + files.map(formFileSignature).join('|');
+  }
+  if (field.tagName === 'SELECT' && field.multiple) {
+    values = Array.prototype.filter.call(field.options || [], function(option) {
+      return option.selected;
+    }).map(function(option) {
+      return option.value;
+    });
+    return 'values:' + JSON.stringify(values);
+  }
+  return 'value:' + formValueKey(field.value);
+}
+
+function captureFormState(form) {
+  var snapshot = Object.create(null);
+  Array.prototype.forEach.call(form.elements || [], function(field) {
+    var name = field.name;
+    if (!name) return;
+    if (!snapshot[name]) snapshot[name] = [];
+    snapshot[name].push(fieldState(field));
+  });
+  return snapshot;
+}
+
+function queryValue(value) {
+  if (value == null) return '';
+  if (typeof File !== 'undefined' && value instanceof File) return value.name;
+  return String(value);
+}
+
+function appendFormQuery(url, params) {
+  var hash = '';
+  var hashIndex;
+  var query = [];
+  var key;
+  var values;
+  url = String(url || '');
+  hashIndex = url.indexOf('#');
+  if (hashIndex >= 0) {
+    hash = url.slice(hashIndex);
+    url = url.slice(0, hashIndex);
+  }
+  params = params || {};
+  for (key in params) {
+    if (!Object.prototype.hasOwnProperty.call(params, key)) continue;
+    values = Array.isArray(params[key]) ? params[key] : [params[key]];
+    values.forEach(function(value) {
+      query.push(encodeURIComponent(key) + '=' + encodeURIComponent(queryValue(value)));
+    });
+  }
+  if (query.length) url += (url.indexOf('?') >= 0 ? '&' : '?') + query.join('&');
+  return url + hash;
+}
+
+function normalizeFormMethod(value) {
+  value = String(value || 'GET').trim().toUpperCase();
+  return /^[A-Z]+$/.test(value) ? value : 'GET';
+}
+
+function formDataToQuery(data) {
+  var params = Object.create(null);
+  data.forEach(function(value, key) {
+    if (!Object.prototype.hasOwnProperty.call(params, key)) {
+      params[key] = value;
+    } else if (Array.isArray(params[key])) {
+      params[key].push(value);
+    } else {
+      params[key] = [params[key], value];
+    }
+  });
+  return params;
+}
+
+function readNamedFormData(form) {
+  var result = {};
+  var data = new FormData(form);
+  data.forEach(function(value, key) {
+    if (!Object.prototype.hasOwnProperty.call(result, key)) {
+      result[key] = value;
+    } else if (Array.isArray(result[key])) {
+      result[key].push(value);
+    } else {
+      result[key] = [result[key], value];
+    }
+  });
+  return result;
+}
+
+function createFormFactory(Control, registerControl, unregisterControl, EditBox) {
+  'use strict';
+
+  var defaults = {
+    novalidate: false,
+    iframe: true,
+    ajax: true,
+    dirty: false,
+    queryParams: {},
+    url: null,
+    locale: 'en',
+    theme: 'inherit',
+    onSubmit: null,
+    onProgress: null,
+    success: null,
+    onBeforeLoad: null,
+    onLoadSuccess: null,
+    onLoadError: null,
+    onChange: null
+  };
+  var localePacks = {
+    en: {
+      valueMissing: 'This field is required.',
+      typeMismatchEmail: 'Please enter a valid email address.',
+      typeMismatchURL: 'Please enter a valid URL.',
+      patternMismatch: 'Please match the requested format.',
+      tooShort: 'Please enter at least {minLength} characters.',
+      tooLong: 'Please enter no more than {maxLength} characters.',
+      rangeUnderflow: 'Please enter a value greater than or equal to {min}.',
+      rangeOverflow: 'Please enter a value less than or equal to {max}.',
+      stepMismatch: 'Please enter a valid value.',
+      badInput: 'Please enter a valid value.',
+      invalid: 'Please enter a valid value.'
+    },
+    'zh-TW': {
+      valueMissing: '此欄位為必填。',
+      typeMismatchEmail: '請輸入有效的電子郵件地址。',
+      typeMismatchURL: '請輸入有效的網址。',
+      patternMismatch: '請依照要求的格式輸入。',
+      tooShort: '請至少輸入 {minLength} 個字元。',
+      tooLong: '請勿超過 {maxLength} 個字元。',
+      rangeUnderflow: '請輸入大於或等於 {min} 的值。',
+      rangeOverflow: '請輸入小於或等於 {max} 的值。',
+      stepMismatch: '請輸入有效值。',
+      badInput: '請輸入有效值。',
+      invalid: '請輸入有效值。'
+    },
+    'zh-CN': {
+      valueMissing: '此字段为必填项。',
+      typeMismatchEmail: '请输入有效的电子邮件地址。',
+      typeMismatchURL: '请输入有效的网址。',
+      patternMismatch: '请按照要求的格式输入。',
+      tooShort: '请至少输入 {minLength} 个字符。',
+      tooLong: '请勿超过 {maxLength} 个字符。',
+      rangeUnderflow: '请输入大于或等于 {min} 的值。',
+      rangeOverflow: '请输入小于或等于 {max} 的值。',
+      stepMismatch: '请输入有效值。',
+      badInput: '请输入有效值。',
+      invalid: '请输入有效值。'
+    }
+  };
+
+  function Form(element, options) {
+    var host = resolveFormElement(element);
+    if (!(this instanceof Form)) return new Form(element, options);
+    if (!host || host.tagName !== 'FORM') {
+      throw new Error('fabui.Form requires a form element.');
+    }
+    if (host.__fabuiForm) return host.__fabuiForm;
+    Control.call(this);
+    this.hostElement = host;
+    this._themeSource = host.parentElement || host;
+    this._listeners = {};
+    this._destroyed = false;
+    this._suspendChange = false;
+    this._requests = [];
+    this._validationState = [];
+    this._validationTip = null;
+    this._validationTipContent = null;
+    this._validationTipTarget = null;
+    this._validationTipAriaDescribedBy = null;
+    this._validationTipEvents = null;
+    this._controlBindings = [];
+    this._original = {
+      className: host.getAttribute('class'),
+      noValidateAttribute: host.getAttribute('novalidate'),
+      noValidate: host.noValidate
+    };
+    this._options = formAssign({}, defaults, this._readElementOptions(), options || {});
+    this._normalizeOptions();
+    this._applyOptions();
+    this._bind();
+    this._bindControlChanges();
+    this._initialSnapshot = captureFormState(host);
+    this._dirtySnapshot = captureFormState(host);
+    host.__fabuiForm = this;
+    registerControl(host, this);
+  }
+
+  Form.prototype = Object.create(Control.prototype);
+  Form.prototype.constructor = Form;
+
+  Form.prototype._readElementOptions = function() {
+    var host = this.hostElement;
+    var result = {};
+    var value = host.getAttribute('data-url');
+    if (value != null) result.url = value;
+    value = host.getAttribute('data-ajax');
+    if (value != null) result.ajax = value;
+    value = host.getAttribute('data-dirty');
+    if (value != null) result.dirty = value;
+    value = host.getAttribute('data-novalidate');
+    if (value != null) result.novalidate = value;
+    value = host.getAttribute('data-iframe');
+    if (value != null) result.iframe = value;
+    value = host.getAttribute('data-locale');
+    if (value != null) result.locale = value;
+    value = host.getAttribute('data-theme');
+    if (value != null) result.theme = value;
+    return result;
+  };
+
+  Form.prototype._normalizeOptions = function() {
+    this._options.novalidate = formBoolean(this._options.novalidate, false);
+    this._options.iframe = formBoolean(this._options.iframe, true);
+    this._options.ajax = formBoolean(this._options.ajax, true);
+    this._options.dirty = formBoolean(this._options.dirty, false);
+    this._options.queryParams = formAssign({}, this._options.queryParams || {});
+    this._options.url = this._options.url == null ? null : String(this._options.url);
+    this._options.locale = normalizeFormLocale(this._options.locale);
+    this._options.theme = this._options.theme == null ? 'inherit' : String(this._options.theme);
+  };
+
+  Form.prototype._validationMessage = function(field) {
+    var validity = field && field.validity;
+    var pack = localePacks[this._options.locale] || localePacks.en;
+    var key = 'invalid';
+    var type = String(field && field.type || '').toLowerCase();
+    if (!validity) return pack.invalid;
+    if (validity.customError && field.validationMessage) return field.validationMessage;
+    if (validity.valueMissing) key = 'valueMissing';
+    else if (validity.typeMismatch && type === 'email') key = 'typeMismatchEmail';
+    else if (validity.typeMismatch && type === 'url') key = 'typeMismatchURL';
+    else if (validity.patternMismatch) key = 'patternMismatch';
+    else if (validity.tooShort) key = 'tooShort';
+    else if (validity.tooLong) key = 'tooLong';
+    else if (validity.rangeUnderflow) key = 'rangeUnderflow';
+    else if (validity.rangeOverflow) key = 'rangeOverflow';
+    else if (validity.stepMismatch) key = 'stepMismatch';
+    else if (validity.badInput) key = 'badInput';
+    return formatFormMessage(pack[key] || localePacks.en[key], {
+      minLength: field.minLength,
+      maxLength: field.maxLength,
+      min: field.min,
+      max: field.max
+    });
+  };
+
+  Form.prototype._applyOptions = function() {
+    this.hostElement.classList.add('fui-form');
+    this.hostElement.noValidate = true;
+    this.hostElement.setAttribute('novalidate', '');
+    this.hostElement.classList.toggle(
+      'fui-form-validation-disabled',
+      this._options.novalidate
+    );
+    this.setTheme(this._options.theme);
+    return this;
+  };
+
+  Form.prototype._bind = function() {
+    var self = this;
+    this.addEventListener(this.hostElement, 'submit', function(event) {
+      event.preventDefault();
+      self.submit({
+        originalEvent: event,
+        submitter: event.submitter || null
+      }).catch(function() {
+        return false;
+      });
+    });
+    this.addEventListener(this.hostElement, 'change', function(event) {
+      if (self._suspendChange || !event.target || !event.target.name) return;
+      self._clearValidationTarget(event.target);
+      self._notifyChange(event.target, event);
+    });
+    this.addEventListener(this.hostElement, 'input', function(event) {
+      var record = self._findValidationRecord(event.target);
+      if (!record || typeof record.target.checkValidity !== 'function') return;
+      if (record.target.checkValidity()) {
+        self._clearValidationTarget(record.target);
+      } else if (self._validationTipTarget === record.target) {
+        self._showValidationTip(record.target);
+      }
+    });
+    this.addEventListener(this.hostElement, 'focusin', function(event) {
+      self._showValidationTip(event.target);
+    });
+    this.addEventListener(this.hostElement, 'mouseover', function(event) {
+      self._showValidationTip(event.target);
+    });
+  };
+
+  Form.prototype._bindControlChanges = function() {
+    var self = this;
+    var instances = [];
+    Array.prototype.forEach.call(this.hostElement.elements || [], function(field) {
+      var editBox = self._getEditBox(field);
+      var listener;
+      if (!editBox || instances.indexOf(editBox) >= 0 || typeof editBox.on !== 'function') {
+        return;
+      }
+      instances.push(editBox);
+      listener = function(detail) {
+        if (self._suspendChange) return;
+        self._clearValidationTarget(field);
+        self._notifyChange(field, detail && detail.originalEvent || null);
+      };
+      editBox.on('change', listener);
+      self._controlBindings.push({
+        control: editBox,
+        listener: listener
+      });
+    });
+  };
+
+  Form.prototype._invoke = function(name) {
+    var handler = this._options[name];
+    return typeof handler === 'function' ?
+      handler.apply(this, Array.prototype.slice.call(arguments, 1)) :
+      undefined;
+  };
+
+  Form.prototype._emit = function(type, detail, cancelable) {
+    var listeners = (this._listeners[type] || []).slice();
+    var event = {
+      type: type,
+      target: this,
+      detail: detail,
+      defaultPrevented: false,
+      preventDefault: function() {
+        if (cancelable) this.defaultPrevented = true;
+      }
+    };
+    listeners.forEach(function(listener) {
+      listener.call(this, event);
+    }, this);
+    return !event.defaultPrevented;
+  };
+
+  Form.prototype.on = function(type, listener) {
+    if (type && typeof listener === 'function') {
+      (this._listeners[String(type)] || (this._listeners[String(type)] = [])).push(listener);
+    }
+    return this;
+  };
+
+  Form.prototype.off = function(type, listener) {
+    var list = this._listeners[String(type)] || [];
+    var index;
+    if (!listener) {
+      delete this._listeners[String(type)];
+      return this;
+    }
+    for (index = list.length - 1; index >= 0; index -= 1) {
+      if (list[index] === listener) list.splice(index, 1);
+    }
+    return this;
+  };
+
+  Form.prototype._notifyChange = function(target, originalEvent) {
+    this._invoke('onChange', target);
+    this._emit('change', {
+      target: target,
+      name: target.name || '',
+      value: target.value,
+      originalEvent: originalEvent || null
+    });
+  };
+
+  Form.prototype.options = function() {
+    var result = formAssign({}, this._options);
+    result.queryParams = formAssign({}, this._options.queryParams);
+    return result;
+  };
+
+  Form.prototype.setOptions = function(options) {
+    formAssign(this._options, options || {});
+    this._normalizeOptions();
+    this._applyOptions();
+    if (this._validationTipTarget) this._showValidationTip(this._validationTipTarget);
+    this._emit('refresh', { options: this.options() });
+    return this;
+  };
+
+  Form.prototype.getData = function() {
+    return readNamedFormData(this.hostElement);
+  };
+
+  Form.prototype._getEditBox = function(field) {
+    return EditBox && typeof EditBox.getControl === 'function' ?
+      EditBox.getControl(field) :
+      null;
+  };
+
+  Form.prototype._getControl = function(field) {
+    return Control && typeof Control.getControl === 'function' ?
+      Control.getControl(field) :
+      null;
+  };
+
+  Form.prototype._fieldValidationTarget = function(field) {
+    var editBox = this._getEditBox(field);
+    var control;
+    if (editBox && typeof editBox.textbox === 'function') return editBox.textbox();
+    control = this._getControl(field);
+    if (control && typeof control.textbox === 'function') return control.textbox();
+    return field;
+  };
+
+  Form.prototype._validationContainer = function(target) {
+    if (!target || typeof target.closest !== 'function') return target;
+    return target.closest(
+      '.fui-textbox, .fui-filebox-control, .fui-checkbox-control, .fui-checkgroup, ' +
+      '.fui-radiobutton-control, .fui-radiogroup'
+    ) || target;
+  };
+
+  Form.prototype._findValidationRecord = function(target) {
+    var index;
+    for (index = 0; index < this._validationState.length; index += 1) {
+      if (
+        this._validationState[index].target === target ||
+        this._validationState[index].container === target
+      ) {
+        return this._validationState[index];
+      }
+    }
+    return null;
+  };
+
+  Form.prototype._ensureValidationTip = function() {
+    var tip;
+    var content;
+    if (this._validationTip) return this._validationTip;
+    tip = document.createElement('div');
+    content = document.createElement('div');
+    tip.id = 'fui-form-validation-tip-' + Form._nextValidationTipId;
+    Form._nextValidationTipId += 1;
+    tip.className = 'fui-form-validation-tip';
+    this._applyThemeClass(tip);
+    tip.setAttribute('role', 'tooltip');
+    tip.hidden = true;
+    content.className = 'fui-form-validation-tip-content';
+    tip.appendChild(content);
+    document.body.appendChild(tip);
+    this._validationTip = tip;
+    this._validationTipContent = content;
+    return tip;
+  };
+
+  Form.prototype._positionValidationTip = function() {
+    var tip = this._validationTip;
+    var target = this._validationTipTarget;
+    var targetRect;
+    var tipRect;
+    var pageLeft;
+    var pageTop;
+    var viewportRight;
+    var viewportBottom;
+    var left;
+    var top;
+    var gap = 8;
+    if (!tip || tip.hidden || !target || !target.isConnected) return;
+    targetRect = target.getBoundingClientRect();
+    tipRect = tip.getBoundingClientRect();
+    pageLeft = window.pageXOffset || document.documentElement.scrollLeft || 0;
+    pageTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+    viewportRight = pageLeft + document.documentElement.clientWidth;
+    viewportBottom = pageTop + document.documentElement.clientHeight;
+    left = targetRect.left + pageLeft + (targetRect.width - tipRect.width) / 2;
+    top = targetRect.bottom + pageTop + gap;
+    tip.classList.remove('fui-form-validation-tip-top');
+    if (top + tipRect.height > viewportBottom) {
+      top = targetRect.top + pageTop - tipRect.height - gap;
+      tip.classList.add('fui-form-validation-tip-top');
+    }
+    left = Math.max(pageLeft + 4, Math.min(left, viewportRight - tipRect.width - 4));
+    top = Math.max(pageTop + 4, top);
+    tip.style.left = Math.round(left) + 'px';
+    tip.style.top = Math.round(top) + 'px';
+  };
+
+  Form.prototype._bindValidationTipEvents = function() {
+    var self = this;
+    if (this._validationTipEvents) return;
+    this._validationTipEvents = {
+      pointerdown: function(event) {
+        var record = self._findValidationRecord(self._validationTipTarget);
+        var container = record && record.container;
+        if (
+          (self._validationTip && self._validationTip.contains(event.target)) ||
+          (
+            self._validationTipTarget &&
+            self._validationTipTarget.contains(event.target)
+          ) ||
+          (container && container.contains(event.target))
+        ) {
+          return;
+        }
+        self._hideValidationTip();
+      },
+      keydown: function(event) {
+        if (event.key === 'Escape') self._hideValidationTip();
+      },
+      viewport: function() {
+        self._positionValidationTip();
+      }
+    };
+    this.addEventListener(
+      document,
+      'pointerdown',
+      this._validationTipEvents.pointerdown,
+      true
+    );
+    this.addEventListener(document, 'keydown', this._validationTipEvents.keydown);
+    this.addEventListener(window, 'resize', this._validationTipEvents.viewport);
+    this.addEventListener(window, 'scroll', this._validationTipEvents.viewport, true);
+  };
+
+  Form.prototype._unbindValidationTipEvents = function() {
+    if (!this._validationTipEvents) return;
+    this.removeEventListener(
+      document,
+      'pointerdown',
+      this._validationTipEvents.pointerdown,
+      true
+    );
+    this.removeEventListener(document, 'keydown', this._validationTipEvents.keydown);
+    this.removeEventListener(window, 'resize', this._validationTipEvents.viewport);
+    this.removeEventListener(window, 'scroll', this._validationTipEvents.viewport, true);
+    this._validationTipEvents = null;
+  };
+
+  Form.prototype._showValidationTip = function(target) {
+    var record = this._findValidationRecord(target);
+    var tip;
+    var message;
+    if (!record || this._options.novalidate) return;
+    target = record.target;
+    message = this._validationMessage(record.field || target);
+    if (!message) return;
+    if (this._validationTipTarget && this._validationTipTarget !== target) {
+      this._hideValidationTip();
+    }
+    tip = this._ensureValidationTip();
+    this._validationTipTarget = target;
+    this._validationTipAriaDescribedBy = record.ariaDescribedBy;
+    this._validationTipContent.textContent = message;
+    target.setAttribute(
+      'aria-describedby',
+      [record.ariaDescribedBy, tip.id].filter(Boolean).join(' ')
+    );
+    tip.hidden = false;
+    tip.style.visibility = 'hidden';
+    this._positionValidationTip();
+    tip.style.visibility = '';
+    this._bindValidationTipEvents();
+  };
+
+  Form.prototype._hideValidationTip = function() {
+    if (this._validationTipTarget) {
+      if (this._validationTipAriaDescribedBy == null) {
+        this._validationTipTarget.removeAttribute('aria-describedby');
+      } else {
+        this._validationTipTarget.setAttribute(
+          'aria-describedby',
+          this._validationTipAriaDescribedBy
+        );
+      }
+    }
+    if (this._validationTip) this._validationTip.hidden = true;
+    this._validationTipTarget = null;
+    this._validationTipAriaDescribedBy = null;
+    this._unbindValidationTipEvents();
+  };
+
+  Form.prototype._markInvalid = function(target, field) {
+    var container = this._validationContainer(target);
+    var record = this._validationState.find(function(item) {
+      return item.target === target;
+    });
+    if (record) return;
+    record = {
+      target: target,
+      field: field || target,
+      container: container,
+      ariaInvalid: target.getAttribute('aria-invalid'),
+      ariaDescribedBy: target.getAttribute('aria-describedby'),
+      message: this._validationMessage(field || target)
+    };
+    this._validationState.push(record);
+    target.setAttribute('aria-invalid', 'true');
+    target.classList.add('fui-form-invalid');
+    if (container && container !== target) {
+      container.classList.add('fui-form-invalid-control');
+    }
+  };
+
+  Form.prototype._clearValidationTarget = function(field) {
+    var target = this._fieldValidationTarget(field);
+    var index;
+    var record;
+    for (index = this._validationState.length - 1; index >= 0; index -= 1) {
+      record = this._validationState[index];
+      if (
+        record.target !== target &&
+        record.target !== field &&
+        record.field !== target &&
+        record.field !== field
+      ) {
+        continue;
+      }
+      if (this._validationTipTarget === record.target) this._hideValidationTip();
+      record.target.classList.remove('fui-form-invalid');
+      if (record.container) record.container.classList.remove('fui-form-invalid-control');
+      if (record.ariaInvalid == null) record.target.removeAttribute('aria-invalid');
+      else record.target.setAttribute('aria-invalid', record.ariaInvalid);
+      if (record.ariaDescribedBy == null) record.target.removeAttribute('aria-describedby');
+      else record.target.setAttribute('aria-describedby', record.ariaDescribedBy);
+      this._validationState.splice(index, 1);
+    }
+  };
+
+  Form.prototype.validate = function() {
+    var firstInvalid = null;
+    var valid = true;
+    var seen = [];
+    var self = this;
+    this.resetValidation();
+    if (this._options.novalidate) return true;
+    Array.prototype.forEach.call(this.hostElement.elements || [], function(field) {
+      var target = self._fieldValidationTarget(field);
+      if (!target || seen.indexOf(target) >= 0 || field.disabled) return;
+      seen.push(target);
+      if (field.willValidate === false || typeof field.checkValidity !== 'function') return;
+      if (!field.checkValidity()) {
+        valid = false;
+        if (!firstInvalid) firstInvalid = target;
+        self._markInvalid(target, field);
+      }
+    });
+    this.hostElement.classList.toggle('fui-form-valid', valid);
+    this.hostElement.classList.toggle('fui-form-has-invalid', !valid);
+    if (firstInvalid) this._showValidationTip(firstInvalid);
+    this._emit('validate', { valid: valid, firstInvalid: firstInvalid });
+    return valid;
+  };
+
+  Form.prototype.enableValidation = function() {
+    this._options.novalidate = false;
+    this._applyOptions();
+    return this;
+  };
+
+  Form.prototype.disableValidation = function() {
+    this._options.novalidate = true;
+    this.resetValidation();
+    this._applyOptions();
+    return this;
+  };
+
+  Form.prototype.setLocale = function(locale) {
+    this._options.locale = normalizeFormLocale(locale);
+    if (this._validationTipTarget) this._showValidationTip(this._validationTipTarget);
+    this._emit('refresh', { options: this.options() });
+    return this;
+  };
+
+  Form.prototype._applyThemeClass = function(element) {
+    var index;
+    if (!element || !element.classList) return;
+    for (index = 0; index < FORM_THEMES.length; index += 1) {
+      element.classList.remove('fg-theme-' + FORM_THEMES[index]);
+    }
+    element.classList.add('fg-theme-' + this.theme);
+  };
+
+  Form.prototype.setTheme = function(theme) {
+    this._options.theme = theme == null ? 'inherit' : String(theme);
+    this.theme = this._options.theme === 'inherit' ?
+      findFormTheme(this._themeSource) :
+      normalizeFormTheme(this._options.theme);
+    this._applyThemeClass(this.hostElement);
+    this._applyThemeClass(this._validationTip);
+    return this;
+  };
+
+  Form.prototype.resetValidation = function() {
+    var record;
+    this._hideValidationTip();
+    while (this._validationState.length) {
+      record = this._validationState.pop();
+      record.target.classList.remove('fui-form-invalid');
+      if (record.container) record.container.classList.remove('fui-form-invalid-control');
+      if (record.ariaInvalid == null) record.target.removeAttribute('aria-invalid');
+      else record.target.setAttribute('aria-invalid', record.ariaInvalid);
+      if (record.ariaDescribedBy == null) record.target.removeAttribute('aria-describedby');
+      else record.target.setAttribute('aria-describedby', record.ariaDescribedBy);
+    }
+    this.hostElement.classList.remove('fui-form-valid', 'fui-form-has-invalid');
+    return this;
+  };
+
+  Form.prototype.isDirty = function(name) {
+    var current = captureFormState(this.hostElement);
+    var keys;
+    var index;
+    if (name != null) {
+      name = String(name);
+      return !formValuesEqual(current[name], this._dirtySnapshot[name]);
+    }
+    keys = Object.keys(formAssign({}, this._dirtySnapshot, current));
+    for (index = 0; index < keys.length; index += 1) {
+      if (!formValuesEqual(current[keys[index]], this._dirtySnapshot[keys[index]])) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  Form.prototype.resetDirty = function() {
+    this._dirtySnapshot = captureFormState(this.hostElement);
+    this._emit('dirtyreset', { snapshot: this._dirtySnapshot });
+    return this;
+  };
+
+  Form.prototype._appendSubmitFields = function(data, dirtyOnly) {
+    var current = new FormData(this.hostElement);
+    var self = this;
+    current.forEach(function(value, key) {
+      if (!dirtyOnly || self.isDirty(key)) data.append(key, value);
+    });
+  };
+
+  Form.prototype._createSubmitData = function(params, dirtyOnly, submitter) {
+    var data = new FormData();
+    var key;
+    var values;
+    this._appendSubmitFields(data, dirtyOnly);
+    if (submitter && submitter.name && !submitter.disabled) {
+      data.append(submitter.name, submitter.value == null ? '' : submitter.value);
+    }
+    for (key in params) {
+      if (!Object.prototype.hasOwnProperty.call(params, key)) continue;
+      values = formArray(params[key]);
+      values.forEach(function(value) {
+        data.append(key, value == null ? '' : value);
+      });
+    }
+    return data;
+  };
+
+  Form.prototype._removeRequest = function(xhr) {
+    var index = this._requests.indexOf(xhr);
+    if (index >= 0) this._requests.splice(index, 1);
+  };
+
+  Form.prototype._sendAjax = function(url, method, data, submitOptions) {
+    var self = this;
+    return new Promise(function(resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      var requestBody = data;
+      var progressHandler = submitOptions.onProgress || self._options.onProgress;
+      if (method === 'GET' || method === 'HEAD') {
+        url = appendFormQuery(url, formDataToQuery(data));
+        requestBody = null;
+      }
+      xhr.open(method, url, true);
+      self._requests.push(xhr);
+      if (!formBoolean(submitOptions.iframe, true) && xhr.upload) {
+        xhr.upload.addEventListener('progress', function(event) {
+          var percent = event.lengthComputable ?
+            Math.round((event.loaded / event.total) * 100) :
+            0;
+          if (typeof progressHandler === 'function') progressHandler.call(self, percent);
+          self._emit('progress', { percent: percent, originalEvent: event });
+        });
+      }
+      xhr.addEventListener('load', function() {
+        var callback = submitOptions.success || self._options.success;
+        self._removeRequest(xhr);
+        if (xhr.status >= 200 && xhr.status < 300 || xhr.status === 304) {
+          self.resetDirty();
+          if (typeof callback === 'function') callback.call(self, xhr.responseText);
+          self._emit('success', {
+            data: xhr.responseText,
+            status: xhr.status,
+            xhr: xhr
+          });
+          resolve(xhr.responseText);
+          return;
+        }
+        self._emit('submiterror', { status: xhr.status, xhr: xhr });
+        reject(new Error('fabui.Form submit failed with status ' + xhr.status + '.'));
+      });
+      xhr.addEventListener('error', function() {
+        self._removeRequest(xhr);
+        self._emit('submiterror', { status: xhr.status, xhr: xhr });
+        reject(new Error('fabui.Form submit request failed.'));
+      });
+      xhr.addEventListener('abort', function() {
+        self._removeRequest(xhr);
+        reject(new Error('fabui.Form submit request was aborted.'));
+      });
+      xhr.send(requestBody);
+    });
+  };
+
+  Form.prototype._submitNative = function(url, method, params) {
+    var form = this.hostElement;
+    var originalAction = form.getAttribute('action');
+    var originalMethod = form.getAttribute('method');
+    var fields = [];
+    var key;
+    var values;
+    if (url) form.setAttribute('action', url);
+    form.setAttribute('method', method);
+    for (key in params) {
+      if (!Object.prototype.hasOwnProperty.call(params, key)) continue;
+      values = formArray(params[key]);
+      values.forEach(function(value) {
+        var field = document.createElement('input');
+        field.type = 'hidden';
+        field.name = key;
+        field.value = value == null ? '' : String(value);
+        field.setAttribute('data-fui-form-param', '');
+        form.appendChild(field);
+        fields.push(field);
+      });
+    }
+    HTMLFormElement.prototype.submit.call(form);
+    fields.forEach(function(field) {
+      if (field.parentNode) field.parentNode.removeChild(field);
+    });
+    if (originalAction == null) form.removeAttribute('action');
+    else form.setAttribute('action', originalAction);
+    if (originalMethod == null) form.removeAttribute('method');
+    else form.setAttribute('method', originalMethod);
+  };
+
+  Form.prototype.submit = function(options) {
+    var submitOptions = formAssign({}, this._options, options || {});
+    var params = formAssign(
+      {},
+      this._options.queryParams || {},
+      options && options.queryParams || {}
+    );
+    var callback = options && typeof options.onSubmit === 'function' ?
+      options.onSubmit :
+      this._options.onSubmit;
+    var url = submitOptions.url || this.hostElement.getAttribute('action') || '';
+    var method = normalizeFormMethod(
+      submitOptions.method || this.hostElement.getAttribute('method') || 'GET'
+    );
+    var data;
+    submitOptions.novalidate = formBoolean(submitOptions.novalidate, false);
+    submitOptions.iframe = formBoolean(submitOptions.iframe, true);
+    submitOptions.ajax = formBoolean(submitOptions.ajax, true);
+    submitOptions.dirty = formBoolean(submitOptions.dirty, false);
+    if (!submitOptions.novalidate && !this.validate()) {
+      this._emit('submitcancel', { reason: 'validation', params: params });
+      return Promise.resolve(false);
+    }
+    if (typeof callback === 'function' && callback.call(this, params) === false) {
+      this._emit('submitcancel', { reason: 'callback', params: params });
+      return Promise.resolve(false);
+    }
+    if (!this._emit('beforesubmit', { params: params, options: submitOptions }, true)) {
+      return Promise.resolve(false);
+    }
+    if (!submitOptions.ajax) {
+      this._submitNative(url, method, params);
+      return Promise.resolve(true);
+    }
+    data = this._createSubmitData(
+      params,
+      submitOptions.dirty,
+      submitOptions.submitter || null
+    );
+    return this._sendAjax(url, method, data, submitOptions);
+  };
+
+  Form.prototype._fieldsByName = function(name) {
+    return Array.prototype.filter.call(this.hostElement.elements || [], function(field) {
+      return field.name === name;
+    });
+  };
+
+  Form.prototype._setFieldValue = function(field, value, index, count) {
+    var editBox = this._getEditBox(field);
+    var control = this._getControl(field);
+    var values = formArray(value);
+    var type = String(field.type || '').toLowerCase();
+    var match;
+    if (type === 'radio') {
+      field.checked = values.some(function(item) {
+        return formValueKey(item) === formValueKey(field.value);
+      });
+      if (control && typeof control.check === 'function' && typeof control.uncheck === 'function') {
+        if (field.checked) control.check();
+        else control.uncheck();
+      }
+      return;
+    }
+    if (type === 'checkbox') {
+      match = count === 1 && typeof value === 'boolean' ?
+        value :
+        values.some(function(item) {
+          return formValueKey(item) === formValueKey(field.value);
+        });
+      field.checked = Boolean(match);
+      if (control && typeof control.check === 'function' && typeof control.uncheck === 'function') {
+        if (field.checked) control.check();
+        else control.uncheck();
+      }
+      return;
+    }
+    if (type === 'file') {
+      if (value == null || value === '' || Array.isArray(value) && !value.length) {
+        if (control && typeof control.clear === 'function') control.clear();
+        else field.value = '';
+      }
+      return;
+    }
+    if (field.tagName === 'SELECT' && field.multiple) {
+      Array.prototype.forEach.call(field.options || [], function(option) {
+        option.selected = values.some(function(item) {
+          return formValueKey(item) === formValueKey(option.value);
+        });
+      });
+      if (editBox && typeof editBox.setValues === 'function') editBox.setValues(values, true);
+      return;
+    }
+    if (editBox) {
+      if (Array.isArray(value) && typeof editBox.setValues === 'function') {
+        editBox.setValues(value, true);
+      } else {
+        editBox.setValue(value == null ? '' : value, true);
+      }
+      return;
+    }
+    value = Array.isArray(value) ? value[Math.min(index, value.length - 1)] : value;
+    if (control && typeof control.setValue === 'function') {
+      control.setValue(value == null ? '' : value);
+      return;
+    }
+    field.value = value == null ? '' : String(value);
+  };
+
+  Form.prototype._applyData = function(data) {
+    var before = captureFormState(this.hostElement);
+    var self = this;
+    var fields;
+    var after;
+    var key;
+    this._suspendChange = true;
+    try {
+      for (key in data) {
+        if (!Object.prototype.hasOwnProperty.call(data, key)) continue;
+        fields = this._fieldsByName(key);
+        fields.forEach(function(field, index) {
+          self._setFieldValue(field, data[key], index, fields.length);
+        });
+      }
+    } finally {
+      this._suspendChange = false;
+    }
+    after = captureFormState(this.hostElement);
+    Object.keys(data).forEach(function(name) {
+      var namedFields;
+      if (formValuesEqual(before[name], after[name])) return;
+      namedFields = self._fieldsByName(name);
+      if (namedFields[0]) self._notifyChange(namedFields[0], null);
+    });
+    this.resetValidation();
+    this.resetDirty();
+    this._invoke('onLoadSuccess', data);
+    this._emit('loadsuccess', { data: data });
+    return this;
+  };
+
+  Form.prototype._loadRemote = function(url) {
+    var self = this;
+    var params = {};
+    if (this._invoke('onBeforeLoad', params) === false ||
+      !this._emit('beforeload', { params: params, url: url }, true)) {
+      return Promise.resolve(false);
+    }
+    url = appendFormQuery(url, params);
+    return new Promise(function(resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      self._requests.push(xhr);
+      xhr.addEventListener('load', function() {
+        var data;
+        self._removeRequest(xhr);
+        if (!(xhr.status >= 200 && xhr.status < 300 || xhr.status === 304)) {
+          self._invoke('onLoadError');
+          self._emit('loaderror', { status: xhr.status, xhr: xhr });
+          reject(new Error('fabui.Form load failed with status ' + xhr.status + '.'));
+          return;
+        }
+        try {
+          data = JSON.parse(xhr.responseText);
+        } catch (error) {
+          self._invoke('onLoadError');
+          self._emit('loaderror', { error: error, xhr: xhr });
+          reject(error);
+          return;
+        }
+        self._applyData(data);
+        resolve(data);
+      });
+      xhr.addEventListener('error', function() {
+        self._removeRequest(xhr);
+        self._invoke('onLoadError');
+        self._emit('loaderror', { status: xhr.status, xhr: xhr });
+        reject(new Error('fabui.Form load request failed.'));
+      });
+      xhr.addEventListener('abort', function() {
+        self._removeRequest(xhr);
+        reject(new Error('fabui.Form load request was aborted.'));
+      });
+      xhr.send();
+    });
+  };
+
+  Form.prototype.load = function(data) {
+    if (typeof data === 'string') return this._loadRemote(data);
+    if (!data || typeof data !== 'object') {
+      throw new TypeError('fabui.Form load() requires an object or URL string.');
+    }
+    return this._applyData(data);
+  };
+
+  Form.prototype.clear = function() {
+    var before = captureFormState(this.hostElement);
+    var handled = [];
+    var self = this;
+    var after;
+    this._suspendChange = true;
+    try {
+      Array.prototype.forEach.call(this.hostElement.elements || [], function(field) {
+        var editBox;
+        var control;
+        var type;
+        if (!field.name || handled.indexOf(field) >= 0) return;
+        editBox = self._getEditBox(field);
+        control = self._getControl(field);
+        type = String(field.type || '').toLowerCase();
+        if (editBox && typeof editBox.clear === 'function') {
+          editBox.clear();
+        } else if (control && typeof control.clear === 'function') {
+          control.clear();
+        } else if (type === 'checkbox' || type === 'radio') {
+          field.checked = false;
+        } else if (field.tagName === 'SELECT' && field.multiple) {
+          Array.prototype.forEach.call(field.options || [], function(option) {
+            option.selected = false;
+          });
+        } else if (!/^(button|submit|reset|image)$/i.test(type)) {
+          field.value = '';
+        }
+        handled.push(field);
+      });
+    } finally {
+      this._suspendChange = false;
+    }
+    after = captureFormState(this.hostElement);
+    Object.keys(formAssign({}, before, after)).forEach(function(name) {
+      var fields;
+      if (formValuesEqual(before[name], after[name])) return;
+      fields = self._fieldsByName(name);
+      if (fields[0]) self._notifyChange(fields[0], null);
+    });
+    this.resetValidation();
+    return this;
+  };
+
+  Form.prototype.reset = function() {
+    var before = captureFormState(this.hostElement);
+    var controls = [];
+    var self = this;
+    var after;
+    this._suspendChange = true;
+    try {
+      this.hostElement.reset();
+      Array.prototype.forEach.call(this.hostElement.elements || [], function(field) {
+        var editBox = self._getEditBox(field);
+        var control = self._getControl(field);
+        var instance = editBox || control;
+        if (!instance || controls.indexOf(instance) >= 0 || typeof instance.reset !== 'function') {
+          return;
+        }
+        controls.push(instance);
+        instance.reset();
+      });
+    } finally {
+      this._suspendChange = false;
+    }
+    after = captureFormState(this.hostElement);
+    Object.keys(formAssign({}, before, after)).forEach(function(name) {
+      var fields;
+      if (formValuesEqual(before[name], after[name])) return;
+      fields = self._fieldsByName(name);
+      if (fields[0]) self._notifyChange(fields[0], null);
+    });
+    this.resetValidation();
+    this.resetDirty();
+    return this;
+  };
+
+  Form.prototype.destroy = function() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this._requests.slice().forEach(function(xhr) {
+      xhr.abort();
+    });
+    this._requests = [];
+    this.resetValidation();
+    this._controlBindings.forEach(function(binding) {
+      if (binding.control && typeof binding.control.off === 'function') {
+        binding.control.off('change', binding.listener);
+      }
+    });
+    this._controlBindings = [];
+    this.removeEventListener();
+    if (this._validationTip) this._validationTip.remove();
+    this._validationTip = null;
+    this._validationTipContent = null;
+    if (this._original.className == null) this.hostElement.removeAttribute('class');
+    else this.hostElement.setAttribute('class', this._original.className);
+    if (this._original.noValidateAttribute == null) {
+      this.hostElement.removeAttribute('novalidate');
+    } else {
+      this.hostElement.setAttribute('novalidate', this._original.noValidateAttribute);
+    }
+    this.hostElement.noValidate = this._original.noValidate;
+    unregisterControl(this.hostElement, this);
+    delete this.hostElement.__fabuiForm;
+    this._listeners = {};
+  };
+
+  Form.prototype.dispose = Form.prototype.destroy;
+  Form._nextValidationTipId = 1;
+  Form.defaults = defaults;
+  Form.locales = localePacks;
+  Form.themes = FORM_THEMES.slice();
+  Form.addLocale = function(name, messages) {
+    name = normalizeFormLocale(name);
+    localePacks[name] = formAssign({}, localePacks.en, messages || {});
+    return Form;
+  };
+  Form.getControl = function(element) {
+    element = resolveFormElement(element);
+    return element && element.__fabuiForm ? element.__fabuiForm : null;
+  };
+  Form.normalizeTheme = normalizeFormTheme;
+  Form.normalizeLocale = normalizeFormLocale;
+  return Form;
+}
 
 var MENU_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
@@ -18416,8 +27323,10 @@ function normalizeMenuAlign(value) {
 }
 
 function normalizeMenuLocale(value) {
-  value = String(value || 'en');
-  return value === 'zh-TW' || value === 'zh-CN' ? value : 'en';
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
 }
 
 function findMenuTheme(element) {
@@ -19392,8 +28301,8 @@ function createMenuButtonFactory(
     if (!(this instanceof FabMenuButton)) return new FabMenuButton(element, options);
     if (!host) throw new Error('fabui.MenuButton requires a host element.');
     if (host.__fabuiMenuButton) return host.__fabuiMenuButton;
-    if (!/^(?:A|BUTTON)$/i.test(host.tagName)) {
-      throw new Error('fabui.MenuButton host must be an anchor or button element.');
+    if (host.tagName !== 'A') {
+      throw new Error('fabui.MenuButton host must be an anchor element.');
     }
     if (typeof Button !== 'function' || typeof Menu !== 'function') {
       throw new Error('fabui.MenuButton requires fabui.Button and fabui.Menu.');
@@ -19484,7 +28393,7 @@ function createMenuButtonFactory(
     if (value) options.iconCls = value;
     if (host.style.width) options.width = host.style.width;
     if (host.style.height) options.height = host.style.height;
-    if (host.disabled || host.hasAttribute('disabled')) options.disabled = true;
+    if (host.hasAttribute('disabled')) options.disabled = true;
     value = host.getAttribute('data-icon-align');
     if (value) options.iconAlign = value;
     value = host.getAttribute('data-size');
@@ -19801,6 +28710,7 @@ function createMenuButtonFactory(
     onMenuClick: null,
     onResize: null
   };
+  FabMenuButton.themes = (Button.themes || Menu.themes || []).slice();
   FabMenuButton.getControl = function(element) {
     element = resolveMenuButtonElement(element);
     return element && element.__fabuiMenuButton ? element.__fabuiMenuButton : null;
@@ -20117,6 +29027,7 @@ function createSplitButtonFactory(
     onMenuClick: null,
     onResize: null
   };
+  FabSplitButton.themes = (MenuButton.themes || []).slice();
   FabSplitButton.getControl = function(element) {
     element = resolveSplitButtonElement(element);
     return element && element.__fabuiSplitButton ? element.__fabuiSplitButton : null;
@@ -20227,9 +29138,10 @@ function createPanelFactory(Control, registerControl, unregisterControl) {
   };
 
   function normalizeLocale(value) {
+    value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh(?:-|_)?tw/i.test(value || '')) return 'zh-TW';
-    if (/^zh/i.test(value || '')) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
     return 'en';
   }
 
@@ -20971,11 +29883,1114 @@ function createPanelFactory(Control, registerControl, unregisterControl) {
     animationDuration: 180
   };
   FabPanel.locales = localePacks;
+  FabPanel.themes = PANEL_THEMES.slice();
+  FabPanel.normalizeLocale = normalizeLocale;
   FabPanel.getControl = function(element) {
     element = resolvePanelElement(element);
     return element && element.__fabuiPanel ? element.__fabuiPanel : null;
   };
   return FabPanel;
+}
+
+var PROPERTYGRID_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
+function propertyGridAssign(target) {
+  var source;
+  var key;
+  var index;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function propertyGridBoolean(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    value = value.trim().toLowerCase();
+    if (value === 'false' || value === '0' || value === 'no') return false;
+    if (value === 'true' || value === '1' || value === 'yes' || value === '') return true;
+  }
+  return Boolean(value);
+}
+
+function propertyGridSize(value) {
+  if (value == null || value === '' || value === 'auto') return 'auto';
+  return typeof value === 'number' ? value + 'px' : String(value);
+}
+
+function resolvePropertyGridElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function normalizePropertyGridLocale(value) {
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
+}
+
+function normalizePropertyGridTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return PROPERTYGRID_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function findPropertyGridTheme(element) {
+  var current = resolvePropertyGridElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < PROPERTYGRID_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + PROPERTYGRID_THEMES[index])) {
+        return PROPERTYGRID_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function clonePropertyRow(row) {
+  var copy = {};
+  var key;
+  row = row && typeof row === 'object' ? row : {};
+  for (key in row) {
+    if (Object.prototype.hasOwnProperty.call(row, key)) copy[key] = row[key];
+  }
+  return copy;
+}
+
+function normalizePropertyGridData(data) {
+  var rows = Array.isArray(data) ? data : data && Array.isArray(data.rows) ? data.rows : [];
+  return rows.map(clonePropertyRow);
+}
+
+function buildPropertyGridGroups(rows, groupField) {
+  var groups = [];
+  var groupMap = Object.create(null);
+  var key;
+  var record;
+  (Array.isArray(rows) ? rows : []).forEach(function(row, index) {
+    key = String(row && row[groupField] != null ? row[groupField] : '');
+    record = groupMap[key];
+    if (!record) {
+      record = {
+        value: key,
+        rows: [],
+        startIndex: index,
+        collapsed: false
+      };
+      groupMap[key] = record;
+      groups.push(record);
+    }
+    record.rows.push(row);
+  });
+  return groups;
+}
+
+function normalizePropertyEditor(editor) {
+  var result;
+  var type;
+  if (!editor) return null;
+  result = typeof editor === 'string' ? { type: editor } : propertyGridAssign({}, editor);
+  type = String(result.type || 'text').toLowerCase();
+  if (type === 'textbox') type = 'text';
+  if (type === 'numberbox' || type === 'numeric') type = 'number';
+  if (type === 'datebox' || type === 'calendar') type = 'date';
+  if (type === 'combobox' || type === 'select') type = 'combo';
+  if (type === 'colorbox' || type === 'colour' || type === 'colourbox') type = 'color';
+  if (type === 'checkbox' || type === 'bool') type = 'boolean';
+  if (['text', 'number', 'date', 'combo', 'color', 'boolean'].indexOf(type) < 0) {
+    type = 'text';
+  }
+  result.type = type;
+  result.options = propertyGridAssign({}, result.options || {});
+  return result;
+}
+
+function restorePropertyGridAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function escapePropertyGridHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function propertyGridValueEqual(first, second) {
+  if (first === second) return true;
+  if (first instanceof Date && second instanceof Date) {
+    return first.getTime() === second.getTime();
+  }
+  return false;
+}
+
+function createPropertyGridFactory(Control, registerControl, unregisterControl, EditBox) {
+  var defaults = {
+    width: 'auto',
+    height: 'auto',
+    fit: false,
+    border: true,
+    showHeader: true,
+    showGroup: false,
+    groupField: 'group',
+    nameField: 'name',
+    valueField: 'value',
+    rowHeight: 28,
+    striped: false,
+    editable: true,
+    columns: null,
+    data: [],
+    url: null,
+    method: 'get',
+    queryParams: {},
+    loader: null,
+    loadFilter: null,
+    groupFormatter: null,
+    locale: 'en',
+    theme: 'inherit',
+    ariaLabel: '',
+    onBeforeLoad: null,
+    onLoadSuccess: null,
+    onLoadError: null,
+    onBeforeSelect: null,
+    onSelect: null,
+    onUnselect: null,
+    onClickRow: null,
+    onDblClickRow: null,
+    onClickCell: null,
+    onDblClickCell: null,
+    onBeforeEdit: null,
+    onBeginEdit: null,
+    onAfterEdit: null,
+    onCancelEdit: null,
+    onChange: null
+  };
+  var localePacks = {
+    en: {
+      propertyGrid: 'Property grid',
+      name: 'Name',
+      value: 'Value',
+      expandGroup: 'Expand {group}',
+      collapseGroup: 'Collapse {group}',
+      trueText: 'True',
+      falseText: 'False',
+      loadError: 'Unable to load property data.'
+    },
+    'zh-TW': {
+      propertyGrid: '屬性表',
+      name: '名稱',
+      value: '值',
+      expandGroup: '展開{group}',
+      collapseGroup: '收合{group}',
+      trueText: '是',
+      falseText: '否',
+      loadError: '無法載入屬性資料。'
+    },
+    'zh-CN': {
+      propertyGrid: '属性表',
+      name: '名称',
+      value: '值',
+      expandGroup: '展开{group}',
+      collapseGroup: '收起{group}',
+      trueText: '是',
+      falseText: '否',
+      loadError: '无法加载属性数据。'
+    }
+  };
+
+  function PropertyGrid(element, options) {
+    if (!(this instanceof PropertyGrid)) return new PropertyGrid(element, options);
+    this.hostElement = resolvePropertyGridElement(element);
+    if (!this.hostElement) throw new Error('fabui.PropertyGrid requires a host element.');
+    if (this.hostElement.__fabuiPropertyGrid) return this.hostElement.__fabuiPropertyGrid;
+    Control.call(this);
+    this._listeners = {};
+    this._selectedIndex = -1;
+    this._editingIndex = -1;
+    this._editor = null;
+    this._editorElement = null;
+    this._editorType = '';
+    this._editorOriginalValue = null;
+    this._sort = null;
+    this._collapsedGroups = Object.create(null);
+    this._changes = { inserted: [], updated: [], deleted: [] };
+    this._destroyed = false;
+    this._loadSequence = 0;
+    this._original = {
+      html: this.hostElement.innerHTML,
+      className: this.hostElement.getAttribute('class'),
+      style: this.hostElement.getAttribute('style'),
+      role: this.hostElement.getAttribute('role'),
+      ariaLabel: this.hostElement.getAttribute('aria-label')
+    };
+    this._themeSource = this.hostElement.parentElement || document.body;
+    this._options = propertyGridAssign({}, defaults, this._readElementOptions(), options || {});
+    this._normalizeOptions();
+    this._rows = normalizePropertyGridData(this._options.data);
+    this._acceptedRows = this._rows.map(clonePropertyRow);
+    this._build();
+    this._bind();
+    this.render();
+    this.hostElement.__fabuiPropertyGrid = this;
+    registerControl(this.hostElement, this);
+    this.setTheme(this._options.theme);
+    if (!this._rows.length && (this._options.url || this._options.loader)) this.reload();
+  }
+
+  PropertyGrid.prototype = Object.create(Control.prototype);
+  PropertyGrid.prototype.constructor = PropertyGrid;
+
+  PropertyGrid.prototype._readElementOptions = function() {
+    var host = this.hostElement;
+    var result = {};
+    var value;
+    value = host.getAttribute('data-theme') || host.getAttribute('theme');
+    if (value) result.theme = value;
+    value = host.getAttribute('data-locale') || host.getAttribute('locale');
+    if (value) result.locale = value;
+    value = host.getAttribute('data-url') || host.getAttribute('url');
+    if (value) result.url = value;
+    value = host.getAttribute('aria-label');
+    if (value) result.ariaLabel = value;
+    ['fit', 'border', 'showHeader', 'showGroup', 'striped', 'editable'].forEach(function(name) {
+      var attribute = host.getAttribute('data-' + name.replace(/[A-Z]/g, function(letter) {
+        return '-' + letter.toLowerCase();
+      }));
+      if (attribute != null) result[name] = propertyGridBoolean(attribute, false);
+    });
+    return result;
+  };
+
+  PropertyGrid.prototype._normalizeOptions = function() {
+    this._options.fit = propertyGridBoolean(this._options.fit, false);
+    this._options.border = propertyGridBoolean(this._options.border, true);
+    this._options.showHeader = propertyGridBoolean(this._options.showHeader, true);
+    this._options.showGroup = propertyGridBoolean(this._options.showGroup, false);
+    this._options.striped = propertyGridBoolean(this._options.striped, false);
+    this._options.editable = propertyGridBoolean(this._options.editable, true);
+    this._options.rowHeight = Math.max(24, Number(this._options.rowHeight) || 28);
+    this._options.locale = normalizePropertyGridLocale(this._options.locale);
+    this._options.method = String(this._options.method || 'get').toLowerCase();
+  };
+
+  PropertyGrid.prototype._text = function(key, values) {
+    var pack = localePacks[this._options.locale] || localePacks.en;
+    return String(pack[key] || localePacks.en[key] || key).replace(/\{([^}]+)\}/g, function(match, name) {
+      return values && values[name] != null ? values[name] : match;
+    });
+  };
+
+  PropertyGrid.prototype._columns = function() {
+    var configured = this._options.columns;
+    var columns;
+    if (Array.isArray(configured) && Array.isArray(configured[0])) configured = configured[0];
+    columns = Array.isArray(configured) && configured.length ? configured : [{
+      field: this._options.nameField,
+      title: this._text('name'),
+      width: '50%',
+      sortable: false,
+      resizable: true
+    }, {
+      field: this._options.valueField,
+      title: this._text('value'),
+      width: '50%',
+      sortable: false,
+      resizable: true
+    }];
+    return columns.slice(0, 2).map(function(column, index) {
+      return propertyGridAssign({
+        field: index ? this._options.valueField : this._options.nameField,
+        title: index ? this._text('value') : this._text('name'),
+        width: '50%',
+        align: 'left',
+        sortable: false,
+        resizable: true,
+        formatter: null,
+        styler: null
+      }, column || {});
+    }, this);
+  };
+
+  PropertyGrid.prototype._build = function() {
+    this.hostElement.textContent = '';
+    this.hostElement.classList.add('fui-propertygrid');
+    this.hostElement.classList.toggle('fui-propertygrid-borderless', !this._options.border);
+    this.hostElement.classList.toggle('fui-propertygrid-striped', this._options.striped);
+    this.hostElement.setAttribute('role', 'grid');
+    this.hostElement.setAttribute('aria-label', this._options.ariaLabel || this._text('propertyGrid'));
+    this.hostElement.style.width = this._options.fit ? '100%' : propertyGridSize(this._options.width);
+    this.hostElement.style.height = this._options.fit ? '100%' : propertyGridSize(this._options.height);
+    this._table = document.createElement('table');
+    this._table.className = 'fui-propertygrid-table';
+    this._head = document.createElement('thead');
+    this._body = document.createElement('tbody');
+    this._table.appendChild(this._head);
+    this._table.appendChild(this._body);
+    this.hostElement.appendChild(this._table);
+  };
+
+  PropertyGrid.prototype._bind = function() {
+    this.addEventListener(this.hostElement, 'click', this._handleClick.bind(this));
+    this.addEventListener(this.hostElement, 'dblclick', this._handleDblClick.bind(this));
+    this.addEventListener(this.hostElement, 'keydown', this._handleKeyDown.bind(this));
+  };
+
+  PropertyGrid.prototype._invoke = function(name) {
+    var handler = this._options[name];
+    var args = Array.prototype.slice.call(arguments, 1);
+    return typeof handler === 'function' ? handler.apply(this, args) : undefined;
+  };
+
+  PropertyGrid.prototype._emit = function(type, detail, cancelable) {
+    var listeners = (this._listeners[type] || []).slice();
+    var event = {
+      type: type,
+      target: this,
+      detail: detail,
+      defaultPrevented: false,
+      preventDefault: function() {
+        if (cancelable) this.defaultPrevented = true;
+      }
+    };
+    listeners.forEach(function(listener) {
+      listener.call(this, event);
+    }, this);
+    return !event.defaultPrevented;
+  };
+
+  PropertyGrid.prototype.on = function(type, listener) {
+    if (type && typeof listener === 'function') {
+      (this._listeners[String(type)] || (this._listeners[String(type)] = [])).push(listener);
+    }
+    return this;
+  };
+
+  PropertyGrid.prototype.off = function(type, listener) {
+    var list = this._listeners[String(type)] || [];
+    var index;
+    if (!listener) {
+      delete this._listeners[String(type)];
+      return this;
+    }
+    for (index = list.length - 1; index >= 0; index -= 1) {
+      if (list[index] === listener) list.splice(index, 1);
+    }
+    return this;
+  };
+
+  PropertyGrid.prototype._rowIndexFromTarget = function(target) {
+    var row = target && target.closest ? target.closest('.fui-propertygrid-row') : null;
+    return row && this.hostElement.contains(row) ? Number(row.getAttribute('data-row-index')) : -1;
+  };
+
+  PropertyGrid.prototype._cellFieldFromTarget = function(target) {
+    var cell = target && target.closest ? target.closest('[data-field]') : null;
+    return cell && this.hostElement.contains(cell) ? cell.getAttribute('data-field') : '';
+  };
+
+  PropertyGrid.prototype._handleClick = function(event) {
+    var groupButton = event.target.closest('.fui-propertygrid-group-toggle');
+    var header = event.target.closest('.fui-propertygrid-header-cell');
+    var index;
+    var field;
+    if (groupButton && this.hostElement.contains(groupButton)) {
+      this._toggleGroup(groupButton.getAttribute('data-group'));
+      return;
+    }
+    if (header && this.hostElement.contains(header)) {
+      this._sortByColumn(Number(header.getAttribute('data-column-index')));
+      return;
+    }
+    index = this._rowIndexFromTarget(event.target);
+    if (index < 0) return;
+    field = this._cellFieldFromTarget(event.target);
+    this.selectRow(index);
+    this._invoke('onClickRow', index, this._rows[index]);
+    this._emit('clickrow', { index: index, row: this._rows[index], originalEvent: event });
+    this._invoke('onClickCell', index, field, this._rows[index][field]);
+    this._emit('clickcell', {
+      index: index,
+      field: field,
+      value: this._rows[index][field],
+      originalEvent: event
+    });
+    if (field === this._options.valueField) this.beginEdit(index);
+  };
+
+  PropertyGrid.prototype._handleDblClick = function(event) {
+    var index = this._rowIndexFromTarget(event.target);
+    var field;
+    if (index < 0) return;
+    field = this._cellFieldFromTarget(event.target);
+    this._invoke('onDblClickRow', index, this._rows[index]);
+    this._emit('dblclickrow', { index: index, row: this._rows[index], originalEvent: event });
+    this._invoke('onDblClickCell', index, field, this._rows[index][field]);
+    this._emit('dblclickcell', {
+      index: index,
+      field: field,
+      value: this._rows[index][field],
+      originalEvent: event
+    });
+  };
+
+  PropertyGrid.prototype._handleKeyDown = function(event) {
+    if (this._editingIndex >= 0) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        this.cancelEdit();
+      } else if (event.key === 'Enter' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        this.endEdit();
+      }
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.selectRow(Math.min(this._rows.length - 1, this._selectedIndex + 1));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.selectRow(Math.max(0, this._selectedIndex - 1));
+    } else if (event.key === 'Enter' && this._selectedIndex >= 0) {
+      event.preventDefault();
+      this.beginEdit(this._selectedIndex);
+    }
+  };
+
+  PropertyGrid.prototype._sortByColumn = function(columnIndex) {
+    var columns = this._columns();
+    var column = columns[columnIndex];
+    var direction;
+    if (!column || !column.sortable) return;
+    this.endEdit();
+    direction = this._sort && this._sort.field === column.field && this._sort.order === 'asc' ?
+      'desc' :
+      'asc';
+    this._sort = { field: column.field, order: direction };
+    this._rows.sort(function(first, second) {
+      var firstValue = first[column.field];
+      var secondValue = second[column.field];
+      if (firstValue == null) firstValue = '';
+      if (secondValue == null) secondValue = '';
+      if (typeof firstValue === 'number' && typeof secondValue === 'number') {
+        return direction === 'asc' ? firstValue - secondValue : secondValue - firstValue;
+      }
+      firstValue = String(firstValue);
+      secondValue = String(secondValue);
+      return direction === 'asc' ?
+        firstValue.localeCompare(secondValue) :
+        secondValue.localeCompare(firstValue);
+    });
+    this.render();
+    this._emit('sort', { field: column.field, order: direction });
+  };
+
+  PropertyGrid.prototype._renderHeader = function(columns) {
+    var row;
+    this._head.textContent = '';
+    this._head.hidden = !this._options.showHeader;
+    if (!this._options.showHeader) return;
+    row = document.createElement('tr');
+    row.className = 'fui-propertygrid-header';
+    columns.forEach(function(column, index) {
+      var cell = document.createElement('th');
+      var label = document.createElement('span');
+      cell.className = 'fui-propertygrid-header-cell';
+      cell.setAttribute('data-column-index', index);
+      cell.setAttribute('data-field', column.field);
+      cell.setAttribute('scope', 'col');
+      cell.style.width = propertyGridSize(column.width);
+      cell.style.textAlign = column.align || 'left';
+      cell.classList.toggle('fui-propertygrid-sortable', Boolean(column.sortable));
+      if (this._sort && this._sort.field === column.field) {
+        cell.setAttribute('aria-sort', this._sort.order === 'asc' ? 'ascending' : 'descending');
+        cell.classList.add('fui-propertygrid-sorted-' + this._sort.order);
+      }
+      label.textContent = column.title == null ? column.field : String(column.title);
+      cell.appendChild(label);
+      row.appendChild(cell);
+    }, this);
+    this._head.appendChild(row);
+  };
+
+  PropertyGrid.prototype._formatCell = function(row, column, rowIndex) {
+    var value = row[column.field];
+    var formatted = typeof column.formatter === 'function' ?
+      column.formatter.call(this, value, row, rowIndex) :
+      value;
+    return formatted == null ? '' : formatted;
+  };
+
+  PropertyGrid.prototype._renderPropertyRow = function(row, rowIndex, columns) {
+    var tr = document.createElement('tr');
+    tr.className = 'fui-propertygrid-row';
+    tr.setAttribute('data-row-index', rowIndex);
+    tr.setAttribute('role', 'row');
+    tr.setAttribute('aria-selected', rowIndex === this._selectedIndex ? 'true' : 'false');
+    tr.classList.toggle('fui-propertygrid-selected', rowIndex === this._selectedIndex);
+    tr.style.height = this._options.rowHeight + 'px';
+    columns.forEach(function(column) {
+      var cell = document.createElement('td');
+      var content = this._formatCell(row, column, rowIndex);
+      var style = typeof column.styler === 'function' ?
+        column.styler.call(this, row[column.field], row, rowIndex) :
+        column.styler;
+      cell.className = 'fui-propertygrid-cell fui-propertygrid-' +
+        (column.field === this._options.valueField ? 'value' : 'name');
+      cell.setAttribute('data-field', column.field);
+      cell.setAttribute('role', 'gridcell');
+      cell.style.textAlign = column.align || 'left';
+      if (style && typeof style === 'string') cell.style.cssText += ';' + style;
+      if (column.formatter) cell.innerHTML = String(content);
+      else cell.textContent = content == null ? '' : String(content);
+      tr.appendChild(cell);
+    }, this);
+    this._body.appendChild(tr);
+  };
+
+  PropertyGrid.prototype._renderGroup = function(group, columns) {
+    var tr = document.createElement('tr');
+    var cell = document.createElement('td');
+    var button = document.createElement('button');
+    var content = document.createElement('span');
+    var collapsed = Boolean(this._collapsedGroups[group.value]);
+    var html = typeof this._options.groupFormatter === 'function' ?
+      this._options.groupFormatter.call(this, group.value, group.rows) :
+      escapePropertyGridHtml(group.value);
+    tr.className = 'fui-propertygrid-group';
+    tr.setAttribute('role', 'row');
+    cell.colSpan = columns.length;
+    cell.setAttribute('role', 'gridcell');
+    button.className = 'fui-propertygrid-group-toggle';
+    button.type = 'button';
+    button.setAttribute('data-group', group.value);
+    button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    button.setAttribute(
+      'aria-label',
+      this._text(collapsed ? 'expandGroup' : 'collapseGroup', { group: group.value })
+    );
+    content.className = 'fui-propertygrid-group-text';
+    content.innerHTML = html == null ? '' : String(html);
+    button.appendChild(content);
+    cell.appendChild(button);
+    tr.appendChild(cell);
+    this._body.appendChild(tr);
+  };
+
+  PropertyGrid.prototype.render = function() {
+    var columns = this._columns();
+    var groups;
+    this._body.textContent = '';
+    this._renderHeader(columns);
+    if (this._options.showGroup) {
+      groups = buildPropertyGridGroups(this._rows, this._options.groupField);
+      groups.forEach(function(group) {
+        this._renderGroup(group, columns);
+        if (!this._collapsedGroups[group.value]) {
+          group.rows.forEach(function(row) {
+            this._renderPropertyRow(row, this._rows.indexOf(row), columns);
+          }, this);
+        }
+      }, this);
+    } else {
+      this._rows.forEach(function(row, index) {
+        this._renderPropertyRow(row, index, columns);
+      }, this);
+    }
+    return this;
+  };
+
+  PropertyGrid.prototype._toggleGroup = function(value) {
+    if (this._collapsedGroups[value]) this.expandGroup(this._groupIndex(value));
+    else this.collapseGroup(this._groupIndex(value));
+  };
+
+  PropertyGrid.prototype._groupIndex = function(value) {
+    var groups = this.groups();
+    var index;
+    for (index = 0; index < groups.length; index += 1) {
+      if (groups[index].value === value) return index;
+    }
+    return -1;
+  };
+
+  PropertyGrid.prototype.groups = function() {
+    var groups = buildPropertyGridGroups(this._rows, this._options.groupField);
+    groups.forEach(function(group) {
+      group.collapsed = Boolean(this._collapsedGroups[group.value]);
+    }, this);
+    return groups;
+  };
+
+  PropertyGrid.prototype.expandGroup = function(groupIndex) {
+    var groups = this.groups();
+    var targets = groupIndex == null ? groups : [groups[Number(groupIndex)]];
+    targets.forEach(function(group) {
+      if (group) delete this._collapsedGroups[group.value];
+    }, this);
+    this.render();
+    this._emit('groupexpand', { groupIndex: groupIndex == null ? null : Number(groupIndex) });
+    return this;
+  };
+
+  PropertyGrid.prototype.collapseGroup = function(groupIndex) {
+    var groups = this.groups();
+    var targets = groupIndex == null ? groups : [groups[Number(groupIndex)]];
+    this.endEdit();
+    targets.forEach(function(group) {
+      if (group) this._collapsedGroups[group.value] = true;
+    }, this);
+    this.render();
+    this._emit('groupcollapse', { groupIndex: groupIndex == null ? null : Number(groupIndex) });
+    return this;
+  };
+
+  PropertyGrid.prototype.showGroup = function() {
+    this._options.showGroup = true;
+    return this.render();
+  };
+
+  PropertyGrid.prototype.hideGroup = function() {
+    this._options.showGroup = false;
+    return this.render();
+  };
+
+  PropertyGrid.prototype.showHeader = function() {
+    this._options.showHeader = true;
+    return this.render();
+  };
+
+  PropertyGrid.prototype.hideHeader = function() {
+    this._options.showHeader = false;
+    return this.render();
+  };
+
+  PropertyGrid.prototype.selectRow = function(index) {
+    var previous = this._selectedIndex;
+    index = Math.floor(Number(index));
+    if (!isFinite(index) || index < 0 || index >= this._rows.length) return this;
+    if (previous === index) return this;
+    if (
+      this._invoke('onBeforeSelect', index, this._rows[index]) === false ||
+      !this._emit('beforeselect', { index: index, row: this._rows[index] }, true)
+    ) return this;
+    if (this._editingIndex >= 0 && this._editingIndex !== index) this.endEdit();
+    if (previous >= 0) {
+      this._invoke('onUnselect', previous, this._rows[previous]);
+      this._emit('unselect', { index: previous, row: this._rows[previous] });
+    }
+    this._selectedIndex = index;
+    this.render();
+    this._invoke('onSelect', index, this._rows[index]);
+    this._emit('select', { index: index, row: this._rows[index] });
+    return this;
+  };
+
+  PropertyGrid.prototype.getSelected = function() {
+    return this._rows[this._selectedIndex] || null;
+  };
+
+  PropertyGrid.prototype._valueCell = function(index) {
+    var row = this._body.querySelector(
+      '.fui-propertygrid-row[data-row-index="' + index + '"]'
+    );
+    var cells;
+    var target = null;
+    if (!row) return null;
+    cells = row.querySelectorAll('[data-field]');
+    Array.prototype.some.call(cells, function(cell) {
+      if (cell.getAttribute('data-field') === String(this._options.valueField)) {
+        target = cell;
+        return true;
+      }
+      return false;
+    }, this);
+    return target;
+  };
+
+  PropertyGrid.prototype.beginEdit = function(index) {
+    var row;
+    var editor;
+    var cell;
+    var input;
+    var options;
+    index = Math.floor(Number(index));
+    if (!this._options.editable || index < 0 || index >= this._rows.length) return this;
+    row = this._rows[index];
+    editor = normalizePropertyEditor(row.editor);
+    if (!editor) return this;
+    if (this._editingIndex === index) return this;
+    if (this._editingIndex >= 0) this.endEdit();
+    if (
+      this._invoke('onBeforeEdit', index, row) === false ||
+      !this._emit('beforeedit', { index: index, row: row }, true)
+    ) return this;
+    this._selectedIndex = index;
+    this.render();
+    cell = this._valueCell(index);
+    if (!cell) return this;
+    cell.textContent = '';
+    cell.classList.add('fui-propertygrid-editing');
+    this._editingIndex = index;
+    this._editorOriginalValue = row[this._options.valueField];
+    this._editorType = editor.type;
+    if (editor.type === 'boolean') {
+      input = document.createElement('select');
+      input.className = 'fui-propertygrid-boolean-editor';
+      input.innerHTML =
+        '<option value="true">' + escapePropertyGridHtml(this._text('trueText')) + '</option>' +
+        '<option value="false">' + escapePropertyGridHtml(this._text('falseText')) + '</option>';
+      input.value = propertyGridBoolean(this._editorOriginalValue, false) ? 'true' : 'false';
+      cell.appendChild(input);
+      this._editorElement = input;
+    } else {
+      input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'fui-propertygrid-editor-source';
+      cell.appendChild(input);
+      options = propertyGridAssign({}, editor.options, {
+        editor: editor.type,
+        width: '100%',
+        height: this._options.rowHeight - 2,
+        theme: 'inherit'
+      });
+      this._editor = new EditBox(input, options);
+      this._editor.setValue(this._editorOriginalValue, true);
+      this._editorElement = this._editor.textbox();
+    }
+    this._editorElement.focus();
+    if (this._editorElement.select) this._editorElement.select();
+    this._invoke('onBeginEdit', index, row);
+    this._emit('beginedit', { index: index, row: row });
+    return this;
+  };
+
+  PropertyGrid.prototype._editorValue = function() {
+    if (this._editingIndex < 0) return undefined;
+    if (this._editor) {
+      if (this._editorType === 'number') return this._editor.getNumber();
+      return this._editor.getValue();
+    }
+    return this._editorElement && this._editorElement.value === 'true';
+  };
+
+  PropertyGrid.prototype._destroyEditor = function() {
+    if (this._editorElement) this.removeEventListener(this._editorElement);
+    if (this._editor) this._editor.destroy();
+    this._editor = null;
+    this._editorElement = null;
+    this._editorType = '';
+  };
+
+  PropertyGrid.prototype._markUpdated = function(row) {
+    if (this._changes.inserted.indexOf(row) >= 0) return;
+    if (this._changes.updated.indexOf(row) < 0) this._changes.updated.push(row);
+  };
+
+  PropertyGrid.prototype.endEdit = function(index) {
+    var editingIndex = this._editingIndex;
+    var row;
+    var oldValue;
+    var newValue;
+    var changes = {};
+    if (editingIndex < 0 || (index != null && Number(index) !== editingIndex)) return this;
+    row = this._rows[editingIndex];
+    oldValue = this._editorOriginalValue;
+    newValue = this._editorValue();
+    this._destroyEditor();
+    this._editingIndex = -1;
+    this._editorOriginalValue = null;
+    if (!propertyGridValueEqual(oldValue, newValue)) {
+      row[this._options.valueField] = newValue;
+      changes[this._options.valueField] = newValue;
+      this._markUpdated(row);
+      this._invoke('onChange', editingIndex, row, newValue, oldValue);
+      this._emit('change', {
+        index: editingIndex,
+        row: row,
+        newValue: newValue,
+        oldValue: oldValue
+      });
+    }
+    this.render();
+    this._invoke('onAfterEdit', editingIndex, row, changes);
+    this._emit('afteredit', { index: editingIndex, row: row, changes: changes });
+    return this;
+  };
+
+  PropertyGrid.prototype.cancelEdit = function(index) {
+    var editingIndex = this._editingIndex;
+    var row;
+    if (editingIndex < 0 || (index != null && Number(index) !== editingIndex)) return this;
+    row = this._rows[editingIndex];
+    this._destroyEditor();
+    this._editingIndex = -1;
+    this._editorOriginalValue = null;
+    this.render();
+    this._invoke('onCancelEdit', editingIndex, row);
+    this._emit('canceledit', { index: editingIndex, row: row });
+    return this;
+  };
+
+  PropertyGrid.prototype.validateRow = function(index) {
+    index = index == null ? this._editingIndex : Number(index);
+    if (index !== this._editingIndex || !this._editorElement) return true;
+    return typeof this._editorElement.checkValidity === 'function' ?
+      this._editorElement.checkValidity() :
+      true;
+  };
+
+  PropertyGrid.prototype.getEditor = function(index) {
+    index = index == null ? this._editingIndex : Number(index);
+    if (index !== this._editingIndex) return null;
+    return {
+      actions: this._editor || null,
+      target: this._editorElement,
+      field: this._options.valueField,
+      type: this._editorType
+    };
+  };
+
+  PropertyGrid.prototype.getRows = function() {
+    return this._rows;
+  };
+
+  PropertyGrid.prototype.loadData = function(data) {
+    if (this._editingIndex >= 0) this.cancelEdit();
+    if (typeof this._options.loadFilter === 'function') {
+      data = this._options.loadFilter.call(this, data);
+    }
+    this._rows = normalizePropertyGridData(data);
+    this._acceptedRows = this._rows.map(clonePropertyRow);
+    this._selectedIndex = -1;
+    this._changes = { inserted: [], updated: [], deleted: [] };
+    this.render();
+    this._invoke('onLoadSuccess', data);
+    this._emit('loadsuccess', { data: data, rows: this._rows });
+    return this;
+  };
+
+  PropertyGrid.prototype.appendRow = function(row) {
+    return this.insertRow({ index: this._rows.length, row: row });
+  };
+
+  PropertyGrid.prototype.insertRow = function(param) {
+    var row = clonePropertyRow(param && param.row);
+    var index = param && param.index != null ? Number(param.index) : this._rows.length;
+    index = Math.max(0, Math.min(this._rows.length, isFinite(index) ? Math.floor(index) : this._rows.length));
+    this.endEdit();
+    this._rows.splice(index, 0, row);
+    this._changes.inserted.push(row);
+    this.render();
+    return this;
+  };
+
+  PropertyGrid.prototype.updateRow = function(param) {
+    var index = param && Number(param.index);
+    var row = this._rows[index];
+    if (!row || !param.row) return this;
+    this.endEdit();
+    propertyGridAssign(row, param.row);
+    this._markUpdated(row);
+    this.render();
+    return this;
+  };
+
+  PropertyGrid.prototype.deleteRow = function(index) {
+    var row;
+    index = Number(index);
+    if (!this._rows[index]) return this;
+    this.endEdit();
+    row = this._rows.splice(index, 1)[0];
+    if (this._changes.inserted.indexOf(row) >= 0) {
+      this._changes.inserted.splice(this._changes.inserted.indexOf(row), 1);
+    } else if (this._changes.deleted.indexOf(row) < 0) {
+      this._changes.deleted.push(row);
+    }
+    if (this._changes.updated.indexOf(row) >= 0) {
+      this._changes.updated.splice(this._changes.updated.indexOf(row), 1);
+    }
+    if (this._selectedIndex >= this._rows.length) this._selectedIndex = this._rows.length - 1;
+    this.render();
+    return this;
+  };
+
+  PropertyGrid.prototype.refreshRow = function() {
+    return this.render();
+  };
+
+  PropertyGrid.prototype.getChanges = function(type) {
+    type = type == null ? '' : String(type).toLowerCase();
+    if (type === 'inserted' || type === 'updated' || type === 'deleted') {
+      return this._changes[type].slice();
+    }
+    return this._changes.inserted.concat(this._changes.updated, this._changes.deleted);
+  };
+
+  PropertyGrid.prototype.acceptChanges = function() {
+    this.endEdit();
+    this._acceptedRows = this._rows.map(clonePropertyRow);
+    this._changes = { inserted: [], updated: [], deleted: [] };
+    return this;
+  };
+
+  PropertyGrid.prototype.rejectChanges = function() {
+    this.cancelEdit();
+    this._rows = this._acceptedRows.map(clonePropertyRow);
+    this._selectedIndex = -1;
+    this._changes = { inserted: [], updated: [], deleted: [] };
+    return this.render();
+  };
+
+  PropertyGrid.prototype.options = function() {
+    return propertyGridAssign({}, this._options);
+  };
+
+  PropertyGrid.prototype.setOptions = function(options) {
+    this.endEdit();
+    this.removeEventListener();
+    propertyGridAssign(this._options, options || {});
+    this._normalizeOptions();
+    this._build();
+    this._bind();
+    this.render();
+    this.setTheme(this._options.theme);
+    return this;
+  };
+
+  PropertyGrid.prototype.resize = function(width, height) {
+    if (width != null) this._options.width = width;
+    if (height != null) this._options.height = height;
+    this.hostElement.style.width = this._options.fit ? '100%' : propertyGridSize(this._options.width);
+    this.hostElement.style.height = this._options.fit ? '100%' : propertyGridSize(this._options.height);
+    return this;
+  };
+
+  PropertyGrid.prototype.setLocale = function(locale, messages) {
+    if (locale && messages) {
+      localePacks[String(locale)] = propertyGridAssign({}, localePacks.en, messages);
+    }
+    this._options.locale = normalizePropertyGridLocale(locale);
+    this.hostElement.setAttribute('aria-label', this._options.ariaLabel || this._text('propertyGrid'));
+    return this.render();
+  };
+
+  PropertyGrid.prototype.setTheme = function(theme) {
+    var index;
+    this._options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this._options.theme === 'inherit' ?
+      findPropertyGridTheme(this._themeSource) :
+      normalizePropertyGridTheme(this._options.theme);
+    for (index = 0; index < PROPERTYGRID_THEMES.length; index += 1) {
+      this.hostElement.classList.remove('fg-theme-' + PROPERTYGRID_THEMES[index]);
+    }
+    this.hostElement.classList.add('fg-theme-' + this.theme);
+    return this;
+  };
+
+  PropertyGrid.prototype.reload = function(params) {
+    var self = this;
+    var sequence = ++this._loadSequence;
+    var query = propertyGridAssign({}, this._options.queryParams, params || {});
+    var request;
+    if (
+      this._invoke('onBeforeLoad', query) === false ||
+      !this._emit('beforeload', { params: query }, true)
+    ) return Promise.resolve(false);
+    if (typeof this._options.loader === 'function') {
+      try {
+        request = this._options.loader.call(this, query);
+      } catch (error) {
+        request = Promise.reject(error);
+      }
+    } else if (this._options.url && typeof fetch === 'function') {
+      if (this._options.method === 'get') {
+        request = fetch(this._options.url + (
+          this._options.url.indexOf('?') >= 0 ? '&' : '?'
+        ) + new URLSearchParams(query).toString()).then(function(response) {
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          return response.json();
+        });
+      } else {
+        request = fetch(this._options.url, {
+          method: this._options.method.toUpperCase(),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(query)
+        }).then(function(response) {
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          return response.json();
+        });
+      }
+    } else {
+      return Promise.resolve(false);
+    }
+    return Promise.resolve(request).then(function(data) {
+      if (self._destroyed || sequence !== self._loadSequence) return false;
+      self.loadData(data);
+      return true;
+    }).catch(function(error) {
+      if (self._destroyed || sequence !== self._loadSequence) return false;
+      self._invoke('onLoadError', error);
+      self._emit('loaderror', { error: error });
+      return false;
+    });
+  };
+
+  PropertyGrid.prototype.destroy = function() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this._loadSequence += 1;
+    this.cancelEdit();
+    this.removeEventListener();
+    this.hostElement.innerHTML = this._original.html;
+    restorePropertyGridAttribute(this.hostElement, 'class', this._original.className);
+    restorePropertyGridAttribute(this.hostElement, 'style', this._original.style);
+    restorePropertyGridAttribute(this.hostElement, 'role', this._original.role);
+    restorePropertyGridAttribute(this.hostElement, 'aria-label', this._original.ariaLabel);
+    unregisterControl(this.hostElement, this);
+    delete this.hostElement.__fabuiPropertyGrid;
+    this._rows = [];
+    this._listeners = {};
+  };
+
+  PropertyGrid.prototype.dispose = PropertyGrid.prototype.destroy;
+  PropertyGrid.defaults = defaults;
+  PropertyGrid.locales = localePacks;
+  PropertyGrid.themes = PROPERTYGRID_THEMES.slice();
+  PropertyGrid.addLocale = function(name, messages) {
+    if (name && messages) {
+      localePacks[String(name)] = propertyGridAssign({}, localePacks.en, messages);
+    }
+    return PropertyGrid;
+  };
+  PropertyGrid.getControl = function(element) {
+    element = resolvePropertyGridElement(element);
+    return element && element.__fabuiPropertyGrid ? element.__fabuiPropertyGrid : null;
+  };
+  PropertyGrid.normalizeTheme = normalizePropertyGridTheme;
+  PropertyGrid.normalizeLocale = normalizePropertyGridLocale;
+  return PropertyGrid;
 }
 
 var TABS_THEMES = [
@@ -21158,8 +31173,11 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
   }
 
   function normalizeLocale(value) {
-    value = String(value || 'en');
-    return localePacks[value] ? value : 'en';
+    value = String(value || 'en').trim().replace(/_/g, '-');
+    if (localePacks[value]) return value;
+    if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+    if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+    return 'en';
   }
 
   function formatText(text, values) {
@@ -21368,9 +31386,16 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
       self._dragBlocked = false;
     };
     this._onTabDragStart = function(event) {
-      var tab = event.target.closest('.fui-tabs-tab');
+      var title = event.target.closest('.fui-tabs-title');
+      var tab = title && title.closest('.fui-tabs-tab');
       var index;
-      if (!self._isHorizontalDragEnabled() || self._dragBlocked || !tab || !self.list.contains(tab)) {
+      if (
+        !self._isHorizontalDragEnabled() ||
+        self._dragBlocked ||
+        !title ||
+        !tab ||
+        !self.list.contains(tab)
+      ) {
         event.preventDefault();
         return;
       }
@@ -21444,6 +31469,7 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
     };
     this._onPrevious = function() { self.scrollBy(Math.abs(Number(self._options.scrollIncrement) || 100)); };
     this._onNext = function() { self.scrollBy(-Math.abs(Number(self._options.scrollIncrement) || 100)); };
+    this._onTabScroll = function() { self._syncOverflow(); };
     this._onResize = function() { self.resize(); };
     this.addEventListener(this.list, 'click', this._onTabClick);
     this.addEventListener(this.list, 'pointerdown', this._onTabPointerDown);
@@ -21455,6 +31481,7 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
     this.addEventListener(this.list, 'dragend', this._onTabDragEnd);
     this.addEventListener(this.list, 'keydown', this._onTabKeyDown);
     this.addEventListener(this.list, 'contextmenu', this._onContextMenu);
+    this.addEventListener(this.viewport, 'scroll', this._onTabScroll);
     this.addEventListener(this.previousButton, 'click', this._onPrevious);
     this.addEventListener(this.nextButton, 'click', this._onNext);
     this.addEventListener(window, 'resize', this._onResize);
@@ -21523,6 +31550,7 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
     title = document.createElement('span');
     title.className = 'fui-tabs-title';
     title.textContent = record.options.title;
+    title.draggable = this._isHorizontalDragEnabled() && !record.options.disabled;
     tab.appendChild(title);
     record.panelTools = this._resolveTools(record.options.tools);
     record.panelTools.forEach(function(tool, toolIndex) {
@@ -21543,7 +31571,7 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
       tab.appendChild(close);
     }
     tab.disabled = Boolean(record.options.disabled);
-    tab.draggable = this._isHorizontalDragEnabled() && !record.options.disabled;
+    tab.draggable = false;
     tab.classList.toggle('fui-tabs-disabled', Boolean(record.options.disabled));
     tab.style.width = cssSize(record.options.tabWidth != null ? record.options.tabWidth : this._options.tabWidth);
     tab.style.height = cssSize(this._options.tabHeight);
@@ -21658,6 +31686,7 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
     this._tabs.forEach(function(record, index) {
       record.tab.setAttribute('data-index', index);
       record.tab.id = this._getId() + '-tab-' + index;
+      record.tab.setAttribute('aria-controls', record.panel.id);
       record.panel.setAttribute('aria-labelledby', record.tab.id);
     }, this);
   };
@@ -21854,6 +31883,7 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
 
   Tabs.prototype.select = function(which, silent) {
     var index = this._resolveIndex(which);
+    var currentIndex = this._selectedIndex;
     var current = this._tabs[this._selectedIndex];
     var next = this._tabs[index];
     if (!next || next.options.disabled || index === this._selectedIndex) return next ? next.panel : null;
@@ -21863,7 +31893,14 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
       current.tab.setAttribute('aria-selected', 'false');
       current.tab.tabIndex = -1;
       current.panel.hidden = true;
-      if (!silent) this._invoke('onUnselect', current.options.title, this._selectedIndex, current.panel);
+      if (!silent) {
+        this._invoke('onUnselect', current.options.title, currentIndex, current.panel);
+        this._emit('unselect', {
+          title: current.options.title,
+          index: currentIndex,
+          tab: current.panel
+        });
+      }
     }
     this._selectedIndex = index;
     next.tab.classList.add('fui-tabs-selected');
@@ -21887,10 +31924,10 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
     options = assign({}, options || {});
     if (isElementNode(options.content)) panel.appendChild(options.content);
     else if (options.content != null) panel.innerHTML = String(options.content);
+    if (options.id) panel.id = String(options.id);
     record = this._createRecord(panel, options);
     index = this._resolveIndex(record);
     if (options.style && typeof options.style === 'object') assign(panel.style, options.style);
-    if (options.id) panel.id = String(options.id);
     if (options.selected !== false || this._selectedIndex < 0) this.select(index, silent);
     this._syncOverflow();
     if (!silent) {
@@ -22115,9 +32152,12 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
     this._listeners = {};
   };
 
+  Tabs.prototype.dispose = Tabs.prototype.destroy;
+
   Tabs._nextId = 1;
   Tabs.defaults = defaults;
   Tabs.locales = localePacks;
+  Tabs.themes = TABS_THEMES.slice();
   Tabs.addLocale = function(name, messages) {
     if (name && messages) localePacks[String(name)] = assign({}, localePacks.en, messages);
     return Tabs;
@@ -22127,6 +32167,7 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
     return element && element.__fabuiTabs ? element.__fabuiTabs : null;
   };
   Tabs.normalizeTheme = normalizeTabsTheme;
+  Tabs.normalizeLocale = normalizeLocale;
   return Tabs;
 }
 
@@ -22177,8 +32218,10 @@ function resolveTreeElement(element) {
 }
 
 function normalizeTreeLocale(value) {
-  value = String(value || 'en');
-  return value === 'zh-TW' || value === 'zh-CN' ? value : 'en';
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+  return 'en';
 }
 
 function normalizeTreeTheme(value) {
@@ -23621,6 +33664,7 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
 
   FabTree.defaults = defaults;
   FabTree.locales = localePacks;
+  FabTree.themes = TREE_THEMES.slice();
   FabTree.addLocale = function(name, messages) {
     if (name && messages) localePacks[String(name)] = treeAssign({}, localePacks.en, messages);
     return FabTree;
@@ -23630,6 +33674,7 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
     return element && element.__fabuiTree ? element.__fabuiTree : null;
   };
   FabTree.normalizeTheme = normalizeTreeTheme;
+  FabTree.normalizeLocale = normalizeTreeLocale;
   return FabTree;
 }
 
@@ -24222,6 +34267,7 @@ function createTooltipFactory(Control, registerControl, unregisterControl) {
     onPosition: null,
     onDestroy: null
   };
+  FabTooltip.themes = TOOLTIP_THEMES.slice();
   FabTooltip.getControl = function(element) {
     element = resolveTooltipElement(element);
     return element && element.__fabuiTooltip ? element.__fabuiTooltip : null;
@@ -24441,9 +34487,10 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
   };
 
   function normalizeLocale(value) {
+    value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh(?:-|_)?tw/i.test(value || '')) return 'zh-TW';
-    if (/^zh/i.test(value || '')) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
     return 'en';
   }
 
@@ -24959,6 +35006,7 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
   FabLayout.prototype._startSplit = function(event, region) {
     var record = this.regions[region];
     var rect;
+    var splitter;
     if (
       event.button !== 0 ||
       !record ||
@@ -24972,8 +35020,13 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      size: region === 'north' || region === 'south' ? rect.height : rect.width
+      size: region === 'north' || region === 'south' ? rect.height : rect.width,
+      pendingSize: region === 'north' || region === 'south' ?
+        rect.height :
+        rect.width
     };
+    splitter = this._splitters[region];
+    if (splitter) splitter.classList.add('fui-layout-splitter-dragging');
     this.hostElement.classList.add('fui-layout-resizing');
     this._bindDocumentSplit();
   };
@@ -25001,21 +35054,31 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
     var record = this.regions[region];
     var vertical = region === 'north' || region === 'south';
     if (!record) return;
-    size = clampLayoutValue(
-      size,
-      vertical ? record.options.minHeight : record.options.minWidth,
-      vertical ? record.options.maxHeight : record.options.maxWidth
-    );
+    size = this._normalizeRegionSize(region, size);
     if (vertical) record.options.height = size;
     else record.options.width = size;
     this._layoutRegions();
   };
 
+  FabLayout.prototype._normalizeRegionSize = function(region, size) {
+    var record = this.regions[region];
+    var vertical = region === 'north' || region === 'south';
+    if (!record) return 0;
+    return clampLayoutValue(
+      size,
+      vertical ? record.options.minHeight : record.options.minWidth,
+      vertical ? record.options.maxHeight : record.options.maxWidth
+    );
+  };
+
   FabLayout.prototype._handleSplitMove = function(event) {
     var state = this._interaction;
     var delta;
+    var offset;
     var size;
+    var splitter;
     if (!state || event.pointerId !== state.pointerId) return;
+    event.preventDefault();
     if (state.region === 'north' || state.region === 'south') {
       delta = event.clientY - state.startY;
       size = state.size + (state.region === 'north' ? delta : -delta);
@@ -25023,17 +35086,40 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
       delta = event.clientX - state.startX;
       size = state.size + (state.region === 'west' ? delta : -delta);
     }
-    this._setRegionSize(state.region, size);
+    size = this._normalizeRegionSize(state.region, size);
+    offset = size - state.size;
+    if (state.region === 'south' || state.region === 'east') offset *= -1;
+    state.pendingSize = size;
+    splitter = this._splitters[state.region];
+    if (splitter) {
+      splitter.style.transform =
+        state.region === 'north' || state.region === 'south' ?
+          'translateY(' + offset + 'px)' :
+          'translateX(' + offset + 'px)';
+    }
   };
 
   FabLayout.prototype._finishSplit = function(event) {
     var state = this._interaction;
+    var cancelled;
     var record;
+    var splitter;
     if (!state || event.pointerId !== state.pointerId) return;
+    cancelled = event.type === 'pointercancel';
+    if (!cancelled) this._handleSplitMove(event);
     record = this.regions[state.region];
+    splitter = this._splitters[state.region];
+    if (splitter) {
+      splitter.classList.remove('fui-layout-splitter-dragging');
+      splitter.style.removeProperty('transform');
+    }
     this._interaction = null;
     this.hostElement.classList.remove('fui-layout-resizing');
     this._unbindDocumentSplit();
+    if (cancelled || !record) return;
+    if (Math.abs(state.pendingSize - state.size) > 0.01) {
+      this._setRegionSize(state.region, state.pendingSize);
+    }
     this._fire('RegionResize', {
       region: state.region,
       width: record.panel.panel().offsetWidth,
@@ -25356,6 +35442,8 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
     collapsed: false
   };
   FabLayout.locales = localePacks;
+  FabLayout.themes = LAYOUT_THEMES.slice();
+  FabLayout.normalizeLocale = normalizeLocale;
   FabLayout.getControl = function(element) {
     element = resolveLayoutElement(element);
     return element && element.__fabuiLayout ? element.__fabuiLayout : null;
@@ -25428,6 +35516,40 @@ function constrainWindowRect(rect, bounds, minimums) {
   return result;
 }
 
+function calculateWindowResizeRect(rect, dx, dy, direction) {
+  var result = assignWindowOptions({}, rect);
+  direction = String(direction || '').toLowerCase();
+  dx = toNumber(dx, 0);
+  dy = toNumber(dy, 0);
+  if (direction.indexOf('e') >= 0) result.width += dx;
+  if (direction.indexOf('s') >= 0) result.height += dy;
+  if (direction.indexOf('w') >= 0) {
+    result.left += dx;
+    result.width -= dx;
+  }
+  if (direction.indexOf('n') >= 0) {
+    result.top += dy;
+    result.height -= dy;
+  }
+  return result;
+}
+
+function calculateMinimizedWindowRect(bounds, preferredWidth) {
+  var width = Math.max(0, toNumber(bounds && bounds.width, 0));
+  var height = Math.max(0, toNumber(bounds && bounds.height, 0));
+  var minimizedHeight = Math.min(38, height);
+  var minimizedWidth = Math.min(
+    width,
+    Math.max(80, Math.min(220, toNumber(preferredWidth, 220)))
+  );
+  return {
+    left: 0,
+    top: Math.max(0, height - minimizedHeight),
+    width: minimizedWidth,
+    height: minimizedHeight
+  };
+}
+
 function findWindowTheme(element) {
   var current = resolveWindowElement(element);
   var index;
@@ -25471,9 +35593,10 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
   };
 
   function normalizeLocale(value) {
+    value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh(?:-|_)?tw/i.test(value || '')) return 'zh-TW';
-    if (/^zh/i.test(value || '')) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
     return 'en';
   }
 
@@ -25493,6 +35616,9 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
     this._animationStartTimer = null;
     this._animationEndTimer = null;
     this._normalRect = null;
+    this._minimizedRestoreRect = null;
+    this._resizeProxy = null;
+    this._onMinimizedViewportResize = null;
     this._originalParent = host.parentNode;
     this._originalNextSibling = host.nextSibling;
     this._originalStyle = host.getAttribute('style');
@@ -25642,7 +35768,10 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
       if (this.options.collapsed) this.expand();
       else this.collapse();
     });
-    this._createTool('minimize', this.options.minimizable, this.minimize);
+    this._createTool('minimize', this.options.minimizable, function() {
+      if (this.options.minimized) this.restore();
+      else this.minimize();
+    });
     this._createTool('maximize', this.options.maximizable, function() {
       if (this.options.maximized) this.restore();
       else this.maximize();
@@ -25675,6 +35804,40 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
     });
   };
 
+  FabWindow.prototype._showResizeProxy = function(rect) {
+    var computed = window.getComputedStyle(this.windowElement);
+    var proxy = document.createElement('div');
+    this._removeResizeProxy();
+    proxy.className = 'fui-window-resize-proxy';
+    proxy.style.position = computed.position === 'fixed' ? 'fixed' : 'absolute';
+    proxy.style.zIndex = String(
+      toNumber(this.windowElement.style.zIndex, this.options.zIndex) + 1
+    );
+    proxy.style.borderColor =
+      computed.getPropertyValue('--fui-window-border').trim() ||
+      computed.borderTopColor;
+    proxy.style.borderRadius = computed.borderRadius;
+    this.windowElement.parentElement.appendChild(proxy);
+    this._resizeProxy = proxy;
+    this._applyResizeProxyRect(rect);
+  };
+
+  FabWindow.prototype._applyResizeProxyRect = function(rect) {
+    if (!this._resizeProxy) return;
+    this._resizeProxy.style.left = Math.round(rect.left) + 'px';
+    this._resizeProxy.style.top = Math.round(rect.top) + 'px';
+    this._resizeProxy.style.width = Math.round(rect.width) + 'px';
+    this._resizeProxy.style.height = Math.round(rect.height) + 'px';
+  };
+
+  FabWindow.prototype._removeResizeProxy = function() {
+    if (!this._resizeProxy) return;
+    if (this._resizeProxy.parentNode) {
+      this._resizeProxy.parentNode.removeChild(this._resizeProxy);
+    }
+    this._resizeProxy = null;
+  };
+
   FabWindow.prototype._bind = function() {
     var self = this;
     this._onHeaderPointerDown = function(event) {
@@ -25693,7 +35856,10 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
   FabWindow.prototype._startInteraction = function(event, type, direction) {
     var rect;
     if (
-      (type === 'move' && (!this.options.draggable || this.options.maximized)) ||
+      (
+        type === 'move' &&
+        (!this.options.draggable || this.options.maximized || this.options.minimized)
+      ) ||
       (type === 'resize' && (!this.options.resizable || this.options.maximized || this.options.collapsed))
     ) return;
     event.preventDefault();
@@ -25705,9 +35871,11 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      rect: rect
+      rect: rect,
+      previewRect: rect
     };
     this.windowElement.classList.add('fui-window-interacting');
+    if (type === 'resize') this._showResizeProxy(rect);
     this._bindDocumentInteraction();
   };
 
@@ -25735,41 +35903,46 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
     var dx;
     var dy;
     var rect;
-    var direction;
     if (!state || event.pointerId !== state.pointerId) return;
+    event.preventDefault();
     dx = event.clientX - state.startX;
     dy = event.clientY - state.startY;
-    rect = assignWindowOptions({}, state.rect);
-    direction = state.direction;
     if (state.type === 'move') {
+      rect = assignWindowOptions({}, state.rect);
       rect.left += dx;
       rect.top += dy;
+      rect = this._normalizeRect(rect);
+      this._applyRect(rect);
     } else {
-      if (direction.indexOf('e') >= 0) rect.width += dx;
-      if (direction.indexOf('s') >= 0) rect.height += dy;
-      if (direction.indexOf('w') >= 0) {
-        rect.left += dx;
-        rect.width -= dx;
-      }
-      if (direction.indexOf('n') >= 0) {
-        rect.top += dy;
-        rect.height -= dy;
-      }
+      rect = calculateWindowResizeRect(state.rect, dx, dy, state.direction);
+      rect = this._normalizeRect(rect);
+      state.previewRect = rect;
+      this._applyResizeProxyRect(rect);
     }
-    rect = this._normalizeRect(rect);
-    this._applyRect(rect);
   };
 
   FabWindow.prototype._finishInteraction = function(event) {
     var state = this._interaction;
+    var cancelled;
     var rect;
     if (!state || event.pointerId !== state.pointerId) return;
-    rect = this._getRect();
+    cancelled = event.type === 'pointercancel';
+    if (state.type === 'resize' && !cancelled) {
+      this._handleInteractionMove(event);
+    }
+    rect = state.type === 'resize' ?
+      state.previewRect :
+      this._getRect();
     this._interaction = null;
     this.windowElement.classList.remove('fui-window-interacting');
     this._unbindDocumentInteraction();
-    if (state.type === 'move') this._fire('Move', { left: rect.left, top: rect.top });
-    else this._fire('Resize', { width: rect.width, height: rect.height });
+    this._removeResizeProxy();
+    if (state.type === 'move') {
+      this._fire('Move', { left: rect.left, top: rect.top });
+    } else if (!cancelled) {
+      this._applyRect(rect);
+      this._fire('Resize', { width: rect.width, height: rect.height });
+    }
   };
 
   FabWindow.prototype._getBounds = function() {
@@ -25876,7 +36049,52 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
       toNumber(style.paddingBottom, 0) +
       toNumber(style.borderTopWidth, 0) +
       toNumber(style.borderBottomWidth, 0);
-    return Math.max(48, this.headerElement.hidden ? 0 : this.headerElement.offsetHeight + frameHeight);
+    return Math.max(38, this.headerElement.hidden ? 0 : this.headerElement.offsetHeight + frameHeight);
+  };
+
+  FabWindow.prototype._getMinimizedRect = function() {
+    var restoreWidth = this._minimizedRestoreRect ?
+      this._minimizedRestoreRect.width :
+      this.options.width;
+    return calculateMinimizedWindowRect(this._getBounds(), restoreWidth);
+  };
+
+  FabWindow.prototype._bindMinimizedViewportResize = function() {
+    var self = this;
+    this._unbindMinimizedViewportResize();
+    this._onMinimizedViewportResize = function() {
+      if (!self.options.minimized || self.options.closed) return;
+      self._cancelStateAnimation(true);
+      self._applyRect(self._getMinimizedRect());
+    };
+    window.addEventListener('resize', this._onMinimizedViewportResize);
+  };
+
+  FabWindow.prototype._unbindMinimizedViewportResize = function() {
+    if (!this._onMinimizedViewportResize) return;
+    window.removeEventListener('resize', this._onMinimizedViewportResize);
+    this._onMinimizedViewportResize = null;
+  };
+
+  FabWindow.prototype._restoreMinimized = function(animate) {
+    var rect;
+    if (!this.options.minimized) return false;
+    rect = this._minimizedRestoreRect;
+    this._cancelStateAnimation(true);
+    this.options.minimized = false;
+    this.windowElement.classList.remove('fui-window-minimized');
+    this._unbindMinimizedViewportResize();
+    this.hostElement.hidden = this.options.collapsed;
+    this.footerElement.hidden =
+      this.options.collapsed ||
+      !this.footerElement.childNodes.length;
+    if (rect) {
+      if (animate === false) this._applyRect(rect);
+      else this._animateRect(rect);
+    }
+    this._minimizedRestoreRect = null;
+    this._syncToolStates();
+    return true;
   };
 
   FabWindow.prototype._fireBefore = function(name, detail) {
@@ -25902,21 +36120,14 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
   };
 
   FabWindow.prototype.open = function(force) {
-    var self = this;
     var wasMinimized = this.options.minimized;
     if (!force && !this._fireBefore('Open')) return this;
     this._cancelStateAnimation(true);
     this.options.closed = false;
-    this.options.minimized = false;
     this._setVisible(true);
     this.bringToFront();
     this.windowElement.focus();
-    if (wasMinimized) {
-      this.windowElement.classList.add('fui-window-minimized-visual');
-      this._animateState(function() {
-        self.windowElement.classList.remove('fui-window-minimized-visual');
-      });
-    }
+    if (wasMinimized) this._restoreMinimized(true);
     this._fire('Open');
     return this;
   };
@@ -25925,6 +36136,7 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
     if (this.options.closed) return this;
     if (!force && !this._fireBefore('Close')) return this;
     this._cancelStateAnimation(true);
+    this._unbindMinimizedViewportResize();
     this.options.closed = true;
     this._setVisible(false);
     this._fire('Close');
@@ -25932,22 +36144,27 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
   };
 
   FabWindow.prototype.minimize = function() {
-    var self = this;
+    var minimizedRect;
     if (this.options.minimized) return this;
     this._cancelStateAnimation(true);
+    this._minimizedRestoreRect = this._getRect();
     this.options.minimized = true;
-    this._animateState(function() {
-      self.windowElement.classList.add('fui-window-minimized-visual');
-    }, function() {
-      self._setVisible(false);
-      self.windowElement.classList.remove('fui-window-minimized-visual');
-    });
+    this.hostElement.hidden = true;
+    this.footerElement.hidden = true;
+    this.windowElement.classList.add('fui-window-minimized');
+    minimizedRect = this._getMinimizedRect();
+    this._setVisible(true);
+    this.bringToFront();
+    this._bindMinimizedViewportResize();
+    this._animateRect(minimizedRect);
+    this._syncToolStates();
     this._fire('Minimize');
     return this;
   };
 
   FabWindow.prototype.maximize = function() {
     var bounds;
+    if (this.options.minimized) this._restoreMinimized(false);
     if (this.options.maximized) return this;
     this._cancelStateAnimation(true);
     this._normalRect = this._getRect();
@@ -25966,6 +36183,10 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
 
   FabWindow.prototype.restore = function() {
     var normalRect;
+    if (this._restoreMinimized(true)) {
+      this._fire('Restore');
+      return this;
+    }
     if (!this.options.maximized || !this._normalRect) return this;
     this._cancelStateAnimation(true);
     normalRect = this._normalRect;
@@ -25985,12 +36206,12 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
     if (this.options.collapsed || !this._fireBefore('Collapse')) return this;
     this._cancelStateAnimation(true);
     startHeight = this.windowElement.offsetHeight || this.options.height;
-    collapsedHeight = this._getCollapsedHeight();
     this.windowElement.style.height = Math.round(startHeight) + 'px';
     this.options.collapsed = true;
     this.hostElement.hidden = true;
     this.footerElement.hidden = true;
     this.windowElement.classList.add('fui-window-collapsed');
+    collapsedHeight = this._getCollapsedHeight();
     this._animateState(function() {
       self.windowElement.style.height = Math.round(collapsedHeight) + 'px';
     }, function() {
@@ -26022,11 +36243,20 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
 
   FabWindow.prototype._syncToolStates = function() {
     var collapse = this.toolsElement.querySelector('[data-window-tool="collapse"]');
+    var minimize = this.toolsElement.querySelector('[data-window-tool="minimize"]');
     var maximize = this.toolsElement.querySelector('[data-window-tool="maximize"]');
     if (collapse) {
       collapse.classList.toggle('fui-window-tool-expand', this.options.collapsed);
       collapse.setAttribute('aria-label', this.options.collapsed ? this.messages.expand : this.messages.collapse);
       collapse.title = this.options.collapsed ? this.messages.expand : this.messages.collapse;
+    }
+    if (minimize) {
+      minimize.classList.toggle('fui-window-tool-restore', this.options.minimized);
+      minimize.setAttribute(
+        'aria-label',
+        this.options.minimized ? this.messages.restore : this.messages.minimize
+      );
+      minimize.title = this.options.minimized ? this.messages.restore : this.messages.minimize;
     }
     if (maximize) {
       maximize.classList.toggle('fui-window-tool-restore', this.options.maximized);
@@ -26117,12 +36347,7 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
     this.options.messages = messages || this.options.messages;
     this.messages = assignWindowOptions({}, localePacks[this.options.locale], this.options.messages || {});
     this._syncToolStates();
-    var minimize = this.toolsElement.querySelector('[data-window-tool="minimize"]');
     var close = this.toolsElement.querySelector('[data-window-tool="close"]');
-    if (minimize) {
-      minimize.title = this.messages.minimize;
-      minimize.setAttribute('aria-label', this.messages.minimize);
-    }
     if (close) {
       close.title = this.messages.close;
       close.setAttribute('aria-label', this.messages.close);
@@ -26174,6 +36399,9 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
     this._destroyed = true;
     this._cancelStateAnimation(true);
     this._unbindDocumentInteraction();
+    this._removeResizeProxy();
+    this._interaction = null;
+    this._unbindMinimizedViewportResize();
     this.headerElement.removeEventListener('pointerdown', this._onHeaderPointerDown);
     this.windowElement.removeEventListener('pointerdown', this._onWindowPointerDown);
     unregisterControl(this.hostElement, this);
@@ -26230,6 +36458,8 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
     messages: null
   };
   FabWindow.locales = localePacks;
+  FabWindow.themes = WINDOW_THEMES.slice();
+  FabWindow.normalizeLocale = normalizeLocale;
   FabWindow.getControl = function(element) {
     element = resolveWindowElement(element);
     return element && element.__fabuiWindow ? element.__fabuiWindow : null;
@@ -26272,8 +36502,9 @@ function messagerCssPosition(value) {
 }
 
 function normalizeMessagerLocale(value) {
-  value = String(value || 'en');
-  if (/^zh(?:-|_)?tw/i.test(value)) return 'zh-TW';
+  value = String(value || 'en').trim().replace(/_/g, '-');
+  if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:cn|hans)(?:-|$)/i.test(value)) return 'zh-CN';
   if (/^zh/i.test(value)) return 'zh-CN';
   return 'en';
 }
@@ -26405,10 +36636,10 @@ function createMessagerFactory(Window, Button) {
   function createDialogButtons(options, type, resolve) {
     var footer = document.createElement('div');
     var buttons = [];
-    var okElement = document.createElement('button');
+    var okElement = document.createElement('a');
     var cancelElement;
     footer.className = 'fui-messager-buttons';
-    okElement.type = 'button';
+    okElement.href = 'javascript:void(0)';
     footer.appendChild(okElement);
     buttons.push(new Button(okElement, {
       text: options.messages.ok,
@@ -26419,8 +36650,8 @@ function createMessagerFactory(Window, Button) {
       }
     }));
     if (type === 'confirm' || type === 'prompt') {
-      cancelElement = document.createElement('button');
-      cancelElement.type = 'button';
+      cancelElement = document.createElement('a');
+      cancelElement.href = 'javascript:void(0)';
       footer.appendChild(cancelElement);
       buttons.push(new Button(cancelElement, {
         text: options.messages.cancel,
@@ -26439,7 +36670,7 @@ function createMessagerFactory(Window, Button) {
 
   function focusableElements(element) {
     return Array.prototype.filter.call(
-      element.querySelectorAll('button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])'),
+      element.querySelectorAll('a[href]:not([aria-disabled="true"]),input:not([disabled]),[tabindex]:not([tabindex="-1"])'),
       function(item) {
         return !item.hidden && item.offsetParent !== null;
       }
@@ -26856,6 +37087,7 @@ function createMessagerFactory(Window, Button) {
     },
     locales: localePacks,
     themes: MESSAGER_THEMES.slice(),
+    normalizeLocale: normalizeMessagerLocale,
     show: showToast,
     alert: function(title, msg, icon, fn) {
       if (typeof icon === 'function' && fn == null) {
@@ -26959,6 +37191,12 @@ function createFabGridFactory(editorDefinitions) {
     Cell: 'Cell',
     CellRange: 'CellRange'
   });
+  var FABGRID_THEMES = [
+    'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+    'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+    'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+    'black'
+  ];
 
   var DEFAULT_OPTIONS = {
     rowHeight: 32,
@@ -27605,7 +37843,7 @@ function createFabGridFactory(editorDefinitions) {
         '<div class="fg-footer-frozen-right"></div>' +
         '<div class="fg-footer-scroll"><div class="fg-footer-canvas"></div></div>' +
       '</div>' +
-      '<div class="fg-pager"><div class="fg-pagination" aria-label="Pagination"></div></div>' +
+      '<div class="fg-pager"><div class="fg-pagination"></div></div>' +
       '<div class="fg-remote-load-mask" aria-live="polite"><div class="fg-remote-load-panel"><span class="fg-remote-load-spinner pagination-loading"></span><span class="fg-remote-load-text"></span></div></div>';
 
     this.host.innerHTML = '';
@@ -28571,7 +38809,7 @@ function createFabGridFactory(editorDefinitions) {
   }
 
   function normalizeLocaleName(locale) {
-    var name = locale == null ? '' : String(locale);
+    var name = locale == null ? '' : String(locale).trim().replace(/_/g, '-');
     var lower = name.toLowerCase();
     var locales = getLocaleMap();
     if (Object.prototype.hasOwnProperty.call(locales, name)) {
@@ -30535,6 +40773,8 @@ function createFabGridFactory(editorDefinitions) {
   });
 
   FabGrid.locales = getLocaleMap();
+  FabGrid.themes = FABGRID_THEMES.slice();
+  FabGrid.normalizeLocale = normalizeLocaleName;
   FabGrid.editorDefinitions = editorDefinitions;
   FabGrid.defaultLocale = getDefaultLocaleName();
   FabGrid.addLocale = function(name, messages) {
@@ -32502,6 +42742,7 @@ function createPivotChartFactory(Control, registerControl, unregisterControl, Pi
   });
 
   PivotChart.ChartType = Chart.ChartType;
+  PivotChart.themes = (Chart.themes || FabGrid.themes || []).slice();
   return PivotChart;
 }
 
@@ -33802,6 +44043,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
   });
 
   PivotGrid.PivotEngine = PivotEngine;
+  PivotGrid.themes = (FabGrid.themes || []).slice();
   return PivotGrid;
 }
 
@@ -35029,6 +45271,7 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     }
   });
 
+  PivotPanel.themes = (FabGrid.themes || []).slice();
   return PivotPanel;
 }
 
@@ -35383,8 +45626,16 @@ function createPivotSlicerFactory(
     }
   });
 
+  PivotSlicer.themes = (FabGrid.themes || []).slice();
   return PivotSlicer;
 }
+
+var PIVOT_WORKSPACE_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
 
 function resolvePivotWorkspaceHostElement(element) {
   if (typeof element === 'string') {
@@ -35398,6 +45649,35 @@ function resolvePivotWorkspaceHostElement(element) {
     }
   }
   return element && element.nodeType === 1 ? element : null;
+}
+
+function normalizePivotWorkspaceTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return PIVOT_WORKSPACE_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function findPivotWorkspaceTheme(element) {
+  var current = resolvePivotWorkspaceHostElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < PIVOT_WORKSPACE_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + PIVOT_WORKSPACE_THEMES[index])) {
+        return PIVOT_WORKSPACE_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function applyPivotWorkspaceTheme(element, theme) {
+  var index;
+  if (!element || !element.classList) return;
+  for (index = 0; index < PIVOT_WORKSPACE_THEMES.length; index += 1) {
+    element.classList.remove('fg-theme-' + PIVOT_WORKSPACE_THEMES[index]);
+  }
+  if (theme) element.classList.add('fg-theme-' + theme);
 }
 
 function assign(target, source) {
@@ -35520,6 +45800,7 @@ function normalizePivotWorkspaceOptions(options) {
   return assign({
     locale: 'en',
     messages: null,
+    theme: 'inherit',
     layout: 'Auto',
     compactBreakpoint: 1050,
     splitterSize: 7,
@@ -35652,6 +45933,7 @@ function createPivotWorkspaceFactory(
     Control.call(this);
     this.hostElement = host;
     this.root = host;
+    this._themeSource = host.parentElement || host;
     this.options = normalizePivotWorkspaceOptions(options);
     this.options.layout = normalizeLayout(this.options.layout);
     this.locale = this.options.locale || 'en';
@@ -35679,6 +45961,7 @@ function createPivotWorkspaceFactory(
     this._engine = source instanceof PivotEngine ? source : new PivotEngine(getEngineOptions(this.options));
     this._createDom();
     this._createChildren();
+    this.setTheme(this.options.theme);
     this._createControls();
     this._bindEngineEvents();
     this._bindEvents();
@@ -36384,6 +46667,21 @@ function createPivotWorkspaceFactory(
     return this;
   };
 
+  PivotWorkspace.prototype.setTheme = function(theme) {
+    this.options.theme = theme == null ? 'inherit' : String(theme);
+    this.theme = this.options.theme === 'inherit' ?
+      findPivotWorkspaceTheme(this._themeSource) :
+      normalizePivotWorkspaceTheme(this.options.theme);
+    applyPivotWorkspaceTheme(this.root, this.theme);
+    applyPivotWorkspaceTheme(this.panel && (this.panel.root || this.panel.hostElement), this.theme);
+    applyPivotWorkspaceTheme(this.grid && (this.grid.root || this.grid.hostElement), this.theme);
+    applyPivotWorkspaceTheme(this.chart && (this.chart.root || this.chart.hostElement), this.theme);
+    if (this.chart && this.chart.chart && typeof this.chart.chart.setTheme === 'function') {
+      this.chart.chart.setTheme('inherit');
+    }
+    return this;
+  };
+
   PivotWorkspace.prototype.setEngine = function(engine) {
     if (!(engine instanceof PivotEngine)) {
       throw new TypeError('PivotWorkspace engine must be a fabui.pivot.PivotEngine instance.');
@@ -36456,6 +46754,7 @@ function createPivotWorkspaceFactory(
     }
     this.removeEventListener();
     unregisterControl(this.hostElement, this);
+    applyPivotWorkspaceTheme(this.hostElement, null);
     this.hostElement.innerHTML = '';
     this.hostElement.classList.remove(
       'fg-root',
@@ -36522,26 +46821,37 @@ function createPivotWorkspaceFactory(
     }
   });
 
+  PivotWorkspace.themes = PIVOT_WORKSPACE_THEMES.slice();
+  PivotWorkspace.normalizeTheme = normalizePivotWorkspaceTheme;
   return PivotWorkspace;
 }
 
 global.fabui = global.fabui || {};
-global.fabui.version = "2026.7.18";
+global.fabui.version = "2026.7.19";
 global.fabui.editorDefinitions = createEditorDefinitions();
 global.fabui.Control = Control;
 global.fabui.Button = createButtonFactory(global.fabui.Control, registerControl, unregisterControl);
 global.fabui.Calendar = createCalendarFactory(global.fabui.Control, registerControl, unregisterControl);
+global.fabui.CheckBox = createCheckBoxFactory(global.fabui.Control, registerControl, unregisterControl);
+global.fabui.CheckGroup = createCheckGroupFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.CheckBox);
+global.fabui.SwitchButton = createSwitchButtonFactory(global.fabui.Control, registerControl, unregisterControl);
+global.fabui.RadioButton = createRadioButtonFactory(global.fabui.Control, registerControl, unregisterControl);
+global.fabui.RadioGroup = createRadioGroupFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.RadioButton);
 global.fabui.Chart = createChartFactory();
 global.fabui.EditBox = createEditBoxFactory(global.fabui.editorDefinitions);
+global.fabui.Window = createWindowFactory(global.fabui.Control, registerControl, unregisterControl);
+global.fabui.Diagram = createDiagramFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Button, global.fabui.EditBox, global.fabui.Window);
+global.fabui.FileBox = createFileBoxFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.EditBox);
+global.fabui.Form = createFormFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.EditBox);
 global.fabui.Menu = createMenuFactory(global.fabui.Control, registerControl, unregisterControl);
 global.fabui.MenuButton = createMenuButtonFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Button, global.fabui.Menu);
 global.fabui.SplitButton = createSplitButtonFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.MenuButton);
 global.fabui.Panel = createPanelFactory(global.fabui.Control, registerControl, unregisterControl);
+global.fabui.PropertyGrid = createPropertyGridFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.EditBox);
 global.fabui.Tabs = createTabsFactory(global.fabui.Control, registerControl, unregisterControl);
 global.fabui.Tree = createTreeFactory(global.fabui.Control, registerControl, unregisterControl);
 global.fabui.Tooltip = createTooltipFactory(global.fabui.Control, registerControl, unregisterControl);
 global.fabui.Layout = createLayoutFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Panel);
-global.fabui.Window = createWindowFactory(global.fabui.Control, registerControl, unregisterControl);
 global.fabui.Messager = createMessagerFactory(global.fabui.Window, global.fabui.Button);
 global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);
 global.fabui.pivot = {};
@@ -36757,6 +47067,7 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
     },
     datebox: {
       today: 'Today',
+      currentMonth: 'Current month',
       close: 'Close',
       weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
       months: [
@@ -36977,6 +47288,7 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
     },
     datebox: {
       today: '今天',
+      currentMonth: '當月',
       close: '關閉',
       weekdays: ['日', '一', '二', '三', '四', '五', '六'],
       months: [
@@ -37197,6 +47509,7 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
     },
     datebox: {
       today: '今天',
+      currentMonth: '当月',
       close: '关闭',
       weekdays: ['日', '一', '二', '三', '四', '五', '六'],
       months: [

@@ -46,7 +46,7 @@ Markup 可使用 `title`、`closable`／`data-closable`、`disabled`／`data-dis
 | `justified` | `false` | 所有 tab 平均填滿 header。 |
 | `narrow` | `false` | 移除 tab 間距。 |
 | `pill` | `false` | 使用 pill 樣式。 |
-| `draggable` | `false` | `true` 時允許以滑鼠拖曳 `top`／`bottom` 頁籤左右排序；跟隨游標的 drag image 使用 50% 透明背景、文字與 icon，保留清楚的 theme 外框與陰影，原位置 Tab 保持原樣且目的地仍可透視。往左拖時在目標 Tab 左側顯示垂直插入線並插到左方；往右拖時在目標 Tab 右側顯示垂直插入線並插到右方。提示不顯示箭頭，顏色依 theme 使用主色補色。 |
+| `draggable` | `false` | `false` 時 Tab 使用一般箭頭游標。`true` 時只有標題文字是 drag handle，可用滑鼠拖曳 `top`／`bottom` 頁籤左右排序；icon、Tab 留白、tools 與關閉按鈕不會觸發拖曳。跟隨游標的 drag image 使用 50% 透明背景、文字與 icon，保留清楚的 theme 外框與陰影，原位置 Tab 保持原樣且目的地仍可透視。往左拖時在目標 Tab 左側顯示垂直插入線並插到左方；往右拖時在目標 Tab 右側顯示垂直插入線並插到右方。提示不顯示箭頭，顏色依 theme 使用主色補色。 |
 | `locale` | `'en'` | `en`、`zh-TW`、`zh-CN`。 |
 | `theme` | `'inherit'` | 繼承最近的 `fg-theme-*`，或指定內建 theme。 |
 | `cls` | `''` | Tabs host 自訂 class。 |

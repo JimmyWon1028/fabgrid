@@ -1019,6 +1019,7 @@ export function installFabGridView(FabGrid, context) {
     }
     this.pager.style.height = height + 'px';
     this.pager.style.display = height ? 'block' : 'none';
+    this.pagination.setAttribute('aria-label', this.getText('pagination.ariaLabel'));
     this.pagination.style.height = '100%';
     this.pagination.style.display = height ? 'flex' : 'none';
     if (!height) {

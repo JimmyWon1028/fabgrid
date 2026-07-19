@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PropertyGrid source smoke</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260719-propertygrid-v1">
+</head>
+<body class="fg-theme-default">
+  <div id="propertygrid-smoke" class="original-propertygrid-host">Original content</div>
+  <pre id="result">{"complete":false}</pre>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260719-propertygrid-v1';
+
+    var host = document.getElementById('propertygrid-smoke');
+    var result = document.getElementById('result');
+    var propertyGrid;
+    var editor;
+    var checks = {};
+
+    try {
+      propertyGrid = new fabui.PropertyGrid(host, {
+        showGroup: true,
+        locale: 'zh-TW',
+        data: [{
+          name: 'Name',
+          value: 'Bill',
+          group: 'Identity',
+          editor: 'text'
+        }, {
+          name: 'Age',
+          value: 40,
+          group: 'Identity',
+          editor: 'number'
+        }, {
+          name: 'Buyer',
+          value: false,
+          group: 'Marketing',
+          editor: 'boolean'
+        }]
+      });
+      checks.published = typeof fabui.PropertyGrid === 'function';
+      checks.registered = fabui.Control.getControl(host) === propertyGrid;
+      checks.grouped = propertyGrid.groups().length === 2 &&
+        host.querySelectorAll('.fui-propertygrid-group').length === 2;
+      propertyGrid.collapseGroup(0);
+      checks.collapsed = propertyGrid.groups()[0].collapsed === true &&
+        host.querySelectorAll('.fui-propertygrid-row').length === 1;
+      propertyGrid.expandGroup(0);
+      propertyGrid.selectRow(1).beginEdit(1);
+      editor = propertyGrid.getEditor(1);
+      checks.sharedEditor = editor && editor.actions instanceof fabui.EditBox;
+      editor.actions.setValue(41, true);
+      propertyGrid.endEdit(1);
+      checks.edited = propertyGrid.getRows()[1].value === 41 &&
+        propertyGrid.getChanges('updated').length === 1;
+      propertyGrid.acceptChanges();
+      propertyGrid.updateRow({ index: 1, row: { value: 55 } });
+      propertyGrid.rejectChanges();
+      checks.rejected = propertyGrid.getRows()[1].value === 41 &&
+        propertyGrid.getChanges().length === 0;
+      propertyGrid.setLocale('zh-CN').setTheme('black');
+      checks.localeTheme = host.getAttribute('aria-label') === '属性表' &&
+        host.classList.contains('fg-theme-black');
+      propertyGrid.dispose();
+      checks.disposed = fabui.Control.getControl(host) === null &&
+        host.className === 'original-propertygrid-host' &&
+        host.textContent.indexOf('Original content') >= 0;
+      checks.complete = Object.keys(checks).every(function(key) {
+        return checks[key] === true;
+      });
+    } catch (error) {
+      checks.error = error && error.stack ? error.stack : String(error);
+      checks.complete = false;
+    }
+    result.textContent = JSON.stringify(checks);
+    document.title = checks.complete ? 'PASS PropertyGrid source smoke' : 'FAIL PropertyGrid source smoke';
+  </script>
+</body>
+</html>

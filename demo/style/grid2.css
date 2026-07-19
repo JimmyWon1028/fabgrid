@@ -1,0 +1,199 @@
+.grid2-demo .field .fui-textbox-field {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.grid2-demo .field .fui-textbox,
+.grid2-demo .field .fui-textbox-field {
+  width: 100%;
+}
+
+.grid2-demo .field.compact {
+  min-width: 108px;
+}
+
+.grid2-demo .field.compact.theme-field {
+  min-width: 148px;
+}
+
+.grid2-demo .field.compact.narrow-number-field {
+  min-width: 58px;
+}
+
+.grid2-demo .field.compact.narrow-number-field .fui-textbox-text {
+  padding-right: 6px;
+  padding-left: 6px;
+}
+
+.grid2-demo .toolbar .fui-button {
+  height: 34px;
+  padding: 0;
+  border-color: var(--fui-button-border);
+  background: linear-gradient(
+    to bottom,
+    var(--fui-button-bg-start),
+    var(--fui-button-bg-end)
+  );
+  color: var(--fui-button-text);
+}
+
+.grid2-demo .toolbar .fui-button:not(.fui-button-disabled):hover {
+  border-color: var(--fui-button-border-hover);
+  background: var(--fui-button-bg-hover);
+  color: var(--fui-button-text-hover);
+}
+
+.grid2-demo .toolbar .fui-button-plain {
+  border-color: transparent;
+  background: transparent;
+}
+
+.grid2-demo .toolbar .fui-button-selected,
+.grid2-demo
+  .toolbar
+  .fui-button-selected:not(.fui-button-disabled):hover {
+  border-color: var(--fui-button-border);
+  background: var(--fui-button-bg-selected);
+  color: var(--fui-button-text-hover);
+}
+
+.grid2-demo .toolbar .grid2-toolbar-button,
+.grid2-demo .toolbar .toolbar-icon-button.fui-button {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 34px;
+}
+
+.grid2-demo[data-grid-toolbar-icon-only="true"]
+  .toolbar
+  .toolbar-icon-button.fui-button {
+  flex-basis: 34px;
+  width: 34px;
+}
+
+.grid2-demo .toggle .fui-checkbox {
+  color: inherit;
+  font-size: 12px;
+}
+
+.grid2-demo
+  .toggle
+  .fui-checkbox-label-after
+  .fui-checkbox-label {
+  margin-left: 6px;
+}
+
+.grid2-demo .demo-filter-input-wrap.demo-filter-textbox-ready {
+  display: flex;
+  align-items: stretch;
+}
+
+.grid2-demo
+  .demo-filter-textbox-ready
+  > .demo-filter-mode.fui-button {
+  display: inline-flex;
+}
+
+.grid2-demo .demo-filter-textbox-ready .fui-textbox-field {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.grid2-demo .demo-filter-textbox-ready .fui-textbox {
+  border-radius: 7px 0 0 7px;
+}
+
+.grid2-demo .demo-filter-textbox-ready > .fui-button {
+  width: 34px;
+  min-width: 34px;
+  height: 30px;
+  flex: 0 0 34px;
+  border-color: #8ebcf1;
+  border-left: 0;
+  border-radius: 0;
+}
+
+.grid2-demo
+  .demo-filter-textbox-ready
+  > .demo-filter-mode.fui-button {
+  width: 42px;
+  flex-basis: 42px;
+}
+
+.grid2-demo
+  .demo-filter-textbox-ready
+  > .fui-button:last-child {
+  border-radius: 0 7px 7px 0;
+}
+
+.grid2-demo .demo-filter-textbox-ready .fui-button-inner {
+  min-height: 28px;
+  padding: 0 4px;
+}
+
+.grid2-demo .demo-filter-textbox-ready .fui-button-text {
+  line-height: 28px;
+}
+
+.grid2-demo .lookup-popup-overlay.grid2-window-ready {
+  background: rgba(15, 23, 42, 0.22);
+}
+
+.grid2-demo .lookup-popup-window.fui-window-body {
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--fui-window-body-bg, #fff);
+  box-shadow: none;
+}
+
+.grid2-demo .lookup-popup-window .lookup-popup-header {
+  display: none;
+}
+
+.grid2-demo .lookup-popup-window .lookup-popup-grid {
+  flex: 1 1 auto;
+}
+
+.grid2-demo .lookup-popup-window .lookup-popup-pager {
+  flex: 0 0 38px;
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.grid2-demo .fui-window-footer > .lookup-popup-footer {
+  height: auto;
+  min-height: 32px;
+  padding: 0;
+  background: transparent;
+}
+
+.grid2-demo .lookup-popup-button.fui-button {
+  height: 30px;
+  padding: 0;
+  border-color: var(--fui-button-border);
+  background: linear-gradient(
+    to bottom,
+    var(--fui-button-bg-start),
+    var(--fui-button-bg-end)
+  );
+  color: var(--fui-button-text);
+}
+
+.grid2-demo .lookup-popup-button.fui-button .fui-button-inner {
+  min-height: 28px;
+}
+
+.grid2-demo .lookup-popup-button.fui-button:hover {
+  border-color: var(--fui-button-border-hover);
+  background: var(--fui-button-bg-hover);
+}

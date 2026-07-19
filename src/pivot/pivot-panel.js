@@ -1222,6 +1222,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     }
   });
 
+  PivotPanel.themes = (FabGrid.themes || []).slice();
   return PivotPanel;
 }
 import { getPivotSlicerValues } from './pivot-slicer.js?v=20260717-pivot-advanced-v1';

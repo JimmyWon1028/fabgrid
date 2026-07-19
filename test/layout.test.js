@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import coreFabui from '../src/fabui.js';
 import {
   calculateLayoutRects,
@@ -61,4 +63,174 @@ test('Layout exposes EasyUI-compatible region defaults', function() {
   assert.equal(coreFabui.Layout.regionDefaults.collapsedSize, 28);
   assert.equal(coreFabui.Layout.defaults.animate, true);
   assert.equal(coreFabui.Layout.defaults.animationDuration, 180);
+});
+
+test('Layout theme styles match every EasyUI layout reference palette', function() {
+  var css = readFileSync(
+    new URL('../src/layout/layout.css', import.meta.url),
+    'utf8'
+  );
+  var expected = {
+    default: ['#e6eef8', '#aac5e7', '#e0ecff', '#95b8e7', '#0e2d5f', '14px'],
+    bootstrap: ['#eee', '#bbb', '#f2f2f2', '#d4d4d4', '#777', '12px'],
+    cupertino: ['#f2f5f7', '#aed0ea', '#d7ebf9', '#aed0ea', '#2779aa', '14px'],
+    material: ['#fff', '#ccc', '#f5f5f5', '#ddd', '#000', '14px'],
+    'material-blue': ['#fff', '#ccc', '#f5f5f5', '#dfdfdf', '#404040', '14px'],
+    'material-teal': ['#fff', '#ccc', '#fafafa', '#dfdfdf', '#404040', '14px'],
+    metro: ['#fff', '#b3b3b3', '#fff', '#ddd', '#777', '14px'],
+    'metro-blue': ['#fafafa', '#1a7bc9', '#daeef5', '#c3d9e0', '#404040', '14px'],
+    'metro-gray': ['#fafafa', '#84909c', '#c7ccd1', '#abafb8', '#404040', '14px'],
+    'metro-green': ['#fafafa', '#859416', '#e5f0c9', '#b1c242', '#404040', '14px'],
+    'metro-orange': ['#fafafa', '#de8033', '#f0e3bf', '#d4a375', '#404040', '14px'],
+    'metro-red': ['#fafafa', '#c75252', '#f0e1e3', '#f6c1bc', '#404040', '14px'],
+    sunny: ['#a69e8d', '#817865', '#817865', '#494437', '#fff', '14px'],
+    'pepper-grinder': ['#eceadf', '#cbc7bd', '#f8f7f6', '#cbc7bd', '#654b24', '14px'],
+    'dark-hive': ['#000', '#26b3f7', '#222', '#444', '#eee', '14px'],
+    black: ['#444', '#ccc', '#3d3d3d', '#000', '#fff', '14px']
+  };
+  var names = [
+    '--fui-layout-splitter',
+    '--fui-layout-splitter-active',
+    '--fui-layout-expand-bg',
+    '--fui-layout-expand-border',
+    '--fui-layout-expand-text',
+    '--fui-layout-font-size'
+  ];
+
+  Object.keys(expected).forEach(function(theme) {
+    var match = css.match(new RegExp(
+      '\\.fui-layout\\.fg-theme-' +
+      theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+      '\\s*\\{([\\s\\S]*?)\\}'
+    ));
+    assert.ok(match, theme);
+    names.forEach(function(name, index) {
+      assert.match(
+        match[1],
+        new RegExp(name + ':\\s*' + expected[theme][index], 'i'),
+        theme + ' ' + name
+      );
+    });
+  });
+
+  assert.match(css, /background:\s*var\(--fui-layout-splitter\)/);
+  assert.match(css, /background:\s*var\(--fui-layout-splitter-active\)/);
+  assert.doesNotMatch(css, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
+});
+
+test('Layout uses the matching EasyUI arrow sprite for every theme', function() {
+  var iconCss = readFileSync(
+    new URL('../src/fabui.icon.css', import.meta.url),
+    'utf8'
+  );
+  var expectedHashes = {
+    default: 'cc6a4bfc5bbb05eb1b524628ce5df66f3ba0b657',
+    bootstrap: 'cc6a4bfc5bbb05eb1b524628ce5df66f3ba0b657',
+    cupertino: '69372e294154c8abad0ab638bbdb3a6cea440715',
+    material: '64210f19e5c0104cc0dc36a549e7efe17d4640f9',
+    'material-blue': '64210f19e5c0104cc0dc36a549e7efe17d4640f9',
+    'material-teal': '64210f19e5c0104cc0dc36a549e7efe17d4640f9',
+    metro: 'cc6a4bfc5bbb05eb1b524628ce5df66f3ba0b657',
+    'metro-blue': '69372e294154c8abad0ab638bbdb3a6cea440715',
+    'metro-gray': '69372e294154c8abad0ab638bbdb3a6cea440715',
+    'metro-green': '69372e294154c8abad0ab638bbdb3a6cea440715',
+    'metro-orange': '69372e294154c8abad0ab638bbdb3a6cea440715',
+    'metro-red': '69372e294154c8abad0ab638bbdb3a6cea440715',
+    sunny: '69372e294154c8abad0ab638bbdb3a6cea440715',
+    'pepper-grinder': '69372e294154c8abad0ab638bbdb3a6cea440715',
+    'dark-hive': '1f6b921e7d4003e817e56b5b83fa48d3e9208ece',
+    black: '1f6b921e7d4003e817e56b5b83fa48d3e9208ece'
+  };
+
+  Object.keys(expectedHashes).forEach(function(theme) {
+    var png = readFileSync(
+      new URL(
+        '../src/theme/' + theme + '/images/layout_arrows.png',
+        import.meta.url
+      )
+    );
+    var hash = createHash('sha1').update(png).digest('hex');
+    assert.equal(hash, expectedHashes[theme], theme);
+    assert.match(
+      iconCss,
+      new RegExp(
+        "--fui-layout-arrows:\\s*url\\('theme/" +
+        theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+        "/images/layout_arrows\\.png'\\)"
+      ),
+      theme
+    );
+  });
+
+  assert.match(iconCss, /\.fui-layout-button-up[\s\S]*background-position:\s*-16px -16px/);
+  assert.match(iconCss, /\.fui-layout-button-right[\s\S]*background-position:\s*0 -16px/);
+});
+
+test('Layout collapse and expand icons do not change on mouse hover', function() {
+  var css = readFileSync(
+    new URL('../src/layout/layout.css', import.meta.url),
+    'utf8'
+  );
+
+  assert.match(
+    css,
+    /\.fui-layout-expand-button:hover\s*\{[\s\S]*?background-color:\s*transparent;/
+  );
+  assert.match(css, /\.fui-layout-expand-button:focus-visible/);
+  assert.match(
+    css,
+    /\.fui-layout \.fui-panel-tool\.fui-layout-button-up:hover,[\s\S]*?background-color:\s*transparent;[\s\S]*?opacity:\s*0\.6;/
+  );
+  assert.doesNotMatch(css, /fui-layout-button-(?:up|down|left|right):hover:not/);
+});
+
+test('Layout highlights only the splitter being dragged', function() {
+  var css = readFileSync(
+    new URL('../src/layout/layout.css', import.meta.url),
+    'utf8'
+  );
+  var source = readFileSync(
+    new URL('../src/layout/layout.js', import.meta.url),
+    'utf8'
+  );
+
+  assert.doesNotMatch(css, /\.fui-layout-splitter:hover/);
+  assert.doesNotMatch(css, /\.fui-layout-resizing \.fui-layout-splitter/);
+  assert.match(
+    css,
+    /\.fui-layout-splitter-dragging\s*\{[\s\S]*?z-index:\s*8;[\s\S]*?background:\s*var\(--fui-layout-splitter-active\);/
+  );
+  assert.match(
+    source,
+    /splitter\.classList\.add\('fui-layout-splitter-dragging'\)/
+  );
+  assert.match(
+    source,
+    /splitter\.classList\.remove\('fui-layout-splitter-dragging'\)/
+  );
+});
+
+test('Layout previews splitter movement and resizes panels only on pointer release', function() {
+  var source = readFileSync(
+    new URL('../src/layout/layout.js', import.meta.url),
+    'utf8'
+  );
+  var moveSource = source.match(
+    /FabLayout\.prototype\._handleSplitMove\s*=\s*function\(event\)\s*\{([\s\S]*?)\n  \};/
+  );
+  var finishSource = source.match(
+    /FabLayout\.prototype\._finishSplit\s*=\s*function\(event\)\s*\{([\s\S]*?)\n  \};/
+  );
+
+  assert.ok(moveSource);
+  assert.ok(finishSource);
+  assert.match(moveSource[1], /state\.pendingSize\s*=\s*size/);
+  assert.match(moveSource[1], /splitter\.style\.transform/);
+  assert.doesNotMatch(moveSource[1], /_setRegionSize/);
+  assert.match(finishSource[1], /event\.type\s*===\s*'pointercancel'/);
+  assert.match(
+    finishSource[1],
+    /this\._setRegionSize\(state\.region,\s*state\.pendingSize\)/
+  );
+  assert.match(finishSource[1], /splitter\.style\.removeProperty\('transform'\)/);
 });

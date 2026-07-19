@@ -15,8 +15,8 @@
         <p>左側 Grid 資料列可拖入右側 TreeGrid；右側節點可調整順序與上下階。</p>
       </div>
       <div class="grid-tree-actions">
-        <button id="expandDragTree" type="button">全部展開</button>
-        <button id="resetDragDemo" type="button">重設資料</button>
+        <a data-fabui-button href="javascript:void(0)" id="expandDragTree">全部展開</a>
+        <a data-fabui-button href="javascript:void(0)" id="resetDragDemo">重設資料</a>
       </div>
     </header>
 
@@ -56,11 +56,12 @@
 
   <script src="./js/grid-treegrid-data.js?v=20260715-row-pointer-drag-v1"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260718-row-drop-width-v1';
+    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
 
     window.fabui = fabui;
     await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260716-excel-filter-escape-v1');
     await import('./js/grid-treegrid.js?v=20260715-row-pointer-drag-v1');
   </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
 </body>
 </html>

@@ -101,9 +101,10 @@ export function createPanelFactory(Control, registerControl, unregisterControl) 
   };
 
   function normalizeLocale(value) {
+    value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh(?:-|_)?tw/i.test(value || '')) return 'zh-TW';
-    if (/^zh/i.test(value || '')) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
     return 'en';
   }
 
@@ -845,6 +846,8 @@ export function createPanelFactory(Control, registerControl, unregisterControl) 
     animationDuration: 180
   };
   FabPanel.locales = localePacks;
+  FabPanel.themes = PANEL_THEMES.slice();
+  FabPanel.normalizeLocale = normalizeLocale;
   FabPanel.getControl = function(element) {
     element = resolvePanelElement(element);
     return element && element.__fabuiPanel ? element.__fabuiPanel : null;

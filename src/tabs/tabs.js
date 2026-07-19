@@ -178,8 +178,11 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
   }
 
   function normalizeLocale(value) {
-    value = String(value || 'en');
-    return localePacks[value] ? value : 'en';
+    value = String(value || 'en').trim().replace(/_/g, '-');
+    if (localePacks[value]) return value;
+    if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
+    if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+    return 'en';
   }
 
   function formatText(text, values) {
@@ -388,9 +391,16 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
       self._dragBlocked = false;
     };
     this._onTabDragStart = function(event) {
-      var tab = event.target.closest('.fui-tabs-tab');
+      var title = event.target.closest('.fui-tabs-title');
+      var tab = title && title.closest('.fui-tabs-tab');
       var index;
-      if (!self._isHorizontalDragEnabled() || self._dragBlocked || !tab || !self.list.contains(tab)) {
+      if (
+        !self._isHorizontalDragEnabled() ||
+        self._dragBlocked ||
+        !title ||
+        !tab ||
+        !self.list.contains(tab)
+      ) {
         event.preventDefault();
         return;
       }
@@ -464,6 +474,7 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
     };
     this._onPrevious = function() { self.scrollBy(Math.abs(Number(self._options.scrollIncrement) || 100)); };
     this._onNext = function() { self.scrollBy(-Math.abs(Number(self._options.scrollIncrement) || 100)); };
+    this._onTabScroll = function() { self._syncOverflow(); };
     this._onResize = function() { self.resize(); };
     this.addEventListener(this.list, 'click', this._onTabClick);
     this.addEventListener(this.list, 'pointerdown', this._onTabPointerDown);
@@ -475,6 +486,7 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
     this.addEventListener(this.list, 'dragend', this._onTabDragEnd);
     this.addEventListener(this.list, 'keydown', this._onTabKeyDown);
     this.addEventListener(this.list, 'contextmenu', this._onContextMenu);
+    this.addEventListener(this.viewport, 'scroll', this._onTabScroll);
     this.addEventListener(this.previousButton, 'click', this._onPrevious);
     this.addEventListener(this.nextButton, 'click', this._onNext);
     this.addEventListener(window, 'resize', this._onResize);
@@ -543,6 +555,7 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
     title = document.createElement('span');
     title.className = 'fui-tabs-title';
     title.textContent = record.options.title;
+    title.draggable = this._isHorizontalDragEnabled() && !record.options.disabled;
     tab.appendChild(title);
     record.panelTools = this._resolveTools(record.options.tools);
     record.panelTools.forEach(function(tool, toolIndex) {
@@ -563,7 +576,7 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
       tab.appendChild(close);
     }
     tab.disabled = Boolean(record.options.disabled);
-    tab.draggable = this._isHorizontalDragEnabled() && !record.options.disabled;
+    tab.draggable = false;
     tab.classList.toggle('fui-tabs-disabled', Boolean(record.options.disabled));
     tab.style.width = cssSize(record.options.tabWidth != null ? record.options.tabWidth : this._options.tabWidth);
     tab.style.height = cssSize(this._options.tabHeight);
@@ -678,6 +691,7 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
     this._tabs.forEach(function(record, index) {
       record.tab.setAttribute('data-index', index);
       record.tab.id = this._getId() + '-tab-' + index;
+      record.tab.setAttribute('aria-controls', record.panel.id);
       record.panel.setAttribute('aria-labelledby', record.tab.id);
     }, this);
   };
@@ -874,6 +888,7 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
 
   Tabs.prototype.select = function(which, silent) {
     var index = this._resolveIndex(which);
+    var currentIndex = this._selectedIndex;
     var current = this._tabs[this._selectedIndex];
     var next = this._tabs[index];
     if (!next || next.options.disabled || index === this._selectedIndex) return next ? next.panel : null;
@@ -883,7 +898,14 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
       current.tab.setAttribute('aria-selected', 'false');
       current.tab.tabIndex = -1;
       current.panel.hidden = true;
-      if (!silent) this._invoke('onUnselect', current.options.title, this._selectedIndex, current.panel);
+      if (!silent) {
+        this._invoke('onUnselect', current.options.title, currentIndex, current.panel);
+        this._emit('unselect', {
+          title: current.options.title,
+          index: currentIndex,
+          tab: current.panel
+        });
+      }
     }
     this._selectedIndex = index;
     next.tab.classList.add('fui-tabs-selected');
@@ -907,10 +929,10 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
     options = assign({}, options || {});
     if (isElementNode(options.content)) panel.appendChild(options.content);
     else if (options.content != null) panel.innerHTML = String(options.content);
+    if (options.id) panel.id = String(options.id);
     record = this._createRecord(panel, options);
     index = this._resolveIndex(record);
     if (options.style && typeof options.style === 'object') assign(panel.style, options.style);
-    if (options.id) panel.id = String(options.id);
     if (options.selected !== false || this._selectedIndex < 0) this.select(index, silent);
     this._syncOverflow();
     if (!silent) {
@@ -1135,9 +1157,12 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
     this._listeners = {};
   };
 
+  Tabs.prototype.dispose = Tabs.prototype.destroy;
+
   Tabs._nextId = 1;
   Tabs.defaults = defaults;
   Tabs.locales = localePacks;
+  Tabs.themes = TABS_THEMES.slice();
   Tabs.addLocale = function(name, messages) {
     if (name && messages) localePacks[String(name)] = assign({}, localePacks.en, messages);
     return Tabs;
@@ -1147,5 +1172,6 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
     return element && element.__fabuiTabs ? element.__fabuiTabs : null;
   };
   Tabs.normalizeTheme = normalizeTabsTheme;
+  Tabs.normalizeLocale = normalizeLocale;
   return Tabs;
 }

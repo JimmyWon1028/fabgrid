@@ -89,6 +89,8 @@
 
 `state: 'closed'` 且未提供 `children` 的節點視為 lazy node。第一次展開會呼叫 loader，參數包含該節點的 `id`。
 
+Tree 的展開／收合、階層線、資料夾、檔案、checkbox 與 loading 圖示使用各內建 theme 自己的 sprite 資產；hover／selected 文字與背景色、editor 邊框及主題字級也分別對應各 theme 的 EasyUI Tree 視覺。切換 `theme` 時會同步切換整組 Tree 樣式。正式 source 與 build 不依賴本機參考用的 `res/`。
+
 ## Methods
 
 | Method | 說明 |

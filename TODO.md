@@ -87,7 +87,7 @@ Server-side Pivot／OLAP／SSAS 不列入目前產品範圍。
   - 共用視覺樣式以 TextBox 為基準，提供共用 value、state、event methods 與必要的日期／清單 methods。
   - FabGrid 與 `fabui.EditBox` 共用 `src/editbox/editbox-definitions.js`，不再維護重複 editor 定義。
   - 納入 FabUI core 的 browser global／ES module build 與 CSS，使用方式為 `new fabui.EditBox(...)`。
-  - 不產生獨立 EditBox bundle；另提供 `$.fn.fabeditbox` jQuery wrapper、types、API、測試與 Demo。
+  - 不產生獨立 EditBox bundle，也不提供 EditBox jQuery wrapper；統一使用 FabUI core 的 pure JavaScript API。
 - [x] `fabui.Button`
   - 樣式、options、methods 與 click 行為參考 [jQuery EasyUI LinkButton／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=LinkButton&theme=default&dir=ltr&pitem=&sort=asc)。
   - Pure JavaScript 支援 `<a>`／`<button>`、動態與百分比尺寸、disabled、plain、outline、toggle、selected、group、預設左側及四方向 `iconCls`、small／large、theme、Control registry 與 dispose 還原。
@@ -96,14 +96,30 @@ Server-side Pivot／OLAP／SSAS 不列入目前產品範圍。
   - Options、methods 與 events 參考 [jQuery EasyUI Calendar／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Calendar&theme=default&dir=ltr&pitem=&sort=asc)。
   - Pure JavaScript 支援年月導覽、月份選單、週次、`formatter`、`styler`、`validator`、三語系、16 組 theme、鍵盤、Control registry 與 dispose 還原；農民曆 `showLunar` 預設為 `false`。
   - 與 Date EditBox／FabGrid 日期 editor 共用同一個 DatePopup renderer 與 `.fui-calendar-*` 樣式，納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API 與單元測試。
+- [x] `fabui.CheckBox`
+  - Options、methods 與 events 參考 [jQuery EasyUI CheckBox／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=CheckBox&theme=default&dir=ltr&pitem=&sort=asc)。
+  - Pure JavaScript 保留原生 `<input type="checkbox">`、表單 name/value、label、鍵盤與 reset，支援尺寸、checked、disabled、三種 label position、label alignment、runtime state API、三語系 ARIA、16 組 theme、Control registry 與 dispose 還原。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser validation。
+- [x] `fabui.CheckGroup`
+  - Options、methods 與 events 參考 [jQuery EasyUI CheckGroup／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=CheckGroup&theme=default&dir=ltr&pitem=&sort=asc)。
+  - Pure JavaScript 直接組合既有 `fabui.CheckBox`，支援 data、name、value、水平／垂直排列、item style、label 設定、整組／單項 disabled、原生 FormData／reset、三語系、16 組 theme、Control registry 與 dispose 還原。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser validation。
+- [x] `fabui.FileBox`
+  - Options、methods 與 events 參考 [jQuery EasyUI FileBox／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=FileBox&theme=default&dir=ltr&pitem=&sort=asc)。
+  - Pure JavaScript 組合既有 `fabui.EditBox` 與原生 `<input type="file">`，保留 FileList、表單、accept／multiple／capture／required、瀏覽器安全限制、三語系 ARIA、16 組 theme、Control registry 與 dispose 還原。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser validation。
 - [x] `fabui.Tabs`
   - Options、methods 與 events 參考 [jQuery EasyUI Tabs／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Tabs&theme=default&dir=ltr&pitem=&sort=asc)。
-  - Pure JavaScript 支援 markup／programmatic tabs、動態新增／插入／更新／關閉、tab tools、header tools、四方向排列、overflow scroller、遠端內容、disabled、keyboard、三語系、16 組 theme、Control registry 與 dispose 還原；拖曳中的 Tab 使用 50% 透明度，插入線固定在目標 Tab 右側並使用 theme 主色補色。
+  - Pure JavaScript 支援 markup／programmatic tabs、動態新增／插入／更新／關閉、tab tools、header tools、四方向排列、overflow scroller、遠端內容、disabled、keyboard、三語系、16 組 theme、Control registry 與 dispose 還原；`draggable: false` 時使用一般箭頭游標，啟用後只有標題文字是 drag handle，拖曳中的 Tab 使用 50% 透明度，插入線依拖曳方向顯示於目標 Tab 左側或右側並使用 theme 主色補色。
   - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser smoke。
 - [x] `fabui.Tree`
   - Options、methods 與 events 參考 [jQuery EasyUI Tree／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Tree&theme=default&dir=ltr&pitem=&sort=asc)。
   - Pure JavaScript 支援 nested markup／data、展開收合、checkbox cascade、lines、`iconCls`、動態節點 API、右鍵事件、拖放、inline edit、filter、Promise／callback lazy loader、鍵盤、ARIA、三語系、16 組 theme、Control registry 與 dispose 還原。
   - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser smoke。
+- [x] `fabui.PropertyGrid`
+  - Options、methods 與 events 參考 [jQuery EasyUI PropertyGrid／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=PropertyGrid&theme=default&dir=ltr&pitem=&sort=asc)。
+  - Pure JavaScript 支援兩欄 property data、群組／群組格式、自訂 columns、排序、inline editor、變更追蹤、遠端 loader、鍵盤、ARIA、三語系、16 組 theme、Control registry 與 dispose 還原；文字、數字、日期、清單與顏色 editor 直接重用 `fabui.EditBox`。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser validation。
 - [x] `fabui.Tooltip`
   - Options、methods 與 events 參考 [jQuery EasyUI Tooltip／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Tooltip&theme=default&dir=ltr&pitem=&sort=asc)。
   - Pure JavaScript 支援四方向定位、HTML／function content、滑鼠追蹤、顯示／隱藏延遲、viewport 翻轉、Escape、外部點擊、16 組 theme、Control registry 與 dispose 還原。

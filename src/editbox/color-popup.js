@@ -1,4 +1,10 @@
 var activeColorPopup = null;
+var COLOR_POPUP_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
 
 function assignColorPopupOptions(target) {
   var index;
@@ -17,6 +23,26 @@ function assignColorPopupOptions(target) {
 
 function resolveColorPopupElement(element) {
   return typeof element === 'string' ? document.querySelector(element) : element;
+}
+
+function normalizeColorPopupTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return COLOR_POPUP_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function findColorPopupTheme(element) {
+  var current = resolveColorPopupElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < COLOR_POPUP_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + COLOR_POPUP_THEMES[index])) {
+        return COLOR_POPUP_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
 }
 
 function clampColorPopup(value, min, max) {
@@ -128,12 +154,15 @@ export function ColorPopup(options) {
   this.state = null;
   this._normalizeOptions();
   this._build();
+  this.setTheme(this.options.theme);
   this._bind();
   this.render();
 }
 
 ColorPopup.defaults = {
   anchor: null,
+  theme: 'inherit',
+  themeSource: null,
   className: '',
   panelWidth: 420,
   ariaLabel: 'Color picker',
@@ -238,8 +267,24 @@ ColorPopup.prototype.setOptions = function(options) {
   assignColorPopupOptions(this.options, options || {});
   this._normalizeOptions();
   this.panel.className = ('fui-colorbox-panel ' + (this.options.className || '')).trim();
+  this.setTheme(this.options.theme);
   this.panel.setAttribute('aria-label', this.options.ariaLabel);
   this.render();
+  return this;
+};
+
+ColorPopup.prototype.setTheme = function(theme) {
+  var index;
+  var source;
+  this.options.theme = theme == null ? 'inherit' : String(theme);
+  source = this.options.themeSource || this.options.anchor;
+  this.theme = this.options.theme === 'inherit' ?
+    findColorPopupTheme(source) :
+    normalizeColorPopupTheme(this.options.theme);
+  for (index = 0; index < COLOR_POPUP_THEMES.length; index += 1) {
+    this.panel.classList.remove('fg-theme-' + COLOR_POPUP_THEMES[index]);
+  }
+  this.panel.classList.add('fg-theme-' + this.theme);
   return this;
 };
 
@@ -454,6 +499,7 @@ ColorPopup.prototype.show = function() {
   var openClassHost;
   if (this.destroyed || this.visible) return this;
   if (activeColorPopup && activeColorPopup !== this) activeColorPopup.hide();
+  this.setTheme(this.options.theme);
   this.visible = true;
   this.panel.hidden = false;
   this._bindOpenEvents();
@@ -464,6 +510,8 @@ ColorPopup.prototype.show = function() {
   if (typeof this.options.onShow === 'function') this.options.onShow(this);
   return this;
 };
+
+ColorPopup.themes = COLOR_POPUP_THEMES.slice();
 
 ColorPopup.prototype.hide = function() {
   var openClassHost;

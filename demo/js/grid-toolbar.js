@@ -64,9 +64,9 @@
     '  <input id="editModeInput" type="checkbox">',
     '  <span id="editModeLabel">編輯</span>',
     "</label>",
-    '<button id="exportButton" class="toolbar-icon-button icon-export" type="button"></button>',
-    '<button id="exportExcelButton" class="toolbar-icon-button icon-excel" type="button"></button>',
-    '<button id="fullscreenButton" class="toolbar-icon-button icon-fullscreen" type="button" aria-pressed="false"></button>',
+    '<a id="exportButton" class="toolbar-icon-button icon-export" data-icon-cls="icon-export" href="javascript:void(0)"></a>',
+    '<a id="exportExcelButton" class="toolbar-icon-button icon-excel" data-icon-cls="icon-excel" href="javascript:void(0)"></a>',
+    '<a id="fullscreenButton" class="toolbar-icon-button icon-fullscreen" data-icon-cls="icon-fullscreen" href="javascript:void(0)" aria-pressed="false"></a>',
   ].join("");
 
   function render(host) {

@@ -57,39 +57,8 @@ body {
   gap: 4px;
 }
 
-.tree-control select {
-  height: 34px;
-  padding: 0 30px 0 9px;
-  border: 1px solid #94a3b8;
-  border-radius: 5px;
-  background: #ffffff;
-  color: #334155;
-  font: inherit;
-}
-
 .tree-toggle {
   min-height: 34px;
-}
-
-.tree-toggle input {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-}
-
-.tree-actions button {
-  height: 34px;
-  padding: 8px 14px;
-  border: 1px solid #94a3b8;
-  border-radius: 5px;
-  background: #ffffff;
-  color: #334155;
-  cursor: pointer;
-}
-
-.tree-actions button:hover {
-  border-color: #2563eb;
-  color: #1d4ed8;
 }
 
 .tree-card {

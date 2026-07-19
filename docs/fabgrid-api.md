@@ -46,8 +46,13 @@ const grid = new fabui.FabGrid('#grid', {
 | `fabui.version` | 發佈日期版本，格式為 `YYYY.M.D`。 |
 | `fabui.Button` | 支援 icon、plain、disabled、toggle、group 與多尺寸的按鈕；詳見 [Button API](./button-api.md)。 |
 | `fabui.Calendar` | 與 DatePopup 共用 renderer 的獨立月曆；詳見 [Calendar API](./calendar-api.md)。 |
+| `fabui.CheckBox` | 原生表單相容的核取方塊、label 位置、尺寸與狀態 API；詳見 [CheckBox API](./checkbox-api.md)。 |
+| `fabui.CheckGroup` | 組合 CheckBox 的水平／垂直多選群組與原生表單欄位；詳見 [CheckGroup API](./checkgroup-api.md)。 |
+| `fabui.SwitchButton` | 原生 checkbox 相容的滑動切換按鈕、ON／OFF／handle、reversed 與狀態 API；詳見 [SwitchButton API](./switchbutton-api.md)。 |
+| `fabui.FileBox` | 組合 EditBox 與原生 file input 的檔案選擇控件；詳見 [FileBox API](./filebox-api.md)。 |
 | `fabui.Tabs` | 動態頁籤、工具列、四方向排列與 overflow；詳見 [Tabs API](./tabs-api.md)。 |
 | `fabui.Tree` | 階層清單、checkbox、拖放、編輯、篩選與 lazy loading；詳見 [Tree API](./tree-api.md)。 |
+| `fabui.PropertyGrid` | 兩欄式屬性編輯、群組、共用 EditBox editor 與變更追蹤；詳見 [PropertyGrid API](./propertygrid-api.md)。 |
 | `fabui.Tooltip` | 四方向定位、HTML、滑鼠追蹤與延遲提示；詳見 [Tooltip API](./tooltip-api.md)。 |
 | `fabui.Menu` | Context／inline menu、巢狀 submenu、鍵盤與 runtime item API；詳見 [Menu API](./menu-api.md)。 |
 | `fabui.MenuButton` | 組合 Button 與 Menu 的下拉選單按鈕；詳見 [MenuButton API](./menubutton-api.md)。 |

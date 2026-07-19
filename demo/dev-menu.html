@@ -30,10 +30,6 @@
       border: 1px solid #ddd;
       background: #fafafa;
     }
-    .menu-actions button {
-      min-height: 30px;
-      padding: 4px 10px;
-    }
     #menu-status {
       min-height: 20px;
       margin: 12px 0;
@@ -99,7 +95,7 @@
 
   <h2>Basic／Context Menu</h2>
   <div class="menu-actions">
-    <button id="show-basic-menu" type="button">顯示 Basic Menu</button>
+    <a data-fabui-button href="javascript:void(0)" id="show-basic-menu">顯示 Basic Menu</a>
   </div>
   <div id="menu-context-area" tabindex="0">在此區域按滑鼠右鍵，或按上方按鈕</div>
 
@@ -131,10 +127,10 @@
 
   <h2>Runtime API</h2>
   <div class="menu-actions">
-    <button id="show-dynamic-menu" type="button">show()</button>
-    <button id="append-menu-item" type="button">appendItem()</button>
-    <button id="toggle-menu-disabled" type="button">enable／disable</button>
-    <button id="rename-menu-item" type="button">setText／setIcon</button>
+    <a data-fabui-button href="javascript:void(0)" id="show-dynamic-menu">show()</a>
+    <a data-fabui-button href="javascript:void(0)" id="append-menu-item">appendItem()</a>
+    <a data-fabui-button href="javascript:void(0)" id="toggle-menu-disabled">enable／disable</a>
+    <a data-fabui-button href="javascript:void(0)" id="rename-menu-item">setText／setIcon</a>
   </div>
 
   <div id="menu-basic" style="width:180px" hidden>
@@ -162,8 +158,9 @@
 
   <script src="./js/menu-demo.js?v=20260718-menu-v2"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260718-menu-trigger-v3';
+    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
     window.mountFabUIMenuDemo(fabui);
   </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
 </body>
 </html>

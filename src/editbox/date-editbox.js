@@ -1,4 +1,4 @@
-import { DatePopup, normalizeDatePopupTheme } from './date-popup.js?v=20260718-final-audit-v1';
+import { DatePopup, normalizeDatePopupTheme } from './date-popup.js?v=20260719-current-month-text-v1';
 import { normalizeEditorIconDescriptors } from './editor-icons.js?v=20260718-editor-icons-v1';
 
 export function createDateBoxFactory(TextBox, editorDefinitions) {
@@ -13,7 +13,9 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
 
   var localePacks = {
     en: {
+      openCalendarText: 'Open calendar',
       currentText: 'Today',
+      currentMonthText: 'Current month',
       closeText: 'Close',
       okText: 'Ok',
       yearText: 'Year',
@@ -23,7 +25,9 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
       months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     },
     'zh-TW': {
+      openCalendarText: '開啟日曆',
       currentText: '今天',
+      currentMonthText: '當月',
       closeText: '關閉',
       okText: '確定',
       yearText: '年份',
@@ -33,7 +37,9 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
       months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
     },
     'zh-CN': {
+      openCalendarText: '打开日历',
       currentText: '今天',
+      currentMonthText: '当月',
       closeText: '关闭',
       okText: '确定',
       yearText: '年份',
@@ -50,11 +56,13 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     panelHeight: 'auto',
     theme: 'inherit',
     locale: 'en',
+    openCalendarText: null,
     firstDay: 0,
     showWeek: false,
     showLunar: false,
     weekNumberHeader: '',
     currentText: null,
+    currentMonthText: null,
     closeText: null,
     okText: null,
     yearText: null,
@@ -152,9 +160,10 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
   }
 
   function normalizeLocale(name) {
+    name = String(name || 'en').trim().replace(/_/g, '-');
     if (localePacks[name]) return name;
-    if (/^zh(?:-|_)?tw/i.test(name || '')) return 'zh-TW';
-    if (/^zh/i.test(name || '')) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) return 'zh-TW';
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) return 'zh-CN';
     return 'en';
   }
 
@@ -188,7 +197,9 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     this._editorDefinition = editorDefinitions[this._options.editorType] || editorDefinition;
     locale = localePacks[normalizeLocale(this._options.locale)];
     this._options.locale = normalizeLocale(this._options.locale);
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'openCalendarText')) this._options.openCalendarText = locale.openCalendarText;
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'currentText')) this._options.currentText = locale.currentText;
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'currentMonthText')) this._options.currentMonthText = locale.currentMonthText;
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'closeText')) this._options.closeText = locale.closeText;
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'okText')) this._options.okText = locale.okText;
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'yearText')) this._options.yearText = locale.yearText;
@@ -203,7 +214,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
       iconCls: 'icon-datebox fui-datebox-trigger',
       align: 'right',
       width: this._options.iconWidth,
-      title: 'Calendar',
+      title: this._options.openCalendarText,
       onClick: function() {
         self.togglePanel();
       }
@@ -225,6 +236,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     this._editor.inputMode = this._editorDefinition && this._editorDefinition.inputMode ? this._editorDefinition.inputMode : 'numeric';
     this._field = this._editor.closest('.fui-textbox-field');
     this._shell = this._editor.closest('.fui-textbox');
+    this._trigger = this._textbox.getIcon(icons.length - 1);
     this._buildPanel();
     this._bind();
     source.__fabuiDateBox = this;
@@ -327,6 +339,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
       weekNumberHeader: this._options.weekNumberHeader,
       locale: this._options.locale,
       currentText: this._options.currentText,
+      currentMonthText: this._options.currentMonthText,
       closeText: this._options.closeText,
       yearText: this._options.yearText,
       previousYearText: this._options.previousYearText,
@@ -485,6 +498,30 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
 
   DateBox.prototype.setTheme = function(theme) {
     this._options.theme = theme === 'inherit' ? 'inherit' : normalizeDatePopupTheme(theme);
+    this._syncDatePopup();
+    return this;
+  };
+
+  DateBox.prototype.setLocale = function(locale, messages) {
+    var name = String(locale || 'en').trim().replace(/_/g, '-');
+    var pack;
+    if (messages) localePacks[name] = assign({}, localePacks.en, messages);
+    this._options.locale = normalizeLocale(name);
+    pack = localePacks[this._options.locale] || localePacks.en;
+    this._options.openCalendarText = pack.openCalendarText;
+    this._options.currentText = pack.currentText;
+    this._options.currentMonthText = pack.currentMonthText;
+    this._options.closeText = pack.closeText;
+    this._options.okText = pack.okText;
+    this._options.yearText = pack.yearText;
+    this._options.previousYearText = pack.previousYearText;
+    this._options.nextYearText = pack.nextYearText;
+    this._options.weeks = pack.weeks.slice();
+    this._options.months = pack.months.slice();
+    if (this._trigger) {
+      this._trigger.title = this._options.openCalendarText;
+      this._trigger.setAttribute('aria-label', this._options.openCalendarText);
+    }
     this._syncDatePopup();
     return this;
   };

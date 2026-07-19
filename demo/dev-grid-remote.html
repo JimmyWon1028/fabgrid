@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FabGrid 遠端資料 Demo</title>
+    <link rel="stylesheet" href="../src/fabui.css?v=20260719-i18n-theme-audit-v1" />
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          Inter, "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 720px;
+        background: #f3f6fb;
+        color: #1f2937;
+      }
+
+      .remote-page {
+        width: min(1180px, calc(100% - 40px));
+        margin: 28px auto;
+      }
+
+      .remote-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 16px;
+      }
+
+      .remote-heading {
+        margin: 0 0 6px;
+        font-size: 26px;
+        line-height: 1.2;
+      }
+
+      .remote-description {
+        margin: 0;
+        color: #64748b;
+        font-size: 14px;
+      }
+
+      .remote-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .remote-card {
+        overflow: hidden;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #ffffff;
+        box-shadow: 0 10px 30px rgb(15 23 42 / 8%);
+      }
+
+      .remote-meta {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 18px;
+        align-items: center;
+        min-height: 46px;
+        padding: 8px 14px;
+        border-bottom: 1px solid #dbe3ec;
+        background: #f8fafc;
+        font-size: 13px;
+      }
+
+      .remote-source {
+        overflow: hidden;
+        color: #475569;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .remote-source a {
+        color: #2563eb;
+      }
+
+      .remote-status {
+        color: #475569;
+        white-space: nowrap;
+      }
+
+      .remote-status[data-state="loading"] {
+        color: #b45309;
+      }
+
+      .remote-status[data-state="success"] {
+        color: #047857;
+      }
+
+      .remote-status[data-state="error"] {
+        color: #b91c1c;
+      }
+
+      .remote-page-size {
+        color: #475569;
+        white-space: nowrap;
+      }
+
+      #grid {
+        height: 560px;
+      }
+    </style>
+  </head>
+  <body class="fg-theme-default">
+    <main class="remote-page">
+      <header class="remote-header">
+        <div>
+          <h1 class="remote-heading">FabGrid 遠端資料</h1>
+          <p class="remote-description">
+            使用 EasyUI 格式的 <code>total</code> 與 <code>rows</code> 回應，固定每頁載入 1000 筆。
+          </p>
+        </div>
+        <div class="remote-actions">
+          <a data-fabui-button href="javascript:void(0)" id="reloadButton" class="remote-button">
+            重新載入
+          </a>
+        </div>
+      </header>
+
+      <section class="remote-card" aria-label="FabGrid 遠端資料表格">
+        <div class="remote-meta">
+          <div class="remote-source">
+            資料來源：
+            <a
+              href="https://www.jeasyui.com/demo/main/datagrid27_getdata.php"
+              target="_blank"
+              rel="noreferrer"
+            >https://www.jeasyui.com/demo/main/datagrid27_getdata.php</a>
+          </div>
+          <span id="loadStatus" class="remote-status" data-state="loading">
+            正在載入遠端資料…
+          </span>
+          <span class="remote-page-size">每頁 1000 筆</span>
+        </div>
+        <div id="grid"></div>
+      </section>
+    </main>
+
+    <script type="module">
+      import fabui from "../src/fabui.js?v=20260719-button-anchor-v1";
+
+      window.fabui = fabui;
+      await import(
+        "../src/locales/fabgrid-locale.zh-TW.js?v=20260719-remote-demo-v1"
+      );
+
+      var REMOTE_PROXY_URL = "/__fabgrid_remote_data__";
+      var loadStatus = document.getElementById("loadStatus");
+      var reloadButton = document.getElementById("reloadButton");
+
+      function setLoadStatus(text, state) {
+        loadStatus.textContent = text;
+        loadStatus.dataset.state = state;
+      }
+
+      function formatNumber(value, fractionDigits) {
+        var number = Number(value);
+        if (!Number.isFinite(number)) return value == null ? "" : String(value);
+        return number.toLocaleString("zh-TW", {
+          minimumFractionDigits: fractionDigits,
+          maximumFractionDigits: fractionDigits,
+        });
+      }
+
+      var grid = new fabui.FabGrid("#grid", {
+        locale: "zh-TW",
+        remote: true,
+        url: REMOTE_PROXY_URL,
+        method: "post",
+        loadMsg: "正在載入遠端資料…",
+        pagination: true,
+        pager: {
+          pageNumber: 1,
+          pageSize: 1000,
+          pageList: [1000],
+          showPageList: false,
+          showPageInfo: true,
+          showRefresh: true,
+        },
+        rowHeight: 32,
+        headerHeight: 34,
+        frozenColumns: 2,
+        showRowHeaders: true,
+        rowHeaderWidth: 54,
+        allowSorting: false,
+        allowFiltering: false,
+        allowEditing: false,
+        allowDragging: "None",
+        allowResizing: true,
+        alternatingRowStep: 1,
+        columns: [
+          { binding: "inv", header: "發票號碼", width: 130 },
+          { binding: "date", header: "日期", width: 130 },
+          { binding: "name", header: "姓名", width: 150 },
+          { binding: "note", header: "備註", width: 260 },
+          {
+            binding: "amount",
+            header: "數量",
+            width: 120,
+            align: "right",
+            formatter: function (value) {
+              return formatNumber(value, 0);
+            },
+          },
+          {
+            binding: "price",
+            header: "單價",
+            width: 130,
+            align: "right",
+            formatter: function (value) {
+              return formatNumber(value, 2);
+            },
+          },
+          {
+            binding: "cost",
+            header: "金額",
+            width: 150,
+            align: "right",
+            formatter: function (value) {
+              return formatNumber(value, 2);
+            },
+          },
+        ],
+      });
+
+      grid.on("beforeLoad", function (event) {
+        setLoadStatus(
+          "正在載入第 " + (event.params.page || 1) + " 頁…",
+          "loading"
+        );
+      });
+
+      grid.on("loadSuccess", function (event) {
+        var total = Number(event.data && event.data.total) || 0;
+        setLoadStatus("載入完成，共 " + total.toLocaleString("zh-TW") + " 筆", "success");
+      });
+
+      grid.on("loadError", function (event) {
+        var message = event.error && event.error.message
+          ? event.error.message
+          : "無法載入遠端資料";
+        setLoadStatus("載入失敗：" + message, "error");
+      });
+
+      reloadButton.addEventListener("click", function () {
+        grid.reload();
+      });
+
+      window.remoteGrid = grid;
+    </script>
+    <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
+</body>
+</html>

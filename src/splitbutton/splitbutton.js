@@ -306,6 +306,7 @@ export function createSplitButtonFactory(
     onMenuClick: null,
     onResize: null
   };
+  FabSplitButton.themes = (MenuButton.themes || []).slice();
   FabSplitButton.getControl = function(element) {
     element = resolveSplitButtonElement(element);
     return element && element.__fabuiSplitButton ? element.__fabuiSplitButton : null;

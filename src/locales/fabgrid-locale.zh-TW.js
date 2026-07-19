@@ -197,6 +197,7 @@
     },
     datebox: {
       today: '今天',
+      currentMonth: '當月',
       close: '關閉',
       weekdays: ['日', '一', '二', '三', '四', '五', '六'],
       months: [

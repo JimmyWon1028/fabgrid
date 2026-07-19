@@ -69,8 +69,8 @@ export function createMenuButtonFactory(
     if (!(this instanceof FabMenuButton)) return new FabMenuButton(element, options);
     if (!host) throw new Error('fabui.MenuButton requires a host element.');
     if (host.__fabuiMenuButton) return host.__fabuiMenuButton;
-    if (!/^(?:A|BUTTON)$/i.test(host.tagName)) {
-      throw new Error('fabui.MenuButton host must be an anchor or button element.');
+    if (host.tagName !== 'A') {
+      throw new Error('fabui.MenuButton host must be an anchor element.');
     }
     if (typeof Button !== 'function' || typeof Menu !== 'function') {
       throw new Error('fabui.MenuButton requires fabui.Button and fabui.Menu.');
@@ -161,7 +161,7 @@ export function createMenuButtonFactory(
     if (value) options.iconCls = value;
     if (host.style.width) options.width = host.style.width;
     if (host.style.height) options.height = host.style.height;
-    if (host.disabled || host.hasAttribute('disabled')) options.disabled = true;
+    if (host.hasAttribute('disabled')) options.disabled = true;
     value = host.getAttribute('data-icon-align');
     if (value) options.iconAlign = value;
     value = host.getAttribute('data-size');
@@ -478,6 +478,7 @@ export function createMenuButtonFactory(
     onMenuClick: null,
     onResize: null
   };
+  FabMenuButton.themes = (Button.themes || Menu.themes || []).slice();
   FabMenuButton.getControl = function(element) {
     element = resolveMenuButtonElement(element);
     return element && element.__fabuiMenuButton ? element.__fabuiMenuButton : null;

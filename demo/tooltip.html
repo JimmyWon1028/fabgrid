@@ -96,17 +96,17 @@
 
   <h2>Basic／Position</h2>
   <div class="tooltip-row">
-    <button id="tooltip-basic" class="tooltip-target" type="button" title="由 title attribute 建立的 Tooltip">Basic</button>
-    <button id="tooltip-top" class="tooltip-target" type="button">Top</button>
-    <button id="tooltip-bottom" class="tooltip-target" type="button">Bottom</button>
-    <button id="tooltip-left" class="tooltip-target" type="button">Left</button>
-    <button id="tooltip-right" class="tooltip-target" type="button">Right</button>
+    <a id="tooltip-basic" class="tooltip-target" title="由 title attribute 建立的 Tooltip" href="javascript:void(0)">Basic</a>
+    <a id="tooltip-top" class="tooltip-target" href="javascript:void(0)">Top</a>
+    <a id="tooltip-bottom" class="tooltip-target" href="javascript:void(0)">Bottom</a>
+    <a id="tooltip-left" class="tooltip-target" href="javascript:void(0)">Left</a>
+    <a id="tooltip-right" class="tooltip-target" href="javascript:void(0)">Right</a>
   </div>
 
   <h2>HTML／Click</h2>
   <div class="tooltip-row">
-    <button id="tooltip-html" class="tooltip-target" type="button">HTML Content</button>
-    <button id="tooltip-click" class="tooltip-target" type="button">Click Tooltip</button>
+    <a id="tooltip-html" class="tooltip-target" href="javascript:void(0)">HTML Content</a>
+    <a id="tooltip-click" class="tooltip-target" href="javascript:void(0)">Click Tooltip</a>
   </div>
 
   <h2>Track Mouse</h2>
@@ -114,10 +114,10 @@
 
   <h2>Methods</h2>
   <div id="tooltip-manual-host" class="tooltip-row">
-    <button class="tooltip-target" type="button">Manual Target</button>
-    <button id="tooltip-show" type="button">show()</button>
-    <button id="tooltip-update" type="button">update()</button>
-    <button id="tooltip-hide" type="button">hide()</button>
+    <a class="tooltip-target" href="javascript:void(0)">Manual Target</a>
+    <a id="tooltip-show" href="javascript:void(0)">show()</a>
+    <a id="tooltip-update" href="javascript:void(0)">update()</a>
+    <a id="tooltip-hide" href="javascript:void(0)">hide()</a>
   </div>
 
   <script src="../dist/fabui.min.js"></script>
@@ -125,5 +125,6 @@
   <script>
     window.mountFabUITooltipDemo(window.fabui);
   </script>
+  <script type="module" src="./js/dist-controls.js?v=20260719-all-demos-v1"></script>
 </body>
 </html>

@@ -25,15 +25,15 @@ import {
   isMaskValueIncludingLiterals
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
-import { installFabGridView } from './fabgrid-view.js?v=20260718-editor-icons-v1';
+import { installFabGridView } from './fabgrid-view.js?v=20260719-i18n-theme-audit-v1';
 import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260718-editor-icons-v1';
 import { installFabGridSelection } from './fabgrid-selection.js?v=20260717-tree-context-menu-v1';
-import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260718-calendar-theme-v1';
+import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260719-current-month-text-v1';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
-import { DatePopup } from '../editbox/date-popup.js?v=20260718-final-audit-v1';
-import { ColorPopup } from '../editbox/color-popup.js?v=20260718-final-audit-v1';
-import { ComboPopup } from '../editbox/combo-popup.js?v=20260718-final-audit-v1';
+import { DatePopup } from '../editbox/date-popup.js?v=20260719-current-month-text-v1';
+import { ColorPopup } from '../editbox/color-popup.js?v=20260719-i18n-theme-audit-v1';
+import { ComboPopup } from '../editbox/combo-popup.js?v=20260719-i18n-theme-audit-v1';
 import { normalizeEditorIconDescriptors } from '../editbox/editor-icons.js?v=20260718-editor-icons-v1';
 
 export function createFabGridFactory(editorDefinitions) {
@@ -45,6 +45,12 @@ export function createFabGridFactory(editorDefinitions) {
     Cell: 'Cell',
     CellRange: 'CellRange'
   });
+  var FABGRID_THEMES = [
+    'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+    'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+    'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+    'black'
+  ];
 
   var DEFAULT_OPTIONS = {
     rowHeight: 32,
@@ -691,7 +697,7 @@ export function createFabGridFactory(editorDefinitions) {
         '<div class="fg-footer-frozen-right"></div>' +
         '<div class="fg-footer-scroll"><div class="fg-footer-canvas"></div></div>' +
       '</div>' +
-      '<div class="fg-pager"><div class="fg-pagination" aria-label="Pagination"></div></div>' +
+      '<div class="fg-pager"><div class="fg-pagination"></div></div>' +
       '<div class="fg-remote-load-mask" aria-live="polite"><div class="fg-remote-load-panel"><span class="fg-remote-load-spinner pagination-loading"></span><span class="fg-remote-load-text"></span></div></div>';
 
     this.host.innerHTML = '';
@@ -1657,7 +1663,7 @@ export function createFabGridFactory(editorDefinitions) {
   }
 
   function normalizeLocaleName(locale) {
-    var name = locale == null ? '' : String(locale);
+    var name = locale == null ? '' : String(locale).trim().replace(/_/g, '-');
     var lower = name.toLowerCase();
     var locales = getLocaleMap();
     if (Object.prototype.hasOwnProperty.call(locales, name)) {
@@ -3621,6 +3627,8 @@ export function createFabGridFactory(editorDefinitions) {
   });
 
   FabGrid.locales = getLocaleMap();
+  FabGrid.themes = FABGRID_THEMES.slice();
+  FabGrid.normalizeLocale = normalizeLocaleName;
   FabGrid.editorDefinitions = editorDefinitions;
   FabGrid.defaultLocale = getDefaultLocaleName();
   FabGrid.addLocale = function(name, messages) {

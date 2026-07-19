@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>FileBox source smoke</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260719-filebox-v1">
+</head>
+<body class="fg-theme-default">
+  <form id="filebox-smoke-form">
+    <input id="filebox-smoke" class="original-filebox" type="file" name="attachments" accept=".txt">
+  </form>
+  <pre id="result">{"complete":false}</pre>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260719-filebox-v1';
+
+    var input = document.getElementById('filebox-smoke');
+    var form = document.getElementById('filebox-smoke-form');
+    var result = document.getElementById('result');
+    var changes = 0;
+    var checks = {};
+    var fileBox;
+
+    try {
+      fileBox = new fabui.FileBox(input, {
+        label: 'Files:',
+        prompt: 'Choose files...',
+        locale: 'zh-TW',
+        multiple: true,
+        separator: ' | ',
+        onChange: function() {
+          changes += 1;
+        }
+      });
+      checks.published = typeof fabui.FileBox === 'function';
+      checks.registered = fabui.Control.getControl(input) === fileBox;
+      checks.nativeInput = input.type === 'file' &&
+        input.name === 'attachments' &&
+        input.closest('.fui-filebox') &&
+        fileBox.textbox().readOnly === true;
+      checks.options = input.multiple === true &&
+        input.accept === '.txt' &&
+        fileBox.button().textContent === '選擇檔案';
+      var transfer = new DataTransfer();
+      transfer.items.add(new File(['alpha'], 'alpha.txt', { type: 'text/plain' }));
+      transfer.items.add(new File(['beta'], 'beta.txt', { type: 'text/plain' }));
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      checks.files = fileBox.files().length === 2 &&
+        fileBox.getValue() === 'alpha.txt | beta.txt' &&
+        changes === 1 &&
+        new FormData(form).getAll('attachments').length === 2;
+      fileBox.clear();
+      checks.clear = fileBox.files().length === 0 &&
+        fileBox.getValue() === '' &&
+        changes === 2;
+      var rejected = false;
+      try {
+        fileBox.setValue('blocked.txt');
+      } catch (error) {
+        rejected = /browser security/.test(error.message);
+      }
+      checks.security = rejected;
+      fileBox.setOptions({
+        buttonAlign: 'left',
+        buttonText: 'Browse',
+        accept: 'image/*',
+        width: 320
+      });
+      checks.runtime = input.accept === 'image/*' &&
+        fileBox.button().textContent === 'Browse' &&
+        fileBox.button().parentElement.classList.contains('fui-textbox-addon-left') &&
+        fileBox.textbox().closest('.fui-textbox').style.width === '320px';
+      fileBox.disable();
+      checks.disabled = input.disabled === true && fileBox.textbox().disabled === true;
+      fileBox.enable().readonly(true).setTheme('black');
+      checks.localeTheme = input.disabled === false &&
+        fileBox.textbox().readOnly === true &&
+        input.closest('.fui-filebox').classList.contains('fg-theme-black');
+      fileBox.dispose();
+      checks.disposed = fabui.Control.getControl(input) === null &&
+        input.className === 'original-filebox' &&
+        input.accept === '.txt' &&
+        input.multiple === false &&
+        input.parentElement === form;
+      checks.complete = Object.keys(checks).every(function(key) {
+        return checks[key] === true;
+      });
+    } catch (error) {
+      checks.error = error && error.stack ? error.stack : String(error);
+      checks.complete = false;
+    }
+    result.textContent = JSON.stringify(checks);
+    document.title = checks.complete ? 'PASS FileBox source smoke' : 'FAIL FileBox source smoke';
+  </script>
+</body>
+</html>
