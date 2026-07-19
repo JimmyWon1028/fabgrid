@@ -11,6 +11,7 @@
 - 可以依任務需要建立本地 commit，但不要主動推送到 GitHub。
 - 只有在使用者明確要求「上傳」、「推送」、「同步到 GitHub」或同等意思時，才執行 `git push` 或 GitHub 遠端操作。
 - 除非使用者明確要求建立或切換分支，否則不得自行建立分支或切換離開目前分支；`build`、`push`、發佈或一般開發要求都不代表授權建立新分支。
+- 不得只根據受限沙箱內一般文字格式的 `gh auth status` 輸出判定 GitHub token 失效；DNS 解析失敗、無法連線 `api.github.com` 或其他網路限制都必須先視為環境問題。應先以 `gh auth status --hostname github.com --json hosts` 檢查結構化錯誤，並在允許網路的環境重試 GitHub／Git 操作；只有在網路可用且 GitHub 明確回覆認證失敗時，才可告知使用者 token 失效或要求重新登入。
 
 ## 開發工作流程
 
