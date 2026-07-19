@@ -1,0 +1,253 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  color: #1f2732;
+  font: 13px "Segoe UI", Arial, sans-serif;
+}
+
+.win7-desktop {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 360px;
+  min-height: 300px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 76% 20%, rgba(102, 190, 255, 0.82), transparent 27%),
+    radial-gradient(ellipse at 44% 118%, rgba(8, 81, 174, 0.72), transparent 58%),
+    linear-gradient(145deg, #2d86c8 0%, #1263ac 43%, #0a377d 100%);
+}
+
+.win7-desktop::before {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(158deg, transparent 0 46%, rgba(255, 255, 255, 0.11) 47%, transparent 52%),
+    linear-gradient(24deg, transparent 0 55%, rgba(32, 148, 235, 0.22) 56%, transparent 65%);
+  content: "";
+  pointer-events: none;
+}
+
+.win7-shortcuts {
+  position: absolute;
+  z-index: 2;
+  inset: 0 0 44px;
+  pointer-events: none;
+}
+
+.win7-shortcut {
+  position: absolute;
+  top: 18px;
+  left: 14px;
+  display: grid;
+  width: 74px;
+  color: #fff;
+  font-size: 12px;
+  gap: 4px;
+  justify-items: center;
+  pointer-events: auto;
+  text-align: center;
+  text-decoration: none;
+  text-shadow: 0 1px 2px #062752;
+  touch-action: none;
+  user-select: none;
+}
+
+.win7-shortcut:nth-child(2) {
+  top: 98px;
+}
+
+.win7-shortcut:nth-child(3) {
+  top: 178px;
+}
+
+.win7-shortcut.win7-shortcut-dragging {
+  z-index: 3;
+  cursor: grabbing;
+  opacity: 0.85;
+}
+
+.win7-shortcut:focus-visible {
+  outline: 1px dotted #fff;
+  outline-offset: 3px;
+}
+
+.win7-shortcut-icon {
+  display: grid;
+  width: 42px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 8px rgba(255, 255, 255, 0.45),
+    0 2px 4px rgba(0, 20, 62, 0.55);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  place-items: center;
+}
+
+.icon-win7-computer {
+  background:
+    linear-gradient(150deg, transparent 0 40%, rgba(255, 255, 255, 0.82) 41% 55%, transparent 56%),
+    linear-gradient(#3b91cf, #0c396b);
+}
+
+.icon-win7-network {
+  background:
+    linear-gradient(#fff, #d6e6ff) center / 18px 14px no-repeat,
+    linear-gradient(#7b86ac, #27385d);
+}
+
+.icon-win7-monitor {
+  background:
+    linear-gradient(130deg, transparent 0 43%, #fff 44% 50%, transparent 51%) center / 22px 16px no-repeat,
+    linear-gradient(50deg, transparent 0 43%, #fff 44% 50%, transparent 51%) center / 22px 16px no-repeat,
+    linear-gradient(#9d6a86, #44223f);
+}
+
+.win7-window-body,
+.win7-layout,
+.win7-tabs,
+.win7-grid {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.win7-window-body {
+  overflow: hidden;
+}
+
+.win7-network-content,
+.win7-monitor-content {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  background: #fff;
+}
+
+.win7-window-intro {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #d8e1ec;
+  background: linear-gradient(#fff, #eef5fc);
+}
+
+.win7-window-intro h2 {
+  margin: 0 0 4px;
+  color: #315c8e;
+  font-size: 18px;
+}
+
+.win7-window-intro p {
+  margin: 0;
+  color: #5c6f84;
+  line-height: 1.5;
+}
+
+.win7-secondary-grid,
+.win7-monitor-chart {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.win7-monitor-chart {
+  box-sizing: border-box;
+  padding: 8px;
+}
+
+.win7-tree {
+  box-sizing: border-box;
+  height: 100%;
+  padding: 6px;
+}
+
+.win7-about {
+  box-sizing: border-box;
+  height: 100%;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.win7-about h2 {
+  margin: 0 0 12px;
+  color: #315c8e;
+  font-size: 20px;
+}
+
+.win7-about p {
+  max-width: 520px;
+  margin: 0;
+  line-height: 1.7;
+}
+
+.win7-taskbar {
+  position: absolute;
+  z-index: 8000;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 5px 10px;
+  border-top: 1px solid rgba(179, 219, 255, 0.72);
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(
+    rgba(16, 61, 124, 0.9),
+    rgba(5, 30, 83, 0.96)
+  );
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.win7-taskbar-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.win7-task-button[hidden] {
+  display: none;
+}
+
+.win7-start-menu {
+  width: 270px;
+}
+
+.win7-desktop-menu {
+  width: 210px;
+}
+
+.win7-clock {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  color: #fff;
+  font-size: 12px;
+  text-shadow: 0 1px 2px #001d46;
+}
+
+@media (max-width: 560px) {
+  .win7-shortcut {
+    left: 6px;
+  }
+
+  .win7-taskbar-actions {
+    gap: 2px;
+  }
+}

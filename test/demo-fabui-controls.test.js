@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { bridgeNumberEditBoxInput } from '../demo/js/grid2-components.js?v=20260720-number-input-bridge-v1';
 
 var demoDirectory = new URL('../demo/', import.meta.url);
 var devHelperScript = readFileSync(
@@ -13,6 +14,14 @@ var distHelperScript = readFileSync(
 );
 var helperScript = readFileSync(
   new URL('../demo/js/demo-controls.js', import.meta.url),
+  'utf8'
+);
+var win7Html = readFileSync(
+  new URL('../demo/dev-win7.html', import.meta.url),
+  'utf8'
+);
+var win7Script = readFileSync(
+  new URL('../demo/js/win7-demo.js', import.meta.url),
   'utf8'
 );
 
@@ -152,6 +161,96 @@ test('The shared enhancer fits Combo EditBox width to every select option', func
   );
 });
 
+test('The Grid Demo bridges live Number EditBox input to source controls', function() {
+  var inputListener = null;
+  var dispatchedEvents = [];
+  var source = {
+    dispatchEvent: function(event) {
+      dispatchedEvents.push(event.type);
+    }
+  };
+  var numberControl = {
+    getEditorType: function() {
+      return 'number';
+    },
+    textbox: function() {
+      return {
+        addEventListener: function(name, listener) {
+          assert.equal(name, 'input');
+          inputListener = listener;
+        }
+      };
+    }
+  };
+  var textControl = {
+    getEditorType: function() {
+      return 'text';
+    },
+    textbox: numberControl.textbox
+  };
+
+  assert.equal(bridgeNumberEditBoxInput(source, numberControl, 'input'), true);
+  assert.equal(typeof inputListener, 'function');
+  inputListener();
+  assert.deepEqual(dispatchedEvents, ['input']);
+  assert.equal(bridgeNumberEditBoxInput(source, textControl, 'input'), false);
+  assert.equal(bridgeNumberEditBoxInput(source, numberControl, 'change'), false);
+});
+
+test('The Windows 7 source Demo composes FabUI controls', function() {
+  assert.match(win7Html, /\.\.\/src\/fabui\.css/);
+  assert.match(win7Html, /from '\.\.\/src\/fabui\.js/);
+  assert.match(win7Html, /id="win7-computer-window"/);
+  assert.match(win7Html, /id="win7-network-window"/);
+  assert.match(win7Html, /id="win7-monitor-window"/);
+  assert.match(win7Html, /id="win7-layout"/);
+  assert.match(win7Html, /id="win7-tree"/);
+  assert.match(win7Html, /id="win7-tabs"/);
+  assert.match(win7Html, /id="win7-grid"/);
+  assert.match(win7Html, /id="win7-network-grid"/);
+  assert.match(win7Html, /id="win7-monitor-chart"/);
+  assert.match(win7Html, /id="win7-start-menu"/);
+  assert.match(win7Html, /id="win7-desktop-menu"/);
+  assert.match(win7Html, /id="win7-task-computer" hidden/);
+  assert.match(win7Html, /id="win7-task-network" hidden/);
+  assert.match(win7Html, /id="win7-task-monitor" hidden/);
+  assert.doesNotMatch(win7Html, /id="win7-task-about"/);
+  assert.match(win7Html, /class="win7-shortcut-icon icon-win7-computer"/);
+  assert.match(win7Html, /class="win7-shortcut-icon icon-win7-network"/);
+  assert.match(win7Html, /class="win7-shortcut-icon icon-win7-monitor"/);
+  assert.equal((win7Script.match(/new fabui\.Window/g) || []).length, 3);
+  assert.match(win7Script, /new fabui\.Layout/);
+  assert.match(win7Script, /new fabui\.Tree/);
+  assert.match(win7Script, /new fabui\.Tabs/);
+  assert.equal((win7Script.match(/new fabui\.FabGrid/g) || []).length, 2);
+  assert.match(win7Script, /new fabui\.Chart/);
+  assert.match(win7Script, /new fabui\.Button/);
+  assert.match(win7Script, /new fabui\.Menu/);
+  assert.match(win7Script, /var WIN7_THEMES = \[/);
+  assert.match(win7Script, /desktop\.addEventListener\('contextmenu'/);
+  assert.match(win7Script, /desktop\.addEventListener\('keydown'/);
+  assert.match(win7Script, /control\.setTheme\('inherit'\)/);
+  assert.match(win7Script, /function makeShortcutDraggable/);
+  assert.match(win7Script, /setPointerCapture\(event\.pointerId\)/);
+  assert.match(win7Script, /function minimizeToTaskbar\(name\)/);
+  assert.match(win7Script, /function getMinimizeAnimationDelay\(control\)/);
+  assert.match(win7Script, /control\.options\.animationDuration/);
+  assert.match(win7Script, /prefers-reduced-motion:\s*reduce/);
+  assert.match(
+    win7Script,
+    /minimizeHideTimers\[name\] = window\.setTimeout\(function\(\)/
+  );
+  assert.match(
+    win7Script,
+    /if \(control\.options\.minimized && !control\.options\.closed\)/
+  );
+  assert.match(win7Script, /clearMinimizeHideTimer\(name\)/);
+  assert.match(win7Script, /taskElements\[name\]\.hidden = false/);
+  assert.match(win7Script, /taskElements\[name\]\.hidden = true/);
+  assert.match(win7Script, /control\.windowElement\.hidden = false/);
+  assert.match(win7Script, /window\.setInterval\(updateClock, 1000\)/);
+});
+
 test('Every build-mode Demo loads dist FabUI and the shared control enhancer', function() {
   var pages = getBuildPages();
 
@@ -239,7 +338,7 @@ test('Demo indexes expose source-mode and build-mode pages separately', function
 test('Every build-mode Demo mirrors its source-mode showcase', function() {
   var pairs = readShowcasePairs();
 
-  assert.equal(pairs.length, 30);
+  assert.equal(pairs.length, 31);
   pairs.forEach(function(pair) {
     var devHtml = readFileSync(new URL(pair.dev, demoDirectory), 'utf8');
     var buildHtml = readFileSync(new URL(pair.build, demoDirectory), 'utf8');

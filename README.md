@@ -168,7 +168,7 @@ FabGrid cell editor、Search Row 與 `fabui.EditBox` 的自訂 icon 都統一使
 | 資料列拖曳 | 支援 Grid 內重排、跨 Grid 移動，以及 TreeGrid 節點的 `before`、`inside`、`after` 階層調整；欄位、資料列與 PivotPanel 欄位拖曳的插入指示線統一使用 55% 半透明，資料列指示線的右邊界限制在實際欄位區域內。 |
 | 選取與剪貼簿 | 支援 `Cell`、連續矩形 `CellRange`、滑鼠拖曳、Shift 延伸、鍵盤導覽與 TSV 複製。 |
 | 編輯與驗證 | 內建 `text`、`number`、`date`、`combo`、`color` editor，支援遮罩、同步／非同步驗證與自訂 editor。 |
-| 顯示自訂 | 提供 formatter、`formatItem`、`cellTemplate`、Row／GroupRow、`hitTest()` 與完整事件 API。 |
+| 顯示自訂 | 提供 formatter、`formatItem`、`cellTemplate`、依 binding 設定 Header cell style、Row／GroupRow、`hitTest()` 與完整事件 API。 |
 | 匯入與匯出 | 支援 JSON 匯入／匯出、CSV 與 XLSX 匯出；Excel 可保留格式、凍結窗格、篩選、群組、Footer 與隱藏欄位。 |
 | 元件生命週期 | `fabui.Control.getControl()` 可取得既有 instance；managed DOM listener 會在互動結束或 `dispose()` 時解除。 |
 | Popup 行為 | 右鍵選單、Filter、欄位選擇器與 editor popup 都支援 `Escape` 及點擊外部關閉，不會提交未確認內容。 |

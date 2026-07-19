@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFabGridFactory } from '../src/grid/fabgrid.js';
+import { applyHeaderCellStyle } from '../src/grid/fabgrid-view.js?v=20260720-header-cell-style-v1';
 import { Control } from '../src/core/control.js?v=20260716-control-events-v3';
 import { CellType, GroupRow, Row, createGridPanel } from '../src/grid/fabgrid-types.js?v=20260716-row-types-v1';
 
@@ -618,6 +619,74 @@ test('runtime cellTemplate assignment invalidates the grid', function() {
   assert.equal(invalidateCount, 1);
   grid.columns[0].cellTemplate = null;
   assert.equal(invalidateCount, 2);
+});
+
+test('setHeaderCellStyle stores styles by exact binding and redraws headers', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var inputStyle = {
+    backgroundColor: '#fff4cc',
+    color: '#663c00',
+    'font-weight': 700
+  };
+  var renderCount = 0;
+
+  grid.columns = [
+    { binding: 'orderNo', header: 'Order No.' },
+    { binding: 'customer', header: 'Customer' }
+  ];
+  grid.headerCellStyles = Object.create(null);
+  grid.columnRange = { start: 0, end: 2 };
+  grid.root = {};
+  grid.disposed = false;
+  grid.renderHeaders = function(range) {
+    assert.deepEqual(range, grid.columnRange);
+    renderCount += 1;
+  };
+
+  assert.equal(grid.setHeaderCellStyle('orderNo', inputStyle), true);
+  assert.deepEqual(grid.headerCellStyles.orderNo, inputStyle);
+  assert.notEqual(grid.headerCellStyles.orderNo, inputStyle);
+  inputStyle.color = '#000000';
+  assert.equal(grid.headerCellStyles.orderNo.color, '#663c00');
+  assert.equal(renderCount, 1);
+
+  assert.equal(grid.setHeaderCellStyle('Order No.', { color: 'red' }), false);
+  assert.equal(grid.setHeaderCellStyle('missing', { color: 'red' }), false);
+  assert.equal(grid.setHeaderCellStyle('orderNo', 'color: red'), false);
+  assert.equal(renderCount, 1);
+
+  assert.equal(grid.setHeaderCellStyle('orderNo', null), true);
+  assert.equal(Object.prototype.hasOwnProperty.call(grid.headerCellStyles, 'orderNo'), false);
+  assert.equal(renderCount, 2);
+});
+
+test('header cell custom styles merge after grid styles and override duplicates', function() {
+  var style = {
+    left: '20px',
+    width: '120px',
+    height: '32px',
+    color: 'rgb(0, 0, 0)',
+    setProperty: function(name, value) {
+      this[name] = value;
+    }
+  };
+
+  applyHeaderCellStyle(style, {
+    width: '180px',
+    color: '#c00000',
+    backgroundColor: '#fff4cc',
+    'font-weight': 700,
+    '--custom-header-accent': '#c00000'
+  });
+
+  assert.equal(style.left, '20px');
+  assert.equal(style.height, '32px');
+  assert.equal(style.width, '180px');
+  assert.equal(style.color, '#c00000');
+  assert.equal(style.backgroundColor, '#fff4cc');
+  assert.equal(style['font-weight'], '700');
+  assert.equal(style['--custom-header-accent'], '#c00000');
 });
 
 test('selection mode exposes Cell and CellRange with active row highlighting enabled by default', function() {

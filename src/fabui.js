@@ -16,7 +16,7 @@ import {
   registerControl,
   unregisterControl
 } from './core/control.js?v=20260716-control-events-v3';
-import { createFabGridFactory } from './grid/fabgrid.js?v=20260719-i18n-theme-audit-v1';
+import { createFabGridFactory } from './grid/fabgrid.js?v=20260720-header-cell-style-v1';
 import { CellType } from './grid/fabgrid-types.js?v=20260716-row-types-v1';
 import { createLayoutFactory } from './layout/layout.js?v=20260719-i18n-theme-audit-v1';
 import { createMenuFactory } from './menu/menu.js?v=20260719-i18n-theme-audit-v1';

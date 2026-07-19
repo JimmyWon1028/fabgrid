@@ -1,3 +1,25 @@
+export function applyHeaderCellStyle(targetStyle, customStyle) {
+  var key;
+  var value;
+  if (!targetStyle || !customStyle) {
+    return;
+  }
+  for (key in customStyle) {
+    if (!Object.prototype.hasOwnProperty.call(customStyle, key)) {
+      continue;
+    }
+    value = customStyle[key];
+    if (value == null) {
+      continue;
+    }
+    if ((key.indexOf('-') >= 0 || key.indexOf('--') === 0) && typeof targetStyle.setProperty === 'function') {
+      targetStyle.setProperty(key, String(value));
+    } else {
+      targetStyle[key] = String(value);
+    }
+  }
+}
+
 export function installFabGridView(FabGrid, context) {
   var CellType = context.CellType;
   var DEFAULT_OPTIONS = context.DEFAULT_OPTIONS;
@@ -1522,6 +1544,10 @@ export function installFabGridView(FabGrid, context) {
       column: column,
       value: headerText
     }));
+    applyHeaderCellStyle(
+      cell.style,
+      this.headerCellStyles ? this.headerCellStyles[column.binding] : null
+    );
     return cell;
   };
 

@@ -25,7 +25,7 @@ import {
   isMaskValueIncludingLiterals
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
-import { installFabGridView } from './fabgrid-view.js?v=20260719-i18n-theme-audit-v1';
+import { installFabGridView } from './fabgrid-view.js?v=20260720-header-cell-style-v1';
 import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260718-editor-icons-v1';
 import { installFabGridSelection } from './fabgrid-selection.js?v=20260717-tree-context-menu-v1';
 import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260719-current-month-text-v1';
@@ -162,6 +162,7 @@ export function createFabGridFactory(editorDefinitions) {
     this._treeRootCount = 0;
     this.filterPredicate = null;
     this.searchText = '';
+    this.headerCellStyles = createDictionary();
     this.columnSearchValues = {};
     this.columnSearchOperators = {};
     this.hasColumnSearch = false;
@@ -1154,6 +1155,42 @@ export function createFabGridFactory(editorDefinitions) {
 
   FabGrid.prototype.getHeaderDisplayMode = function() {
     return this.headerDisplayMode || 'header';
+  };
+
+  FabGrid.prototype.setHeaderCellStyle = function(binding, style) {
+    var hasBinding = false;
+    var normalizedStyle;
+    var i;
+    if (typeof binding !== 'string' || !binding || this.disposed) {
+      return false;
+    }
+    for (i = 0; i < this.columns.length; i += 1) {
+      if (this.columns[i].binding === binding) {
+        hasBinding = true;
+        break;
+      }
+    }
+    if (!hasBinding) {
+      return false;
+    }
+    if (style == null) {
+      delete this.headerCellStyles[binding];
+    } else {
+      if (typeof style !== 'object' || Array.isArray(style)) {
+        return false;
+      }
+      normalizedStyle = {};
+      for (i in style) {
+        if (Object.prototype.hasOwnProperty.call(style, i) && style[i] != null) {
+          normalizedStyle[i] = style[i];
+        }
+      }
+      this.headerCellStyles[binding] = normalizedStyle;
+    }
+    if (this.root) {
+      this.renderHeaders(this.columnRange);
+    }
+    return true;
   };
 
 

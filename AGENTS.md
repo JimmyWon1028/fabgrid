@@ -120,6 +120,7 @@ fabgrid-jquery
 - `alternatingRowStep` 預設為 `1`；`false` 關閉交替列背景，正整數依指定列數為一組切換交替色。
 - `formatItem.addHandler((g, e) => {})` 使用 `fabui.CellType` 數值列舉與相容 panel；Header、Footer、Data Cell、Row Header 的事件參數必須由單一共用流程建立，不得在各 renderer 重複定義。
 - Column `cellTemplate` 使用 Wijmo-compatible `string | function | null` 契約；函式簽名為 `(ctx, cell)`，context 包含 `col`、`row`、`item`、`value`、`text`，回傳 HTML 字串或直接修改 cell 並回傳 `null`。Template 只影響 body cell 顯示，不得改變 editor、clipboard 或 export 的原始資料契約。Function callback 執行前後必須合併 cell inline style：`cell.style = customStyle` 只疊加自訂視覺樣式並保護 Grid 定位／尺寸，`cell.style = null` 還原 callback 前的 Grid 樣式。
+- `setHeaderCellStyle(binding, style)` 必須只以欄位實際 `binding` 設定 Header cell 樣式；保留 Grid 原本與 `formatItem` 套用的樣式，同名 CSS property 由傳入 style object 覆蓋。設定必須保存副本並於 Header 重繪後持續生效，傳入 `null` 清除，無效 binding 或 style 回傳 `false`。
 - `g.rows` 與 `selectedRows` 回傳 `fabui.FabGrid.Row`／`fabui.FabGrid.GroupRow` instance；`GroupRow` 繼承 `Row`，群組 header 與 group footer 都必須是 `GroupRow`；不得另外公開 `fabui.grid` namespace。
 - `fabui.Control.getControl(elementOrSelector)` 由 host element registry 取得 FabGrid instance；FabGrid 建立時登記、`dispose()` 時解除，找不到時回傳 `null`。
 - FabGrid 繼承 `fabui.Control` 的 `addEventListener()`／`removeEventListener()`；managed DOM listeners 必須在 `dispose()` 自動解除。欄位拖曳、欄寬調整、CellRange、捲軸與資料列拖曳所需的 document pointer listener 必須只在互動期間綁定，結束、取消或 dispose 時立即解除，不得讓每個 Grid 常駐全域 pointermove／pointerup listener。`hitTest()` 使用 `fabui.CellType` 與 panel 區分資料 cell、Header、Search Row、列頭與 Footer；Search Row 屬於 `ColumnHeader` 並提供 `isSearchRow: true`。

@@ -315,6 +315,7 @@ grid.columns[idx].cellTemplate = (ctx, cell) => {
 | `setItemsSource(rows)` | 替換本機資料來源並重新建立 view。 |
 | `setColumns(columns)` | 替換欄位集合。 |
 | `setColumnVisible(column, visible)` | 顯示／隱藏指定欄；`column` 可為索引或欄位 object。成功回傳 `true`。 |
+| `setHeaderCellStyle(binding, style)` | 以欄位 `binding` 設定 Header cell style object；保留原樣式，同名 property 由傳入樣式覆蓋。傳入 `null` 清除，成功回傳 `true`。 |
 | `autoSizeColumn(column)` | 依 header、目前 view、群組 aggregate 與可見 footer 自動調整指定欄寬；成功回傳新寬度。 |
 | `setRowGroups(groups)` | 設定 1 至 3 階群組設定。 |
 | `toggleRowGroup(rowIndex)` | 展開或收合指定群組列，並觸發群組收合事件。 |
@@ -341,6 +342,18 @@ grid.columns[idx].cellTemplate = (ctx, cell) => {
 | `removeEventListener(target?, type?, fn?, capture?)` | 移除符合條件的 managed DOM listeners，回傳移除數量；不傳參數時全部移除。 |
 | `hitTest(point, y?)` | 以 `MouseEvent`、HTMLElement、Point 或 page 座標取得 cell 的 `panel`、`cellType`、`row`、`col`、`viewCol`、`column`、`range` 與 `target`；`col` 對應 `grid.columns`，Search Row 另有 `isSearchRow: true`。 |
 | `dispose()` | 移除 DOM 與事件；元件不再可用。 |
+
+`setHeaderCellStyle()` 只比對實際 `binding`，不以 `header` 或 `name` 代替。Style 支援 camelCase、kebab-case 與 CSS custom property；FabGrid 會先套用原本的 Header 樣式，再疊加指定樣式，同名 property 以指定值為準。方法會複製傳入 object，後續修改原 object 不會改變已設定樣式。
+
+```js
+grid.setHeaderCellStyle('orderNo', {
+  backgroundColor: '#fff4cc',
+  color: '#663c00',
+  'font-weight': 700
+});
+
+grid.setHeaderCellStyle('orderNo', null);
+```
 
 ### 顯示與互動
 

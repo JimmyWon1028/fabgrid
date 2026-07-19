@@ -11986,6 +11986,28 @@ function getCrcTable() {
   return table;
 }
 
+function applyHeaderCellStyle(targetStyle, customStyle) {
+  var key;
+  var value;
+  if (!targetStyle || !customStyle) {
+    return;
+  }
+  for (key in customStyle) {
+    if (!Object.prototype.hasOwnProperty.call(customStyle, key)) {
+      continue;
+    }
+    value = customStyle[key];
+    if (value == null) {
+      continue;
+    }
+    if ((key.indexOf('-') >= 0 || key.indexOf('--') === 0) && typeof targetStyle.setProperty === 'function') {
+      targetStyle.setProperty(key, String(value));
+    } else {
+      targetStyle[key] = String(value);
+    }
+  }
+}
+
 function installFabGridView(FabGrid, context) {
   var CellType = context.CellType;
   var DEFAULT_OPTIONS = context.DEFAULT_OPTIONS;
@@ -13510,6 +13532,10 @@ function installFabGridView(FabGrid, context) {
       column: column,
       value: headerText
     }));
+    applyHeaderCellStyle(
+      cell.style,
+      this.headerCellStyles ? this.headerCellStyles[column.binding] : null
+    );
     return cell;
   };
 
@@ -37307,6 +37333,7 @@ function createFabGridFactory(editorDefinitions) {
     this._treeRootCount = 0;
     this.filterPredicate = null;
     this.searchText = '';
+    this.headerCellStyles = createDictionary();
     this.columnSearchValues = {};
     this.columnSearchOperators = {};
     this.hasColumnSearch = false;
@@ -38299,6 +38326,42 @@ function createFabGridFactory(editorDefinitions) {
 
   FabGrid.prototype.getHeaderDisplayMode = function() {
     return this.headerDisplayMode || 'header';
+  };
+
+  FabGrid.prototype.setHeaderCellStyle = function(binding, style) {
+    var hasBinding = false;
+    var normalizedStyle;
+    var i;
+    if (typeof binding !== 'string' || !binding || this.disposed) {
+      return false;
+    }
+    for (i = 0; i < this.columns.length; i += 1) {
+      if (this.columns[i].binding === binding) {
+        hasBinding = true;
+        break;
+      }
+    }
+    if (!hasBinding) {
+      return false;
+    }
+    if (style == null) {
+      delete this.headerCellStyles[binding];
+    } else {
+      if (typeof style !== 'object' || Array.isArray(style)) {
+        return false;
+      }
+      normalizedStyle = {};
+      for (i in style) {
+        if (Object.prototype.hasOwnProperty.call(style, i) && style[i] != null) {
+          normalizedStyle[i] = style[i];
+        }
+      }
+      this.headerCellStyles[binding] = normalizedStyle;
+    }
+    if (this.root) {
+      this.renderHeaders(this.columnRange);
+    }
+    return true;
   };
 
 
@@ -46868,7 +46931,7 @@ var pivotNamespace = {
   PivotWorkspace: PivotWorkspace
 };
 var fabui = {
-  version: "2026.7.19",
+  version: "2026.7.20",
   editorDefinitions: editorDefinitions,
   Button: Button,
   Calendar: Calendar,

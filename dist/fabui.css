@@ -8785,7 +8785,7 @@ textarea.fui-textbox-text {
   padding: 0;
   border: 0;
   border-radius: var(--fui-window-tool-radius);
-  background: transparent;
+  background-color: transparent;
   color: var(--fui-window-header-text);
   cursor: pointer;
   opacity: 0.6;

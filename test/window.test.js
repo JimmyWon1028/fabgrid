@@ -191,6 +191,9 @@ test('Window built-in tool icons do not change on mouse hover', function() {
     new URL('../src/window/window.css', import.meta.url),
     'utf8'
   );
+  var baseToolRule = css.match(
+    /\.fui-window-tool\s*\{([^}]*)\}/
+  );
   var sharedStateRule = css.match(
     /\.fui-window-tool:hover,\s*\.fui-window-tool:focus-visible\s*\{([^}]*)\}/
   );
@@ -214,6 +217,9 @@ test('Window built-in tool icons do not change on mouse hover', function() {
       tool
     );
   });
+  assert.ok(baseToolRule);
+  assert.match(baseToolRule[1], /background-color:\s*transparent;/);
+  assert.doesNotMatch(baseToolRule[1], /(?:^|\s)background:/);
   assert.match(
     css,
     /\.fui-window-tool-expand:hover:not\(:focus-visible\)[\s\S]*?background-color:\s*transparent;[\s\S]*?opacity:\s*0\.6;/

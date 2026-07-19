@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FabUI Windows 7 Desktop 開發版 Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260720-win7-desktop-v8">
+  <link rel="stylesheet" href="./style/my.icon.css?v=20260720-win7-desktop-v8">
+  <link rel="stylesheet" href="./style/win7.css?v=20260720-win7-desktop-v8">
+</head>
+<body class="fg-theme-default">
+  <main class="win7-desktop" aria-label="Windows 7 模擬桌面" tabindex="0">
+    <nav class="win7-shortcuts" aria-label="桌面捷徑">
+      <a class="win7-shortcut" href="#computer" data-win7-action="computer" draggable="false">
+        <span class="win7-shortcut-icon icon-win7-computer" aria-hidden="true"></span>
+        <span>Computer</span>
+      </a>
+      <a class="win7-shortcut" href="#network" data-win7-action="network" draggable="false">
+        <span class="win7-shortcut-icon icon-win7-network" aria-hidden="true"></span>
+        <span>Network</span>
+      </a>
+      <a class="win7-shortcut" href="#monitor" data-win7-action="monitor" draggable="false">
+        <span class="win7-shortcut-icon icon-win7-monitor" aria-hidden="true"></span>
+        <span>Monitor</span>
+      </a>
+    </nav>
+
+    <div id="win7-computer-window" class="win7-window-body">
+      <div id="win7-layout" class="win7-layout">
+        <aside data-region="west" title="West">
+          <div id="win7-tree" class="win7-tree"></div>
+        </aside>
+        <section data-region="center" title="Center">
+          <div id="win7-tabs" class="win7-tabs">
+            <div title="About" class="win7-about">
+              <h2>FabUI Desktop</h2>
+              <p>這個簡易桌面以 FabUI Window、Layout、Tree、Tabs、FabGrid 與 Button 組合而成。</p>
+            </div>
+            <div title="DataGrid">
+              <div id="win7-grid" class="win7-grid"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div id="win7-network-window" class="win7-window-body">
+      <div class="win7-network-content">
+        <header class="win7-window-intro">
+          <h2>Network</h2>
+          <p>區域網路上目前可用的裝置與連線狀態。</p>
+        </header>
+        <div id="win7-network-grid" class="win7-secondary-grid"></div>
+      </div>
+    </div>
+
+    <div id="win7-monitor-window" class="win7-window-body">
+      <div class="win7-monitor-content">
+        <header class="win7-window-intro">
+          <h2>System Monitor</h2>
+          <p>最近六個時間點的 CPU、Memory 與 Disk 使用率。</p>
+        </header>
+        <div id="win7-monitor-chart" class="win7-monitor-chart"></div>
+      </div>
+    </div>
+
+    <footer class="win7-taskbar">
+      <div class="win7-taskbar-actions">
+        <a data-fabui-button data-icon-cls="icon-windows" href="javascript:void(0)" id="win7-start">Start</a>
+        <a class="win7-task-button" data-fabui-button data-icon-cls="icon-window" href="javascript:void(0)" id="win7-task-computer" hidden>Computer</a>
+        <a class="win7-task-button" data-fabui-button data-icon-cls="icon-search" href="javascript:void(0)" id="win7-task-network" hidden>Network</a>
+        <a class="win7-task-button" data-fabui-button data-icon-cls="icon-help" href="javascript:void(0)" id="win7-task-monitor" hidden>Monitor</a>
+      </div>
+      <time id="win7-clock" class="win7-clock" aria-label="目前時間"></time>
+    </footer>
+    <div id="win7-start-menu" class="win7-start-menu" hidden></div>
+    <div id="win7-desktop-menu" class="win7-desktop-menu" hidden></div>
+  </main>
+
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260720-win7-desktop-v8';
+    import { mountWin7Demo } from './js/win7-demo.js?v=20260720-win7-desktop-v9';
+
+    mountWin7Demo(fabui);
+  </script>
+  <script type="module" src="./js/dev-controls.js?v=20260719-button-icon-v1"></script>
+</body>
+</html>

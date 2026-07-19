@@ -166,6 +166,28 @@ function dispatchControlEvent(element, name) {
   element.dispatchEvent(new Event(name, { bubbles: true }));
 }
 
+export function bridgeNumberEditBoxInput(element, control, eventName) {
+  var textbox;
+  if (
+    !element ||
+    !control ||
+    eventName !== "input" ||
+    typeof control.getEditorType !== "function" ||
+    control.getEditorType() !== "number" ||
+    typeof control.textbox !== "function"
+  ) {
+    return false;
+  }
+  textbox = control.textbox();
+  if (!textbox || typeof textbox.addEventListener !== "function") {
+    return false;
+  }
+  textbox.addEventListener("input", function () {
+    dispatchControlEvent(element, eventName);
+  });
+  return true;
+}
+
 function getSelectData(select) {
   return Array.prototype.map.call(select.options, function (option) {
     return {
@@ -241,6 +263,7 @@ export function createGrid2FabuiDemo(fabui) {
     };
     control = new fabui.EditBox(element, options);
     state.component = control;
+    bridgeNumberEditBoxInput(element, control, eventName);
     componentStates.push(state);
     editBoxes[id] = control;
 
