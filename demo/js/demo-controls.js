@@ -205,7 +205,7 @@ function mountRadioButton(input) {
 function mountFileBox(input) {
   var size;
   var control;
-  if (hasFieldControl(input) || isComponentInternal(input)) return;
+  if (input.hidden || hasFieldControl(input) || isComponentInternal(input)) return;
   size = measureElement(input);
   control = new fabui.FileBox(input, {
     width: size.width,

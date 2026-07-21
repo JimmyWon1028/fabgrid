@@ -21,6 +21,18 @@ var helperScript = readFileSync(
   new URL('../demo/js/demo-controls.js', import.meta.url),
   'utf8'
 );
+var diagramHtml = readFileSync(
+  new URL('../demo/dev-diagram.html', import.meta.url),
+  'utf8'
+);
+var buildDiagramHtml = readFileSync(
+  new URL('../demo/diagram.html', import.meta.url),
+  'utf8'
+);
+var diagramScript = readFileSync(
+  new URL('../src/diagram/diagram.js', import.meta.url),
+  'utf8'
+);
 var win7Html = readFileSync(
   new URL('../demo/dev-win7.html', import.meta.url),
   'utf8'
@@ -128,7 +140,7 @@ test('Every source-mode Demo loads the shared FabUI control enhancer', function(
     var html = readFileSync(new URL(name, demoDirectory), 'utf8');
     assert.match(
       html,
-      /<script type="module" src="\.\/js\/dev-controls\.js\?v=20260719-(?:select-fit|button-icon)-v1"><\/script>/,
+      /<script type="module" src="\.\/js\/dev-controls\.js\?v=(?:20260719-(?:select-fit|button-icon)-v1|20260720-hidden-file-input-v1)"><\/script>/,
       name
     );
   });
@@ -153,6 +165,22 @@ test('The shared enhancer uses FabUI controls for native Demo fields', function(
   assert.match(helperScript, /\.fui-combobox-panel/);
   assert.match(helperScript, /\.fui-colorbox-panel/);
   assert.match(helperScript, /\.fui-datebox-panel/);
+});
+
+test('The shared enhancer leaves hidden Diagram file inputs untouched', function() {
+  assert.match(
+    helperScript,
+    /function mountFileBox\(input\) \{[\s\S]*?if \(input\.hidden \|\|/
+  );
+  assert.match(diagramScript, /jsonFileInput\.hidden = true/);
+  assert.match(
+    diagramHtml,
+    /dev-controls\.js\?v=20260720-hidden-file-input-v1/
+  );
+  assert.match(
+    buildDiagramHtml,
+    /dist-controls\.js\?v=20260720-hidden-file-input-v1/
+  );
 });
 
 test('The shared enhancer fits Combo EditBox width to every select option', function() {
@@ -300,15 +328,59 @@ test('Every build-mode Demo loads dist FabUI and the shared control enhancer', f
     var html = readFileSync(new URL(name, demoDirectory), 'utf8');
     assert.match(
       html,
+      /<link\s+rel="stylesheet"\s+href="\.\.\/dist\/fabui\.css\?v=20260720-dist-style-fabui-v1"\s*\/?>/,
+      name
+    );
+    assert.match(
+      html,
       /<script src="\.\.\/dist\/fabui(?:\.min)?\.js(?:\?[^"]*)?"><\/script>/,
       name
     );
     assert.match(
       html,
-      /<script type="module" src="\.\/js\/dist-controls\.js\?v=20260719-all-demos-v1"><\/script>/,
+      /<script type="module" src="\.\/js\/dist-controls\.js\?v=(?:20260719-all-demos-v1|20260720-hidden-file-input-v1)"><\/script>/,
       name
     );
     assert.doesNotMatch(html, /\.\.\/src\//, name);
+  });
+});
+
+test('Every webpage stylesheet reference uses the FabUI dist filename', function() {
+  var sources = readdirSync(demoDirectory)
+    .filter(function(name) {
+      return /\.html$/.test(name);
+    })
+    .map(function(name) {
+      return {
+        name: name,
+        source: readFileSync(new URL(name, demoDirectory), 'utf8')
+      };
+    });
+  var vueDirectory = new URL('../demo/js/', import.meta.url);
+
+  ['grid-grid-vue2.vue', 'grid-treegrid-vue2.vue'].forEach(function(name) {
+    sources.push({
+      name: 'js/' + name,
+      source: readFileSync(new URL(name, vueDirectory), 'utf8')
+    });
+  });
+
+  sources.forEach(function(item) {
+    assert.doesNotMatch(
+      item.source,
+      /(?:src|dist)\/(?:theme\/)?fabgrid[^"'();\s]*\.css/i,
+      item.name
+    );
+  });
+
+  sources.filter(function(item) {
+    return /(?:href=|@import\s+)["']\.\.\/dist\/fabui\.css/.test(item.source);
+  }).forEach(function(item) {
+    assert.match(
+      item.source,
+      /\.\.\/dist\/fabui\.css\?v=20260720-dist-style-fabui-v1/,
+      item.name
+    );
   });
 });
 
@@ -360,6 +432,7 @@ test('Build-mode Demo inline styles do not repaint native control descendants', 
 test('Demo indexes expose source-mode and build-mode pages separately', function() {
   var indexHtml = readFileSync(new URL('index.html', demoDirectory), 'utf8');
   var devHtml = readFileSync(new URL('dev.html', demoDirectory), 'utf8');
+  var devIndexScript = readFileSync(new URL('js/dev-index.js', demoDirectory), 'utf8');
 
   assert.doesNotMatch(indexHtml, /<th>開發版<\/th>/);
   assert.doesNotMatch(indexHtml, /href=["']\.\/dev-[^"']*\.html["']/i);
@@ -369,17 +442,81 @@ test('Demo indexes expose source-mode and build-mode pages separately', function
   assert.match(devHtml, /<th>正式版<\/th>/);
   assert.match(devHtml, /href=["']\.\/dev-grid\.html["']/i);
   assert.match(devHtml, /href=["']\.\/grid\.html["']/i);
+  assert.match(devHtml, /<tbody id=["']demo-list["']>/);
+  assert.match(devHtml, /src=["']\.\/js\/dev-index\.js["']/);
+  assert.match(
+    devHtml,
+    /tbody td:not\(:first-child\) a\s*\{\s*cursor:\s*default;/
+  );
+  assert.match(devIndexScript, /handle\.draggable = true/);
+  assert.doesNotMatch(devIndexScript, /row\.draggable = true/);
+  assert.match(devIndexScript, /link\.draggable = false/);
+  assert.match(devIndexScript, /getDragHandle\(event\.target\)/);
+  assert.match(devIndexScript, /addEventListener\('dragstart'/);
+  assert.match(devIndexScript, /addEventListener\('dragover'/);
+  assert.match(devIndexScript, /list\.insertBefore\(draggingRow,/);
+  assert.deepEqual(
+    Array.from(indexHtml.matchAll(/<tr><td>([^<]+)<\/td><td><a href=/g), function(match) {
+      return match[1];
+    }),
+    readShowcasePairs().map(function(pair) {
+      return pair.label;
+    })
+  );
+  assert.deepEqual(
+    Array.from(devHtml.matchAll(/<tr><td>([^<]+)<\/td>/g), function(match) {
+      return match[1];
+    }),
+    [
+      'FabGrid',
+      'FabGrid Remote',
+      'TreeGrid',
+      'fabui.Tree',
+      'fabui.Window',
+      'fabui.Layout',
+      'fabui.Panel',
+      'fabui.Accordion',
+      'fabui.Tabs',
+      'fabui.Form',
+      'fabui.EditBox',
+      'fabui.FileBox',
+      'fabui.Button',
+      'fabui.SplitButton',
+      'fabui.Menu',
+      'fabui.MenuButton',
+      'fabui.Calendar',
+      'fabui.CheckBox',
+      'fabui.SwitchButton',
+      'fabui.CheckGroup',
+      'fabui.RadioButton',
+      'fabui.RadioGroup',
+      'fabui.PropertyGrid',
+      'fabui.Messager',
+      'fabui.Tooltip',
+      'Grid / Grid 拖曳',
+      'Grid / TreeGrid 拖曳',
+      'Grid / Chart',
+      'PivotGrid',
+      'PivotWorkspace',
+      'Pivot 大資料與進階計算',
+      'Windows 7 Desktop',
+      'fabui.Diagram',
+      'fabui.Gantt',
+      'fabui.Scheduler',
+      'FabUI Theme Builder'
+    ]
+  );
   assert.doesNotMatch(
     indexHtml + devHtml,
     /(?:src|href)=["'][^"']*(?:src|dist)\/fabui|data-fabui-button|class=["'][^"']*\bfui-button\b/i
   );
-  assert.doesNotMatch(indexHtml + devHtml, /<script\b/i);
+  assert.doesNotMatch(indexHtml, /<script\b/i);
 });
 
 test('Every build-mode Demo mirrors its source-mode showcase', function() {
   var pairs = readShowcasePairs();
 
-  assert.equal(pairs.length, 31);
+  assert.equal(pairs.length, 34);
   pairs.forEach(function(pair) {
     var devHtml = readFileSync(new URL(pair.dev, demoDirectory), 'utf8');
     var buildHtml = readFileSync(new URL(pair.build, demoDirectory), 'utf8');

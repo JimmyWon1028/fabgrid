@@ -12,6 +12,7 @@ const buildVersion = buildDate.getFullYear() + '.' + (buildDate.getMonth() + 1) 
 const javascriptSources = [
   'core/control.js',
   'button/button.js',
+  'accordion/accordion.js',
   'calendar/calendar.js',
   'checkbox/checkbox.js',
   'checkgroup/checkgroup.js',
@@ -19,7 +20,6 @@ const javascriptSources = [
   'radiobutton/radiobutton.js',
   'radiogroup/radiogroup.js',
   'chart/chart.js',
-  'diagram/diagram.js',
   'grid/fabgrid-types.js',
   'grid/fabgrid-data.js',
   'grid/fabgrid-tree.js',
@@ -100,7 +100,7 @@ function minifyCss(source) {
 }
 
 function isStandaloneComponentStyle(request) {
-  return /(?:^|\/)components\.css$/i.test(request);
+  return /(?:^|\/)(?:components|diagram\/diagram)\.css$/i.test(request);
 }
 
 function stripStandaloneThemeSelectors(source) {
@@ -158,9 +158,10 @@ function copyThemeOutput() {
   fs.mkdirSync(outputThemeDir, { recursive: true });
   fs.readdirSync(sourceThemeDir, { withFileTypes: true }).forEach(function(entry) {
     const source = path.join(sourceThemeDir, entry.name);
-    const output = path.join(outputThemeDir, entry.name);
     if (entry.name === '.DS_Store') return;
     if (entry.isFile() && /^fabgrid\..+\.css$/i.test(entry.name)) {
+      const outputName = entry.name.replace(/^fabgrid\./i, 'fabui.');
+      const output = path.join(outputThemeDir, outputName);
       const css = stripStandaloneThemeSelectors(fs.readFileSync(source, 'utf8').replace(/@import\s+(?:url\()?(['"])([^'"]+\.css)(?:[?#][^'"]*)?\1\)?\s*;/g, function(match, quote, request) {
         return isStandaloneComponentStyle(request) ? '' : match;
       }));
@@ -194,14 +195,14 @@ function createJavascriptBundle() {
     'global.fabui.RadioGroup = createRadioGroupFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.RadioButton);\n' +
     'global.fabui.Chart = createChartFactory();\n' +
     'global.fabui.EditBox = createEditBoxFactory(global.fabui.editorDefinitions);\n' +
-    'global.fabui.Window = createWindowFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
-    'global.fabui.Diagram = createDiagramFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Button, global.fabui.EditBox, global.fabui.Window);\n' +
-    'global.fabui.FileBox = createFileBoxFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.EditBox);\n' +
+  'global.fabui.Window = createWindowFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+  'global.fabui.Menu = createMenuFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+  'global.fabui.FileBox = createFileBoxFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.EditBox);\n' +
     'global.fabui.Form = createFormFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.EditBox);\n' +
-    'global.fabui.Menu = createMenuFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.MenuButton = createMenuButtonFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Button, global.fabui.Menu);\n' +
     'global.fabui.SplitButton = createSplitButtonFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.MenuButton);\n' +
     'global.fabui.Panel = createPanelFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.Accordion = createAccordionFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Panel);\n' +
     'global.fabui.PropertyGrid = createPropertyGridFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.EditBox);\n' +
     'global.fabui.Tabs = createTabsFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.Tree = createTreeFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
@@ -225,106 +226,13 @@ function createJavascriptBundle() {
     '}(typeof window !== "undefined" ? window : this));\n' + locales;
 }
 
-function createEsmLocaleSource(file) {
-  const source = readSource(file);
-  const browserRoot = "}(typeof window !== 'undefined' ? window : this, function() {";
-  const moduleRoot = '}({ fabui: fabui }, function() {';
-  if (source.indexOf(browserRoot) < 0) {
-    throw new Error('Unable to convert locale for ESM bundle: ' + file);
-  }
-  return source.replace(browserRoot, moduleRoot);
-}
-
-function createEsmJavascriptBundle() {
-  const modules = javascriptSources.map(function(file) {
-    return stripExports(readSource(file));
-  }).join('\n');
-  const locales = localeSources.map(createEsmLocaleSource).join('\n');
-  return banner('ES module') + modules + '\n' +
-    'var editorDefinitions = createEditorDefinitions();\n' +
-    'var Button = createButtonFactory(Control, registerControl, unregisterControl);\n' +
-    'var Calendar = createCalendarFactory(Control, registerControl, unregisterControl);\n' +
-    'var CheckBox = createCheckBoxFactory(Control, registerControl, unregisterControl);\n' +
-    'var CheckGroup = createCheckGroupFactory(Control, registerControl, unregisterControl, CheckBox);\n' +
-    'var SwitchButton = createSwitchButtonFactory(Control, registerControl, unregisterControl);\n' +
-    'var RadioButton = createRadioButtonFactory(Control, registerControl, unregisterControl);\n' +
-    'var RadioGroup = createRadioGroupFactory(Control, registerControl, unregisterControl, RadioButton);\n' +
-    'var Chart = createChartFactory();\n' +
-    'var EditBox = createEditBoxFactory(editorDefinitions);\n' +
-    'var Window = createWindowFactory(Control, registerControl, unregisterControl);\n' +
-    'var Diagram = createDiagramFactory(Control, registerControl, unregisterControl, Button, EditBox, Window);\n' +
-    'var FileBox = createFileBoxFactory(Control, registerControl, unregisterControl, EditBox);\n' +
-    'var Form = createFormFactory(Control, registerControl, unregisterControl, EditBox);\n' +
-    'var Menu = createMenuFactory(Control, registerControl, unregisterControl);\n' +
-    'var MenuButton = createMenuButtonFactory(Control, registerControl, unregisterControl, Button, Menu);\n' +
-    'var SplitButton = createSplitButtonFactory(Control, registerControl, unregisterControl, MenuButton);\n' +
-    'var Panel = createPanelFactory(Control, registerControl, unregisterControl);\n' +
-    'var PropertyGrid = createPropertyGridFactory(Control, registerControl, unregisterControl, EditBox);\n' +
-    'var Tabs = createTabsFactory(Control, registerControl, unregisterControl);\n' +
-    'var Tree = createTreeFactory(Control, registerControl, unregisterControl);\n' +
-    'var Tooltip = createTooltipFactory(Control, registerControl, unregisterControl);\n' +
-    'var Layout = createLayoutFactory(Control, registerControl, unregisterControl, Panel);\n' +
-    'var Messager = createMessagerFactory(Window, Button);\n' +
-    'var FabGrid = createFabGridFactory(editorDefinitions);\n' +
-    'var PivotChart = createPivotChartFactory(Control, registerControl, unregisterControl, PivotEngine, Chart, FabGrid);\n' +
-    'var PivotGrid = createPivotGridFactory(FabGrid, PivotEngine);\n' +
-    'var PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, FabGrid);\n' +
-    'var PivotSlicer = createPivotSlicerFactory(Control, registerControl, unregisterControl, PivotEngine, FabGrid);\n' +
-    'var PivotWorkspace = createPivotWorkspaceFactory(Control, registerControl, unregisterControl, PivotEngine, PivotPanel, PivotGrid, PivotChart, FabGrid);\n' +
-    'var pivotNamespace = {\n' +
-    '  PivotAggregate: PivotAggregate,\n' +
-    '  PivotChart: PivotChart,\n' +
-    '  PivotEngine: PivotEngine,\n' +
-    '  PivotField: PivotField,\n' +
-    '  PivotGrid: PivotGrid,\n' +
-    '  PivotPanel: PivotPanel,\n' +
-    '  PivotShowAs: PivotShowAs,\n' +
-    '  PivotShowTotals: PivotShowTotals,\n' +
-    '  PivotSlicer: PivotSlicer,\n' +
-    '  PivotWorkspace: PivotWorkspace\n' +
-    '};\n' +
-    'var fabui = {\n' +
-    '  version: ' + JSON.stringify(buildVersion) + ',\n' +
-    '  editorDefinitions: editorDefinitions,\n' +
-    '  Button: Button,\n' +
-    '  Calendar: Calendar,\n' +
-    '  CheckBox: CheckBox,\n' +
-    '  CheckGroup: CheckGroup,\n' +
-    '  SwitchButton: SwitchButton,\n' +
-    '  RadioButton: RadioButton,\n' +
-    '  RadioGroup: RadioGroup,\n' +
-    '  Control: Control,\n' +
-    '  Chart: Chart,\n' +
-    '  Diagram: Diagram,\n' +
-    '  EditBox: EditBox,\n' +
-    '  FileBox: FileBox,\n' +
-    '  Form: Form,\n' +
-    '  Layout: Layout,\n' +
-    '  Menu: Menu,\n' +
-    '  MenuButton: MenuButton,\n' +
-    '  Messager: Messager,\n' +
-    '  Panel: Panel,\n' +
-    '  PropertyGrid: PropertyGrid,\n' +
-    '  SplitButton: SplitButton,\n' +
-    '  Tabs: Tabs,\n' +
-    '  Tree: Tree,\n' +
-    '  Tooltip: Tooltip,\n' +
-    '  Window: Window,\n' +
-    '  FabGrid: FabGrid,\n' +
-    '  pivot: pivotNamespace,\n' +
-    '  CellType: CellType,\n' +
-    '  FabGridLocales: FabGrid.locales\n' +
-    '};\n' + locales + '\n' +
-    'export { fabui };\n' +
-    'export default fabui;\n';
-}
-
 function verifyCssAssets(file) {
   const source = fs.readFileSync(file, 'utf8');
   const sourceDir = path.dirname(file);
   const missing = [];
   source.replace(/url\((['"]?)([^)'"\s]+)\1\)/g, function(match, quote, url) {
-    const asset = path.resolve(sourceDir, url);
+    const assetUrl = url.replace(/[?#].*$/, '');
+    const asset = path.resolve(sourceDir, assetUrl);
     if (/^(?:data:|https?:|#)/i.test(url)) return match;
     if (!fs.existsSync(asset) || !fs.statSync(asset).isFile()) missing.push(url);
     return match;
@@ -353,8 +261,11 @@ function verifyBuildOutput() {
   if (javascript.indexOf('global.fabui.Chart = createChartFactory()') < 0) {
     throw new Error('FabUI Chart is missing from the JavaScript bundle.');
   }
-  if (javascript.indexOf('global.fabui.Diagram = createDiagramFactory') < 0) {
-    throw new Error('FabUI Diagram is missing from the JavaScript bundle.');
+  if (/createDiagramFactory|global\.fabui\.Diagram/.test(javascript)) {
+    throw new Error('FabUI Diagram must remain outside the core JavaScript bundle.');
+  }
+  if (/\.fui-diagram(?:[\s,{.:#>])/.test(css)) {
+    throw new Error('FabUI Diagram styles must remain outside the core CSS bundle.');
   }
   if (javascript.indexOf('global.fabui.EditBox = createEditBoxFactory(global.fabui.editorDefinitions)') < 0) {
     throw new Error('fabui.EditBox is missing from the JavaScript bundle.');
@@ -440,6 +351,9 @@ function verifyBuildOutput() {
   if (javascript.indexOf('global.fabui.Panel = createPanelFactory') < 0) {
     throw new Error('FabUI Panel is missing from the JavaScript bundle.');
   }
+  if (javascript.indexOf('global.fabui.Accordion = createAccordionFactory') < 0) {
+    throw new Error('FabUI Accordion is missing from the JavaScript bundle.');
+  }
   if (javascript.indexOf('global.fabui.PropertyGrid = createPropertyGridFactory') < 0) {
     throw new Error('FabUI PropertyGrid is missing from the JavaScript bundle.');
   }
@@ -455,6 +369,12 @@ function verifyBuildOutput() {
   if (javascript.indexOf('global.fabui.Layout = createLayoutFactory') < 0) {
     throw new Error('FabUI Layout is missing from the JavaScript bundle.');
   }
+  if (/createGanttFactory|global\.fabui\.Gantt/.test(javascript)) {
+    throw new Error('FabUI Gantt must remain outside the core JavaScript bundle.');
+  }
+  if (/\.fui-gantt(?:[\s,{.:#>])/.test(css)) {
+    throw new Error('FabUI Gantt styles must remain outside the core CSS bundle.');
+  }
   if (javascript.indexOf('FabGrid.Row = Row') < 0 || javascript.indexOf('FabGrid.GroupRow = GroupRow') < 0) {
     throw new Error('FabGrid Row types are missing from the JavaScript bundle.');
   }
@@ -469,13 +389,10 @@ fs.rmSync(distDir, { recursive: true, force: true });
 fs.mkdirSync(distDir, { recursive: true });
 
 const javascript = createJavascriptBundle();
-const esmJavascript = createEsmJavascriptBundle();
 const css = banner('styles') + bundleCss(path.join(srcDir, 'fabui.css'));
 
 fs.writeFileSync(path.join(distDir, 'fabui.js'), javascript, 'utf8');
 fs.writeFileSync(path.join(distDir, 'fabui.min.js'), banner('browser global min') + minifyJs(javascript, 'iife'), 'utf8');
-fs.writeFileSync(path.join(distDir, 'fabui.esm.js'), esmJavascript, 'utf8');
-fs.writeFileSync(path.join(distDir, 'fabui.esm.min.js'), banner('ES module min') + minifyJs(esmJavascript, 'esm'), 'utf8');
 fs.writeFileSync(path.join(distDir, 'fabui.css'), css, 'utf8');
 fs.writeFileSync(path.join(distDir, 'fabui.min.css'), minifyCss(css), 'utf8');
 copyThemeOutput();

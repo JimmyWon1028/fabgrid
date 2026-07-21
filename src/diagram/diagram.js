@@ -76,6 +76,27 @@ var DIAGRAM_SHAPES = [
     label: 'dfdDataStore',
     width: 140,
     height: 60
+  },
+  {
+    type: 'orgChartImageLeft',
+    category: 'orgChart',
+    label: 'orgChartImageLeft',
+    width: 180,
+    height: 80
+  },
+  {
+    type: 'orgChartImageRight',
+    category: 'orgChart',
+    label: 'orgChartImageRight',
+    width: 180,
+    height: 80
+  },
+  {
+    type: 'orgChartImageTop',
+    category: 'orgChart',
+    label: 'orgChartImageTop',
+    width: 110,
+    height: 150
   }
 ];
 var DIAGRAM_CONNECTOR_TOOLS = [
@@ -87,6 +108,13 @@ var DIAGRAM_CONNECTOR_TOOLS = [
   }
 ];
 var DIAGRAM_TOOLBOX_ITEMS = DIAGRAM_SHAPES.concat(DIAGRAM_CONNECTOR_TOOLS);
+var DIAGRAM_TOOLBOX_CATEGORIES = ['general', 'flowchart', 'dfd', 'orgChart'];
+var DIAGRAM_TOOLBOX_COLLAPSED_DEFAULTS = {
+  general: false,
+  flowchart: true,
+  dfd: true,
+  orgChart: true
+};
 var DIAGRAM_CONNECTION_POINTS = [
   { name: 'top', x: 0.5, y: 0 },
   { name: 'rightTop', x: 1, y: 1 / 3 },
@@ -122,6 +150,230 @@ function diagramBoolean(value, fallback) {
     if (value === 'true' || value === '1' || value === 'yes' || value === '') return true;
   }
   return Boolean(value);
+}
+
+export function diagramEventTargetsInteractiveControl(event, boundary) {
+  var target = event && event.target;
+  var tagName;
+  var role;
+  var contentEditable;
+  while (target && target !== boundary) {
+    tagName = String(target.tagName || '').toLowerCase();
+    if (
+      tagName === 'input' ||
+      tagName === 'textarea' ||
+      tagName === 'select' ||
+      tagName === 'option' ||
+      tagName === 'button' ||
+      tagName === 'a'
+    ) return true;
+    if (target.isContentEditable) return true;
+    if (typeof target.getAttribute === 'function') {
+      contentEditable = target.getAttribute('contenteditable');
+      if (
+        contentEditable != null &&
+        (
+          String(contentEditable).toLowerCase() === '' ||
+          String(contentEditable).toLowerCase() === 'true' ||
+          String(contentEditable).toLowerCase() === 'plaintext-only'
+        )
+      ) return true;
+      role = String(target.getAttribute('role') || '').toLowerCase();
+      if (
+        role === 'textbox' ||
+        role === 'combobox' ||
+        role === 'spinbutton' ||
+        role === 'button' ||
+        role === 'link' ||
+        role === 'checkbox' ||
+        role === 'radio' ||
+        role === 'slider'
+      ) return true;
+    }
+    target = target.parentElement;
+  }
+  return false;
+}
+
+function normalizeDiagramToolboxCollapsed(value, fallback) {
+  var result = diagramAssign(
+    {},
+    DIAGRAM_TOOLBOX_COLLAPSED_DEFAULTS,
+    fallback && typeof fallback === 'object' ? fallback : {}
+  );
+  value = value && typeof value === 'object' ? value : {};
+  DIAGRAM_TOOLBOX_CATEGORIES.forEach(function(category) {
+    if (Object.prototype.hasOwnProperty.call(value, category)) {
+      result[category] = diagramBoolean(value[category], result[category]);
+    }
+  });
+  return result;
+}
+
+export function normalizeDiagramToolboxOrder(value, fallback) {
+  var result = [];
+  function append(categories) {
+    if (!Array.isArray(categories)) return;
+    categories.forEach(function(category) {
+      category = String(category || '');
+      if (
+        DIAGRAM_TOOLBOX_CATEGORIES.indexOf(category) >= 0 &&
+        result.indexOf(category) < 0
+      ) {
+        result.push(category);
+      }
+    });
+  }
+  append(value);
+  append(fallback);
+  append(DIAGRAM_TOOLBOX_CATEGORIES);
+  return result;
+}
+
+export function reorderDiagramToolboxOrder(
+  order,
+  sourceCategory,
+  targetCategory,
+  after
+) {
+  var result = normalizeDiagramToolboxOrder(order);
+  var sourceIndex = result.indexOf(String(sourceCategory || ''));
+  var targetIndex;
+  if (sourceIndex < 0) return result;
+  result.splice(sourceIndex, 1);
+  targetIndex = result.indexOf(String(targetCategory || ''));
+  if (targetIndex < 0) {
+    result.splice(sourceIndex, 0, String(sourceCategory));
+    return result;
+  }
+  result.splice(targetIndex + (after ? 1 : 0), 0, String(sourceCategory));
+  return result;
+}
+
+export function constrainDiagramFloatingToolbox(
+  left,
+  top,
+  width,
+  height,
+  workspaceWidth,
+  workspaceHeight
+) {
+  width = Math.max(0, diagramNumber(width, 0));
+  height = Math.max(0, diagramNumber(height, 0));
+  workspaceWidth = Math.max(0, diagramNumber(workspaceWidth, 0));
+  workspaceHeight = Math.max(0, diagramNumber(workspaceHeight, 0));
+  return {
+    left: diagramClamp(
+      diagramNumber(left, 0),
+      0,
+      Math.max(0, workspaceWidth - width)
+    ),
+    top: diagramClamp(
+      diagramNumber(top, 0),
+      0,
+      Math.max(0, workspaceHeight - height)
+    )
+  };
+}
+
+export function constrainDiagramViewToolbar(
+  left,
+  top,
+  width,
+  height,
+  hostWidth,
+  hostHeight
+) {
+  return constrainDiagramFloatingToolbox(
+    left,
+    top,
+    width,
+    height,
+    hostWidth,
+    hostHeight
+  );
+}
+
+export function diagramViewportCanPan(
+  scrollWidth,
+  scrollHeight,
+  clientWidth,
+  clientHeight
+) {
+  return diagramNumber(scrollWidth, 0) > diagramNumber(clientWidth, 0) + 1 ||
+    diagramNumber(scrollHeight, 0) > diagramNumber(clientHeight, 0) + 1;
+}
+
+export function diagramToolboxShouldDock(clientX, workspaceLeft, threshold) {
+  threshold = Math.max(0, diagramNumber(threshold, 56));
+  return diagramNumber(clientX, Infinity) <=
+    diagramNumber(workspaceLeft, 0) + threshold;
+}
+
+export function diagramPropertiesShouldDock(
+  clientX,
+  workspaceLeft,
+  workspaceWidth,
+  threshold
+) {
+  threshold = Math.max(0, diagramNumber(threshold, 56));
+  return diagramNumber(clientX, -Infinity) >=
+    diagramNumber(workspaceLeft, 0) +
+    Math.max(0, diagramNumber(workspaceWidth, 0)) -
+    threshold;
+}
+
+export function normalizeDiagramDockSide(value, fallback) {
+  value = String(value || '').toLowerCase();
+  if (value === 'left' || value === 'right') return value;
+  fallback = String(fallback || '').toLowerCase();
+  return fallback === 'right' ? 'right' : 'left';
+}
+
+export function normalizeDiagramSameSideDockMode(value) {
+  return String(value || '').toLowerCase() === 'stacked' ?
+    'stacked' :
+    'tabs';
+}
+
+export function getDiagramPanelDockSide(
+  clientX,
+  workspaceLeft,
+  workspaceWidth,
+  threshold
+) {
+  if (diagramToolboxShouldDock(clientX, workspaceLeft, threshold)) {
+    return 'left';
+  }
+  if (diagramPropertiesShouldDock(
+    clientX,
+    workspaceLeft,
+    workspaceWidth,
+    threshold
+  )) {
+    return 'right';
+  }
+  return '';
+}
+
+function readDiagramToolboxState(key) {
+  var value;
+  if (!key || typeof window === 'undefined') return null;
+  try {
+    value = window.localStorage.getItem(key);
+    return value ? JSON.parse(value) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeDiagramToolboxState(key, value) {
+  if (!key || typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    return;
+  }
 }
 
 function diagramClamp(value, minimum, maximum) {
@@ -194,6 +446,39 @@ function diagramItemId(prefix) {
   return id;
 }
 
+function diagramElementIsFullscreen(element) {
+  var activeElement = document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    null;
+  if (activeElement) return activeElement === element;
+  if (!element || typeof element.matches !== 'function') return false;
+  try {
+    if (element.matches(':fullscreen')) return true;
+  } catch (error) {
+    // Ignore unsupported fullscreen selectors.
+  }
+  try {
+    return element.matches(':-webkit-full-screen');
+  } catch (error) {
+    return false;
+  }
+}
+
+function diagramElementBorderSize(element) {
+  var rect = element.getBoundingClientRect();
+  return {
+    width: rect.width,
+    height: rect.height
+  };
+}
+
+function diagramOnNextFrame(callback) {
+  var requestFrame = window.requestAnimationFrame || function(handler) {
+    return setTimeout(handler, 0);
+  };
+  return requestFrame.call(window, callback);
+}
+
 function normalizeDiagramShapeType(value) {
   value = String(value || 'rectangle');
   return DIAGRAM_SHAPES.some(function(shape) {
@@ -216,11 +501,17 @@ function normalizeDiagramNode(node, index) {
   result.stroke = String(result.stroke || '#5b6b7c');
   result.strokeWidth = Math.max(1, diagramNumber(result.strokeWidth, 1.5));
   result.textColor = String(result.textColor || '#1f2937');
+  result.hyperlink = String(result.hyperlink || '').trim();
+  result.hyperlinkTrigger = normalizeDiagramHyperlinkTrigger(
+    result.hyperlinkTrigger
+  );
   return result;
 }
 
 function normalizeDiagramConnector(connector, index) {
   var result = diagramAssign({}, connector || {});
+  var controlX = Number(result.controlX);
+  var controlY = Number(result.controlY);
   result.id = String(result.id == null || result.id === '' ?
     diagramItemId('connector-') :
     result.id);
@@ -235,6 +526,26 @@ function normalizeDiagramConnector(connector, index) {
   result.stroke = String(result.stroke || '#4b5563');
   result.strokeWidth = Math.max(1, diagramNumber(result.strokeWidth, 1.5));
   result.lineStyle = result.lineStyle === 'dashed' ? 'dashed' : 'solid';
+  result.arrowDirection = [
+    'none',
+    'end',
+    'start',
+    'both'
+  ].indexOf(result.arrowDirection) >= 0 ?
+    result.arrowDirection :
+    'end';
+  if (
+    result.controlX != null &&
+    result.controlY != null &&
+    isFinite(controlX) &&
+    isFinite(controlY)
+  ) {
+    result.controlX = controlX;
+    result.controlY = controlY;
+  } else {
+    delete result.controlX;
+    delete result.controlY;
+  }
   result._index = index;
   return result;
 }
@@ -273,6 +584,27 @@ export function normalizeDiagramLocale(value) {
   return 'en';
 }
 
+export function normalizeDiagramHyperlink(value) {
+  var source = String(value == null ? '' : value).trim();
+  if (!source) return '';
+  if (/^(?:https?:|mailto:|tel:|javascript:)/i.test(source)) return source;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(source)) return '';
+  if (/^(?:\/|\.\/|\.\.\/|#|\?)/.test(source)) return source;
+  return 'https://' + source;
+}
+
+export function normalizeDiagramHyperlinkTrigger(value) {
+  return String(value || '').toLowerCase() === 'dblclick' ?
+    'dblclick' :
+    'click';
+}
+
+export function diagramNodeHyperlinkMatchesTrigger(node, trigger) {
+  return Boolean(normalizeDiagramHyperlink(node && node.hyperlink)) &&
+    normalizeDiagramHyperlinkTrigger(node && node.hyperlinkTrigger) ===
+      normalizeDiagramHyperlinkTrigger(trigger);
+}
+
 function findDiagramTheme(element) {
   var current = resolveDiagramElement(element);
   var index;
@@ -291,6 +623,30 @@ function diagramNodeCenter(node) {
   return {
     x: node.x + node.width / 2,
     y: node.y + node.height / 2
+  };
+}
+
+function diagramNodeTextBox(node) {
+  var imageOnLeft = node.type === 'orgChartImageLeft';
+  var imageOnRight = node.type === 'orgChartImageRight';
+  var imageOnTop = node.type === 'orgChartImageTop';
+  var width = imageOnLeft || imageOnRight ?
+    node.width * 0.52 :
+    imageOnTop ?
+      node.width * 0.82 :
+      node.width;
+  var height = imageOnTop ? node.height * 0.36 : node.height;
+  return {
+    x: imageOnLeft ?
+      node.x + node.width * 0.69 :
+      imageOnRight ?
+        node.x + node.width * 0.31 :
+        node.x + node.width / 2,
+    y: imageOnTop ?
+      node.y + node.height * 0.76 :
+      node.y + node.height / 2,
+    width: width,
+    height: height
   };
 }
 
@@ -637,9 +993,182 @@ export function getDiagramShapeBoundaryPoint(node, target) {
   };
 }
 
-function diagramConnectorPoint(node, target) {
-  var other = diagramNodeCenter(target);
-  return getDiagramShapeBoundaryPoint(node, other);
+function diagramConnectionSide(name) {
+  if (name === 'top' || name === 'bottom') return name;
+  if (name.indexOf('right') === 0) return 'right';
+  if (name.indexOf('left') === 0) return 'left';
+  return '';
+}
+
+function diagramConnectionDirection(side) {
+  if (side === 'top') return { x: 0, y: -1 };
+  if (side === 'right') return { x: 1, y: 0 };
+  if (side === 'bottom') return { x: 0, y: 1 };
+  return { x: -1, y: 0 };
+}
+
+function diagramAutoConnectionCandidates(node) {
+  var center = diagramNodeCenter(node);
+  return [{
+    side: 'top',
+    point: getDiagramShapeBoundaryPoint(node, {
+      x: center.x,
+      y: node.y - Math.max(1, node.height)
+    })
+  }, {
+    side: 'right',
+    point: getDiagramShapeBoundaryPoint(node, {
+      x: node.x + node.width + Math.max(1, node.width),
+      y: center.y
+    })
+  }, {
+    side: 'bottom',
+    point: getDiagramShapeBoundaryPoint(node, {
+      x: center.x,
+      y: node.y + node.height + Math.max(1, node.height)
+    })
+  }, {
+    side: 'left',
+    point: getDiagramShapeBoundaryPoint(node, {
+      x: node.x - Math.max(1, node.width),
+      y: center.y
+    })
+  }];
+}
+
+function diagramConnectionCandidates(node, pointName) {
+  var normalized = normalizeDiagramConnectionPoint(pointName);
+  if (!normalized) return diagramAutoConnectionCandidates(node);
+  return [{
+    side: diagramConnectionSide(normalized),
+    pointName: normalized,
+    point: getDiagramConnectionPoint(node, normalized)
+  }];
+}
+
+export function findBestDiagramConnectionPoints(
+  fromNode,
+  toNode,
+  fromPoint,
+  toPoint
+) {
+  var fromCandidates = diagramConnectionCandidates(fromNode, fromPoint);
+  var toCandidates = diagramConnectionCandidates(toNode, toPoint);
+  var scale = Math.max(
+    1,
+    diagramNumber(fromNode.width, 1),
+    diagramNumber(fromNode.height, 1),
+    diagramNumber(toNode.width, 1),
+    diagramNumber(toNode.height, 1)
+  );
+  var best = null;
+  fromCandidates.forEach(function(fromCandidate) {
+    toCandidates.forEach(function(toCandidate) {
+      var dx = toCandidate.point.x - fromCandidate.point.x;
+      var dy = toCandidate.point.y - fromCandidate.point.y;
+      var distance = Math.max(0.000001, Math.sqrt(dx * dx + dy * dy));
+      var fromDirection = diagramConnectionDirection(fromCandidate.side);
+      var toDirection = diagramConnectionDirection(toCandidate.side);
+      var fromFacing = (
+        dx * fromDirection.x +
+        dy * fromDirection.y
+      ) / distance;
+      var toFacing = (
+        -dx * toDirection.x -
+        dy * toDirection.y
+      ) / distance;
+      var score = distance +
+        (2 - fromFacing - toFacing) * scale;
+      if (fromFacing <= 0) score += scale * 6;
+      if (toFacing <= 0) score += scale * 6;
+      if (!best || score < best.score) {
+        best = {
+          start: fromCandidate.point,
+          end: toCandidate.point,
+          fromPoint: fromCandidate.pointName || '',
+          toPoint: toCandidate.pointName || '',
+          fromSide: fromCandidate.side,
+          toSide: toCandidate.side,
+          score: score
+        };
+      }
+    });
+  });
+  return best;
+}
+
+export function calculateDiagramMoveAlignment(
+  nodes,
+  connectors,
+  movingNodeIds,
+  threshold
+) {
+  var nodeMap = {};
+  var movingMap = {};
+  var xOffset = null;
+  var yOffset = null;
+  threshold = Math.max(0, diagramNumber(threshold, 10));
+  (nodes || []).forEach(function(node) {
+    nodeMap[String(node.id)] = node;
+  });
+  (movingNodeIds || []).forEach(function(id) {
+    movingMap[String(id)] = true;
+  });
+  function keepNearest(current, candidate) {
+    if (
+      Math.abs(candidate) <= 0.001 ||
+      Math.abs(candidate) > threshold
+    ) return current;
+    return current == null || Math.abs(candidate) < Math.abs(current) ?
+      candidate :
+      current;
+  }
+  (connectors || []).forEach(function(connector) {
+    var fromMoving = movingMap[String(connector.from)] === true;
+    var toMoving = movingMap[String(connector.to)] === true;
+    var fromNode;
+    var toNode;
+    var points;
+    var fromAxis;
+    var toAxis;
+    var offset;
+    if (
+      fromMoving === toMoving ||
+      String(connector.type || 'orthogonal') !== 'orthogonal' ||
+      connector.controlX != null ||
+      connector.controlY != null
+    ) return;
+    fromNode = nodeMap[String(connector.from)];
+    toNode = nodeMap[String(connector.to)];
+    if (!fromNode || !toNode) return;
+    points = findBestDiagramConnectionPoints(
+      fromNode,
+      toNode,
+      connector.fromPoint,
+      connector.toPoint
+    );
+    fromAxis = points.fromSide === 'top' || points.fromSide === 'bottom' ?
+      'vertical' :
+      'horizontal';
+    toAxis = points.toSide === 'top' || points.toSide === 'bottom' ?
+      'vertical' :
+      'horizontal';
+    if (fromAxis === 'horizontal' && toAxis === 'horizontal') {
+      offset = fromMoving ?
+        points.end.y - points.start.y :
+        points.start.y - points.end.y;
+      yOffset = keepNearest(yOffset, offset);
+    } else if (fromAxis === 'vertical' && toAxis === 'vertical') {
+      offset = fromMoving ?
+        points.end.x - points.start.x :
+        points.start.x - points.end.x;
+      xOffset = keepNearest(xOffset, offset);
+    }
+  });
+  return {
+    x: xOffset == null ? 0 : xOffset,
+    y: yOffset == null ? 0 : yOffset
+  };
 }
 
 export function getDiagramConnectionPoint(node, name) {
@@ -673,12 +1202,12 @@ function normalizeDiagramConnectionPoint(value) {
   }) ? value : '';
 }
 
-function calculateDiagramCurve(start, end) {
+function calculateDiagramCurve(start, end, customControl) {
   var dx = end.x - start.x;
   var dy = end.y - start.y;
   var length = Math.max(1, Math.sqrt(dx * dx + dy * dy));
   var bend = Math.min(90, Math.max(28, length * 0.18));
-  var control = {
+  var control = customControl || {
     x: (start.x + end.x) / 2 - dy / length * bend,
     y: (start.y + end.y) / 2 + dx / length * bend
   };
@@ -689,7 +1218,37 @@ function calculateDiagramCurve(start, end) {
     label: {
       x: start.x * 0.25 + control.x * 0.5 + end.x * 0.25,
       y: start.y * 0.25 + control.y * 0.5 + end.y * 0.25
-    }
+    },
+    control: control
+  };
+}
+
+function calculateDiagramOrthogonalMidpoint(start, end, startAxis) {
+  var firstLength = startAxis === 'horizontal' ?
+    Math.abs(end.x - start.x) :
+    Math.abs(end.y - start.y);
+  var secondLength = startAxis === 'horizontal' ?
+    Math.abs(end.y - start.y) :
+    Math.abs(end.x - start.x);
+  var distance = (firstLength + secondLength) / 2;
+  var xDirection = end.x < start.x ? -1 : end.x > start.x ? 1 : 0;
+  var yDirection = end.y < start.y ? -1 : end.y > start.y ? 1 : 0;
+  if (distance <= firstLength) {
+    return startAxis === 'horizontal' ? {
+      x: start.x + xDirection * distance,
+      y: start.y
+    } : {
+      x: start.x,
+      y: start.y + yDirection * distance
+    };
+  }
+  distance -= firstLength;
+  return startAxis === 'horizontal' ? {
+    x: end.x,
+    y: start.y + yDirection * distance
+  } : {
+    x: start.x + xDirection * distance,
+    y: end.y
   };
 }
 
@@ -698,35 +1257,111 @@ export function calculateDiagramConnectorPath(
   toNode,
   type,
   fromPoint,
-  toPoint
+  toPoint,
+  controlX,
+  controlY
 ) {
-  var start = getDiagramConnectionPoint(fromNode, fromPoint) ||
-    diagramConnectorPoint(fromNode, toNode);
-  var end = getDiagramConnectionPoint(toNode, toPoint) ||
-    diagramConnectorPoint(toNode, fromNode);
+  var points = findBestDiagramConnectionPoints(
+    fromNode,
+    toNode,
+    fromPoint,
+    toPoint
+  );
+  var start = points.start;
+  var end = points.end;
+  var hasControl = controlX != null &&
+    controlY != null &&
+    isFinite(Number(controlX)) &&
+    isFinite(Number(controlY));
+  var customControl = hasControl ? {
+    x: Number(controlX),
+    y: Number(controlY)
+  } : null;
+  var control;
   var middle;
   var curve;
+  var orientation = '';
+  var startAxis = points.fromSide === 'top' ||
+    points.fromSide === 'bottom' ?
+    'vertical' :
+    'horizontal';
+  var endAxis = points.toSide === 'top' ||
+    points.toSide === 'bottom' ?
+    'vertical' :
+    'horizontal';
   var path;
   if (type === 'straight') {
-    path = 'M ' + start.x + ' ' + start.y + ' L ' + end.x + ' ' + end.y;
-    middle = {
+    control = customControl || {
       x: (start.x + end.x) / 2,
       y: (start.y + end.y) / 2
     };
+    path = 'M ' + start.x + ' ' + start.y +
+      (customControl ?
+        ' L ' + control.x + ' ' + control.y :
+        '') +
+      ' L ' + end.x + ' ' + end.y;
+    middle = control;
   } else if (type === 'curved') {
-    curve = calculateDiagramCurve(start, end);
+    curve = calculateDiagramCurve(start, end, customControl);
     path = curve.path;
     middle = curve.label;
-  } else if (Math.abs(end.x - start.x) >= Math.abs(end.y - start.y)) {
-    middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+    control = curve.control;
+  } else if (startAxis === 'horizontal' && endAxis === 'vertical') {
+    orientation = 'horizontal';
+    control = {
+      x: customControl ? customControl.x : end.x,
+      y: customControl ? customControl.y : start.y
+    };
+    middle = customControl ?
+      control :
+      calculateDiagramOrthogonalMidpoint(start, end, startAxis);
+    path = customControl ?
+      'M ' + start.x + ' ' + start.y +
+        ' H ' + control.x +
+        ' V ' + control.y +
+        ' H ' + end.x +
+        ' V ' + end.y :
+      'M ' + start.x + ' ' + start.y +
+        ' H ' + end.x +
+        ' V ' + end.y;
+  } else if (startAxis === 'vertical' && endAxis === 'horizontal') {
+    orientation = 'vertical';
+    control = {
+      x: customControl ? customControl.x : start.x,
+      y: customControl ? customControl.y : end.y
+    };
+    middle = customControl ?
+      control :
+      calculateDiagramOrthogonalMidpoint(start, end, startAxis);
+    path = customControl ?
+      'M ' + start.x + ' ' + start.y +
+        ' V ' + control.y +
+        ' H ' + control.x +
+        ' V ' + end.y +
+        ' H ' + end.x :
+      'M ' + start.x + ' ' + start.y +
+        ' V ' + end.y +
+        ' H ' + end.x;
+  } else if (startAxis === 'horizontal') {
+    orientation = 'horizontal';
+    control = {
+      x: customControl ? customControl.x : (start.x + end.x) / 2,
+      y: (start.y + end.y) / 2
+    };
+    middle = control;
     path = 'M ' + start.x + ' ' + start.y +
-      ' H ' + middle.x +
+      ' H ' + control.x +
       ' V ' + end.y +
       ' H ' + end.x;
   } else {
-    middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+    orientation = 'vertical';
+    control = {
+      x: (start.x + end.x) / 2,
+      y: customControl ? customControl.y : (start.y + end.y) / 2
+    };
+    middle = control;
     path = 'M ' + start.x + ' ' + start.y +
-      ' V ' + middle.y +
+      ' V ' + control.y +
       ' H ' + end.x +
       ' V ' + end.y;
   }
@@ -734,7 +1369,11 @@ export function calculateDiagramConnectorPath(
     path: path,
     start: start,
     end: end,
-    label: middle
+    label: middle,
+    control: control,
+    orientation: orientation,
+    fromSide: points.fromSide,
+    toSide: points.toSide
   };
 }
 
@@ -758,6 +1397,77 @@ export function calculateDiagramNodeResize(node, direction, dx, dy, minWidth, mi
   return result;
 }
 
+export function calculateDiagramPageZoom(
+  viewportWidth,
+  viewportHeight,
+  pageWidth,
+  pageHeight,
+  padding,
+  minZoom,
+  maxZoom
+) {
+  var availableWidth;
+  var availableHeight;
+  var zoom;
+  padding = Math.max(0, diagramNumber(padding, 0));
+  minZoom = Math.max(0.01, diagramNumber(minZoom, 0.25));
+  maxZoom = Math.max(minZoom, diagramNumber(maxZoom, 2));
+  pageWidth = Math.max(1, diagramNumber(pageWidth, 1));
+  pageHeight = Math.max(1, diagramNumber(pageHeight, 1));
+  availableWidth = Math.max(1, diagramNumber(viewportWidth, 1) - padding * 2);
+  availableHeight = Math.max(1, diagramNumber(viewportHeight, 1) - padding * 2);
+  zoom = Math.min(availableWidth / pageWidth, availableHeight / pageHeight);
+  return diagramClamp(zoom, minZoom, maxZoom);
+}
+
+export function calculateDiagramViewportOffset(
+  viewportRect,
+  svgRect,
+  scrollLeft,
+  scrollTop,
+  clientLeft,
+  clientTop
+) {
+  return {
+    x: svgRect.left - viewportRect.left -
+      diagramNumber(clientLeft, 0) +
+      diagramNumber(scrollLeft, 0),
+    y: svgRect.top - viewportRect.top -
+      diagramNumber(clientTop, 0) +
+      diagramNumber(scrollTop, 0)
+  };
+}
+
+export function calculateDiagramAnchoredScroll(
+  scrollOffset,
+  anchorOffset,
+  contentOffsetBefore,
+  oldZoom,
+  contentOffsetAfter,
+  newZoom
+) {
+  oldZoom = Math.max(0.0001, diagramNumber(oldZoom, 1));
+  newZoom = Math.max(0.0001, diagramNumber(newZoom, oldZoom));
+  return Math.max(
+    0,
+    (
+      (
+        diagramNumber(scrollOffset, 0) +
+        diagramNumber(anchorOffset, 0) -
+        diagramNumber(contentOffsetBefore, 0)
+      ) / oldZoom
+    ) * newZoom +
+    diagramNumber(contentOffsetAfter, 0) -
+    diagramNumber(anchorOffset, 0)
+  );
+}
+
+export function diagramFullscreenSizeChanged(previous, next) {
+  if (!previous || !next) return true;
+  return Math.abs(previous.width - next.width) > 0.5 ||
+    Math.abs(previous.height - next.height) > 0.5;
+}
+
 function diagramDownloadBlob(blob, filename) {
   var anchor = document.createElement('a');
   var url = URL.createObjectURL(blob);
@@ -778,23 +1488,37 @@ export function createDiagramFactory(
   unregisterControl,
   Button,
   EditBox,
-  Window
+  Window,
+  Menu,
+  Tabs
 ) {
   var localePacks = {
     en: {
       diagram: 'Diagram',
       toolbox: 'Toolbox',
+      resizeToolbox: 'Resize toolbox',
+      resizeToolboxHeight: 'Resize toolbox height',
+      resizeProperties: 'Resize properties',
+      resizePropertiesHeight: 'Resize properties height',
+      dragToolbox: 'Drag to float or dock toolbox',
+      dragProperties: 'Drag to float or dock properties',
+      dragViewToolbar: 'Drag to move view toolbar',
       searchShapes: 'Search shapes',
       general: 'General',
       flowchart: 'Flowchart',
       dfd: 'DFD',
+      orgChart: 'Organizational Chart',
       dfdEntity: 'Entity',
       dfdProcess: 'Process',
       dfdDataStore: 'Data Store',
       dfdDataFlow: 'Data Flow',
+      orgChartImageLeft: 'Image on Left',
+      orgChartImageRight: 'Image on Right',
+      orgChartImageTop: 'Image on Top',
       paperSettings: 'Paper Settings',
       paperSize: 'Paper Size',
       paperOrientation: 'Orientation',
+      snapSize: 'Snap Size',
       portrait: 'Portrait',
       landscape: 'Landscape',
       apply: 'Apply',
@@ -843,7 +1567,11 @@ export function createDiagramFactory(
       undo: 'Undo',
       redo: 'Redo',
       deleteItem: 'Delete',
+      clearPage: 'Clear Page',
+      downloadJson: 'Download',
+      loadJson: 'Load',
       connect: 'Connect',
+      readOnly: 'Read only',
       properties: 'Properties',
       noSelection: 'Select a shape or connector.',
       multipleSelection: '{0} shapes selected.',
@@ -852,17 +1580,32 @@ export function createDiagramFactory(
       y: 'Y',
       width: 'Width',
       height: 'Height',
+      hyperlink: 'Hyperlink',
+      hyperlinkTrigger: 'Hyperlink trigger',
+      hyperlinkSingleClick: 'Single click',
+      hyperlinkDoubleClick: 'Double click',
       fill: 'Fill',
       stroke: 'Stroke',
       lineStyle: 'Line style',
       solid: 'Solid',
       dashed: 'Dashed',
+      arrowDirection: 'Arrow',
+      arrowNone: 'None',
+      arrowEnd: 'To End',
+      arrowStart: 'To Start',
+      arrowBoth: 'Both Directions',
+      reorderToolboxGroup: 'Drag to reorder toolbox group',
       zoomOut: 'Zoom out',
       zoomIn: 'Zoom in',
       fit: 'Fit to content',
       grid: 'Grid',
       fullscreen: 'Full screen',
       exitFullscreen: 'Exit full screen',
+      presentation: 'Slide show',
+      exitPresentation: 'Exit slide show',
+      exportPng: 'Export PNG',
+      exportSvg: 'Export SVG',
+      print: 'Print',
       connectSource: 'Select the source shape.',
       connectTarget: 'Select the target shape.',
       itemAdded: 'Item added',
@@ -872,17 +1615,29 @@ export function createDiagramFactory(
     'zh-TW': {
       diagram: '圖表設計器',
       toolbox: '工具箱',
+      resizeToolbox: '調整工具箱寬度',
+      resizeToolboxHeight: '調整工具箱高度',
+      resizeProperties: '調整屬性寬度',
+      resizePropertiesHeight: '調整屬性高度',
+      dragToolbox: '拖曳以浮動或停靠工具箱',
+      dragProperties: '拖曳以浮動或停靠屬性',
+      dragViewToolbar: '拖曳以移動檢視工具列',
       searchShapes: '搜尋圖形',
       general: '一般',
       flowchart: '流程圖',
       dfd: 'DFD',
+      orgChart: '組織圖',
       dfdEntity: '外部實體',
       dfdProcess: '處理程序',
       dfdDataStore: '資料儲存',
       dfdDataFlow: '資料流',
+      orgChartImageLeft: '圖片在左側',
+      orgChartImageRight: '圖片在右側',
+      orgChartImageTop: '圖片在上方',
       paperSettings: '紙張設定',
       paperSize: '紙張尺寸',
       paperOrientation: '紙張方向',
+      snapSize: '吸附間距',
       portrait: '直向',
       landscape: '橫向',
       apply: '套用',
@@ -931,7 +1686,11 @@ export function createDiagramFactory(
       undo: '復原',
       redo: '重做',
       deleteItem: '刪除',
+      clearPage: '清除頁面',
+      downloadJson: '下載',
+      loadJson: '載入',
       connect: '連線',
+      readOnly: '唯讀',
       properties: '屬性',
       noSelection: '請選取圖形或連線。',
       multipleSelection: '已選取 {0} 個圖形。',
@@ -940,17 +1699,32 @@ export function createDiagramFactory(
       y: 'Y',
       width: '寬度',
       height: '高度',
+      hyperlink: '超連結',
+      hyperlinkTrigger: '觸發方式',
+      hyperlinkSingleClick: '單擊觸發',
+      hyperlinkDoubleClick: '雙擊觸發',
       fill: '填滿',
       stroke: '框線',
       lineStyle: '線條',
       solid: '實線',
       dashed: '虛線',
+      arrowDirection: '箭頭',
+      arrowNone: '無箭頭',
+      arrowEnd: '指向終點',
+      arrowStart: '指向起點',
+      arrowBoth: '雙向箭頭',
+      reorderToolboxGroup: '拖曳調整工具列順序',
       zoomOut: '縮小',
       zoomIn: '放大',
       fit: '符合內容',
       grid: '格線',
       fullscreen: '全螢幕',
       exitFullscreen: '離開全螢幕',
+      presentation: '投影片展示',
+      exitPresentation: '離開投影片展示',
+      exportPng: '匯出 PNG',
+      exportSvg: '匯出 SVG',
+      print: '列印',
       connectSource: '請選擇起點圖形。',
       connectTarget: '請選擇終點圖形。',
       itemAdded: '已新增項目',
@@ -960,17 +1734,29 @@ export function createDiagramFactory(
     'zh-CN': {
       diagram: '图表设计器',
       toolbox: '工具箱',
+      resizeToolbox: '调整工具箱宽度',
+      resizeToolboxHeight: '调整工具箱高度',
+      resizeProperties: '调整属性宽度',
+      resizePropertiesHeight: '调整属性高度',
+      dragToolbox: '拖曳以浮动或停靠工具箱',
+      dragProperties: '拖曳以浮动或停靠属性',
+      dragViewToolbar: '拖曳以移动查看工具栏',
       searchShapes: '搜索图形',
       general: '常规',
       flowchart: '流程图',
       dfd: 'DFD',
+      orgChart: '组织结构图',
       dfdEntity: '外部实体',
       dfdProcess: '处理过程',
       dfdDataStore: '数据存储',
       dfdDataFlow: '数据流',
+      orgChartImageLeft: '图片在左侧',
+      orgChartImageRight: '图片在右侧',
+      orgChartImageTop: '图片在上方',
       paperSettings: '纸张设置',
       paperSize: '纸张尺寸',
       paperOrientation: '纸张方向',
+      snapSize: '吸附间距',
       portrait: '纵向',
       landscape: '横向',
       apply: '应用',
@@ -1019,7 +1805,11 @@ export function createDiagramFactory(
       undo: '撤销',
       redo: '重做',
       deleteItem: '删除',
+      clearPage: '清除页面',
+      downloadJson: '下载',
+      loadJson: '载入',
       connect: '连接',
+      readOnly: '只读',
       properties: '属性',
       noSelection: '请选择图形或连接线。',
       multipleSelection: '已选择 {0} 个图形。',
@@ -1028,17 +1818,32 @@ export function createDiagramFactory(
       y: 'Y',
       width: '宽度',
       height: '高度',
+      hyperlink: '超链接',
+      hyperlinkTrigger: '触发方式',
+      hyperlinkSingleClick: '单击触发',
+      hyperlinkDoubleClick: '双击触发',
       fill: '填充',
       stroke: '边框',
       lineStyle: '线条',
       solid: '实线',
       dashed: '虚线',
+      arrowDirection: '箭头',
+      arrowNone: '无箭头',
+      arrowEnd: '指向终点',
+      arrowStart: '指向起点',
+      arrowBoth: '双向箭头',
+      reorderToolboxGroup: '拖曳调整工具栏顺序',
       zoomOut: '缩小',
       zoomIn: '放大',
       fit: '适合内容',
       grid: '网格',
       fullscreen: '全屏',
       exitFullscreen: '退出全屏',
+      presentation: '幻灯片放映',
+      exitPresentation: '退出幻灯片放映',
+      exportPng: '导出 PNG',
+      exportSvg: '导出 SVG',
+      print: '打印',
       connectSource: '请选择起点图形。',
       connectTarget: '请选择终点图形。',
       itemAdded: '已添加项目',
@@ -1064,9 +1869,37 @@ export function createDiagramFactory(
     maxZoom: 2,
     toolbox: true,
     toolboxSearch: true,
+    toolboxWidth: 260,
+    toolboxMinWidth: 140,
+    toolboxMaxWidth: 420,
+    toolboxHeight: 520,
+    toolboxMinHeight: 180,
+    toolboxMaxHeight: 720,
+    toolboxFloating: false,
+    toolboxFloatLeft: 12,
+    toolboxFloatTop: 12,
+    toolboxDockSide: 'left',
+    toolboxCollapsed: DIAGRAM_TOOLBOX_COLLAPSED_DEFAULTS,
+    toolboxOrder: DIAGRAM_TOOLBOX_CATEGORIES,
+    toolboxStateKey: '',
     propertiesPanel: true,
+    propertiesWidth: 230,
+    propertiesMinWidth: 180,
+    propertiesMaxWidth: 420,
+    propertiesHeight: 520,
+    propertiesMinHeight: 180,
+    propertiesMaxHeight: 720,
+    propertiesFloating: false,
+    propertiesFloatLeft: 12,
+    propertiesFloatTop: 12,
+    propertiesDockSide: 'right',
+    sameSideDockMode: 'tabs',
+    sameSideDockTab: 'toolbox',
     mainToolbar: true,
     viewToolbar: true,
+    viewToolbarLeft: null,
+    viewToolbarTop: null,
+    contextMenu: true,
     readOnly: false,
     disabled: false,
     locale: 'en',
@@ -1075,11 +1908,21 @@ export function createDiagramFactory(
     onSelectionChanged: null,
     onItemClick: null,
     onItemDblClick: null,
-    onChanged: null
+    onChanged: null,
+    onJsonLoaded: null,
+    onLoadError: null,
+    onHyperlinkClick: null,
+    onReadOnlyChanged: null
   };
 
   function Diagram(element, options) {
     var paperDimensions;
+    var savedPanelState;
+    var savedPaper;
+    var savedPropertiesPanel;
+    var savedToolboxPanel;
+    var savedToolboxState;
+    var savedViewToolbar;
     var sourceOptions = options || {};
     if (!(this instanceof Diagram)) return new Diagram(element, options);
     this.hostElement = resolveDiagramElement(element);
@@ -1094,6 +1937,36 @@ export function createDiagramFactory(
     this._suppressClick = false;
     this._inlineTextEditor = null;
     this._paperDialog = null;
+    this._contextMenu = null;
+    this._contextMenuHost = null;
+    this._dockTabs = null;
+    this._dockTabsToolboxPanel = null;
+    this._dockTabsPropertiesPanel = null;
+    this._syncingDockTabs = false;
+    this._fullscreenResizeObserver = null;
+    this._fullscreenViewportSize = null;
+    this._fullscreenViewState = null;
+    this._panelResize = null;
+    this._toolboxPanelDrag = null;
+    this._propertiesPanelDrag = null;
+    this._floatingPanelFront = 'properties';
+    this._viewToolbarDrag = null;
+    this._jsonFileReader = null;
+    this._toolboxOrderDrag = null;
+    this._toolboxDropCategory = '';
+    this._toolboxDropAfter = false;
+    this._onToolboxOrderPointerMove = null;
+    this._onToolboxOrderPointerEnd = null;
+    this._onPanelResizePointerMove = null;
+    this._onPanelResizePointerEnd = null;
+    this._onToolboxPanelPointerDown = null;
+    this._onPropertiesPanelPointerDown = null;
+    this._onToolboxPanelPointerMove = null;
+    this._onToolboxPanelPointerEnd = null;
+    this._onPropertiesPanelPointerMove = null;
+    this._onPropertiesPanelPointerEnd = null;
+    this._onViewToolbarPointerMove = null;
+    this._onViewToolbarPointerEnd = null;
     this._lastItemClick = null;
     this._connectMode = false;
     this._connectType = 'orthogonal';
@@ -1103,11 +1976,6 @@ export function createDiagramFactory(
     this._toolbarButtons = {};
     this._editBoxControls = [];
     this._propertyEditors = [];
-    this._toolboxCollapsed = {
-      general: false,
-      flowchart: false,
-      dfd: false
-    };
     this._toolboxFilter = '';
     this._instanceId = nextDiagramInstanceId;
     nextDiagramInstanceId += 1;
@@ -1138,6 +2006,294 @@ export function createDiagramFactory(
       this.options.pageHeight = paperDimensions.height;
     }
     this.options.gridSize = Math.max(5, diagramNumber(this.options.gridSize, 20));
+    this.options.toolboxMinWidth = Math.max(
+      100,
+      diagramNumber(this.options.toolboxMinWidth, 140)
+    );
+    this.options.toolboxMaxWidth = Math.max(
+      this.options.toolboxMinWidth,
+      diagramNumber(this.options.toolboxMaxWidth, 420)
+    );
+    this.options.toolboxWidth = diagramClamp(
+      diagramNumber(this.options.toolboxWidth, 260),
+      this.options.toolboxMinWidth,
+      this.options.toolboxMaxWidth
+    );
+    this.options.toolboxMinHeight = Math.max(
+      120,
+      diagramNumber(this.options.toolboxMinHeight, 180)
+    );
+    this.options.toolboxMaxHeight = Math.max(
+      this.options.toolboxMinHeight,
+      diagramNumber(this.options.toolboxMaxHeight, 720)
+    );
+    this.options.toolboxHeight = diagramClamp(
+      diagramNumber(this.options.toolboxHeight, 520),
+      this.options.toolboxMinHeight,
+      this.options.toolboxMaxHeight
+    );
+    this.options.toolboxFloating = diagramBoolean(
+      this.options.toolboxFloating,
+      false
+    );
+    this.options.toolboxFloatLeft = Math.max(
+      0,
+      diagramNumber(this.options.toolboxFloatLeft, 12)
+    );
+    this.options.toolboxFloatTop = Math.max(
+      0,
+      diagramNumber(this.options.toolboxFloatTop, 12)
+    );
+    this.options.toolboxDockSide = normalizeDiagramDockSide(
+      this.options.toolboxDockSide,
+      'left'
+    );
+    this.options.toolboxCollapsed = normalizeDiagramToolboxCollapsed(
+      this.options.toolboxCollapsed
+    );
+    this.options.toolboxOrder = normalizeDiagramToolboxOrder(
+      this.options.toolboxOrder
+    );
+    this.options.toolboxStateKey = String(this.options.toolboxStateKey || '');
+    this.options.propertiesMinWidth = Math.max(
+      120,
+      diagramNumber(this.options.propertiesMinWidth, 180)
+    );
+    this.options.propertiesMaxWidth = Math.max(
+      this.options.propertiesMinWidth,
+      diagramNumber(this.options.propertiesMaxWidth, 420)
+    );
+    this.options.propertiesWidth = diagramClamp(
+      diagramNumber(this.options.propertiesWidth, 230),
+      this.options.propertiesMinWidth,
+      this.options.propertiesMaxWidth
+    );
+    this.options.propertiesMinHeight = Math.max(
+      120,
+      diagramNumber(this.options.propertiesMinHeight, 180)
+    );
+    this.options.propertiesMaxHeight = Math.max(
+      this.options.propertiesMinHeight,
+      diagramNumber(this.options.propertiesMaxHeight, 720)
+    );
+    this.options.propertiesHeight = diagramClamp(
+      diagramNumber(this.options.propertiesHeight, 520),
+      this.options.propertiesMinHeight,
+      this.options.propertiesMaxHeight
+    );
+    this.options.propertiesFloating = diagramBoolean(
+      this.options.propertiesFloating,
+      false
+    );
+    this.options.propertiesFloatLeft = Math.max(
+      0,
+      diagramNumber(this.options.propertiesFloatLeft, 12)
+    );
+    this.options.propertiesFloatTop = Math.max(
+      0,
+      diagramNumber(this.options.propertiesFloatTop, 12)
+    );
+    this.options.propertiesDockSide = normalizeDiagramDockSide(
+      this.options.propertiesDockSide,
+      'right'
+    );
+    this.options.sameSideDockMode = normalizeDiagramSameSideDockMode(
+      this.options.sameSideDockMode
+    );
+    this.options.sameSideDockTab =
+      this.options.sameSideDockTab === 'properties' ?
+        'properties' :
+        'toolbox';
+    if (
+      this.options.viewToolbarLeft == null ||
+      this.options.viewToolbarTop == null ||
+      !isFinite(Number(this.options.viewToolbarLeft)) ||
+      !isFinite(Number(this.options.viewToolbarTop))
+    ) {
+      this.options.viewToolbarLeft = null;
+      this.options.viewToolbarTop = null;
+    } else {
+      this.options.viewToolbarLeft = Math.max(
+        0,
+        Number(this.options.viewToolbarLeft)
+      );
+      this.options.viewToolbarTop = Math.max(
+        0,
+        Number(this.options.viewToolbarTop)
+      );
+    }
+    savedToolboxState = readDiagramToolboxState(
+      this.options.toolboxStateKey
+    );
+    savedPanelState = savedToolboxState &&
+      savedToolboxState.panels &&
+      typeof savedToolboxState.panels === 'object' ?
+      savedToolboxState.panels :
+      null;
+    savedToolboxPanel = savedPanelState &&
+      savedPanelState.toolbox &&
+      typeof savedPanelState.toolbox === 'object' ?
+      savedPanelState.toolbox :
+      null;
+    savedPropertiesPanel = savedPanelState &&
+      savedPanelState.properties &&
+      typeof savedPanelState.properties === 'object' ?
+      savedPanelState.properties :
+      null;
+    savedViewToolbar = savedToolboxState &&
+      savedToolboxState.viewToolbar &&
+      typeof savedToolboxState.viewToolbar === 'object' ?
+      savedToolboxState.viewToolbar :
+      null;
+    savedPaper = savedToolboxState &&
+      savedToolboxState.paper &&
+      typeof savedToolboxState.paper === 'object' ?
+      savedToolboxState.paper :
+      null;
+    if (savedToolboxPanel) {
+      this.options.toolbox = diagramBoolean(
+        savedToolboxPanel.visible,
+        this.options.toolbox
+      );
+      this.options.toolboxFloating = diagramBoolean(
+        savedToolboxPanel.floating,
+        this.options.toolboxFloating
+      );
+      this.options.toolboxFloatLeft = Math.max(
+        0,
+        diagramNumber(
+          savedToolboxPanel.left,
+          this.options.toolboxFloatLeft
+        )
+      );
+      this.options.toolboxFloatTop = Math.max(
+        0,
+        diagramNumber(
+          savedToolboxPanel.top,
+          this.options.toolboxFloatTop
+        )
+      );
+      this.options.toolboxWidth = diagramClamp(
+        diagramNumber(savedToolboxPanel.width, this.options.toolboxWidth),
+        this.options.toolboxMinWidth,
+        this.options.toolboxMaxWidth
+      );
+      this.options.toolboxHeight = diagramClamp(
+        diagramNumber(savedToolboxPanel.height, this.options.toolboxHeight),
+        this.options.toolboxMinHeight,
+        this.options.toolboxMaxHeight
+      );
+      this.options.toolboxDockSide = normalizeDiagramDockSide(
+        savedToolboxPanel.dockSide,
+        this.options.toolboxDockSide
+      );
+    }
+    if (savedPropertiesPanel) {
+      this.options.propertiesPanel = diagramBoolean(
+        savedPropertiesPanel.visible,
+        this.options.propertiesPanel
+      );
+      this.options.propertiesFloating = diagramBoolean(
+        savedPropertiesPanel.floating,
+        this.options.propertiesFloating
+      );
+      this.options.propertiesFloatLeft = Math.max(
+        0,
+        diagramNumber(
+          savedPropertiesPanel.left,
+          this.options.propertiesFloatLeft
+        )
+      );
+      this.options.propertiesFloatTop = Math.max(
+        0,
+        diagramNumber(
+          savedPropertiesPanel.top,
+          this.options.propertiesFloatTop
+        )
+      );
+      this.options.propertiesWidth = diagramClamp(
+        diagramNumber(
+          savedPropertiesPanel.width,
+          this.options.propertiesWidth
+        ),
+        this.options.propertiesMinWidth,
+        this.options.propertiesMaxWidth
+      );
+      this.options.propertiesHeight = diagramClamp(
+        diagramNumber(
+          savedPropertiesPanel.height,
+          this.options.propertiesHeight
+        ),
+        this.options.propertiesMinHeight,
+        this.options.propertiesMaxHeight
+      );
+      this.options.propertiesDockSide = normalizeDiagramDockSide(
+        savedPropertiesPanel.dockSide,
+        this.options.propertiesDockSide
+      );
+    }
+    if (savedPaper) {
+      this.options.paperSize = normalizeDiagramPaperSize(savedPaper.size);
+      this.options.paperOrientation = normalizeDiagramPaperOrientation(
+        savedPaper.orientation
+      );
+      paperDimensions = getDiagramPaperDimensions(
+        this.options.paperSize,
+        this.options.paperOrientation
+      );
+      this.options.pageWidth = Math.max(
+        300,
+        diagramNumber(savedPaper.width, paperDimensions.width)
+      );
+      this.options.pageHeight = Math.max(
+        240,
+        diagramNumber(savedPaper.height, paperDimensions.height)
+      );
+      if (savedPaper.color != null) {
+        this.options.pageColor = String(savedPaper.color);
+      }
+      if (savedPaper.gridSize != null) {
+        this.options.gridSize = Math.max(
+          5,
+          diagramNumber(savedPaper.gridSize, this.options.gridSize)
+        );
+      }
+    }
+    if (
+      savedViewToolbar &&
+      savedViewToolbar.left != null &&
+      savedViewToolbar.top != null &&
+      isFinite(Number(savedViewToolbar.left)) &&
+      isFinite(Number(savedViewToolbar.top))
+    ) {
+      this.options.viewToolbarLeft = Math.max(
+        0,
+        Number(savedViewToolbar.left)
+      );
+      this.options.viewToolbarTop = Math.max(
+        0,
+        Number(savedViewToolbar.top)
+      );
+    }
+    this._sameSideDockTab = savedToolboxState && (
+      savedToolboxState.dockTab === 'toolbox' ||
+      savedToolboxState.dockTab === 'properties'
+    ) ? savedToolboxState.dockTab : this.options.sameSideDockTab;
+    this.options.sameSideDockTab = this._sameSideDockTab;
+    if (savedToolboxState && savedToolboxState.dockMode != null) {
+      this.options.sameSideDockMode = normalizeDiagramSameSideDockMode(
+        savedToolboxState.dockMode
+      );
+    }
+    this._toolboxCollapsed = normalizeDiagramToolboxCollapsed(
+      savedToolboxState,
+      this.options.toolboxCollapsed
+    );
+    this._toolboxOrder = normalizeDiagramToolboxOrder(
+      savedToolboxState && savedToolboxState.order,
+      this.options.toolboxOrder
+    );
+    this.options.toolboxOrder = this._toolboxOrder.slice();
     this.options.pageWidth = Math.max(300, diagramNumber(this.options.pageWidth, 1200));
     this.options.pageHeight = Math.max(240, diagramNumber(this.options.pageHeight, 800));
     this.options.minZoom = Math.max(0.1, diagramNumber(this.options.minZoom, 0.25));
@@ -1156,6 +2312,7 @@ export function createDiagramFactory(
     });
     this._resetHistory();
     this._build();
+    this._mountContextMenu();
     this._bind();
     this.setLocale(this.options.locale);
     this.setTheme(this.options.theme);
@@ -1175,16 +2332,27 @@ export function createDiagramFactory(
     var toolboxHeader = document.createElement('div');
     var searchHost = document.createElement('input');
     var toolboxGroups = document.createElement('div');
+    var toolboxResizerLeft = document.createElement('div');
+    var toolboxResizerRight = document.createElement('div');
+    var toolboxResizerTop = document.createElement('div');
+    var toolboxResizerBottom = document.createElement('div');
     var viewport = document.createElement('div');
     var svg = createDiagramSvgElement('svg', {
       class: 'fui-diagram-svg',
       role: 'img'
     });
     var properties = document.createElement('aside');
+    var propertiesResizerLeft = document.createElement('div');
+    var propertiesResizerRight = document.createElement('div');
+    var propertiesResizerTop = document.createElement('div');
+    var propertiesResizerBottom = document.createElement('div');
     var propertiesHeader = document.createElement('div');
     var propertiesBody = document.createElement('div');
+    var dockTabsHost = document.createElement('div');
+    var dockStackHost = document.createElement('div');
     var toolbar = document.createElement('div');
     var viewToolbar = document.createElement('div');
+    var jsonFileInput = document.createElement('input');
     root.textContent = '';
     root.classList.add('fui-diagram');
     root.style.width = diagramSize(this.options.width, '100%');
@@ -1192,54 +2360,395 @@ export function createDiagramFactory(
     root.setAttribute('role', 'application');
     root.setAttribute('aria-label', this.options.ariaLabel || localePacks.en.diagram);
     root.setAttribute('aria-disabled', this.options.disabled ? 'true' : 'false');
+    root.setAttribute('aria-readonly', this.options.readOnly ? 'true' : 'false');
     root.tabIndex = this.options.disabled ? -1 : 0;
     toolbar.className = 'fui-diagram-toolbar';
     toolbar.setAttribute('role', 'toolbar');
     toolbox.className = 'fui-diagram-toolbox';
     toolboxHeader.className = 'fui-diagram-pane-header';
+    toolboxHeader.setAttribute(
+      'title',
+      localePacks.en.dragToolbox
+    );
+    toolboxHeader.setAttribute('data-diagram-toolbox-panel-drag', '');
     searchHost.className = 'fui-diagram-toolbox-search-source';
     searchHost.type = 'text';
     toolboxGroups.className = 'fui-diagram-toolbox-groups';
     toolbox.appendChild(toolboxHeader);
     if (this.options.toolboxSearch) toolbox.appendChild(searchHost);
     toolbox.appendChild(toolboxGroups);
+    toolboxResizerLeft.className =
+      'fui-diagram-panel-resizer fui-diagram-toolbox-resizer ' +
+      'fui-diagram-panel-resizer-left';
+    toolboxResizerLeft.setAttribute('role', 'separator');
+    toolboxResizerLeft.setAttribute('aria-orientation', 'vertical');
+    toolboxResizerLeft.setAttribute('aria-label', localePacks.en.resizeToolbox);
+    toolboxResizerLeft.setAttribute('data-diagram-panel-resizer', 'toolbox');
+    toolboxResizerLeft.setAttribute('data-diagram-resizer-edge', 'left');
+    toolboxResizerLeft.tabIndex = this.options.disabled ? -1 : 0;
+    toolboxResizerRight.className =
+      'fui-diagram-panel-resizer fui-diagram-toolbox-resizer ' +
+      'fui-diagram-panel-resizer-right';
+    toolboxResizerRight.setAttribute('role', 'separator');
+    toolboxResizerRight.setAttribute('aria-orientation', 'vertical');
+    toolboxResizerRight.setAttribute('aria-label', localePacks.en.resizeToolbox);
+    toolboxResizerRight.setAttribute('data-diagram-panel-resizer', 'toolbox');
+    toolboxResizerRight.setAttribute('data-diagram-resizer-edge', 'right');
+    toolboxResizerRight.tabIndex = this.options.disabled ? -1 : 0;
+    toolboxResizerTop.className =
+      'fui-diagram-panel-resizer fui-diagram-toolbox-resizer ' +
+      'fui-diagram-panel-resizer-top';
+    toolboxResizerTop.setAttribute('role', 'separator');
+    toolboxResizerTop.setAttribute('aria-orientation', 'horizontal');
+    toolboxResizerTop.setAttribute(
+      'aria-label',
+      localePacks.en.resizeToolboxHeight
+    );
+    toolboxResizerTop.setAttribute('data-diagram-panel-resizer', 'toolbox');
+    toolboxResizerTop.setAttribute('data-diagram-resizer-edge', 'top');
+    toolboxResizerTop.tabIndex = this.options.disabled ? -1 : 0;
+    toolboxResizerBottom.className =
+      'fui-diagram-panel-resizer fui-diagram-toolbox-resizer ' +
+      'fui-diagram-panel-resizer-bottom';
+    toolboxResizerBottom.setAttribute('role', 'separator');
+    toolboxResizerBottom.setAttribute('aria-orientation', 'horizontal');
+    toolboxResizerBottom.setAttribute(
+      'aria-label',
+      localePacks.en.resizeToolboxHeight
+    );
+    toolboxResizerBottom.setAttribute('data-diagram-panel-resizer', 'toolbox');
+    toolboxResizerBottom.setAttribute('data-diagram-resizer-edge', 'bottom');
+    toolboxResizerBottom.tabIndex = this.options.disabled ? -1 : 0;
     viewport.className = 'fui-diagram-viewport';
     viewport.tabIndex = -1;
     svg.setAttribute('viewBox', '0 0 ' + this.options.pageWidth + ' ' + this.options.pageHeight);
     viewport.appendChild(svg);
     properties.className = 'fui-diagram-properties';
     propertiesHeader.className = 'fui-diagram-pane-header';
+    propertiesHeader.setAttribute(
+      'title',
+      localePacks.en.dragProperties
+    );
+    propertiesHeader.setAttribute(
+      'data-diagram-properties-panel-drag',
+      ''
+    );
     propertiesBody.className = 'fui-diagram-properties-body';
     properties.appendChild(propertiesHeader);
     properties.appendChild(propertiesBody);
+    propertiesResizerLeft.className =
+      'fui-diagram-panel-resizer fui-diagram-properties-resizer ' +
+      'fui-diagram-panel-resizer-left';
+    propertiesResizerLeft.setAttribute('role', 'separator');
+    propertiesResizerLeft.setAttribute('aria-orientation', 'vertical');
+    propertiesResizerLeft.setAttribute(
+      'aria-label',
+      localePacks.en.resizeProperties
+    );
+    propertiesResizerLeft.setAttribute(
+      'data-diagram-panel-resizer',
+      'properties'
+    );
+    propertiesResizerLeft.setAttribute('data-diagram-resizer-edge', 'left');
+    propertiesResizerLeft.tabIndex = this.options.disabled ? -1 : 0;
+    propertiesResizerRight.className =
+      'fui-diagram-panel-resizer fui-diagram-properties-resizer ' +
+      'fui-diagram-panel-resizer-right';
+    propertiesResizerRight.setAttribute('role', 'separator');
+    propertiesResizerRight.setAttribute('aria-orientation', 'vertical');
+    propertiesResizerRight.setAttribute(
+      'aria-label',
+      localePacks.en.resizeProperties
+    );
+    propertiesResizerRight.setAttribute(
+      'data-diagram-panel-resizer',
+      'properties'
+    );
+    propertiesResizerRight.setAttribute('data-diagram-resizer-edge', 'right');
+    propertiesResizerRight.tabIndex = this.options.disabled ? -1 : 0;
+    propertiesResizerTop.className =
+      'fui-diagram-panel-resizer fui-diagram-properties-resizer ' +
+      'fui-diagram-panel-resizer-top';
+    propertiesResizerTop.setAttribute('role', 'separator');
+    propertiesResizerTop.setAttribute('aria-orientation', 'horizontal');
+    propertiesResizerTop.setAttribute(
+      'aria-label',
+      localePacks.en.resizePropertiesHeight
+    );
+    propertiesResizerTop.setAttribute(
+      'data-diagram-panel-resizer',
+      'properties'
+    );
+    propertiesResizerTop.setAttribute('data-diagram-resizer-edge', 'top');
+    propertiesResizerTop.tabIndex = this.options.disabled ? -1 : 0;
+    propertiesResizerBottom.className =
+      'fui-diagram-panel-resizer fui-diagram-properties-resizer ' +
+      'fui-diagram-panel-resizer-bottom';
+    propertiesResizerBottom.setAttribute('role', 'separator');
+    propertiesResizerBottom.setAttribute('aria-orientation', 'horizontal');
+    propertiesResizerBottom.setAttribute(
+      'aria-label',
+      localePacks.en.resizePropertiesHeight
+    );
+    propertiesResizerBottom.setAttribute(
+      'data-diagram-panel-resizer',
+      'properties'
+    );
+    propertiesResizerBottom.setAttribute('data-diagram-resizer-edge', 'bottom');
+    propertiesResizerBottom.tabIndex = this.options.disabled ? -1 : 0;
+    dockTabsHost.className = 'fui-diagram-dock-tabs';
+    dockTabsHost.hidden = true;
+    dockStackHost.className = 'fui-diagram-dock-stack';
+    dockStackHost.hidden = true;
     workspace.className = 'fui-diagram-workspace';
     workspace.appendChild(toolbox);
+    workspace.appendChild(toolboxResizerLeft);
+    workspace.appendChild(toolboxResizerRight);
+    workspace.appendChild(toolboxResizerTop);
+    workspace.appendChild(toolboxResizerBottom);
     workspace.appendChild(viewport);
     workspace.appendChild(properties);
+    workspace.appendChild(propertiesResizerLeft);
+    workspace.appendChild(propertiesResizerRight);
+    workspace.appendChild(propertiesResizerTop);
+    workspace.appendChild(propertiesResizerBottom);
+    workspace.appendChild(dockTabsHost);
+    workspace.appendChild(dockStackHost);
     viewToolbar.className = 'fui-diagram-view-toolbar';
     viewToolbar.setAttribute('role', 'toolbar');
+    viewToolbar.setAttribute('title', localePacks.en.dragViewToolbar);
+    viewToolbar.setAttribute('aria-label', localePacks.en.dragViewToolbar);
+    jsonFileInput.type = 'file';
+    jsonFileInput.accept = 'application/json,.json';
+    jsonFileInput.hidden = true;
+    jsonFileInput.className = 'fui-diagram-json-file-input';
     root.appendChild(toolbar);
     root.appendChild(workspace);
     root.appendChild(viewToolbar);
+    root.appendChild(jsonFileInput);
     this.toolbarElement = toolbar;
     this.workspaceElement = workspace;
     this.toolboxElement = toolbox;
     this.toolboxHeaderElement = toolboxHeader;
     this.toolboxSearchElement = searchHost;
     this.toolboxGroupsElement = toolboxGroups;
+    this.toolboxResizerElement = toolboxResizerRight;
+    this.toolboxResizerLeftElement = toolboxResizerLeft;
+    this.toolboxResizerRightElement = toolboxResizerRight;
+    this.toolboxResizerTopElement = toolboxResizerTop;
+    this.toolboxResizerBottomElement = toolboxResizerBottom;
     this.viewportElement = viewport;
     this.svgElement = svg;
     this.propertiesElement = properties;
+    this.propertiesResizerLeftElement = propertiesResizerLeft;
+    this.propertiesResizerRightElement = propertiesResizerRight;
+    this.propertiesResizerTopElement = propertiesResizerTop;
+    this.propertiesResizerBottomElement = propertiesResizerBottom;
     this.propertiesHeaderElement = propertiesHeader;
     this.propertiesBodyElement = propertiesBody;
+    this.dockTabsElement = dockTabsHost;
+    this.dockStackElement = dockStackHost;
     this.viewToolbarElement = viewToolbar;
+    this.jsonFileInputElement = jsonFileInput;
+    this._mountDockTabs();
     this._renderToolbars();
     this._renderToolbox();
     this._mountToolboxSearch();
     this._syncStructure();
   };
 
-  Diagram.prototype._createToolbarButton = function(container, name, text, handler, toggle) {
+  Diagram.prototype._mountDockTabs = function() {
+    var self = this;
+    var messages = localePacks[this.options.locale];
+    if (typeof Tabs !== 'function') return;
+    this._dockTabs = new Tabs(this.dockTabsElement, {
+      fit: true,
+      border: true,
+      justified: true,
+      narrow: true,
+      draggable: false,
+      tabPosition: 'bottom',
+      selected: this._sameSideDockTab === 'properties' ? 1 : 0,
+      locale: this.options.locale,
+      theme: 'inherit',
+      tabs: [
+        { title: messages.toolbox },
+        { title: messages.properties }
+      ],
+      onSelect: function(title, index) {
+        if (self._syncingDockTabs) return;
+        self._sameSideDockTab = index === 1 ?
+          'properties' :
+          'toolbox';
+        self.options.sameSideDockTab = self._sameSideDockTab;
+        self._syncStructure();
+        self._saveToolboxState();
+      }
+    });
+    this._dockTabsToolboxPanel = this._dockTabs.getTab(0);
+    this._dockTabsPropertiesPanel = this._dockTabs.getTab(1);
+  };
+
+  Diagram.prototype._detachDockTabsPanels = function() {
+    if (
+      this.toolboxElement &&
+      this.toolboxElement.parentNode !== this.workspaceElement
+    ) {
+      this.workspaceElement.insertBefore(
+        this.toolboxElement,
+        this.toolboxResizerLeftElement
+      );
+    }
+    if (
+      this.propertiesElement &&
+      this.propertiesElement.parentNode !== this.workspaceElement
+    ) {
+      this.workspaceElement.insertBefore(
+        this.propertiesElement,
+        this.propertiesResizerLeftElement
+      );
+    }
+    return this;
+  };
+
+  Diagram.prototype._syncDockTabsStructure = function(active) {
+    var activeIndex;
+    var activeWidth;
+    var side = this.options.toolboxDockSide;
+    active = Boolean(active && this._dockTabs);
+    this.workspaceElement.classList.toggle(
+      'fui-diagram-same-side-dock-tabs',
+      active
+    );
+    this.workspaceElement.classList.toggle(
+      'fui-diagram-same-side-dock-tabs-left',
+      active && side === 'left'
+    );
+    this.workspaceElement.classList.toggle(
+      'fui-diagram-same-side-dock-tabs-right',
+      active && side === 'right'
+    );
+    if (!active) {
+      this.dockTabsElement.hidden = true;
+      return this;
+    }
+    this.dockTabsElement.hidden = false;
+    if (this.toolboxElement.parentNode !== this._dockTabsToolboxPanel) {
+      this._dockTabsToolboxPanel.appendChild(this.toolboxElement);
+    }
+    if (
+      this.propertiesElement.parentNode !==
+      this._dockTabsPropertiesPanel
+    ) {
+      this._dockTabsPropertiesPanel.appendChild(this.propertiesElement);
+    }
+    activeIndex = this._sameSideDockTab === 'properties' ? 1 : 0;
+    activeWidth = activeIndex === 1 ?
+      this.options.propertiesWidth :
+      this.options.toolboxWidth;
+    this.workspaceElement.style.setProperty(
+      '--fui-diagram-dock-tabs-width',
+      activeWidth + 'px'
+    );
+    this._syncingDockTabs = true;
+    this._dockTabs.select(activeIndex, true);
+    this._syncingDockTabs = false;
+    this._dockTabs.resize();
+    return this;
+  };
+
+  Diagram.prototype._syncDockStackStructure = function(active) {
+    var side = this.options.toolboxDockSide;
+    active = Boolean(active);
+    this.workspaceElement.classList.toggle(
+      'fui-diagram-same-side-dock-stack',
+      active
+    );
+    this.workspaceElement.classList.toggle(
+      'fui-diagram-same-side-dock-stack-left',
+      active && side === 'left'
+    );
+    this.workspaceElement.classList.toggle(
+      'fui-diagram-same-side-dock-stack-right',
+      active && side === 'right'
+    );
+    if (!active) {
+      this.dockStackElement.hidden = true;
+      return this;
+    }
+    this.dockStackElement.hidden = false;
+    if (this.toolboxElement.parentNode !== this.dockStackElement) {
+      this.dockStackElement.appendChild(this.toolboxElement);
+    }
+    if (this.propertiesElement.parentNode !== this.dockStackElement) {
+      this.dockStackElement.appendChild(this.propertiesElement);
+    }
+    this.workspaceElement.style.setProperty(
+      '--fui-diagram-dock-stack-width',
+      this.options.toolboxWidth + 'px'
+    );
+    return this;
+  };
+
+  Diagram.prototype._mountContextMenu = function() {
+    var self = this;
+    var messages = localePacks[this.options.locale];
+    var host;
+    if (!this.options.contextMenu || typeof Menu !== 'function') return;
+    host = document.createElement('div');
+    host.className = 'fui-diagram-context-menu';
+    host.hidden = true;
+    this.hostElement.appendChild(host);
+    this._contextMenuHost = host;
+    this._contextMenu = new Menu(host, {
+      minWidth: 150,
+      hideOnUnhover: false,
+      locale: this.options.locale,
+      theme: 'inherit',
+      ariaLabel: messages.diagram,
+      items: [{
+        name: 'exportPng',
+        text: messages.exportPng,
+        iconCls: 'icon-export'
+      }, {
+        name: 'exportSvg',
+        text: messages.exportSvg,
+        iconCls: 'icon-export'
+      }, {
+        separator: true
+      }, {
+        name: 'print',
+        text: messages.print,
+        iconCls: 'icon-print'
+      }, {
+        separator: true
+      }, {
+        name: 'fullscreen',
+        text: messages.presentation,
+        iconCls: 'icon-fullscreen'
+      }],
+      onClick: function(item) {
+        if (item.name === 'exportPng') {
+          self.exportPng('fabui-diagram.png');
+        } else if (item.name === 'exportSvg') {
+          self.exportSvg('fabui-diagram.svg');
+        } else if (item.name === 'print') {
+          self.print();
+        } else if (item.name === 'fullscreen') {
+          self.togglePresentationFullscreen();
+        }
+      }
+    });
+  };
+
+  Diagram.prototype._createToolbarButton = function(
+    container,
+    name,
+    text,
+    handler,
+    toggle,
+    iconCls
+  ) {
     var self = this;
     var host = document.createElement('a');
     var control;
@@ -1250,7 +2759,7 @@ export function createDiagramFactory(
     container.appendChild(host);
     control = new Button(host, {
       text: text,
-      iconCls: '',
+      iconCls: iconCls || '',
       plain: true,
       toggle: toggle === true,
       disabled: this.options.disabled === true,
@@ -1264,6 +2773,15 @@ export function createDiagramFactory(
     return control;
   };
 
+  Diagram.prototype._createToolbarSeparator = function(container) {
+    var separator = document.createElement('span');
+    separator.className = 'fui-diagram-toolbar-separator';
+    separator.setAttribute('role', 'separator');
+    separator.setAttribute('aria-orientation', 'vertical');
+    container.appendChild(separator);
+    return separator;
+  };
+
   Diagram.prototype._renderToolbars = function() {
     var self = this;
     this.toolbarElement.textContent = '';
@@ -1273,17 +2791,98 @@ export function createDiagramFactory(
     });
     this._buttonControls = [];
     this._toolbarButtons = {};
-    if (this.options.mainToolbar && !this.options.readOnly) {
-      this._createToolbarButton(this.toolbarElement, 'undo', '↶', this.undo);
-      this._createToolbarButton(this.toolbarElement, 'redo', '↷', this.redo);
+    if (this.options.mainToolbar) {
+      this._createToolbarButton(
+        this.toolbarElement,
+        'download',
+        'Download',
+        function() {
+          self.export('fabui-diagram.json');
+        },
+        false,
+        'icon-save'
+      );
+      this._createToolbarButton(
+        this.toolbarElement,
+        'load',
+        'Load',
+        this.loadJsonFile,
+        false,
+        'icon-import'
+      );
+      this._createToolbarSeparator(this.toolbarElement);
+      this._createToolbarButton(
+        this.toolbarElement,
+        'exportPng',
+        'Export PNG',
+        function() {
+          self.exportPng('fabui-diagram.png');
+        },
+        false,
+        'icon-export'
+      );
+      this._createToolbarButton(
+        this.toolbarElement,
+        'exportSvg',
+        'Export SVG',
+        function() {
+          self.exportSvg('fabui-diagram.svg');
+        },
+        false,
+        'icon-export'
+      );
+      this._createToolbarButton(
+        this.toolbarElement,
+        'print',
+        'Print',
+        this.print,
+        false,
+        'icon-print'
+      );
+      this._createToolbarSeparator(this.toolbarElement);
+      this._createToolbarButton(
+        this.toolbarElement,
+        'undo',
+        '',
+        this.undo,
+        false,
+        'icon-undo'
+      );
+      this._createToolbarButton(
+        this.toolbarElement,
+        'redo',
+        '',
+        this.redo,
+        false,
+        'icon-redo'
+      );
       this._createToolbarButton(this.toolbarElement, 'delete', 'Delete', this.removeSelected);
+      this._createToolbarButton(
+        this.toolbarElement,
+        'clear',
+        'Clear Page',
+        this.clearPage,
+        false,
+        'icon-clear'
+      );
+      this._createToolbarSeparator(this.toolbarElement);
       this._createToolbarButton(this.toolbarElement, 'connect', 'Connect', function() {
         self.setConnectMode(!self._connectMode, 'orthogonal');
+      }, true);
+      this._createToolbarButton(this.toolbarElement, 'toolbox', 'Toolbox', function() {
+        self.options.toolbox = !self.options.toolbox;
+        self._syncStructure();
+        self._syncToolbarStates();
+        self._saveToolboxState();
       }, true);
       this._createToolbarButton(this.toolbarElement, 'properties', 'Properties', function() {
         self.options.propertiesPanel = !self.options.propertiesPanel;
         self._syncStructure();
         self._syncToolbarStates();
+        self._saveToolboxState();
+      }, true);
+      this._createToolbarButton(this.toolbarElement, 'readOnly', 'Read only', function() {
+        self.setReadOnly(!self.options.readOnly);
       }, true);
     }
     if (this.options.viewToolbar) {
@@ -1300,6 +2899,13 @@ export function createDiagramFactory(
       this._createToolbarButton(this.viewToolbarElement, 'grid', 'Grid', function() {
         self.setShowGrid(!self.options.showGrid);
       }, true);
+      this._createToolbarButton(
+        this.viewToolbarElement,
+        'presentation',
+        'Slide show',
+        this.togglePresentationFullscreen,
+        false
+      );
       this._createToolbarButton(this.viewToolbarElement, 'fullscreen', 'Full screen', this.toggleFullscreen);
     }
   };
@@ -1367,6 +2973,9 @@ export function createDiagramFactory(
     } else {
       shape = this._createShapeElement(node);
       shape.setAttribute('class', 'fui-diagram-toolbox-preview-shape');
+      if (type.indexOf('orgChart') === 0) {
+        shape.appendChild(this._createOrgChartPreviewLines(node));
+      }
     }
     svg.appendChild(shape);
     return svg;
@@ -1374,24 +2983,26 @@ export function createDiagramFactory(
 
   Diagram.prototype._renderToolbox = function() {
     var self = this;
-    var categories = ['general', 'flowchart', 'dfd'];
     this._toolboxButtonControls.forEach(function(control) {
       control.dispose();
     });
     this._toolboxButtonControls = [];
     this.toolboxGroupsElement.textContent = '';
-    categories.forEach(function(category) {
+    this._toolboxOrder.forEach(function(category) {
       var group = document.createElement('section');
       var title = document.createElement('h3');
       var toggle = document.createElement('a');
+      var dragHandle = document.createElement('a');
       var items = document.createElement('div');
       var label = self.messages ? self.messages[category] : category;
       var control;
+      var dragControl;
       group.className = 'fui-diagram-toolbox-group';
       group.setAttribute('data-diagram-category', category);
       title.className = 'fui-diagram-toolbox-title';
       toggle.href = 'javascript:void(0)';
       toggle.className = 'fui-diagram-toolbox-toggle';
+      toggle.draggable = false;
       toggle.setAttribute('data-diagram-toolbox-toggle', category);
       toggle.setAttribute(
         'aria-controls',
@@ -1399,6 +3010,18 @@ export function createDiagramFactory(
       );
       items.className = 'fui-diagram-toolbox-items';
       items.id = 'fui-diagram-toolbox-' + self._instanceId + '-' + category;
+      dragHandle.href = 'javascript:void(0)';
+      dragHandle.className = 'fui-diagram-toolbox-drag-handle';
+      dragHandle.draggable = false;
+      dragHandle.setAttribute('data-diagram-toolbox-drag', category);
+      dragHandle.setAttribute(
+        'aria-label',
+        (self.messages ? self.messages.reorderToolboxGroup : 'Reorder') +
+          ': ' + label
+      );
+      dragHandle.title = self.messages ?
+        self.messages.reorderToolboxGroup :
+        'Drag to reorder toolbox group';
       DIAGRAM_TOOLBOX_ITEMS.filter(function(shape) {
         return shape.category === category;
       }).forEach(function(shape) {
@@ -1413,7 +3036,7 @@ export function createDiagramFactory(
           button.setAttribute('aria-pressed', 'false');
         } else {
           button.setAttribute('data-diagram-shape', shape.type);
-          if (shape.category === 'dfd') {
+          if (shape.category === 'dfd' || shape.category === 'orgChart') {
             button.setAttribute(
               'data-diagram-default-text',
               self.messages ? self.messages[shape.label] : shape.type
@@ -1436,6 +3059,7 @@ export function createDiagramFactory(
         items.appendChild(button);
       });
       title.appendChild(toggle);
+      title.appendChild(dragHandle);
       group.appendChild(title);
       group.appendChild(items);
       self.toolboxGroupsElement.appendChild(group);
@@ -1446,6 +3070,14 @@ export function createDiagramFactory(
         theme: 'inherit'
       });
       self._toolboxButtonControls.push(control);
+      dragControl = new Button(dragHandle, {
+        text: '',
+        iconCls: 'icon-drag-vertical',
+        plain: true,
+        disabled: self.options.disabled === true,
+        theme: 'inherit'
+      });
+      self._toolboxButtonControls.push(dragControl);
     });
     this._filterToolbox(this._toolboxFilter);
   };
@@ -1497,19 +3129,405 @@ export function createDiagramFactory(
     }
   };
 
+  Diagram.prototype._saveToolboxState = function() {
+    var state = diagramAssign({}, this._toolboxCollapsed);
+    state.order = this._toolboxOrder.slice();
+    state.panels = {
+      toolbox: {
+        visible: this.options.toolbox,
+        floating: this.options.toolboxFloating,
+        dockSide: this.options.toolboxDockSide,
+        left: this.options.toolboxFloatLeft,
+        top: this.options.toolboxFloatTop,
+        width: this.options.toolboxWidth,
+        height: this.options.toolboxHeight
+      },
+      properties: {
+        visible: this.options.propertiesPanel,
+        floating: this.options.propertiesFloating,
+        dockSide: this.options.propertiesDockSide,
+        left: this.options.propertiesFloatLeft,
+        top: this.options.propertiesFloatTop,
+        width: this.options.propertiesWidth,
+        height: this.options.propertiesHeight
+      }
+    };
+    state.viewToolbar = {
+      left: this.options.viewToolbarLeft,
+      top: this.options.viewToolbarTop
+    };
+    state.paper = this.getPaper();
+    state.dockTab = this._sameSideDockTab;
+    state.dockMode = this.options.sameSideDockMode;
+    writeDiagramToolboxState(
+      this.options.toolboxStateKey,
+      state
+    );
+  };
+
+  Diagram.prototype._clearToolboxDropIndicator = function() {
+    Array.prototype.forEach.call(
+      this.toolboxGroupsElement.querySelectorAll(
+        '.fui-diagram-toolbox-group-drop-before,' +
+        '.fui-diagram-toolbox-group-drop-after'
+      ),
+      function(group) {
+        group.classList.remove('fui-diagram-toolbox-group-drop-before');
+        group.classList.remove('fui-diagram-toolbox-group-drop-after');
+      }
+    );
+    this._toolboxDropCategory = '';
+    this._toolboxDropAfter = false;
+  };
+
+  Diagram.prototype._moveToolboxGroup = function(
+    sourceCategory,
+    targetCategory,
+    after
+  ) {
+    var nextOrder = reorderDiagramToolboxOrder(
+      this._toolboxOrder,
+      sourceCategory,
+      targetCategory,
+      after
+    );
+    if (nextOrder.join('|') === this._toolboxOrder.join('|')) return false;
+    this._toolboxOrder = nextOrder;
+    this.options.toolboxOrder = nextOrder.slice();
+    this._saveToolboxState();
+    this._renderToolbox();
+    return true;
+  };
+
+  Diagram.prototype._bindToolboxOrderInteraction = function() {
+    var self = this;
+    this._unbindToolboxOrderInteraction();
+    this._onToolboxOrderPointerMove = function(event) {
+      var state = self._toolboxOrderDrag;
+      var target;
+      var group;
+      var category;
+      var rect;
+      var after;
+      if (!state || event.pointerId !== state.pointerId) return;
+      event.preventDefault();
+      target = document.elementFromPoint(event.clientX, event.clientY);
+      group = target && target.closest ?
+        target.closest('.fui-diagram-toolbox-group') :
+        null;
+      if (!group) {
+        self._clearToolboxDropIndicator();
+        return;
+      }
+      category = group.getAttribute('data-diagram-category');
+      if (!category || category === state.sourceCategory) {
+        self._clearToolboxDropIndicator();
+        return;
+      }
+      rect = group.getBoundingClientRect();
+      after = event.clientY > rect.top + rect.height / 2;
+      self._clearToolboxDropIndicator();
+      self._toolboxDropCategory = category;
+      self._toolboxDropAfter = after;
+      group.classList.add(
+        after ?
+          'fui-diagram-toolbox-group-drop-after' :
+          'fui-diagram-toolbox-group-drop-before'
+      );
+    };
+    this._onToolboxOrderPointerEnd = function(event) {
+      var state = self._toolboxOrderDrag;
+      var targetCategory;
+      var after;
+      if (!state || event.pointerId !== state.pointerId) return;
+      targetCategory = self._toolboxDropCategory;
+      after = self._toolboxDropAfter;
+      self._toolboxOrderDrag = null;
+      Array.prototype.forEach.call(
+        self.toolboxGroupsElement.querySelectorAll(
+          '.fui-diagram-toolbox-group-dragging'
+        ),
+        function(group) {
+          group.classList.remove('fui-diagram-toolbox-group-dragging');
+        }
+      );
+      self._clearToolboxDropIndicator();
+      self._unbindToolboxOrderInteraction();
+      if (event.type !== 'pointercancel' && targetCategory) {
+        self._moveToolboxGroup(
+          state.sourceCategory,
+          targetCategory,
+          after
+        );
+      }
+    };
+    document.addEventListener(
+      'pointermove',
+      this._onToolboxOrderPointerMove
+    );
+    document.addEventListener(
+      'pointerup',
+      this._onToolboxOrderPointerEnd
+    );
+    document.addEventListener(
+      'pointercancel',
+      this._onToolboxOrderPointerEnd
+    );
+  };
+
+  Diagram.prototype._unbindToolboxOrderInteraction = function() {
+    if (!this._onToolboxOrderPointerMove) return;
+    document.removeEventListener(
+      'pointermove',
+      this._onToolboxOrderPointerMove
+    );
+    document.removeEventListener(
+      'pointerup',
+      this._onToolboxOrderPointerEnd
+    );
+    document.removeEventListener(
+      'pointercancel',
+      this._onToolboxOrderPointerEnd
+    );
+    this._onToolboxOrderPointerMove = null;
+    this._onToolboxOrderPointerEnd = null;
+  };
+
   Diagram.prototype._syncStructure = function() {
+    var availableHeight;
+    var propertiesHidden;
+    var propertiesFloating;
+    var propertiesTabActive;
+    var sameSideDocked;
+    var sameSideDockStack;
+    var sameSideDockTabs;
+    var toolboxHidden;
+    var toolboxFloating;
+    var toolboxTabActive;
     this.toolboxElement.hidden = !this.options.toolbox || this.options.readOnly;
+    toolboxHidden = this.toolboxElement.hidden;
+    toolboxFloating = this.options.toolboxFloating &&
+      !toolboxHidden;
+    this.toolboxResizerLeftElement.hidden = toolboxHidden || (
+      !toolboxFloating && this.options.toolboxDockSide === 'left'
+    );
+    this.toolboxResizerRightElement.hidden = toolboxHidden || (
+      !toolboxFloating && this.options.toolboxDockSide === 'right'
+    );
+    this.toolboxResizerTopElement.hidden = !toolboxFloating;
+    this.toolboxResizerBottomElement.hidden = !toolboxFloating;
     this.propertiesElement.hidden = !this.options.propertiesPanel || this.options.readOnly;
-    this.toolbarElement.hidden = !this.options.mainToolbar || this.options.readOnly;
+    propertiesHidden = this.propertiesElement.hidden;
+    propertiesFloating = this.options.propertiesFloating &&
+      !propertiesHidden;
+    sameSideDocked = !toolboxHidden &&
+      !propertiesHidden &&
+      !toolboxFloating &&
+      !propertiesFloating &&
+      this.options.toolboxDockSide === this.options.propertiesDockSide;
+    sameSideDockTabs = sameSideDocked &&
+      this.options.sameSideDockMode === 'tabs';
+    sameSideDockStack = sameSideDocked &&
+      this.options.sameSideDockMode === 'stacked';
+    this._syncDockStackStructure(false);
+    this._syncDockTabsStructure(sameSideDockTabs);
+    this._syncDockStackStructure(sameSideDockStack);
+    if (!sameSideDocked) this._detachDockTabsPanels();
+    this.propertiesResizerLeftElement.hidden = propertiesHidden || (
+      !propertiesFloating && this.options.propertiesDockSide === 'left'
+    );
+    this.propertiesResizerRightElement.hidden = propertiesHidden || (
+      !propertiesFloating && this.options.propertiesDockSide === 'right'
+    );
+    this.propertiesResizerTopElement.hidden = !propertiesFloating;
+    this.propertiesResizerBottomElement.hidden = !propertiesFloating;
+    if (sameSideDockTabs) {
+      toolboxTabActive = this._sameSideDockTab === 'toolbox';
+      propertiesTabActive = !toolboxTabActive;
+      this.toolboxResizerLeftElement.hidden = !toolboxTabActive ||
+        this.options.toolboxDockSide === 'left';
+      this.toolboxResizerRightElement.hidden = !toolboxTabActive ||
+        this.options.toolboxDockSide === 'right';
+      this.propertiesResizerLeftElement.hidden = !propertiesTabActive ||
+        this.options.propertiesDockSide === 'left';
+      this.propertiesResizerRightElement.hidden = !propertiesTabActive ||
+        this.options.propertiesDockSide === 'right';
+    } else if (sameSideDockStack) {
+      this.propertiesResizerLeftElement.hidden = true;
+      this.propertiesResizerRightElement.hidden = true;
+    }
+    this.toolbarElement.hidden = !this.options.mainToolbar;
     this.viewToolbarElement.hidden = !this.options.viewToolbar;
     this.workspaceElement.classList.toggle(
+      'fui-diagram-toolbox-right',
+      this.options.toolboxDockSide === 'right'
+    );
+    this.workspaceElement.classList.toggle(
+      'fui-diagram-properties-left',
+      this.options.propertiesDockSide === 'left'
+    );
+    this.workspaceElement.classList.toggle(
+      'fui-diagram-toolbox-floating',
+      toolboxFloating
+    );
+    this.workspaceElement.classList.toggle(
       'fui-diagram-no-toolbox',
-      this.toolboxElement.hidden
+      toolboxHidden || toolboxFloating
     );
     this.workspaceElement.classList.toggle(
       'fui-diagram-no-properties',
-      this.propertiesElement.hidden
+      propertiesHidden || propertiesFloating
     );
+    this.workspaceElement.classList.toggle(
+      'fui-diagram-properties-floating',
+      propertiesFloating
+    );
+    this._syncFloatingPanelStack();
+    this.workspaceElement.style.setProperty(
+      '--fui-diagram-toolbox-width',
+      this.options.toolboxWidth + 'px'
+    );
+    this.workspaceElement.style.setProperty(
+      '--fui-diagram-properties-width',
+      this.options.propertiesWidth + 'px'
+    );
+    availableHeight = this.workspaceElement.clientHeight;
+    if (toolboxFloating && availableHeight > 0) {
+      this.options.toolboxHeight = diagramClamp(
+        this.options.toolboxHeight,
+        this.options.toolboxMinHeight,
+        Math.max(
+          this.options.toolboxMinHeight,
+          Math.min(this.options.toolboxMaxHeight, availableHeight)
+        )
+      );
+    }
+    if (propertiesFloating && availableHeight > 0) {
+      this.options.propertiesHeight = diagramClamp(
+        this.options.propertiesHeight,
+        this.options.propertiesMinHeight,
+        Math.max(
+          this.options.propertiesMinHeight,
+          Math.min(this.options.propertiesMaxHeight, availableHeight)
+        )
+      );
+    }
+    this.workspaceElement.style.setProperty(
+      '--fui-diagram-toolbox-height',
+      this.options.toolboxHeight + 'px'
+    );
+    this.workspaceElement.style.setProperty(
+      '--fui-diagram-properties-height',
+      this.options.propertiesHeight + 'px'
+    );
+    [
+      this.toolboxResizerLeftElement,
+      this.toolboxResizerRightElement
+    ].forEach(function(element) {
+      element.setAttribute(
+        'aria-valuemin',
+        String(this.options.toolboxMinWidth)
+      );
+      element.setAttribute(
+        'aria-valuemax',
+        String(this.options.toolboxMaxWidth)
+      );
+      element.setAttribute(
+        'aria-valuenow',
+        String(this.options.toolboxWidth)
+      );
+    }, this);
+    [
+      this.propertiesResizerLeftElement,
+      this.propertiesResizerRightElement
+    ].forEach(function(element) {
+      element.setAttribute(
+        'aria-valuemin',
+        String(this.options.propertiesMinWidth)
+      );
+      element.setAttribute(
+        'aria-valuemax',
+        String(this.options.propertiesMaxWidth)
+      );
+      element.setAttribute(
+        'aria-valuenow',
+        String(this.options.propertiesWidth)
+      );
+    }, this);
+    [
+      this.toolboxResizerTopElement,
+      this.toolboxResizerBottomElement
+    ].forEach(function(element) {
+      element.setAttribute(
+        'aria-valuemin',
+        String(this.options.toolboxMinHeight)
+      );
+      element.setAttribute(
+        'aria-valuemax',
+        String(this.options.toolboxMaxHeight)
+      );
+      element.setAttribute(
+        'aria-valuenow',
+        String(this.options.toolboxHeight)
+      );
+    }, this);
+    [
+      this.propertiesResizerTopElement,
+      this.propertiesResizerBottomElement
+    ].forEach(function(element) {
+      element.setAttribute(
+        'aria-valuemin',
+        String(this.options.propertiesMinHeight)
+      );
+      element.setAttribute(
+        'aria-valuemax',
+        String(this.options.propertiesMaxHeight)
+      );
+      element.setAttribute(
+        'aria-valuenow',
+        String(this.options.propertiesHeight)
+      );
+    }, this);
+    if (toolboxFloating) {
+      this._setToolboxFloatPosition(
+        this.options.toolboxFloatLeft,
+        this.options.toolboxFloatTop
+      );
+    }
+    if (propertiesFloating) {
+      this._setPropertiesFloatPosition(
+        this.options.propertiesFloatLeft,
+        this.options.propertiesFloatTop
+      );
+    }
+    this._syncViewToolbarPosition();
+  };
+
+  Diagram.prototype._syncFloatingPanelStack = function() {
+    var bothFloating = this.options.toolboxFloating &&
+      this.options.propertiesFloating &&
+      !this.toolboxElement.hidden &&
+      !this.propertiesElement.hidden;
+    this.workspaceElement.classList.toggle(
+      'fui-diagram-floating-front-toolbox',
+      bothFloating && this._floatingPanelFront === 'toolbox'
+    );
+    this.workspaceElement.classList.toggle(
+      'fui-diagram-floating-front-properties',
+      bothFloating && this._floatingPanelFront === 'properties'
+    );
+    return this;
+  };
+
+  Diagram.prototype._bringFloatingPanelToFront = function(panel) {
+    if (
+      !this.options.toolboxFloating ||
+      !this.options.propertiesFloating
+    ) return this._syncFloatingPanelStack();
+    this._floatingPanelFront = panel === 'toolbox' ?
+      'toolbox' :
+      'properties';
+    return this._syncFloatingPanelStack();
   };
 
   Diagram.prototype._bind = function() {
@@ -1532,6 +3550,7 @@ export function createDiagramFactory(
       if (toggle && !self.options.disabled && !self.options.readOnly) {
         category = toggle.getAttribute('data-diagram-toolbox-toggle');
         self._toolboxCollapsed[category] = !self._toolboxCollapsed[category];
+        self._saveToolboxState();
         self._filterToolbox(self._toolboxFilter);
         return;
       }
@@ -1586,6 +3605,28 @@ export function createDiagramFactory(
       );
       event.dataTransfer.effectAllowed = 'copy';
     };
+    this._onToolboxOrderPointerDown = function(event) {
+      var dragHandle = event.target.closest('[data-diagram-toolbox-drag]');
+      var category;
+      var group;
+      if (
+        !dragHandle ||
+        event.button !== 0 ||
+        self.options.disabled ||
+        self.options.readOnly
+      ) return;
+      event.preventDefault();
+      category = dragHandle.getAttribute('data-diagram-toolbox-drag');
+      group = dragHandle.closest('.fui-diagram-toolbox-group');
+      if (!category || !group) return;
+      self._toolboxOrderDrag = {
+        pointerId: event.pointerId,
+        sourceCategory: category
+      };
+      self._clearToolboxDropIndicator();
+      group.classList.add('fui-diagram-toolbox-group-dragging');
+      self._bindToolboxOrderInteraction();
+    };
     this._onViewportDragOver = function(event) {
       if (event.dataTransfer) event.preventDefault();
     };
@@ -1617,21 +3658,985 @@ export function createDiagramFactory(
       if (height) nodeOptions.height = Number(height);
       self.addNode(nodeOptions);
     };
+    this._onViewportContextMenu = function(event) {
+      if (!self._contextMenu || self.options.disabled) return;
+      event.preventDefault();
+      self._syncToolbarStates();
+      self._contextMenu.show({
+        left: event.pageX,
+        top: event.pageY
+      });
+    };
+    this._onJsonFileChange = function(event) {
+      var input = event.currentTarget;
+      var file = input.files && input.files[0];
+      var reader;
+      if (!file) return;
+      input.value = '';
+      if (
+        self._jsonFileReader &&
+        self._jsonFileReader.readyState === 1
+      ) {
+        self._jsonFileReader.abort();
+      }
+      reader = new FileReader();
+      self._jsonFileReader = reader;
+      reader.onload = function() {
+        self._jsonFileReader = null;
+        if (self._destroyed) return;
+        try {
+          self.import(String(reader.result || ''));
+          diagramOnNextFrame(function() {
+            if (!self._destroyed) self.fitToPage();
+          });
+          self._fire('JsonLoaded', {
+            file: file,
+            data: self.getData()
+          });
+        } catch (error) {
+          self._fire('LoadError', {
+            file: file,
+            error: error
+          });
+        }
+      };
+      reader.onerror = function() {
+        self._jsonFileReader = null;
+        if (self._destroyed) return;
+        self._fire('LoadError', {
+          file: file,
+          error: reader.error
+        });
+      };
+      reader.readAsText(file);
+    };
     this._onKeyDown = function(event) {
       self._handleKeyDown(event);
     };
+    this._onViewportWheel = function(event) {
+      self._handleViewportWheel(event);
+    };
+    this._onPanelResizePointerDown = function(event) {
+      var edge = event.currentTarget.getAttribute(
+        'data-diagram-resizer-edge'
+      );
+      var panel = event.currentTarget.getAttribute(
+        'data-diagram-panel-resizer'
+      );
+      var floating = panel === 'toolbox' ?
+        self.options.toolboxFloating :
+        self.options.propertiesFloating;
+      if (
+        event.button !== 0 ||
+        self.options.disabled ||
+        self.options.readOnly ||
+        event.currentTarget.hidden
+      ) return;
+      event.preventDefault();
+      self._bringFloatingPanelToFront(panel);
+      self._panelResize = {
+        panel: panel,
+        edge: edge,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startWidth: panel === 'toolbox' ?
+          self.options.toolboxWidth :
+          self.options.propertiesWidth,
+        startHeight: panel === 'toolbox' ?
+          self.options.toolboxHeight :
+          self.options.propertiesHeight,
+        startLeft: panel === 'toolbox' ?
+          self.options.toolboxFloatLeft :
+          self.options.propertiesFloatLeft,
+        startTop: panel === 'toolbox' ?
+          self.options.toolboxFloatTop :
+          self.options.propertiesFloatTop,
+        workspaceWidth: self.workspaceElement.clientWidth,
+        workspaceHeight: self.workspaceElement.clientHeight,
+        floating: floating
+      };
+      self.hostElement.classList.add(
+        'fui-diagram-panel-resizing',
+        edge === 'left' || edge === 'right' ?
+          'fui-diagram-panel-resizing-horizontal' :
+          'fui-diagram-panel-resizing-vertical',
+        'fui-diagram-' + panel + '-resizing'
+      );
+      self._bindPanelResizeInteraction();
+    };
+    this._onPanelResizeKeyDown = function(event) {
+      var edge = event.currentTarget.getAttribute(
+        'data-diagram-resizer-edge'
+      );
+      var horizontal = edge === 'left' || edge === 'right';
+      var movementX = 0;
+      var movementY = 0;
+      var panel = event.currentTarget.getAttribute(
+        'data-diagram-panel-resizer'
+      );
+      var startHeight;
+      var startLeft;
+      var startTop;
+      var startWidth;
+      if (self.options.disabled || self.options.readOnly) return;
+      if (horizontal && event.key === 'ArrowLeft') {
+        movementX = event.shiftKey ? -30 : -10;
+      } else if (horizontal && event.key === 'ArrowRight') {
+        movementX = event.shiftKey ? 30 : 10;
+      } else if (!horizontal && event.key === 'ArrowUp') {
+        movementY = event.shiftKey ? -30 : -10;
+      } else if (!horizontal && event.key === 'ArrowDown') {
+        movementY = event.shiftKey ? 30 : 10;
+      } else {
+        return;
+      }
+      event.preventDefault();
+      startWidth = panel === 'toolbox' ?
+        self.options.toolboxWidth :
+        self.options.propertiesWidth;
+      startLeft = panel === 'toolbox' ?
+        self.options.toolboxFloatLeft :
+        self.options.propertiesFloatLeft;
+      startHeight = panel === 'toolbox' ?
+        self.options.toolboxHeight :
+        self.options.propertiesHeight;
+      startTop = panel === 'toolbox' ?
+        self.options.toolboxFloatTop :
+        self.options.propertiesFloatTop;
+      self._resizePanelFromEdge(
+        panel,
+        edge,
+        startWidth,
+        startHeight,
+        startLeft,
+        startTop,
+        movementX,
+        movementY,
+        self.workspaceElement.clientWidth,
+        self.workspaceElement.clientHeight
+      );
+    };
+    this._onToolboxHeaderPointerDown = function(event) {
+      var toolboxRect;
+      var workspaceRect;
+      if (
+        event.button !== 0 ||
+        self.options.disabled ||
+        self.options.readOnly ||
+        self.toolboxElement.hidden
+      ) return;
+      event.preventDefault();
+      toolboxRect = self.toolboxElement.getBoundingClientRect();
+      workspaceRect = self.workspaceElement.getBoundingClientRect();
+      self._toolboxPanelDrag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        grabX: event.clientX - toolboxRect.left,
+        grabY: event.clientY - toolboxRect.top,
+        workspaceLeft: workspaceRect.left,
+        workspaceTop: workspaceRect.top,
+        workspaceWidth: workspaceRect.width,
+        originalFloating: self.options.toolboxFloating,
+        originalDockSide: self.options.toolboxDockSide,
+        originalLeft: self.options.toolboxFloatLeft,
+        originalTop: self.options.toolboxFloatTop,
+        moved: false,
+        dockSide: ''
+      };
+      self.hostElement.classList.add(
+        'fui-diagram-toolbox-panel-dragging'
+      );
+      self._bindToolboxPanelInteraction();
+    };
+    this._onPropertiesHeaderPointerDown = function(event) {
+      var propertiesRect;
+      var workspaceRect;
+      if (
+        event.button !== 0 ||
+        self.options.disabled ||
+        self.options.readOnly ||
+        self.propertiesElement.hidden
+      ) return;
+      event.preventDefault();
+      propertiesRect = self.propertiesElement.getBoundingClientRect();
+      workspaceRect = self.workspaceElement.getBoundingClientRect();
+      self._propertiesPanelDrag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        grabX: event.clientX - propertiesRect.left,
+        grabY: event.clientY - propertiesRect.top,
+        workspaceLeft: workspaceRect.left,
+        workspaceTop: workspaceRect.top,
+        workspaceWidth: workspaceRect.width,
+        originalFloating: self.options.propertiesFloating,
+        originalDockSide: self.options.propertiesDockSide,
+        originalLeft: self.options.propertiesFloatLeft,
+        originalTop: self.options.propertiesFloatTop,
+        moved: false,
+        dockSide: ''
+      };
+      self.hostElement.classList.add(
+        'fui-diagram-properties-panel-dragging'
+      );
+      self._bindPropertiesPanelInteraction();
+    };
+    this._onToolboxPanelPointerDown = function() {
+      self._bringFloatingPanelToFront('toolbox');
+    };
+    this._onPropertiesPanelPointerDown = function() {
+      self._bringFloatingPanelToFront('properties');
+    };
+    this._onViewToolbarPointerDown = function(event) {
+      if (
+        event.button !== 0 ||
+        self.options.disabled ||
+        self.viewToolbarElement.hidden ||
+        event.target.closest('.fui-button')
+      ) return;
+      event.preventDefault();
+      self._viewToolbarDrag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startLeft: self.viewToolbarElement.offsetLeft,
+        startTop: self.viewToolbarElement.offsetTop,
+        originalLeft: self.options.viewToolbarLeft,
+        originalTop: self.options.viewToolbarTop,
+        moved: false
+      };
+      self.hostElement.classList.add(
+        'fui-diagram-view-toolbar-dragging'
+      );
+      self._bindViewToolbarInteraction();
+    };
     this._onFullscreenChange = function() {
+      var presentationFullscreen = diagramElementIsFullscreen(
+        self.viewportElement
+      );
+      var editorFullscreen = diagramElementIsFullscreen(self.hostElement);
+      var fullscreen = presentationFullscreen || editorFullscreen;
+      var contextMenuParent;
+      var viewState;
+      if (self._contextMenuHost) {
+        contextMenuParent = presentationFullscreen ?
+          self.viewportElement :
+          editorFullscreen ? self.hostElement : document.body;
+        if (self._contextMenuHost.parentNode !== contextMenuParent) {
+          contextMenuParent.appendChild(self._contextMenuHost);
+        }
+      }
+      if (fullscreen) {
+        if (!self._fullscreenViewState) {
+          self._fullscreenViewState = {
+            zoomLevel: self.options.zoomLevel,
+            scrollLeft: self.viewportElement.scrollLeft,
+            scrollTop: self.viewportElement.scrollTop
+          };
+        }
+        self.hostElement.classList.toggle(
+          'fui-diagram-fullscreen-editor',
+          editorFullscreen
+        );
+        self.viewportElement.classList.toggle(
+          'fui-diagram-fullscreen-presentation',
+          presentationFullscreen
+        );
+        self._fullscreenViewportSize = diagramElementBorderSize(
+          self.viewportElement
+        );
+        if (
+          !self._fullscreenResizeObserver &&
+          typeof ResizeObserver !== 'undefined'
+        ) {
+          self._fullscreenResizeObserver = new ResizeObserver(function() {
+            var nextSize;
+            if (
+              self._destroyed ||
+              (
+                !self.hostElement.classList.contains(
+                  'fui-diagram-fullscreen-editor'
+                ) &&
+                !self.viewportElement.classList.contains(
+                  'fui-diagram-fullscreen-presentation'
+                )
+              )
+            ) return;
+            nextSize = diagramElementBorderSize(self.viewportElement);
+            if (!diagramFullscreenSizeChanged(
+              self._fullscreenViewportSize,
+              nextSize
+            )) return;
+            self._fullscreenViewportSize = nextSize;
+            diagramOnNextFrame(function() {
+              if (
+                !self._destroyed &&
+                (
+                  self.hostElement.classList.contains(
+                    'fui-diagram-fullscreen-editor'
+                  ) ||
+                  self.viewportElement.classList.contains(
+                    'fui-diagram-fullscreen-presentation'
+                  )
+                )
+              ) {
+                self._fullscreenViewportSize = diagramElementBorderSize(
+                  self.viewportElement
+                );
+                self.fitToPage(24);
+              }
+            });
+          });
+          self._fullscreenResizeObserver.observe(self.viewportElement);
+        }
+        diagramOnNextFrame(function() {
+          diagramOnNextFrame(function() {
+            if (
+              !self._destroyed &&
+              (
+                self.hostElement.classList.contains(
+                  'fui-diagram-fullscreen-editor'
+                ) ||
+                self.viewportElement.classList.contains(
+                  'fui-diagram-fullscreen-presentation'
+                )
+              )
+            ) {
+              self._fullscreenViewportSize = diagramElementBorderSize(
+                self.viewportElement
+              );
+              self.fitToPage(24);
+            }
+          });
+        });
+      } else {
+        if (self._fullscreenResizeObserver) {
+          self._fullscreenResizeObserver.disconnect();
+          self._fullscreenResizeObserver = null;
+        }
+        self._fullscreenViewportSize = null;
+        self.viewportElement.classList.remove(
+          'fui-diagram-fullscreen-presentation'
+        );
+        self.hostElement.classList.remove(
+          'fui-diagram-fullscreen-editor'
+        );
+        viewState = self._fullscreenViewState;
+        self._fullscreenViewState = null;
+        if (viewState) {
+          diagramOnNextFrame(function() {
+            if (
+              self._destroyed ||
+              diagramElementIsFullscreen(self.viewportElement) ||
+              diagramElementIsFullscreen(self.hostElement)
+            ) return;
+            self.setZoom(viewState.zoomLevel);
+            self.viewportElement.scrollLeft = viewState.scrollLeft;
+            self.viewportElement.scrollTop = viewState.scrollTop;
+          });
+        }
+      }
       self._syncToolbarStates();
+      diagramOnNextFrame(function() {
+        if (!self._destroyed) self._syncViewToolbarPosition();
+      });
     };
     this.addEventListener(this.svgElement, 'pointerdown', this._onSvgPointerDown);
     this.addEventListener(this.svgElement, 'click', this._onSvgClick);
     this.addEventListener(this.svgElement, 'dblclick', this._onSvgDblClick);
     this.addEventListener(this.toolboxGroupsElement, 'click', this._onToolboxClick);
     this.addEventListener(this.toolboxGroupsElement, 'dragstart', this._onToolboxDragStart);
+    this.addEventListener(
+      this.toolboxGroupsElement,
+      'pointerdown',
+      this._onToolboxOrderPointerDown
+    );
     this.addEventListener(this.viewportElement, 'dragover', this._onViewportDragOver);
     this.addEventListener(this.viewportElement, 'drop', this._onViewportDrop);
+    this.addEventListener(
+      this.viewportElement,
+      'wheel',
+      this._onViewportWheel,
+      false,
+      false
+    );
+    this.addEventListener(
+      this.viewportElement,
+      'contextmenu',
+      this._onViewportContextMenu
+    );
+    this.addEventListener(
+      this.jsonFileInputElement,
+      'change',
+      this._onJsonFileChange
+    );
+    [
+      this.toolboxResizerLeftElement,
+      this.toolboxResizerRightElement,
+      this.toolboxResizerTopElement,
+      this.toolboxResizerBottomElement,
+      this.propertiesResizerLeftElement,
+      this.propertiesResizerRightElement,
+      this.propertiesResizerTopElement,
+      this.propertiesResizerBottomElement
+    ].forEach(function(element) {
+      self.addEventListener(
+        element,
+        'pointerdown',
+        self._onPanelResizePointerDown
+      );
+      self.addEventListener(
+        element,
+        'keydown',
+        self._onPanelResizeKeyDown
+      );
+    });
+    this.addEventListener(
+      this.toolboxHeaderElement,
+      'pointerdown',
+      this._onToolboxHeaderPointerDown
+    );
+    this.addEventListener(
+      this.propertiesHeaderElement,
+      'pointerdown',
+      this._onPropertiesHeaderPointerDown
+    );
+    this.addEventListener(
+      this.toolboxElement,
+      'pointerdown',
+      this._onToolboxPanelPointerDown
+    );
+    this.addEventListener(
+      this.propertiesElement,
+      'pointerdown',
+      this._onPropertiesPanelPointerDown
+    );
+    this.addEventListener(
+      this.viewToolbarElement,
+      'pointerdown',
+      this._onViewToolbarPointerDown
+    );
     this.addEventListener(this.hostElement, 'keydown', this._onKeyDown);
     this.addEventListener(document, 'fullscreenchange', this._onFullscreenChange);
+    this.addEventListener(
+      document,
+      'webkitfullscreenchange',
+      this._onFullscreenChange
+    );
+  };
+
+  Diagram.prototype._resizePanelFromEdge = function(
+    panel,
+    edge,
+    startWidth,
+    startHeight,
+    startLeft,
+    startTop,
+    movementX,
+    movementY,
+    workspaceWidth,
+    workspaceHeight,
+    skipSave
+  ) {
+    var floatingOption = panel === 'toolbox' ?
+      'toolboxFloating' :
+      'propertiesFloating';
+    var heightOption = panel === 'toolbox' ?
+      'toolboxHeight' :
+      'propertiesHeight';
+    var leftOption = panel === 'toolbox' ?
+      'toolboxFloatLeft' :
+      'propertiesFloatLeft';
+    var maxHeight = panel === 'toolbox' ?
+      this.options.toolboxMaxHeight :
+      this.options.propertiesMaxHeight;
+    var maxWidth = panel === 'toolbox' ?
+      this.options.toolboxMaxWidth :
+      this.options.propertiesMaxWidth;
+    var minHeight = panel === 'toolbox' ?
+      this.options.toolboxMinHeight :
+      this.options.propertiesMinHeight;
+    var minWidth = panel === 'toolbox' ?
+      this.options.toolboxMinWidth :
+      this.options.propertiesMinWidth;
+    var topOption = panel === 'toolbox' ?
+      'toolboxFloatTop' :
+      'propertiesFloatTop';
+    var widthOption = panel === 'toolbox' ?
+      'toolboxWidth' :
+      'propertiesWidth';
+    var floating = this.options[floatingOption];
+    var height;
+    var width;
+    if (edge === 'left' || edge === 'right') {
+      if (floating && workspaceWidth > 0) {
+        maxWidth = Math.min(
+          maxWidth,
+          edge === 'left' ?
+            startLeft + startWidth :
+            workspaceWidth - startLeft
+        );
+      }
+      width = diagramClamp(
+        startWidth + (edge === 'left' ? -movementX : movementX),
+        minWidth,
+        Math.max(minWidth, maxWidth)
+      );
+      this.options[widthOption] = width;
+      if (floating && edge === 'left') {
+        this.options[leftOption] = Math.max(
+          0,
+          startLeft + startWidth - width
+        );
+      }
+    } else {
+      if (floating && workspaceHeight > 0) {
+        maxHeight = Math.min(
+          maxHeight,
+          edge === 'top' ?
+            startTop + startHeight :
+            workspaceHeight - startTop
+        );
+      }
+      height = diagramClamp(
+        startHeight + (edge === 'top' ? -movementY : movementY),
+        minHeight,
+        Math.max(minHeight, maxHeight)
+      );
+      this.options[heightOption] = height;
+      if (floating && edge === 'top') {
+        this.options[topOption] = Math.max(
+          0,
+          startTop + startHeight - height
+        );
+      }
+    }
+    this._syncStructure();
+    if (!skipSave) this._saveToolboxState();
+    return this;
+  };
+
+  Diagram.prototype._bindPanelResizeInteraction = function() {
+    var self = this;
+    this._unbindPanelResizeInteraction();
+    this._onPanelResizePointerMove = function(event) {
+      var state = self._panelResize;
+      if (!state || event.pointerId !== state.pointerId) return;
+      event.preventDefault();
+      self._resizePanelFromEdge(
+        state.panel,
+        state.edge,
+        state.startWidth,
+        state.startHeight,
+        state.startLeft,
+        state.startTop,
+        event.clientX - state.startX,
+        event.clientY - state.startY,
+        state.workspaceWidth,
+        state.workspaceHeight,
+        true
+      );
+    };
+    this._onPanelResizePointerEnd = function(event) {
+      var state = self._panelResize;
+      if (!state || event.pointerId !== state.pointerId) return;
+      if (event.type === 'pointercancel') {
+        self._resizePanelFromEdge(
+          state.panel,
+          state.edge,
+          state.startWidth,
+          state.startHeight,
+          state.startLeft,
+          state.startTop,
+          0,
+          0,
+          state.workspaceWidth,
+          state.workspaceHeight,
+          true
+        );
+      }
+      self._saveToolboxState();
+      self._panelResize = null;
+      self.hostElement.classList.remove(
+        'fui-diagram-panel-resizing',
+        'fui-diagram-panel-resizing-horizontal',
+        'fui-diagram-panel-resizing-vertical',
+        'fui-diagram-toolbox-resizing',
+        'fui-diagram-properties-resizing'
+      );
+      self._unbindPanelResizeInteraction();
+    };
+    document.addEventListener(
+      'pointermove',
+      this._onPanelResizePointerMove
+    );
+    document.addEventListener(
+      'pointerup',
+      this._onPanelResizePointerEnd
+    );
+    document.addEventListener(
+      'pointercancel',
+      this._onPanelResizePointerEnd
+    );
+  };
+
+  Diagram.prototype._unbindPanelResizeInteraction = function() {
+    if (!this._onPanelResizePointerMove) return;
+    document.removeEventListener(
+      'pointermove',
+      this._onPanelResizePointerMove
+    );
+    document.removeEventListener(
+      'pointerup',
+      this._onPanelResizePointerEnd
+    );
+    document.removeEventListener(
+      'pointercancel',
+      this._onPanelResizePointerEnd
+    );
+    this._onPanelResizePointerMove = null;
+    this._onPanelResizePointerEnd = null;
+  };
+
+  Diagram.prototype._setToolboxFloatPosition = function(left, top) {
+    var position = constrainDiagramFloatingToolbox(
+      left,
+      top,
+      this.toolboxElement.offsetWidth,
+      this.toolboxElement.offsetHeight,
+      this.workspaceElement.clientWidth,
+      this.workspaceElement.clientHeight
+    );
+    this.options.toolboxFloatLeft = position.left;
+    this.options.toolboxFloatTop = position.top;
+    this.workspaceElement.style.setProperty(
+      '--fui-diagram-toolbox-left',
+      position.left + 'px'
+    );
+    this.workspaceElement.style.setProperty(
+      '--fui-diagram-toolbox-top',
+      position.top + 'px'
+    );
+    return this;
+  };
+
+  Diagram.prototype._setViewToolbarPosition = function(left, top) {
+    var position = constrainDiagramViewToolbar(
+      left,
+      top,
+      this.viewToolbarElement.offsetWidth,
+      this.viewToolbarElement.offsetHeight,
+      this.hostElement.clientWidth,
+      this.hostElement.clientHeight
+    );
+    this.options.viewToolbarLeft = position.left;
+    this.options.viewToolbarTop = position.top;
+    this.viewToolbarElement.style.left = position.left + 'px';
+    this.viewToolbarElement.style.top = position.top + 'px';
+    this.viewToolbarElement.style.right = 'auto';
+    this.viewToolbarElement.style.bottom = 'auto';
+    return this;
+  };
+
+  Diagram.prototype._syncViewToolbarPosition = function() {
+    if (
+      this.options.viewToolbarLeft == null ||
+      this.options.viewToolbarTop == null
+    ) {
+      this.viewToolbarElement.style.removeProperty('left');
+      this.viewToolbarElement.style.removeProperty('top');
+      this.viewToolbarElement.style.removeProperty('right');
+      this.viewToolbarElement.style.removeProperty('bottom');
+      return this;
+    }
+    return this._setViewToolbarPosition(
+      this.options.viewToolbarLeft,
+      this.options.viewToolbarTop
+    );
+  };
+
+  Diagram.prototype._bindViewToolbarInteraction = function() {
+    var self = this;
+    this._unbindViewToolbarInteraction();
+    this._onViewToolbarPointerMove = function(event) {
+      var state = self._viewToolbarDrag;
+      if (!state || event.pointerId !== state.pointerId) return;
+      if (
+        !state.moved &&
+        Math.abs(event.clientX - state.startX) < 4 &&
+        Math.abs(event.clientY - state.startY) < 4
+      ) return;
+      event.preventDefault();
+      state.moved = true;
+      self._setViewToolbarPosition(
+        state.startLeft + event.clientX - state.startX,
+        state.startTop + event.clientY - state.startY
+      );
+    };
+    this._onViewToolbarPointerEnd = function(event) {
+      var state = self._viewToolbarDrag;
+      if (!state || event.pointerId !== state.pointerId) return;
+      if (event.type === 'pointercancel') {
+        self.options.viewToolbarLeft = state.originalLeft;
+        self.options.viewToolbarTop = state.originalTop;
+        self._syncViewToolbarPosition();
+      } else if (state.moved) {
+        self._saveToolboxState();
+      }
+      self._viewToolbarDrag = null;
+      self.hostElement.classList.remove(
+        'fui-diagram-view-toolbar-dragging'
+      );
+      self._unbindViewToolbarInteraction();
+    };
+    document.addEventListener(
+      'pointermove',
+      this._onViewToolbarPointerMove
+    );
+    document.addEventListener(
+      'pointerup',
+      this._onViewToolbarPointerEnd
+    );
+    document.addEventListener(
+      'pointercancel',
+      this._onViewToolbarPointerEnd
+    );
+  };
+
+  Diagram.prototype._unbindViewToolbarInteraction = function() {
+    if (!this._onViewToolbarPointerMove) return;
+    document.removeEventListener(
+      'pointermove',
+      this._onViewToolbarPointerMove
+    );
+    document.removeEventListener(
+      'pointerup',
+      this._onViewToolbarPointerEnd
+    );
+    document.removeEventListener(
+      'pointercancel',
+      this._onViewToolbarPointerEnd
+    );
+    this._onViewToolbarPointerMove = null;
+    this._onViewToolbarPointerEnd = null;
+  };
+
+  Diagram.prototype._bindToolboxPanelInteraction = function() {
+    var self = this;
+    this._unbindToolboxPanelInteraction();
+    this._onToolboxPanelPointerMove = function(event) {
+      var left;
+      var state = self._toolboxPanelDrag;
+      var top;
+      if (!state || event.pointerId !== state.pointerId) return;
+      if (
+        !state.moved &&
+        Math.abs(event.clientX - state.startX) < 4 &&
+        Math.abs(event.clientY - state.startY) < 4
+      ) return;
+      event.preventDefault();
+      state.moved = true;
+      left = event.clientX - state.workspaceLeft - state.grabX;
+      top = event.clientY - state.workspaceTop - state.grabY;
+      if (!self.options.toolboxFloating) {
+        self.floatToolbox(left, top, true);
+      } else {
+        self._setToolboxFloatPosition(left, top);
+      }
+      state.dockSide = getDiagramPanelDockSide(
+        event.clientX,
+        state.workspaceLeft,
+        state.workspaceWidth,
+        56
+      );
+      self.workspaceElement.classList.toggle(
+        'fui-diagram-toolbox-dock-preview-left',
+        state.dockSide === 'left'
+      );
+      self.workspaceElement.classList.toggle(
+        'fui-diagram-toolbox-dock-preview-right',
+        state.dockSide === 'right'
+      );
+    };
+    this._onToolboxPanelPointerEnd = function(event) {
+      var state = self._toolboxPanelDrag;
+      if (!state || event.pointerId !== state.pointerId) return;
+      if (event.type === 'pointercancel') {
+        if (state.originalFloating) {
+          self.options.toolboxDockSide = state.originalDockSide;
+          self.floatToolbox(
+            state.originalLeft,
+            state.originalTop,
+            true
+          );
+        } else {
+          self.dockToolbox(state.originalDockSide, true);
+        }
+      } else if (state.moved && state.dockSide) {
+        self.dockToolbox(state.dockSide, true);
+      }
+      if (state.moved) self._saveToolboxState();
+      self._toolboxPanelDrag = null;
+      self.hostElement.classList.remove(
+        'fui-diagram-toolbox-panel-dragging'
+      );
+      self.workspaceElement.classList.remove(
+        'fui-diagram-toolbox-dock-preview-left',
+        'fui-diagram-toolbox-dock-preview-right'
+      );
+      self._unbindToolboxPanelInteraction();
+    };
+    document.addEventListener(
+      'pointermove',
+      this._onToolboxPanelPointerMove
+    );
+    document.addEventListener(
+      'pointerup',
+      this._onToolboxPanelPointerEnd
+    );
+    document.addEventListener(
+      'pointercancel',
+      this._onToolboxPanelPointerEnd
+    );
+  };
+
+  Diagram.prototype._unbindToolboxPanelInteraction = function() {
+    if (!this._onToolboxPanelPointerMove) return;
+    document.removeEventListener(
+      'pointermove',
+      this._onToolboxPanelPointerMove
+    );
+    document.removeEventListener(
+      'pointerup',
+      this._onToolboxPanelPointerEnd
+    );
+    document.removeEventListener(
+      'pointercancel',
+      this._onToolboxPanelPointerEnd
+    );
+    this._onToolboxPanelPointerMove = null;
+    this._onToolboxPanelPointerEnd = null;
+  };
+
+  Diagram.prototype._setPropertiesFloatPosition = function(left, top) {
+    var position = constrainDiagramFloatingToolbox(
+      left,
+      top,
+      this.propertiesElement.offsetWidth,
+      this.propertiesElement.offsetHeight,
+      this.workspaceElement.clientWidth,
+      this.workspaceElement.clientHeight
+    );
+    this.options.propertiesFloatLeft = position.left;
+    this.options.propertiesFloatTop = position.top;
+    this.workspaceElement.style.setProperty(
+      '--fui-diagram-properties-left',
+      position.left + 'px'
+    );
+    this.workspaceElement.style.setProperty(
+      '--fui-diagram-properties-top',
+      position.top + 'px'
+    );
+    return this;
+  };
+
+  Diagram.prototype._bindPropertiesPanelInteraction = function() {
+    var self = this;
+    this._unbindPropertiesPanelInteraction();
+    this._onPropertiesPanelPointerMove = function(event) {
+      var left;
+      var state = self._propertiesPanelDrag;
+      var top;
+      if (!state || event.pointerId !== state.pointerId) return;
+      if (
+        !state.moved &&
+        Math.abs(event.clientX - state.startX) < 4 &&
+        Math.abs(event.clientY - state.startY) < 4
+      ) return;
+      event.preventDefault();
+      state.moved = true;
+      left = event.clientX - state.workspaceLeft - state.grabX;
+      top = event.clientY - state.workspaceTop - state.grabY;
+      if (!self.options.propertiesFloating) {
+        self.floatProperties(left, top, true);
+      } else {
+        self._setPropertiesFloatPosition(left, top);
+      }
+      state.dockSide = getDiagramPanelDockSide(
+        event.clientX,
+        state.workspaceLeft,
+        state.workspaceWidth,
+        56
+      );
+      self.workspaceElement.classList.toggle(
+        'fui-diagram-properties-dock-preview-left',
+        state.dockSide === 'left'
+      );
+      self.workspaceElement.classList.toggle(
+        'fui-diagram-properties-dock-preview-right',
+        state.dockSide === 'right'
+      );
+    };
+    this._onPropertiesPanelPointerEnd = function(event) {
+      var state = self._propertiesPanelDrag;
+      if (!state || event.pointerId !== state.pointerId) return;
+      if (event.type === 'pointercancel') {
+        if (state.originalFloating) {
+          self.options.propertiesDockSide = state.originalDockSide;
+          self.floatProperties(
+            state.originalLeft,
+            state.originalTop,
+            true
+          );
+        } else {
+          self.dockProperties(state.originalDockSide, true);
+        }
+      } else if (state.moved && state.dockSide) {
+        self.dockProperties(state.dockSide, true);
+      }
+      if (state.moved) self._saveToolboxState();
+      self._propertiesPanelDrag = null;
+      self.hostElement.classList.remove(
+        'fui-diagram-properties-panel-dragging'
+      );
+      self.workspaceElement.classList.remove(
+        'fui-diagram-properties-dock-preview-left',
+        'fui-diagram-properties-dock-preview-right'
+      );
+      self._unbindPropertiesPanelInteraction();
+    };
+    document.addEventListener(
+      'pointermove',
+      this._onPropertiesPanelPointerMove
+    );
+    document.addEventListener(
+      'pointerup',
+      this._onPropertiesPanelPointerEnd
+    );
+    document.addEventListener(
+      'pointercancel',
+      this._onPropertiesPanelPointerEnd
+    );
+  };
+
+  Diagram.prototype._unbindPropertiesPanelInteraction = function() {
+    if (!this._onPropertiesPanelPointerMove) return;
+    document.removeEventListener(
+      'pointermove',
+      this._onPropertiesPanelPointerMove
+    );
+    document.removeEventListener(
+      'pointerup',
+      this._onPropertiesPanelPointerEnd
+    );
+    document.removeEventListener(
+      'pointercancel',
+      this._onPropertiesPanelPointerEnd
+    );
+    this._onPropertiesPanelPointerMove = null;
+    this._onPropertiesPanelPointerEnd = null;
   };
 
   Diagram.prototype._eventPoint = function(event) {
@@ -1690,8 +4695,14 @@ export function createDiagramFactory(
     var connectionPoint = event.target.closest('[data-diagram-connection-point]');
     var resizeHandle = event.target.closest('[data-diagram-resize]');
     var nodeElement = event.target.closest('[data-diagram-node]');
+    var nodeTextElement = event.target.closest('[data-diagram-node-text]');
     var connectorElement = event.target.closest('[data-diagram-connector]');
+    var connectNodeElement = nodeElement || connectionPoint || resizeHandle;
     var node;
+    var connector;
+    var from;
+    var to;
+    var geometry;
     var point;
     var additive;
     var selectedIds;
@@ -1699,12 +4710,38 @@ export function createDiagramFactory(
     var isDoubleClick;
     if (
       event.button !== 0 ||
-      this.options.disabled ||
-      this.options.readOnly
+      this.options.disabled
     ) return;
+    this.hostElement.focus({ preventScroll: true });
+    if (this.options.readOnly) return;
     if (this._inlineTextEditor) this._closeInlineTextEditor(true);
     point = this._eventPoint(event);
     additive = event.shiftKey || event.ctrlKey || event.metaKey;
+    if (this._connectMode) {
+      event.preventDefault();
+      if (!connectNodeElement) return;
+      node = this.getNode(connectNodeElement.getAttribute('data-node-id'));
+      if (!node) return;
+      this._connectSourceId = node.id;
+      this._interaction = {
+        pointerId: event.pointerId,
+        type: 'connect',
+        connectorType: this._connectType,
+        autoConnect: true,
+        nodeId: node.id,
+        sourcePoint: '',
+        pointerStartPoint: point,
+        startPoint: point,
+        currentPoint: point,
+        targetNodeId: '',
+        targetPoint: '',
+        changed: false
+      };
+      this.hostElement.classList.add('fui-diagram-interacting');
+      this._bindDocumentInteraction();
+      this._renderCanvas();
+      return;
+    }
     if (connectionPoint) {
       node = this.getNode(connectionPoint.getAttribute('data-node-id'));
       if (!node) return;
@@ -1712,7 +4749,8 @@ export function createDiagramFactory(
       this._interaction = {
         pointerId: event.pointerId,
         type: 'connect',
-        connectorType: this._connectMode ? this._connectType : 'orthogonal',
+        connectorType: 'orthogonal',
+        autoConnect: false,
         nodeId: node.id,
         sourcePoint: connectionPoint.getAttribute('data-diagram-connection-point'),
         startPoint: getDiagramConnectionPoint(
@@ -1729,7 +4767,38 @@ export function createDiagramFactory(
       this._renderCanvas();
       return;
     }
-    if (connectorElement) return;
+    if (connectorElement) {
+      connector = this.getConnector(
+        connectorElement.getAttribute('data-connector-id')
+      );
+      if (!connector) return;
+      from = this.getNode(connector.from);
+      to = this.getNode(connector.to);
+      if (!from || !to) return;
+      event.preventDefault();
+      this.selectItem('connector', connector.id);
+      geometry = calculateDiagramConnectorPath(
+        from,
+        to,
+        connector.type,
+        connector.fromPoint,
+        connector.toPoint,
+        connector.controlX,
+        connector.controlY
+      );
+      this._interaction = {
+        pointerId: event.pointerId,
+        type: 'connector-drag',
+        connectorId: connector.id,
+        startPoint: point,
+        startConnector: diagramAssign({}, connector),
+        startGeometry: geometry,
+        changed: false
+      };
+      this.hostElement.classList.add('fui-diagram-interacting');
+      this._bindDocumentInteraction();
+      return;
+    }
     if (!resizeHandle && !nodeElement) {
       now = Date.now();
       isDoubleClick = this._lastItemClick &&
@@ -1745,20 +4814,33 @@ export function createDiagramFactory(
         return;
       }
       event.preventDefault();
-      this._interaction = {
-        pointerId: event.pointerId,
-        type: 'marquee',
-        startPoint: point,
-        currentPoint: point,
-        startSelection: this._selectedNodeIds.slice(),
-        additive: additive,
-        changed: false
-      };
       if (!additive) {
         this._selected = null;
         this._selectedNodeIds = [];
         this._renderCanvas();
         this._renderProperties();
+      }
+      if (this._viewportCanPan() && !additive) {
+        this._interaction = {
+          pointerId: event.pointerId,
+          type: 'pan',
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+          startScrollLeft: this.viewportElement.scrollLeft,
+          startScrollTop: this.viewportElement.scrollTop,
+          changed: false
+        };
+        this.hostElement.classList.add('fui-diagram-panning');
+      } else {
+        this._interaction = {
+          pointerId: event.pointerId,
+          type: 'marquee',
+          startPoint: point,
+          currentPoint: point,
+          startSelection: this._selectedNodeIds.slice(),
+          additive: additive,
+          changed: false
+        };
       }
       this.hostElement.classList.add('fui-diagram-interacting');
       this._bindDocumentInteraction();
@@ -1774,10 +4856,12 @@ export function createDiagramFactory(
       this._lastItemClick &&
       this._lastItemClick.type === 'node' &&
       this._lastItemClick.id === node.id &&
+      this._lastItemClick.onText === Boolean(nodeTextElement) &&
       now - this._lastItemClick.time <= 450;
     this._lastItemClick = isDoubleClick ? null : {
       type: 'node',
       id: node.id,
+      onText: Boolean(nodeTextElement),
       time: now
     };
     if (isDoubleClick) {
@@ -1786,6 +4870,13 @@ export function createDiagramFactory(
         itemType: 'node',
         item: node
       });
+      if (nodeTextElement && normalizeDiagramHyperlink(node.hyperlink)) {
+        if (diagramNodeHyperlinkMatchesTrigger(node, 'dblclick')) {
+          this._openNodeHyperlink(node);
+        }
+        this._suppressClick = true;
+        return;
+      }
       this._beginNodeTextEdit(node.id);
       this._suppressClick = true;
       return;
@@ -1817,6 +4908,10 @@ export function createDiagramFactory(
       startNodes: this._selectedNodeIds.map(function(id) {
         return diagramAssign({}, this.getNode(id));
       }, this),
+      hyperlinkTrigger: nodeTextElement &&
+        diagramNodeHyperlinkMatchesTrigger(node, 'click') ?
+        'click' :
+        '',
       changed: false
     };
     this.hostElement.classList.add('fui-diagram-interacting');
@@ -1846,18 +4941,45 @@ export function createDiagramFactory(
     this._onDocumentPointerEnd = null;
   };
 
+  Diagram.prototype._viewportCanPan = function() {
+    return diagramViewportCanPan(
+      this.viewportElement.scrollWidth,
+      this.viewportElement.scrollHeight,
+      this.viewportElement.clientWidth,
+      this.viewportElement.clientHeight
+    );
+  };
+
   Diagram.prototype._handlePointerMove = function(event) {
     var state = this._interaction;
     var node;
+    var connector;
     var point;
     var dx;
     var dy;
+    var controlX;
+    var controlY;
     var resized;
     var rect;
     var selectedIds;
     var target;
+    var targetNode;
+    var connectionPoints;
+    var alignment;
     if (!state || event.pointerId !== state.pointerId) return;
     event.preventDefault();
+    if (state.type === 'pan') {
+      this.viewportElement.scrollLeft = state.startScrollLeft -
+        (event.clientX - state.startClientX);
+      this.viewportElement.scrollTop = state.startScrollTop -
+        (event.clientY - state.startClientY);
+      state.changed = Math.abs(
+        this.viewportElement.scrollLeft - state.startScrollLeft
+      ) > 1 || Math.abs(
+        this.viewportElement.scrollTop - state.startScrollTop
+      ) > 1;
+      return;
+    }
     point = this._eventPoint(event);
     if (state.type === 'marquee') {
       state.currentPoint = point;
@@ -1888,17 +5010,55 @@ export function createDiagramFactory(
     if (state.type === 'connect') {
       state.currentPoint = point;
       target = document.elementFromPoint(event.clientX, event.clientY);
-      target = target && target.closest ?
-        target.closest('[data-diagram-connection-point]') :
-        null;
+      target = target && target.closest ? target.closest(
+        state.autoConnect ?
+          '[data-diagram-node], [data-node-id]' :
+          '[data-diagram-connection-point]'
+      ) : null;
       state.targetNodeId = target ? target.getAttribute('data-node-id') : '';
-      state.targetPoint = target ?
+      state.targetPoint = target && !state.autoConnect ?
         target.getAttribute('data-diagram-connection-point') :
         '';
       if (state.targetNodeId === state.nodeId) {
         state.targetNodeId = '';
         state.targetPoint = '';
       }
+      if (state.autoConnect && state.targetNodeId) {
+        node = this.getNode(state.nodeId);
+        targetNode = this.getNode(state.targetNodeId);
+        if (node && targetNode) {
+          connectionPoints = findBestDiagramConnectionPoints(node, targetNode);
+          state.startPoint = connectionPoints.start;
+          state.currentPoint = connectionPoints.end;
+        }
+      } else if (state.autoConnect) {
+        state.startPoint = state.pointerStartPoint;
+        state.currentPoint = point;
+      }
+      state.changed = true;
+      this._renderCanvas();
+      return;
+    }
+    if (state.type === 'connector-drag') {
+      connector = this.getConnector(state.connectorId);
+      if (!connector) return;
+      dx = point.x - state.startPoint.x;
+      dy = point.y - state.startPoint.y;
+      if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) return;
+      controlX = state.startGeometry.control.x;
+      controlY = state.startGeometry.control.y;
+      if (connector.type === 'curved') {
+        controlX += dx * 2;
+        controlY += dy * 2;
+      } else if (connector.type === 'orthogonal') {
+        if (state.startGeometry.orientation === 'horizontal') controlX += dx;
+        else controlY += dy;
+      } else {
+        controlX += dx;
+        controlY += dy;
+      }
+      connector.controlX = this._snap(controlX);
+      connector.controlY = this._snap(controlY);
       state.changed = true;
       this._renderCanvas();
       return;
@@ -1914,6 +5074,22 @@ export function createDiagramFactory(
         current.x = this._snap(startNode.x + dx);
         current.y = this._snap(startNode.y + dy);
       }, this);
+      alignment = calculateDiagramMoveAlignment(
+        this._data.nodes,
+        this._data.connectors,
+        state.startNodes.map(function(startNode) {
+          return startNode.id;
+        }),
+        Math.max(5, Math.min(16, this.options.gridSize * 0.75))
+      );
+      if (alignment.x || alignment.y) {
+        state.startNodes.forEach(function(startNode) {
+          var current = this.getNode(startNode.id);
+          if (!current) return;
+          current.x += alignment.x;
+          current.y += alignment.y;
+        }, this);
+      }
     } else {
       resized = calculateDiagramNodeResize(
         state.startNode,
@@ -1935,26 +5111,36 @@ export function createDiagramFactory(
   Diagram.prototype._finishPointerInteraction = function(event) {
     var state = this._interaction;
     var node;
+    var connector;
     var target;
+    var connectorData;
     var changedSelection;
     if (!state || event.pointerId !== state.pointerId) return;
     if (state.type === 'connect' && event.type !== 'pointercancel') {
       target = document.elementFromPoint(event.clientX, event.clientY);
-      target = target && target.closest ?
-        target.closest('[data-diagram-connection-point]') :
-        null;
+      target = target && target.closest ? target.closest(
+        state.autoConnect ?
+          '[data-diagram-node], [data-node-id]' :
+          '[data-diagram-connection-point]'
+      ) : null;
       if (target) {
         state.targetNodeId = target.getAttribute('data-node-id');
-        state.targetPoint = target.getAttribute('data-diagram-connection-point');
+        state.targetPoint = state.autoConnect ?
+          '' :
+          target.getAttribute('data-diagram-connection-point');
       }
       if (state.targetNodeId && state.targetNodeId !== state.nodeId) {
-        this.addConnector({
+        connectorData = {
           from: state.nodeId,
           to: state.targetNodeId,
-          fromPoint: state.sourcePoint,
-          toPoint: state.targetPoint,
           type: state.connectorType
-        });
+        };
+        if (!state.autoConnect) {
+          connectorData.fromPoint = state.sourcePoint;
+          connectorData.toPoint = state.targetPoint;
+        }
+        this.addConnector(connectorData);
+        if (state.autoConnect) this.setConnectMode(false);
       }
     }
     if (state.type === 'marquee') {
@@ -1963,6 +5149,14 @@ export function createDiagramFactory(
     }
     node = this.getNode(state.nodeId);
     if (event.type === 'pointercancel') {
+      if (state.startConnector) {
+        connector = this.getConnector(state.startConnector.id);
+        if (connector) {
+          delete connector.controlX;
+          delete connector.controlY;
+          diagramAssign(connector, state.startConnector);
+        }
+      }
       if (state.startNodes) {
         state.startNodes.forEach(function(startNode) {
           var current = this.getNode(startNode.id);
@@ -1976,16 +5170,42 @@ export function createDiagramFactory(
           id: this._selectedNodeIds[this._selectedNodeIds.length - 1]
         } : null;
       }
+      if (state.type === 'pan') {
+        this.viewportElement.scrollLeft = state.startScrollLeft;
+        this.viewportElement.scrollTop = state.startScrollTop;
+      }
       this._renderCanvas();
     }
     this._interaction = null;
-    this.hostElement.classList.remove('fui-diagram-interacting');
+    this.hostElement.classList.remove(
+      'fui-diagram-interacting',
+      'fui-diagram-panning'
+    );
     this._unbindDocumentInteraction();
-    if (event.type !== 'pointercancel' && state.type === 'marquee') {
+    if (event.type !== 'pointercancel' && state.type === 'pan') {
+      if (state.changed) {
+        this._lastItemClick = null;
+        this._suppressClick = true;
+      }
+    } else if (event.type !== 'pointercancel' && state.type === 'marquee') {
       if (state.changed) this._suppressClick = true;
       if (changedSelection) this._fireSelectionChanged();
       this._renderCanvas();
       this._renderProperties();
+    } else if (
+      event.type !== 'pointercancel' &&
+      state.type === 'move' &&
+      !state.changed &&
+      state.hyperlinkTrigger === 'click' &&
+      node
+    ) {
+      this._lastItemClick = null;
+      this._suppressClick = true;
+      this._fire('ItemClick', {
+        itemType: 'node',
+        item: node
+      });
+      this._openNodeHyperlink(node);
     } else if (
       event.type !== 'pointercancel' &&
       (state.type === 'move' || state.type === 'resize') &&
@@ -1999,7 +5219,21 @@ export function createDiagramFactory(
         items: this._selectedNodeIds.map(this.getNode.bind(this))
       });
       this._renderProperties();
+    } else if (
+      event.type !== 'pointercancel' &&
+      state.type === 'connector-drag' &&
+      state.changed
+    ) {
+      connector = this.getConnector(state.connectorId);
+      this._lastItemClick = null;
+      this._suppressClick = true;
+      this._commit('change', {
+        itemType: 'connector',
+        item: connector
+      });
+      this._renderProperties();
     } else if (state.type === 'connect') {
+      this._connectSourceId = '';
       this._suppressClick = true;
       this._renderCanvas();
     }
@@ -2007,8 +5241,10 @@ export function createDiagramFactory(
 
   Diagram.prototype._handleSvgClick = function(event) {
     var nodeElement = event.target.closest('[data-diagram-node]');
+    var nodeTextElement = event.target.closest('[data-diagram-node-text]');
     var connectorElement = event.target.closest('[data-diagram-connector]');
     var id;
+    var node;
     var now;
     var isDoubleClick;
     if (this._suppressClick) {
@@ -2017,14 +5253,26 @@ export function createDiagramFactory(
     }
     if (event.target.closest('[data-diagram-connection-point]')) return;
     if (nodeElement) {
-      this._lastItemClick = null;
       id = nodeElement.getAttribute('data-node-id');
       if (this._connectMode) {
         this._handleConnectNode(id);
         return;
       }
       this.selectItem('node', id);
-      this._fire('ItemClick', { itemType: 'node', item: this.getNode(id) });
+      node = this.getNode(id);
+      this._fire('ItemClick', { itemType: 'node', item: node });
+      if (
+        nodeTextElement &&
+        diagramNodeHyperlinkMatchesTrigger(node, 'click')
+      ) {
+        this._lastItemClick = null;
+        this._openNodeHyperlink(node);
+      } else if (
+        !nodeTextElement ||
+        !diagramNodeHyperlinkMatchesTrigger(node, 'dblclick')
+      ) {
+        this._lastItemClick = null;
+      }
       return;
     }
     if (connectorElement) {
@@ -2058,6 +5306,7 @@ export function createDiagramFactory(
 
   Diagram.prototype._handleSvgDblClick = function(event) {
     var nodeElement = event.target.closest('[data-diagram-node]');
+    var nodeTextElement = event.target.closest('[data-diagram-node-text]');
     var connectorElement = event.target.closest('[data-diagram-connector]');
     var type;
     var id;
@@ -2073,6 +5322,12 @@ export function createDiagramFactory(
         event.preventDefault();
         this._openPaperSettings();
       }
+      return;
+    }
+    if (nodeTextElement && nodeTextElement.classList.contains(
+      'fui-diagram-node-text-linked'
+    )) {
+      event.preventDefault();
       return;
     }
     type = nodeElement ? 'node' : 'connector';
@@ -2110,6 +5365,7 @@ export function createDiagramFactory(
     state.host.removeEventListener('keydown', state.onKeyDown);
     state.sizeControl.dispose();
     state.orientationControl.dispose();
+    state.snapSizeControl.dispose();
     state.applyButton.dispose();
     state.cancelButton.dispose();
     state.window.destroy(true);
@@ -2127,6 +5383,9 @@ export function createDiagramFactory(
     var orientationRow;
     var orientationLabel;
     var orientationInput;
+    var snapSizeRow;
+    var snapSizeLabel;
+    var snapSizeInput;
     var footer;
     var applyHost;
     var cancelHost;
@@ -2140,6 +5399,9 @@ export function createDiagramFactory(
       orientationRow = document.createElement('label');
       orientationLabel = document.createElement('span');
       orientationInput = document.createElement('input');
+      snapSizeRow = document.createElement('label');
+      snapSizeLabel = document.createElement('span');
+      snapSizeInput = document.createElement('input');
       footer = document.createElement('div');
       applyHost = document.createElement('a');
       cancelHost = document.createElement('a');
@@ -2149,17 +5411,23 @@ export function createDiagramFactory(
       sizeLabel.className = 'fui-diagram-paper-label';
       orientationRow.className = 'fui-diagram-paper-field';
       orientationLabel.className = 'fui-diagram-paper-label';
+      snapSizeRow.className = 'fui-diagram-paper-field';
+      snapSizeLabel.className = 'fui-diagram-paper-label';
       footer.className = 'fui-diagram-paper-actions';
       applyHost.href = 'javascript:void(0)';
       cancelHost.href = 'javascript:void(0)';
       sizeLabel.textContent = this.messages.paperSize;
       orientationLabel.textContent = this.messages.paperOrientation;
+      snapSizeLabel.textContent = this.messages.snapSize;
       sizeRow.appendChild(sizeLabel);
       sizeRow.appendChild(sizeInput);
       orientationRow.appendChild(orientationLabel);
       orientationRow.appendChild(orientationInput);
+      snapSizeRow.appendChild(snapSizeLabel);
+      snapSizeRow.appendChild(snapSizeInput);
       form.appendChild(sizeRow);
       form.appendChild(orientationRow);
+      form.appendChild(snapSizeRow);
       host.appendChild(form);
       footer.appendChild(applyHost);
       footer.appendChild(cancelHost);
@@ -2168,6 +5436,7 @@ export function createDiagramFactory(
         host: host,
         sizeLabel: sizeLabel,
         orientationLabel: orientationLabel,
+        snapSizeLabel: snapSizeLabel,
         sizeControl: new EditBox(sizeInput, {
           editor: 'combo',
           width: '100%',
@@ -2189,6 +5458,13 @@ export function createDiagramFactory(
           ],
           theme: this.theme
         }),
+        snapSizeControl: new EditBox(snapSizeInput, {
+          editor: 'number',
+          width: '100%',
+          min: 5,
+          precision: 0,
+          theme: this.theme
+        }),
         applyButton: null,
         cancelButton: null,
         window: null,
@@ -2200,7 +5476,8 @@ export function createDiagramFactory(
         onClick: function() {
           self.setPaper(
             state.sizeControl.getValue(),
-            state.orientationControl.getValue()
+            state.orientationControl.getValue(),
+            state.snapSizeControl.getValue()
           );
           state.window.close(true);
         }
@@ -2215,9 +5492,9 @@ export function createDiagramFactory(
       state.window = new Window(host, {
         title: this.messages.paperSettings,
         width: 360,
-        height: 220,
+        height: 260,
         minWidth: 320,
-        minHeight: 200,
+        minHeight: 240,
         modal: true,
         draggable: true,
         resizable: false,
@@ -2249,6 +5526,7 @@ export function createDiagramFactory(
     }
     state.sizeControl.setValue(this.options.paperSize);
     state.orientationControl.setValue(this.options.paperOrientation);
+    state.snapSizeControl.setValue(this.options.gridSize);
     state.window.open().center();
     state.sizeControl.textbox().focus();
     return this;
@@ -2264,8 +5542,18 @@ export function createDiagramFactory(
     var to;
     var geometry;
     var zoom;
+    var svgOffset;
     var index;
+    var textBox;
     if (!state) return;
+    svgOffset = calculateDiagramViewportOffset(
+      this.viewportElement.getBoundingClientRect(),
+      this.svgElement.getBoundingClientRect(),
+      this.viewportElement.scrollLeft,
+      this.viewportElement.scrollTop,
+      this.viewportElement.clientLeft,
+      this.viewportElement.clientTop
+    );
     if (state.itemType === 'node') {
       node = this.getNode(state.itemId);
       if (!node) {
@@ -2273,19 +5561,20 @@ export function createDiagramFactory(
         return;
       }
       zoom = this.options.zoomLevel;
+      textBox = diagramNodeTextBox(node);
       state.host.style.width = Math.max(
         24,
-        node.width * zoom - 8
+        textBox.width * zoom - 8
       ) + 'px';
       state.host.style.height = Math.max(
         22,
-        node.height * zoom - 8
+        textBox.height * zoom - 8
       ) + 'px';
       state.host.style.left = Math.round(
-        (node.x + node.width / 2) * zoom
+        svgOffset.x + textBox.x * zoom
       ) + 'px';
       state.host.style.top = Math.round(
-        (node.y + node.height / 2) * zoom
+        svgOffset.y + textBox.y * zoom
       ) + 'px';
       state.host.style.setProperty(
         '--fui-diagram-inline-font-size',
@@ -2329,13 +5618,19 @@ export function createDiagramFactory(
       to,
       connector.type,
       connector.fromPoint,
-      connector.toPoint
+      connector.toPoint,
+      connector.controlX,
+      connector.controlY
     );
     state.host.style.width = '180px';
     state.host.style.left =
-      Math.round(geometry.label.x * this.options.zoomLevel) + 'px';
+      Math.round(
+        svgOffset.x + geometry.label.x * this.options.zoomLevel
+      ) + 'px';
     state.host.style.top =
-      Math.round(geometry.label.y * this.options.zoomLevel) + 'px';
+      Math.round(
+        svgOffset.y + geometry.label.y * this.options.zoomLevel
+      ) + 'px';
   };
 
   Diagram.prototype._beginInlineTextEdit = function(type, id) {
@@ -2493,13 +5788,22 @@ export function createDiagramFactory(
     var delta = event.shiftKey ? 10 : 1;
     var modifier = event.ctrlKey || event.metaKey;
     if (this.options.disabled) return;
-    if (modifier && String(event.key).toLowerCase() === 'z') {
+    if (diagramEventTargetsInteractiveControl(event, this.hostElement)) return;
+    if (
+      !this.options.readOnly &&
+      modifier &&
+      String(event.key).toLowerCase() === 'z'
+    ) {
       event.preventDefault();
       if (event.shiftKey) this.redo();
       else this.undo();
       return;
     }
-    if (modifier && String(event.key).toLowerCase() === 'y') {
+    if (
+      !this.options.readOnly &&
+      modifier &&
+      String(event.key).toLowerCase() === 'y'
+    ) {
       event.preventDefault();
       this.redo();
       return;
@@ -2536,6 +5840,23 @@ export function createDiagramFactory(
       items: selectedNodes
     });
     this._renderProperties();
+  };
+
+  Diagram.prototype._handleViewportWheel = function(event) {
+    var delta;
+    var factor;
+    if (this.options.disabled || !event.deltaY) return;
+    event.preventDefault();
+    delta = event.deltaY;
+    if (event.deltaMode === 1) delta *= 16;
+    else if (event.deltaMode === 2) delta *= this.viewportElement.clientHeight;
+    delta = diagramClamp(delta, -100, 100);
+    factor = Math.pow(2, -delta / 500);
+    this._setZoomAtPoint(
+      this.options.zoomLevel * factor,
+      event.clientX,
+      event.clientY
+    );
   };
 
   Diagram.prototype._createShapeElement = function(node) {
@@ -2636,6 +5957,38 @@ export function createDiagramFactory(
           ' M ' + node.x + ' ' + (node.y + node.height) +
           ' H ' + (node.x + node.width),
         fill: 'none'
+      }));
+    } else if (node.type.indexOf('orgChart') === 0) {
+      shape = createDiagramSvgElement('g');
+      shape.appendChild(createDiagramSvgElement('rect', {
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+        rx: Math.min(8, node.width * 0.06),
+        ry: Math.min(8, node.height * 0.08),
+        class: 'fui-diagram-org-card'
+      }));
+      shape.appendChild(createDiagramSvgElement('rect', {
+        x: node.type === 'orgChartImageRight' ?
+          node.x + node.width * 0.62 :
+          node.type === 'orgChartImageTop' ?
+            node.x + node.width * 0.26 :
+            node.x + node.width * 0.06,
+        y: node.type === 'orgChartImageTop' ?
+          node.y + node.height * 0.07 :
+          node.y + node.height * 0.14,
+        width: node.type === 'orgChartImageTop' ?
+          node.width * 0.48 :
+          node.width * 0.32,
+        height: node.type === 'orgChartImageTop' ?
+          node.height * 0.44 :
+          node.height * 0.72,
+        rx: Math.min(5, node.width * 0.03),
+        ry: Math.min(5, node.height * 0.05),
+        fill: node.stroke,
+        stroke: 'none',
+        class: 'fui-diagram-org-image'
       }));
     } else if (node.type === 'multipleDocuments') {
       shape = createDiagramSvgElement('g');
@@ -2884,18 +6237,55 @@ export function createDiagramFactory(
     return shape;
   };
 
+  Diagram.prototype._createOrgChartPreviewLines = function(node) {
+    var imageOnTop = node.type === 'orgChartImageTop';
+    var imageOnRight = node.type === 'orgChartImageRight';
+    var startX = imageOnTop ?
+      node.x + node.width * 0.18 :
+      imageOnRight ?
+        node.x + node.width * 0.08 :
+        node.x + node.width * 0.46;
+    var endX = imageOnTop ?
+      node.x + node.width * 0.82 :
+      imageOnRight ?
+        node.x + node.width * 0.54 :
+        node.x + node.width * 0.92;
+    var startY = imageOnTop ?
+      node.y + node.height * 0.62 :
+      node.y + node.height * 0.34;
+    var gap = imageOnTop ? node.height * 0.11 : node.height * 0.18;
+    return createDiagramSvgElement('path', {
+      d: 'M ' + startX + ' ' + startY + ' H ' + endX +
+        ' M ' + startX + ' ' + (startY + gap) + ' H ' + endX +
+        ' M ' + startX + ' ' + (startY + gap * 2) +
+        ' H ' + (startX + (endX - startX) * 0.72),
+      fill: 'none',
+      stroke: 'currentColor',
+      'stroke-width': 2.5,
+      opacity: 0.38,
+      class: 'fui-diagram-org-preview-lines'
+    });
+  };
+
   Diagram.prototype._renderNodeText = function(group, node) {
     var source = String(node.text || '');
+    var textBox = diagramNodeTextBox(node);
     var text = createDiagramSvgElement('text', {
-      x: node.x + node.width / 2,
-      y: node.y + node.height / 2,
+      x: textBox.x,
+      y: textBox.y,
       fill: node.textColor,
       'text-anchor': 'middle',
-      class: 'fui-diagram-node-text'
+      class: 'fui-diagram-node-text' + (
+        normalizeDiagramHyperlink(node.hyperlink) ?
+          ' fui-diagram-node-text-linked' :
+          ''
+      ),
+      'data-diagram-node-text': '',
+      'data-node-id': node.id
     });
     var paragraphs = source.split(/\r?\n/);
     var lines = [];
-    var maxChars = Math.max(8, Math.floor(node.width / 8));
+    var maxChars = Math.max(5, Math.floor(textBox.width / 8));
     paragraphs.forEach(function(paragraph) {
       var hasWhitespace = /\s/.test(paragraph);
       var words = hasWhitespace ? paragraph.split(/\s+/) : paragraph.split('');
@@ -2919,7 +6309,7 @@ export function createDiagramFactory(
     lines = lines.slice(0, 4);
     lines.forEach(function(value, index) {
       var tspan = createDiagramSvgElement('tspan', {
-        x: node.x + node.width / 2,
+        x: textBox.x,
         dy: index === 0 ? (-(lines.length - 1) * 8) : 18
       });
       tspan.textContent = value;
@@ -2991,6 +6381,10 @@ export function createDiagramFactory(
     var svg = this.svgElement;
     var previewCurve;
     var previewPath;
+    var selectedConnector;
+    var selectedFrom;
+    var selectedTo;
+    var selectedGeometry;
     var defs = createDiagramSvgElement('defs');
     var pattern = createDiagramSvgElement('pattern', {
       id: 'fui-diagram-grid-' + this._instanceId,
@@ -3045,6 +6439,10 @@ export function createDiagramFactory(
     var selectionLayer = createDiagramSvgElement('g', {
       class: 'fui-diagram-selection'
     });
+    svg.setAttribute(
+      'viewBox',
+      '0 0 ' + this.options.pageWidth + ' ' + this.options.pageHeight
+    );
     svg.textContent = '';
     pattern.appendChild(gridBackground);
     pattern.appendChild(gridPath);
@@ -3067,7 +6465,9 @@ export function createDiagramFactory(
         to,
         connector.type,
         connector.fromPoint,
-        connector.toPoint
+        connector.toPoint,
+        connector.controlX,
+        connector.controlY
       );
       group = createDiagramSvgElement('g', {
         class: 'fui-diagram-connector' +
@@ -3090,7 +6490,14 @@ export function createDiagramFactory(
         stroke: connector.stroke,
         'stroke-width': connector.strokeWidth,
         'stroke-dasharray': connector.lineStyle === 'dashed' ? '7 5' : '',
-        'marker-end': 'url(#fui-diagram-arrow-' + self._instanceId + ')'
+        'marker-start': connector.arrowDirection === 'start' ||
+          connector.arrowDirection === 'both' ?
+          'url(#fui-diagram-arrow-' + self._instanceId + ')' :
+          '',
+        'marker-end': connector.arrowDirection === 'end' ||
+          connector.arrowDirection === 'both' ?
+          'url(#fui-diagram-arrow-' + self._instanceId + ')' :
+          ''
       });
       group.appendChild(hitPath);
       group.appendChild(path);
@@ -3106,6 +6513,38 @@ export function createDiagramFactory(
       }
       connectorLayer.appendChild(group);
     });
+    if (
+      this._selected &&
+      this._selected.type === 'connector' &&
+      !this.options.readOnly
+    ) {
+      selectedConnector = this.getConnector(this._selected.id);
+      selectedFrom = selectedConnector ?
+        this.getNode(selectedConnector.from) :
+        null;
+      selectedTo = selectedConnector ?
+        this.getNode(selectedConnector.to) :
+        null;
+      if (selectedConnector && selectedFrom && selectedTo) {
+        selectedGeometry = calculateDiagramConnectorPath(
+          selectedFrom,
+          selectedTo,
+          selectedConnector.type,
+          selectedConnector.fromPoint,
+          selectedConnector.toPoint,
+          selectedConnector.controlX,
+          selectedConnector.controlY
+        );
+        selectionLayer.appendChild(createDiagramSvgElement('circle', {
+          cx: selectedGeometry.label.x,
+          cy: selectedGeometry.label.y,
+          r: 6,
+          class: 'fui-diagram-connector-control',
+          'data-diagram-connector': '',
+          'data-connector-id': selectedConnector.id
+        }));
+      }
+    }
     this._data.nodes.forEach(function(node) {
       var group = createDiagramSvgElement('g', {
         class: 'fui-diagram-node' +
@@ -3172,6 +6611,10 @@ export function createDiagramFactory(
     svg.appendChild(selectionLayer);
     svg.style.width = Math.round(this.options.pageWidth * this.options.zoomLevel) + 'px';
     svg.style.height = Math.round(this.options.pageHeight * this.options.zoomLevel) + 'px';
+    this.viewportElement.classList.toggle(
+      'fui-diagram-viewport-pannable',
+      this._viewportCanPan()
+    );
     this._positionInlineTextEditor();
     this._syncToolbarStates();
   };
@@ -3183,7 +6626,14 @@ export function createDiagramFactory(
     this._propertyEditors = [];
   };
 
-  Diagram.prototype._propertyField = function(label, item, key, editor, options) {
+  Diagram.prototype._propertyField = function(
+    label,
+    item,
+    key,
+    editor,
+    options,
+    container
+  ) {
     var self = this;
     var row = document.createElement('label');
     var caption = document.createElement('span');
@@ -3195,7 +6645,7 @@ export function createDiagramFactory(
     input.value = item[key] == null ? '' : String(item[key]);
     row.appendChild(caption);
     row.appendChild(input);
-    this.propertiesBodyElement.appendChild(row);
+    (container || this.propertiesBodyElement).appendChild(row);
     control = new EditBox(input, diagramAssign({
       editor: editor,
       width: '100%',
@@ -3206,6 +6656,12 @@ export function createDiagramFactory(
           value = diagramNumber(value, item[key]);
           if (key === 'width') value = Math.max(40, value);
           if (key === 'height') value = Math.max(30, value);
+        }
+        if (key === 'hyperlink') {
+          value = String(value == null ? '' : value).trim();
+        }
+        if (key === 'hyperlinkTrigger') {
+          value = normalizeDiagramHyperlinkTrigger(value);
         }
         item[key] = value;
         self._renderCanvas();
@@ -3220,6 +6676,8 @@ export function createDiagramFactory(
 
   Diagram.prototype._renderProperties = function() {
     var item;
+    var positionFields;
+    var sizeFields;
     this._disposePropertyEditors();
     this.propertiesBodyElement.textContent = '';
     if (!this._selected) {
@@ -3242,10 +6700,70 @@ export function createDiagramFactory(
     }
     this._propertyField(this.messages.text, item, 'text', 'text');
     if (this._selected.type === 'node') {
-      this._propertyField(this.messages.x, item, 'x', 'number', { precision: 0 });
-      this._propertyField(this.messages.y, item, 'y', 'number', { precision: 0 });
-      this._propertyField(this.messages.width, item, 'width', 'number', { precision: 0, min: 40 });
-      this._propertyField(this.messages.height, item, 'height', 'number', { precision: 0, min: 30 });
+      this._propertyField(
+        this.messages.hyperlink,
+        item,
+        'hyperlink',
+        'text'
+      );
+      this._propertyField(
+        this.messages.hyperlinkTrigger,
+        item,
+        'hyperlinkTrigger',
+        'combo',
+        {
+          editable: false,
+          limitToList: true,
+          data: [
+            {
+              value: 'click',
+              text: this.messages.hyperlinkSingleClick
+            },
+            {
+              value: 'dblclick',
+              text: this.messages.hyperlinkDoubleClick
+            }
+          ]
+        }
+      );
+      positionFields = document.createElement('div');
+      positionFields.className = 'fui-diagram-property-pair';
+      this.propertiesBodyElement.appendChild(positionFields);
+      this._propertyField(
+        this.messages.x,
+        item,
+        'x',
+        'number',
+        { precision: 0 },
+        positionFields
+      );
+      this._propertyField(
+        this.messages.y,
+        item,
+        'y',
+        'number',
+        { precision: 0 },
+        positionFields
+      );
+      sizeFields = document.createElement('div');
+      sizeFields.className = 'fui-diagram-property-pair';
+      this.propertiesBodyElement.appendChild(sizeFields);
+      this._propertyField(
+        this.messages.width,
+        item,
+        'width',
+        'number',
+        { precision: 0, min: 40 },
+        sizeFields
+      );
+      this._propertyField(
+        this.messages.height,
+        item,
+        'height',
+        'number',
+        { precision: 0, min: 30 },
+        sizeFields
+      );
       this._propertyField(this.messages.fill, item, 'fill', 'color');
       this._propertyField(this.messages.stroke, item, 'stroke', 'color');
     } else {
@@ -3258,6 +6776,22 @@ export function createDiagramFactory(
           { value: 'dashed', text: this.messages.dashed }
         ]
       });
+      this._propertyField(
+        this.messages.arrowDirection,
+        item,
+        'arrowDirection',
+        'combo',
+        {
+          editable: false,
+          limitToList: true,
+          data: [
+            { value: 'none', text: this.messages.arrowNone },
+            { value: 'end', text: this.messages.arrowEnd },
+            { value: 'start', text: this.messages.arrowStart },
+            { value: 'both', text: this.messages.arrowBoth }
+          ]
+        }
+      );
     }
   };
 
@@ -3265,20 +6799,64 @@ export function createDiagramFactory(
     var undo = this._toolbarButtons.undo;
     var redo = this._toolbarButtons.redo;
     var remove = this._toolbarButtons.delete;
+    var clear = this._toolbarButtons.clear;
+    var load = this._toolbarButtons.load;
     var connect = this._toolbarButtons.connect;
+    var toolbox = this._toolbarButtons.toolbox;
     var properties = this._toolbarButtons.properties;
+    var readOnlyButton = this._toolbarButtons.readOnly;
     var grid = this._toolbarButtons.grid;
     var fullscreen = this._toolbarButtons.fullscreen;
-    if (undo) (this.canUndo() ? undo.enable() : undo.disable());
-    if (redo) (this.canRedo() ? redo.enable() : redo.disable());
-    if (remove) (this._selected ? remove.enable() : remove.disable());
+    var presentation = this._toolbarButtons.presentation;
+    var editingDisabled = this.options.disabled || this.options.readOnly;
+    if (undo) {
+      if (!editingDisabled && this.canUndo()) undo.enable();
+      else undo.disable();
+    }
+    if (redo) {
+      if (!editingDisabled && this.canRedo()) redo.enable();
+      else redo.disable();
+    }
+    if (remove) {
+      if (!editingDisabled && this._selected) remove.enable();
+      else remove.disable();
+    }
+    if (clear) {
+      if (
+        !editingDisabled &&
+        (this._data.nodes.length || this._data.connectors.length)
+      ) clear.enable();
+      else clear.disable();
+    }
+    if (load) {
+      if (editingDisabled) load.disable();
+      else load.enable();
+    }
     if (connect) {
+      if (editingDisabled) connect.disable();
+      else connect.enable();
       if (this._connectMode) connect.select(true);
       else connect.unselect(true);
     }
+    if (toolbox) {
+      if (editingDisabled) toolbox.disable();
+      else toolbox.enable();
+      if (this.options.toolbox && !this.options.readOnly) toolbox.select(true);
+      else toolbox.unselect(true);
+    }
     if (properties) {
-      if (this.options.propertiesPanel) properties.select(true);
+      if (editingDisabled) properties.disable();
+      else properties.enable();
+      if (this.options.propertiesPanel && !this.options.readOnly) {
+        properties.select(true);
+      }
       else properties.unselect(true);
+    }
+    if (readOnlyButton) {
+      if (this.options.disabled) readOnlyButton.disable();
+      else readOnlyButton.enable();
+      if (this.options.readOnly) readOnlyButton.select(true);
+      else readOnlyButton.unselect(true);
     }
     if (grid) {
       if (this.options.showGrid) grid.select(true);
@@ -3289,10 +6867,25 @@ export function createDiagramFactory(
     }
     if (fullscreen) {
       fullscreen.setText(
-        document.fullscreenElement === this.hostElement ?
+        diagramElementIsFullscreen(this.hostElement) ?
           this.messages.exitFullscreen :
           this.messages.fullscreen
       );
+    }
+    if (presentation) {
+      presentation.setText(
+        diagramElementIsFullscreen(this.viewportElement) ?
+          this.messages.exitPresentation :
+          this.messages.presentation
+      );
+    }
+    if (this._contextMenu) {
+      this._contextMenu.setText({
+        target: this._contextMenu.findItem('fullscreen').target,
+        text: diagramElementIsFullscreen(this.viewportElement) ?
+          this.messages.exitPresentation :
+          this.messages.presentation
+      });
     }
   };
 
@@ -3363,6 +6956,12 @@ export function createDiagramFactory(
       if (page.color != null) {
         this.options.pageColor = String(page.color);
       }
+      if (page.gridSize != null) {
+        this.options.gridSize = Math.max(
+          5,
+          diagramNumber(page.gridSize, this.options.gridSize)
+        );
+      }
     }
     this._data = normalizeDiagramData(data);
     this.options.nodes = this._data.nodes;
@@ -3372,6 +6971,7 @@ export function createDiagramFactory(
     this._connectSourceId = '';
     if (!preserveHistory) this._resetHistory();
     this.render();
+    if (page) this._saveToolboxState();
     return this;
   };
 
@@ -3458,6 +7058,28 @@ export function createDiagramFactory(
       itemType: selected.type,
       item: removed,
       items: removedItems || (removed ? [removed] : [])
+    });
+    this.render();
+    return this;
+  };
+
+  Diagram.prototype.clearPage = function() {
+    if (
+      this.options.readOnly ||
+      (!this._data.nodes.length && !this._data.connectors.length)
+    ) return this;
+    this._closeInlineTextEditor(false);
+    this._data = {
+      nodes: [],
+      connectors: []
+    };
+    this._selected = null;
+    this._selectedNodeIds = [];
+    this._connectMode = false;
+    this._connectSourceId = '';
+    this.hostElement.classList.remove('fui-diagram-connect-mode');
+    this._commit('clear', {
+      itemType: 'page'
     });
     this.render();
     return this;
@@ -3595,6 +7217,62 @@ export function createDiagramFactory(
     return this;
   };
 
+  Diagram.prototype._setZoomAtPoint = function(value, clientX, clientY) {
+    var viewportRect = this.viewportElement.getBoundingClientRect();
+    var svgRect = this.svgElement.getBoundingClientRect();
+    var oldZoom = this.options.zoomLevel;
+    var oldOffset = calculateDiagramViewportOffset(
+      viewportRect,
+      svgRect,
+      this.viewportElement.scrollLeft,
+      this.viewportElement.scrollTop,
+      this.viewportElement.clientLeft,
+      this.viewportElement.clientTop
+    );
+    var anchorX = diagramNumber(clientX, viewportRect.left) -
+      viewportRect.left -
+      this.viewportElement.clientLeft;
+    var anchorY = diagramNumber(clientY, viewportRect.top) -
+      viewportRect.top -
+      this.viewportElement.clientTop;
+    var nextOffset;
+    this.options.zoomLevel = diagramClamp(
+      diagramNumber(value, oldZoom),
+      this.options.minZoom,
+      this.options.maxZoom
+    );
+    if (this.options.zoomLevel === oldZoom) return this;
+    this._renderCanvas();
+    viewportRect = this.viewportElement.getBoundingClientRect();
+    svgRect = this.svgElement.getBoundingClientRect();
+    nextOffset = calculateDiagramViewportOffset(
+      viewportRect,
+      svgRect,
+      this.viewportElement.scrollLeft,
+      this.viewportElement.scrollTop,
+      this.viewportElement.clientLeft,
+      this.viewportElement.clientTop
+    );
+    this.viewportElement.scrollLeft = calculateDiagramAnchoredScroll(
+      this.viewportElement.scrollLeft,
+      anchorX,
+      oldOffset.x,
+      oldZoom,
+      nextOffset.x,
+      this.options.zoomLevel
+    );
+    this.viewportElement.scrollTop = calculateDiagramAnchoredScroll(
+      this.viewportElement.scrollTop,
+      anchorY,
+      oldOffset.y,
+      oldZoom,
+      nextOffset.y,
+      this.options.zoomLevel
+    );
+    this._positionInlineTextEditor();
+    return this;
+  };
+
   Diagram.prototype.fitToContent = function() {
     var bounds;
     var padding = 80;
@@ -3632,6 +7310,24 @@ export function createDiagramFactory(
     return this;
   };
 
+  Diagram.prototype.fitToPage = function(padding) {
+    var zoom;
+    padding = Math.max(0, diagramNumber(padding, 12));
+    zoom = calculateDiagramPageZoom(
+      this.viewportElement.clientWidth,
+      this.viewportElement.clientHeight,
+      this.options.pageWidth,
+      this.options.pageHeight,
+      padding,
+      this.options.minZoom,
+      this.options.maxZoom
+    );
+    this.setZoom(zoom);
+    this.viewportElement.scrollLeft = 0;
+    this.viewportElement.scrollTop = 0;
+    return this;
+  };
+
   Diagram.prototype.setShowGrid = function(value) {
     this.options.showGrid = diagramBoolean(value, true);
     this._renderCanvas();
@@ -3644,27 +7340,34 @@ export function createDiagramFactory(
       orientation: this.options.paperOrientation,
       width: this.options.pageWidth,
       height: this.options.pageHeight,
-      color: this.options.pageColor
+      color: this.options.pageColor,
+      gridSize: this.options.gridSize
     };
   };
 
-  Diagram.prototype.setPaper = function(size, orientation) {
+  Diagram.prototype.setPaper = function(size, orientation, gridSize) {
     var dimensions;
     var changed;
     size = normalizeDiagramPaperSize(size);
     orientation = normalizeDiagramPaperOrientation(orientation);
+    gridSize = gridSize == null ?
+      this.options.gridSize :
+      Math.max(5, diagramNumber(gridSize, this.options.gridSize));
     dimensions = getDiagramPaperDimensions(size, orientation);
     changed = this.options.paperSize !== size ||
       this.options.paperOrientation !== orientation ||
       this.options.pageWidth !== dimensions.width ||
-      this.options.pageHeight !== dimensions.height;
+      this.options.pageHeight !== dimensions.height ||
+      this.options.gridSize !== gridSize;
     this.options.paperSize = size;
     this.options.paperOrientation = orientation;
     this.options.pageWidth = dimensions.width;
     this.options.pageHeight = dimensions.height;
+    this.options.gridSize = gridSize;
     this.render();
     if (changed) {
       this.hasChanges = true;
+      this._saveToolboxState();
       this._fire('Changed', {
         action: 'pageChange',
         itemType: 'page',
@@ -3676,12 +7379,55 @@ export function createDiagramFactory(
   };
 
   Diagram.prototype.toggleFullscreen = function() {
-    if (document.fullscreenElement === this.hostElement) {
-      if (document.exitFullscreen) document.exitFullscreen();
-    } else if (this.hostElement.requestFullscreen) {
-      this.hostElement.requestFullscreen();
+    var exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+    var requestFullscreen = this.hostElement.requestFullscreen ||
+      this.hostElement.webkitRequestFullscreen;
+    if (diagramElementIsFullscreen(this.hostElement)) {
+      if (exitFullscreen) exitFullscreen.call(document);
+    } else if (requestFullscreen) {
+      requestFullscreen.call(this.hostElement);
     }
     return this;
+  };
+
+  Diagram.prototype.togglePresentationFullscreen = function() {
+    var exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+    var requestFullscreen = this.viewportElement.requestFullscreen ||
+      this.viewportElement.webkitRequestFullscreen;
+    if (diagramElementIsFullscreen(this.viewportElement)) {
+      if (exitFullscreen) exitFullscreen.call(document);
+    } else if (requestFullscreen) {
+      requestFullscreen.call(this.viewportElement);
+    }
+    return this;
+  };
+
+  Diagram.prototype.loadJsonFile = function() {
+    if (
+      this.options.disabled ||
+      this.options.readOnly ||
+      !this.jsonFileInputElement
+    ) return this;
+    this.jsonFileInputElement.click();
+    return this;
+  };
+
+  Diagram.prototype._openNodeHyperlink = function(node) {
+    var url = normalizeDiagramHyperlink(node && node.hyperlink);
+    var opened;
+    if (!url || this.options.disabled) return false;
+    if (/^javascript:/i.test(url)) {
+      window.location.href = url;
+    } else {
+      opened = window.open(url, '_blank', 'noopener,noreferrer');
+      if (opened) opened.opener = null;
+    }
+    this._fire('HyperlinkClick', {
+      itemType: 'node',
+      item: node,
+      url: url
+    });
+    return true;
   };
 
   Diagram.prototype.import = function(source) {
@@ -3700,15 +7446,27 @@ export function createDiagramFactory(
     return json;
   };
 
-  Diagram.prototype.getSvg = function() {
+  Diagram.prototype._serializeSvg = function(includeGrid) {
     var clone = this.svgElement.cloneNode(true);
+    var gridPattern = clone.querySelector(
+      'pattern[id^="fui-diagram-grid-"]'
+    );
+    var page = clone.querySelector('.fui-diagram-page');
     var selection = clone.querySelector('.fui-diagram-selection');
     var serializer = new XMLSerializer();
     clone.setAttribute('xmlns', DIAGRAM_SVG_NS);
     clone.style.width = this.options.pageWidth + 'px';
     clone.style.height = this.options.pageHeight + 'px';
+    if (!includeGrid) {
+      if (page) page.setAttribute('fill', this.options.pageColor);
+      if (gridPattern) gridPattern.parentNode.removeChild(gridPattern);
+    }
     if (selection) selection.parentNode.removeChild(selection);
     return serializer.serializeToString(clone);
+  };
+
+  Diagram.prototype.getSvg = function() {
+    return this._serializeSvg(true);
   };
 
   Diagram.prototype.exportSvg = function(filename) {
@@ -3722,6 +7480,103 @@ export function createDiagramFactory(
     return svg;
   };
 
+  Diagram.prototype.exportPng = function(filename, scale) {
+    var self = this;
+    var svg = this.getSvg();
+    scale = diagramClamp(diagramNumber(scale, 2), 0.25, 4);
+    return new Promise(function(resolve, reject) {
+      var canvas = document.createElement('canvas');
+      var context = canvas.getContext('2d');
+      var image = new Image();
+      var url = URL.createObjectURL(
+        new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
+      );
+      if (!context) {
+        URL.revokeObjectURL(url);
+        reject(new Error('Canvas 2D context is unavailable.'));
+        return;
+      }
+      canvas.width = Math.max(1, Math.round(self.options.pageWidth * scale));
+      canvas.height = Math.max(1, Math.round(self.options.pageHeight * scale));
+      image.onload = function() {
+        URL.revokeObjectURL(url);
+        context.fillStyle = self.options.pageColor;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(function(blob) {
+          if (!blob) {
+            reject(new Error('Unable to export Diagram as PNG.'));
+            return;
+          }
+          if (filename) diagramDownloadBlob(blob, filename);
+          resolve(blob);
+        }, 'image/png');
+      };
+      image.onerror = function() {
+        URL.revokeObjectURL(url);
+        reject(new Error('Unable to render Diagram SVG for PNG export.'));
+      };
+      image.src = url;
+    });
+  };
+
+  Diagram.prototype.print = function() {
+    var frame = document.createElement('iframe');
+    var frameDocument;
+    var frameWindow;
+    var cleanupTimer;
+    var cleaned = false;
+    var pageRule;
+    var svg;
+
+    function cleanup() {
+      if (cleaned) return;
+      cleaned = true;
+      clearTimeout(cleanupTimer);
+      if (frame.parentNode) frame.parentNode.removeChild(frame);
+    }
+
+    frame.className = 'fui-diagram-print-frame';
+    frame.title = this.messages.print;
+    frame.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(frame);
+    frameWindow = frame.contentWindow;
+    frameDocument = frame.contentDocument || (
+      frameWindow ? frameWindow.document : null
+    );
+    if (!frameWindow || !frameDocument) {
+      cleanup();
+      return false;
+    }
+
+    svg = this._serializeSvg(false);
+    pageRule = this.options.paperSize + ' ' + this.options.paperOrientation;
+    frameDocument.open();
+    frameDocument.write(
+      '<!doctype html><html><head><meta charset="utf-8">' +
+      '<title>' + this.messages.diagram + '</title>' +
+      '<style>@page{size:' + pageRule + ';margin:0}' +
+      'html,body{box-sizing:border-box;width:100%;height:100%;' +
+      'margin:0;overflow:hidden}' +
+      'html{padding:0}' +
+      'body{display:flex;padding:12mm;align-items:center;' +
+      'justify-content:center}' +
+      'svg{display:block;width:100%!important;height:100%!important;' +
+      'max-width:100%;max-height:100%;break-inside:avoid;' +
+      'page-break-inside:avoid}</style></head><body>' +
+      svg +
+      '</body></html>'
+    );
+    frameDocument.close();
+    frameWindow.addEventListener('afterprint', cleanup, { once: true });
+    cleanupTimer = setTimeout(cleanup, 60000);
+    setTimeout(function() {
+      frameWindow.focus();
+      frameWindow.print();
+    }, 0);
+    return true;
+  };
+
   Diagram.prototype.setLocale = function(locale) {
     this._disposePaperDialog();
     this.options.locale = normalizeDiagramLocale(locale);
@@ -3731,7 +7586,55 @@ export function createDiagramFactory(
       this.options.ariaLabel || this.messages.diagram
     );
     this.toolboxHeaderElement.textContent = this.messages.toolbox;
+    this.toolboxHeaderElement.setAttribute(
+      'title',
+      this.messages.dragToolbox
+    );
+    this.propertiesHeaderElement.setAttribute(
+      'title',
+      this.messages.dragProperties
+    );
+    this.viewToolbarElement.setAttribute(
+      'title',
+      this.messages.dragViewToolbar
+    );
+    this.viewToolbarElement.setAttribute(
+      'aria-label',
+      this.messages.dragViewToolbar
+    );
+    [
+      this.toolboxResizerLeftElement,
+      this.toolboxResizerRightElement
+    ].forEach(function(element) {
+      element.setAttribute('aria-label', this.messages.resizeToolbox);
+    }, this);
+    [
+      this.toolboxResizerTopElement,
+      this.toolboxResizerBottomElement
+    ].forEach(function(element) {
+      element.setAttribute('aria-label', this.messages.resizeToolboxHeight);
+    }, this);
+    [
+      this.propertiesResizerLeftElement,
+      this.propertiesResizerRightElement
+    ].forEach(function(element) {
+      element.setAttribute('aria-label', this.messages.resizeProperties);
+    }, this);
+    [
+      this.propertiesResizerTopElement,
+      this.propertiesResizerBottomElement
+    ].forEach(function(element) {
+      element.setAttribute(
+        'aria-label',
+        this.messages.resizePropertiesHeight
+      );
+    }, this);
     this.propertiesHeaderElement.textContent = this.messages.properties;
+    if (this._dockTabs) {
+      this._dockTabs.setLocale(this.options.locale);
+      this._dockTabs.update(0, { title: this.messages.toolbox });
+      this._dockTabs.update(1, { title: this.messages.properties });
+    }
     if (this.toolboxSearchControl) {
       this.toolboxSearchControl.textbox().setAttribute(
         'placeholder',
@@ -3740,15 +7643,70 @@ export function createDiagramFactory(
     }
     this._renderToolbox();
     if (this._toolbarButtons.delete) this._toolbarButtons.delete.setText(this.messages.deleteItem);
+    if (this._toolbarButtons.clear) this._toolbarButtons.clear.setText(this.messages.clearPage);
+    if (this._toolbarButtons.download) {
+      this._toolbarButtons.download.setText(this.messages.downloadJson);
+    }
+    if (this._toolbarButtons.load) {
+      this._toolbarButtons.load.setText(this.messages.loadJson);
+    }
+    if (this._toolbarButtons.exportPng) {
+      this._toolbarButtons.exportPng.setText(this.messages.exportPng);
+    }
+    if (this._toolbarButtons.exportSvg) {
+      this._toolbarButtons.exportSvg.setText(this.messages.exportSvg);
+    }
+    if (this._toolbarButtons.print) {
+      this._toolbarButtons.print.setText(this.messages.print);
+    }
     if (this._toolbarButtons.connect) this._toolbarButtons.connect.setText(this.messages.connect);
+    if (this._toolbarButtons.toolbox) {
+      this._toolbarButtons.toolbox.setText(this.messages.toolbox);
+    }
     if (this._toolbarButtons.properties) this._toolbarButtons.properties.setText(this.messages.properties);
+    if (this._toolbarButtons.readOnly) {
+      this._toolbarButtons.readOnly.setText(this.messages.readOnly);
+    }
     if (this._toolbarButtons.fit) this._toolbarButtons.fit.setText(this.messages.fit);
     if (this._toolbarButtons.grid) this._toolbarButtons.grid.setText(this.messages.grid);
     if (this._toolbarButtons.undo) {
       this._toolbarButtons.undo.hostElement.title = this.messages.undo;
+      this._toolbarButtons.undo.hostElement.setAttribute(
+        'aria-label',
+        this.messages.undo
+      );
     }
     if (this._toolbarButtons.redo) {
       this._toolbarButtons.redo.hostElement.title = this.messages.redo;
+      this._toolbarButtons.redo.hostElement.setAttribute(
+        'aria-label',
+        this.messages.redo
+      );
+    }
+    if (this._contextMenu) {
+      this._contextMenu.setLocale(this.options.locale);
+      this._contextMenu.hostElement.setAttribute(
+        'aria-label',
+        this.messages.diagram
+      );
+      this._contextMenu.setText({
+        target: this._contextMenu.findItem('exportPng').target,
+        text: this.messages.exportPng
+      });
+      this._contextMenu.setText({
+        target: this._contextMenu.findItem('exportSvg').target,
+        text: this.messages.exportSvg
+      });
+      this._contextMenu.setText({
+        target: this._contextMenu.findItem('print').target,
+        text: this.messages.print
+      });
+      this._contextMenu.setText({
+        target: this._contextMenu.findItem('fullscreen').target,
+        text: diagramElementIsFullscreen(this.viewportElement) ?
+          this.messages.exitPresentation :
+          this.messages.presentation
+      });
     }
     this._renderProperties();
     this._syncToolbarStates();
@@ -3769,6 +7727,8 @@ export function createDiagramFactory(
     this._buttonControls.forEach(function(control) {
       control.setTheme('inherit');
     });
+    if (this._contextMenu) this._contextMenu.setTheme('inherit');
+    if (this._dockTabs) this._dockTabs.setTheme('inherit');
     this._editBoxControls.concat(this._propertyEditors).forEach(function(control) {
       if (control._control && typeof control._control.setTheme === 'function') {
         control.setTheme('inherit');
@@ -3778,11 +7738,187 @@ export function createDiagramFactory(
   };
 
   Diagram.prototype.setReadOnly = function(value) {
-    this.options.readOnly = diagramBoolean(value, false);
+    var nextValue = diagramBoolean(value, false);
+    var changed = this.options.readOnly !== nextValue;
+    this.options.readOnly = nextValue;
+    this.hostElement.setAttribute(
+      'aria-readonly',
+      this.options.readOnly ? 'true' : 'false'
+    );
     if (this.options.readOnly) this._closeInlineTextEditor(false);
     this.setConnectMode(false);
     this._syncStructure();
     this.render();
+    if (changed) {
+      this._fire('ReadOnlyChanged', {
+        readOnly: this.options.readOnly
+      });
+    }
+    return this;
+  };
+
+  Diagram.prototype.getSameSideDockMode = function() {
+    return this.options.sameSideDockMode;
+  };
+
+  Diagram.prototype.setSameSideDockMode = function(mode, skipSave) {
+    this.options.sameSideDockMode = normalizeDiagramSameSideDockMode(mode);
+    this._syncStructure();
+    if (!skipSave) this._saveToolboxState();
+    return this;
+  };
+
+  Diagram.prototype.getToolboxWidth = function() {
+    return this.options.toolboxWidth;
+  };
+
+  Diagram.prototype.setToolboxWidth = function(width, skipSave) {
+    this.options.toolboxWidth = diagramClamp(
+      diagramNumber(width, this.options.toolboxWidth),
+      this.options.toolboxMinWidth,
+      this.options.toolboxMaxWidth
+    );
+    this._syncStructure();
+    if (!skipSave) this._saveToolboxState();
+    return this;
+  };
+
+  Diagram.prototype.getToolboxHeight = function() {
+    return this.options.toolboxHeight;
+  };
+
+  Diagram.prototype.setToolboxHeight = function(height, skipSave) {
+    this.options.toolboxHeight = diagramClamp(
+      diagramNumber(height, this.options.toolboxHeight),
+      this.options.toolboxMinHeight,
+      this.options.toolboxMaxHeight
+    );
+    this._syncStructure();
+    if (!skipSave) this._saveToolboxState();
+    return this;
+  };
+
+  Diagram.prototype.getPropertiesWidth = function() {
+    return this.options.propertiesWidth;
+  };
+
+  Diagram.prototype.setPropertiesWidth = function(width, skipSave) {
+    this.options.propertiesWidth = diagramClamp(
+      diagramNumber(width, this.options.propertiesWidth),
+      this.options.propertiesMinWidth,
+      this.options.propertiesMaxWidth
+    );
+    this._syncStructure();
+    if (!skipSave) this._saveToolboxState();
+    return this;
+  };
+
+  Diagram.prototype.getPropertiesHeight = function() {
+    return this.options.propertiesHeight;
+  };
+
+  Diagram.prototype.setPropertiesHeight = function(height, skipSave) {
+    this.options.propertiesHeight = diagramClamp(
+      diagramNumber(height, this.options.propertiesHeight),
+      this.options.propertiesMinHeight,
+      this.options.propertiesMaxHeight
+    );
+    this._syncStructure();
+    if (!skipSave) this._saveToolboxState();
+    return this;
+  };
+
+  Diagram.prototype.isToolboxFloating = function() {
+    return this.options.toolboxFloating;
+  };
+
+  Diagram.prototype.floatToolbox = function(left, top, skipSave) {
+    this.options.toolboxFloating = true;
+    if (left != null) {
+      this.options.toolboxFloatLeft = Math.max(
+        0,
+        diagramNumber(left, this.options.toolboxFloatLeft)
+      );
+    }
+    if (top != null) {
+      this.options.toolboxFloatTop = Math.max(
+        0,
+        diagramNumber(top, this.options.toolboxFloatTop)
+      );
+    }
+    this._syncStructure();
+    this._bringFloatingPanelToFront('toolbox');
+    if (!skipSave) this._saveToolboxState();
+    return this;
+  };
+
+  Diagram.prototype.dockToolbox = function(side, skipSave) {
+    side = normalizeDiagramDockSide(
+      side,
+      this.options.toolboxDockSide
+    );
+    this.options.toolboxFloating = false;
+    this.options.toolboxDockSide = side;
+    if (
+      !this.options.propertiesFloating &&
+      side === this.options.propertiesDockSide
+    ) {
+      this._sameSideDockTab = 'toolbox';
+      this.options.sameSideDockTab = 'toolbox';
+    }
+    this.workspaceElement.classList.remove(
+      'fui-diagram-toolbox-dock-preview-left',
+      'fui-diagram-toolbox-dock-preview-right'
+    );
+    this._syncStructure();
+    if (!skipSave) this._saveToolboxState();
+    return this;
+  };
+
+  Diagram.prototype.isPropertiesFloating = function() {
+    return this.options.propertiesFloating;
+  };
+
+  Diagram.prototype.floatProperties = function(left, top, skipSave) {
+    this.options.propertiesFloating = true;
+    if (left != null) {
+      this.options.propertiesFloatLeft = Math.max(
+        0,
+        diagramNumber(left, this.options.propertiesFloatLeft)
+      );
+    }
+    if (top != null) {
+      this.options.propertiesFloatTop = Math.max(
+        0,
+        diagramNumber(top, this.options.propertiesFloatTop)
+      );
+    }
+    this._syncStructure();
+    this._bringFloatingPanelToFront('properties');
+    if (!skipSave) this._saveToolboxState();
+    return this;
+  };
+
+  Diagram.prototype.dockProperties = function(side, skipSave) {
+    side = normalizeDiagramDockSide(
+      side,
+      this.options.propertiesDockSide
+    );
+    this.options.propertiesFloating = false;
+    this.options.propertiesDockSide = side;
+    if (
+      !this.options.toolboxFloating &&
+      side === this.options.toolboxDockSide
+    ) {
+      this._sameSideDockTab = 'properties';
+      this.options.sameSideDockTab = 'properties';
+    }
+    this.workspaceElement.classList.remove(
+      'fui-diagram-properties-dock-preview-left',
+      'fui-diagram-properties-dock-preview-right'
+    );
+    this._syncStructure();
+    if (!skipSave) this._saveToolboxState();
     return this;
   };
 
@@ -3808,8 +7944,40 @@ export function createDiagramFactory(
     this._destroyed = true;
     this._closeInlineTextEditor(false);
     this._disposePaperDialog();
+    if (this._contextMenu) {
+      this._contextMenu.dispose();
+      this._contextMenu = null;
+      this._contextMenuHost = null;
+    }
+    if (this._fullscreenResizeObserver) {
+      this._fullscreenResizeObserver.disconnect();
+      this._fullscreenResizeObserver = null;
+    }
+    this._fullscreenViewportSize = null;
+    this._fullscreenViewState = null;
+    if (this._jsonFileReader && this._jsonFileReader.readyState === 1) {
+      this._jsonFileReader.abort();
+    }
+    this._jsonFileReader = null;
+    this._panelResize = null;
+    this._unbindPanelResizeInteraction();
+    this._toolboxPanelDrag = null;
+    this._unbindToolboxPanelInteraction();
+    this._propertiesPanelDrag = null;
+    this._unbindPropertiesPanelInteraction();
+    this._viewToolbarDrag = null;
+    this._unbindViewToolbarInteraction();
+    this._toolboxOrderDrag = null;
+    this._unbindToolboxOrderInteraction();
     this._unbindDocumentInteraction();
     this.removeEventListener();
+    this._detachDockTabsPanels();
+    if (this._dockTabs) {
+      this._dockTabs.dispose();
+      this._dockTabs = null;
+      this._dockTabsToolboxPanel = null;
+      this._dockTabsPropertiesPanel = null;
+    }
     this._buttonControls.forEach(function(control) {
       control.dispose();
     });

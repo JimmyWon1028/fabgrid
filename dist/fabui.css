@@ -245,6 +245,292 @@
   --fui-button-text-hover: #fff;
 }
 
+.fui-accordion,
+.fui-accordion * {
+  box-sizing: border-box;
+}
+
+.fui-accordion {
+  --fui-accordion-border: #95b8e7;
+  --fui-accordion-bg: #fff;
+  --fui-accordion-header-bg: #e0ecff;
+  --fui-accordion-selected-bg: #ffe48d;
+  --fui-accordion-selected-text: #000;
+  --fui-accordion-animation-duration: 180ms;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--fui-accordion-border);
+  background: var(--fui-accordion-bg);
+}
+
+.fui-accordion-no-border {
+  border-width: 0;
+}
+
+.fui-accordion > .fui-accordion-panel {
+  flex: 0 0 auto;
+}
+
+.fui-accordion > .fui-accordion-panel-selected {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+}
+
+.fui-accordion .fui-accordion-header {
+  border-width: 0 0 1px;
+  border-color: var(--fui-accordion-border);
+  background: var(--fui-accordion-header-bg);
+  cursor: pointer;
+}
+
+.fui-accordion-animated .fui-accordion-header {
+  transition:
+    background-color var(--fui-accordion-animation-duration) ease,
+    color var(--fui-accordion-animation-duration) ease;
+}
+
+.fui-accordion.fui-accordion-animated > .fui-accordion-panel {
+  transition:
+    flex-grow var(--fui-accordion-animation-duration)
+    cubic-bezier(0.2, 0, 0, 1);
+}
+
+.fui-accordion.fui-accordion-animated >
+.fui-accordion-panel.fui-panel-transitioning {
+  transition:
+    width var(--fui-accordion-animation-duration)
+    cubic-bezier(0.2, 0, 0, 1),
+    height var(--fui-accordion-animation-duration)
+    cubic-bezier(0.2, 0, 0, 1),
+    flex-grow var(--fui-accordion-animation-duration)
+    cubic-bezier(0.2, 0, 0, 1);
+}
+
+.fui-accordion .fui-accordion-header:focus-visible {
+  z-index: 1;
+  outline: 2px solid currentColor;
+  outline-offset: -3px;
+}
+
+.fui-accordion .fui-accordion-body {
+  border-width: 0 0 1px;
+  border-color: var(--fui-accordion-border);
+}
+
+.fui-accordion .fui-accordion-panel-selected > .fui-accordion-header {
+  background: var(--fui-accordion-selected-bg);
+  color: var(--fui-accordion-selected-text);
+}
+
+.fui-accordion .fui-accordion-panel-last > .fui-accordion-header,
+.fui-accordion .fui-accordion-panel-last > .fui-accordion-body {
+  border-bottom-color: transparent;
+}
+
+.fui-accordion .fui-accordion-panel-last.fui-accordion-panel-selected >
+.fui-accordion-header {
+  border-bottom-color: var(--fui-accordion-border);
+}
+
+.fui-accordion .fui-accordion-toggle {
+  background-repeat: no-repeat;
+  opacity: 1;
+}
+
+.fui-accordion .fui-accordion-expand {
+  background-position: -16px 0;
+}
+
+.fui-accordion .fui-accordion-collapse,
+.fui-accordion .fui-accordion-toggle-expanded {
+  background-position: 0 0;
+}
+
+.fui-accordion .fui-accordion-toggle:hover:not(:focus-visible) {
+  background-color: transparent;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fui-accordion.fui-accordion-animated > .fui-accordion-panel,
+  .fui-accordion.fui-accordion-animated >
+  .fui-accordion-panel.fui-panel-transitioning,
+  .fui-accordion-animated .fui-accordion-header {
+    transition: none;
+  }
+}
+
+.fui-accordion-halign-left,
+.fui-accordion-halign-right {
+  flex-direction: row;
+}
+
+.fui-accordion > .fui-panel-halign-right {
+  order: 1;
+}
+
+.fui-accordion > .fui-panel-halign-left > .fui-accordion-header {
+  border-width: 0 1px 0 0;
+}
+
+.fui-accordion > .fui-panel-halign-left > .fui-accordion-body {
+  border-width: 0 1px 0 0;
+}
+
+.fui-accordion > .fui-panel-halign-right > .fui-accordion-header {
+  border-width: 0 0 0 1px;
+}
+
+.fui-accordion > .fui-panel-halign-right > .fui-accordion-body {
+  border-width: 0 0 0 1px;
+}
+
+.fui-accordion > .fui-panel-halign-left.fui-accordion-panel-last >
+.fui-accordion-header,
+.fui-accordion > .fui-panel-halign-left.fui-accordion-panel-last >
+.fui-accordion-body {
+  border-right-color: transparent;
+}
+
+.fui-accordion > .fui-panel-halign-right.fui-accordion-panel-last >
+.fui-accordion-header,
+.fui-accordion > .fui-panel-halign-right.fui-accordion-panel-last >
+.fui-accordion-body {
+  border-left-color: transparent;
+}
+
+.fui-accordion.fg-theme-default {
+  --fui-accordion-border: #95b8e7;
+  --fui-accordion-bg: #fff;
+  --fui-accordion-header-bg: #e0ecff;
+  --fui-accordion-selected-bg: #ffe48d;
+  --fui-accordion-selected-text: #000;
+}
+
+.fui-accordion.fg-theme-bootstrap {
+  --fui-accordion-border: #d4d4d4;
+  --fui-accordion-bg: #fff;
+  --fui-accordion-header-bg: #f2f2f2;
+  --fui-accordion-selected-bg: #0081c2;
+  --fui-accordion-selected-text: #fff;
+}
+
+.fui-accordion.fg-theme-cupertino {
+  --fui-accordion-border: #aed0ea;
+  --fui-accordion-bg: #f2f5f7;
+  --fui-accordion-header-bg: #d7ebf9;
+  --fui-accordion-selected-bg: #3baae3;
+  --fui-accordion-selected-text: #fff;
+}
+
+.fui-accordion.fg-theme-material {
+  --fui-accordion-border: #ddd;
+  --fui-accordion-bg: #fff;
+  --fui-accordion-header-bg: #f5f5f5;
+  --fui-accordion-selected-bg: #00bbee;
+  --fui-accordion-selected-text: #fff;
+}
+
+.fui-accordion.fg-theme-material-blue {
+  --fui-accordion-border: #dfdfdf;
+  --fui-accordion-bg: #fff;
+  --fui-accordion-header-bg: #f5f5f5;
+  --fui-accordion-selected-bg: #eee;
+  --fui-accordion-selected-text: #2196f3;
+}
+
+.fui-accordion.fg-theme-material-teal {
+  --fui-accordion-border: #dfdfdf;
+  --fui-accordion-bg: #fff;
+  --fui-accordion-header-bg: #fafafa;
+  --fui-accordion-selected-bg: #eee;
+  --fui-accordion-selected-text: #39c;
+}
+
+.fui-accordion.fg-theme-metro {
+  --fui-accordion-border: #ddd;
+  --fui-accordion-bg: #fff;
+  --fui-accordion-header-bg: #fff;
+  --fui-accordion-selected-bg: #cce6ff;
+  --fui-accordion-selected-text: #000;
+}
+
+.fui-accordion.fg-theme-metro-blue {
+  --fui-accordion-border: #c3d9e0;
+  --fui-accordion-bg: #fafafa;
+  --fui-accordion-header-bg: #daeef5;
+  --fui-accordion-selected-bg: #6caef5;
+  --fui-accordion-selected-text: #fff;
+}
+
+.fui-accordion.fg-theme-metro-gray {
+  --fui-accordion-border: #abafb8;
+  --fui-accordion-bg: #fafafa;
+  --fui-accordion-header-bg: #c7ccd1;
+  --fui-accordion-selected-bg: #84909c;
+  --fui-accordion-selected-text: #fff;
+}
+
+.fui-accordion.fg-theme-metro-green {
+  --fui-accordion-border: #b1c242;
+  --fui-accordion-bg: #fafafa;
+  --fui-accordion-header-bg: #e5f0c9;
+  --fui-accordion-selected-bg: #c8d47b;
+  --fui-accordion-selected-text: #404040;
+}
+
+.fui-accordion.fg-theme-metro-orange {
+  --fui-accordion-border: #d4a375;
+  --fui-accordion-bg: #fafafa;
+  --fui-accordion-header-bg: #f0e3bf;
+  --fui-accordion-selected-bg: #f7cc8f;
+  --fui-accordion-selected-text: #404040;
+}
+
+.fui-accordion.fg-theme-metro-red {
+  --fui-accordion-border: #f6c1bc;
+  --fui-accordion-bg: #fafafa;
+  --fui-accordion-header-bg: #f0e1e3;
+  --fui-accordion-selected-bg: #f09090;
+  --fui-accordion-selected-text: #404040;
+}
+
+.fui-accordion.fg-theme-sunny {
+  --fui-accordion-border: #494437;
+  --fui-accordion-bg: #feeebd;
+  --fui-accordion-header-bg: #817865;
+  --fui-accordion-selected-bg: #fff;
+  --fui-accordion-selected-text: #0074c7;
+}
+
+.fui-accordion.fg-theme-pepper-grinder {
+  --fui-accordion-border: #cbc7bd;
+  --fui-accordion-bg: #eceadf;
+  --fui-accordion-header-bg: #f8f7f6;
+  --fui-accordion-selected-bg: #b83400;
+  --fui-accordion-selected-text: #fff;
+}
+
+.fui-accordion.fg-theme-dark-hive {
+  --fui-accordion-border: #444;
+  --fui-accordion-bg: #000;
+  --fui-accordion-header-bg: #222;
+  --fui-accordion-selected-bg: #0972a5;
+  --fui-accordion-selected-text: #fff;
+}
+
+.fui-accordion.fg-theme-black {
+  --fui-accordion-border: #000;
+  --fui-accordion-bg: #666;
+  --fui-accordion-header-bg: #3d3d3d;
+  --fui-accordion-selected-bg: #0052a3;
+  --fui-accordion-selected-text: #fff;
+}
+
 .fui-calendar-control {
   display: inline-block;
   box-sizing: border-box;
@@ -1087,538 +1373,6 @@
 @keyframes fui-chart-point-in { from { opacity: 0; transform: scale(.2); } to { opacity: 1; transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .fui-chart-animate .fui-chart-mark, .fui-chart-animate .fui-chart-line { animation: none; } .fui-chart-pie-group { transition: none !important; } }
 
-.fui-diagram,
-.fui-diagram * {
-  box-sizing: border-box;
-}
-
-.fui-diagram {
-  --fui-diagram-border: var(--fui-control-border, #95b8e7);
-  --fui-diagram-grid: color-mix(in srgb, var(--fui-control-border, #95b8e7) 45%, transparent);
-  --fui-diagram-pane-bg: var(--fui-panel-bg, #fff);
-  --fui-diagram-pane-text: var(--fui-panel-text, #000);
-  --fui-diagram-toolbar-bg: var(--fui-control-button-bg, #f4f4f4);
-  --fui-diagram-canvas-bg: color-mix(in srgb, var(--fui-panel-bg, #fff) 82%, #8793a1);
-  --fui-diagram-selection: var(--fui-control-selected-border, var(--fui-control-focus, #6b9cde));
-  display: flex;
-  position: relative;
-  min-width: 320px;
-  min-height: 320px;
-  overflow: hidden;
-  border: 1px solid var(--fui-diagram-border);
-  background: var(--fui-diagram-pane-bg);
-  color: var(--fui-diagram-pane-text);
-  font: 14px Arial, Helvetica, sans-serif;
-  flex-direction: column;
-}
-
-.fui-diagram-toolbar {
-  display: flex;
-  min-height: 38px;
-  padding: 3px 5px;
-  border-bottom: 1px solid var(--fui-diagram-border);
-  background: var(--fui-diagram-toolbar-bg);
-  align-items: center;
-  gap: 2px;
-}
-
-.fui-diagram-command.fui-button {
-  min-width: 32px;
-  text-decoration: none;
-}
-
-.fui-diagram-command-undo,
-.fui-diagram-command-redo,
-.fui-diagram-command-zoomOut,
-.fui-diagram-command-zoomIn {
-  font-size: 18px;
-}
-
-.fui-diagram-workspace {
-  display: grid;
-  min-width: 0;
-  min-height: 0;
-  flex: 1 1 auto;
-  grid-template-columns: 190px minmax(0, 1fr) 230px;
-}
-
-.fui-diagram-workspace.fui-diagram-no-toolbox {
-  grid-template-columns: minmax(0, 1fr) 230px;
-}
-
-.fui-diagram-workspace.fui-diagram-no-properties {
-  grid-template-columns: 190px minmax(0, 1fr);
-}
-
-.fui-diagram-workspace.fui-diagram-no-toolbox.fui-diagram-no-properties {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.fui-diagram-toolbox,
-.fui-diagram-properties {
-  min-width: 0;
-  min-height: 0;
-  overflow: auto;
-  background: var(--fui-diagram-pane-bg);
-  color: var(--fui-diagram-pane-text);
-}
-
-.fui-diagram-toolbox {
-  border-right: 1px solid var(--fui-diagram-border);
-}
-
-.fui-diagram-properties {
-  border-left: 1px solid var(--fui-diagram-border);
-}
-
-.fui-diagram-pane-header {
-  position: sticky;
-  z-index: 2;
-  top: 0;
-  min-height: 34px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--fui-diagram-border);
-  background: var(--fui-diagram-toolbar-bg);
-  color: var(--fui-diagram-pane-text);
-  font-weight: 700;
-}
-
-.fui-diagram-toolbox > .fui-editbox {
-  width: calc(100% - 16px) !important;
-  margin: 8px;
-}
-
-.fui-diagram-toolbox-search-source {
-  width: 100%;
-}
-
-.fui-diagram-toolbox-group {
-  margin: 0;
-  padding: 0;
-}
-
-.fui-diagram-toolbox-title {
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid color-mix(in srgb, var(--fui-diagram-border) 55%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--fui-diagram-border) 55%, transparent);
-  background: color-mix(in srgb, var(--fui-diagram-toolbar-bg) 72%, transparent);
-  color: inherit;
-  font-size: 13px;
-}
-
-.fui-diagram-toolbox-toggle.fui-button {
-  width: 100%;
-  overflow: visible;
-  border-radius: 0;
-  color: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: left;
-  justify-content: flex-start;
-}
-
-.fui-diagram-toolbox-toggle.fui-button::before {
-  width: 12px;
-  margin-left: 8px;
-  content: "▸";
-  flex: 0 0 12px;
-  font-size: 12px;
-  line-height: 1;
-  text-align: center;
-}
-
-.fui-diagram-toolbox-toggle.fui-button[aria-expanded="true"]::before {
-  content: "▾";
-}
-
-.fui-diagram-toolbox-toggle .fui-button-inner {
-  min-height: 32px;
-  padding-right: 8px;
-  padding-left: 0;
-  justify-content: flex-start;
-}
-
-.fui-diagram-toolbox-toggle .fui-button-text {
-  line-height: 32px;
-}
-
-.fui-diagram-toolbox-items {
-  display: grid;
-  padding: 8px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.fui-diagram-toolbox-items[hidden] {
-  display: none;
-}
-
-.fui-diagram-shape-item {
-  display: flex;
-  min-width: 0;
-  min-height: 68px;
-  padding: 6px 4px;
-  border: 1px solid transparent;
-  border-radius: var(--fui-control-radius, 4px);
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: grab;
-  align-items: center;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.fui-diagram-shape-item:hover,
-.fui-diagram-shape-item:focus-visible {
-  border-color: var(--fui-diagram-border);
-  outline: 0;
-  background: var(--fui-control-hover, #eaf2ff);
-  color: var(--fui-control-hover-text, #000);
-}
-
-.fui-diagram-shape-item-selected,
-.fui-diagram-shape-item-selected:hover {
-  border-color: var(--fui-diagram-selection);
-  background: var(--fui-control-selected, #ffe48d);
-  color: var(--fui-control-selected-text, #000);
-}
-
-.fui-diagram-shape-item:active {
-  cursor: grabbing;
-}
-
-.fui-diagram-shape-preview {
-  display: block;
-  width: 52px;
-  height: 38px;
-  overflow: visible;
-  color: inherit;
-}
-
-.fui-diagram-toolbox-preview-shape {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5;
-}
-
-.fui-diagram-toolbox-preview-shape * {
-  fill: none;
-}
-
-.fui-diagram-shape-label {
-  width: 100%;
-  overflow: hidden;
-  font-size: 12px;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.fui-diagram-viewport {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  overflow: auto;
-  background: var(--fui-diagram-canvas-bg);
-  overscroll-behavior: contain;
-}
-
-.fui-diagram-svg {
-  display: block;
-  min-width: 1px;
-  min-height: 1px;
-  box-shadow: 0 2px 10px rgb(0 0 0 / 18%);
-  touch-action: none;
-}
-
-.fui-diagram-page {
-  shape-rendering: crispEdges;
-}
-
-.fui-diagram-grid-line {
-  fill: none;
-  stroke: var(--fui-diagram-grid);
-  stroke-width: 1;
-}
-
-.fui-diagram-node {
-  cursor: move;
-}
-
-.fui-diagram-node-shape {
-  vector-effect: non-scaling-stroke;
-}
-
-.fui-diagram-node-text,
-.fui-diagram-connector-label {
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 14px;
-  pointer-events: none;
-  user-select: none;
-}
-
-.fui-diagram-connector {
-  cursor: pointer;
-}
-
-.fui-diagram-connector-hit {
-  fill: none;
-  stroke: transparent;
-  stroke-width: 14;
-}
-
-.fui-diagram-connector-line {
-  vector-effect: non-scaling-stroke;
-}
-
-.fui-diagram-arrow {
-  fill: context-stroke;
-}
-
-.fui-diagram-connector-selected .fui-diagram-connector-line {
-  stroke: var(--fui-diagram-selection);
-  stroke-width: 2.5;
-}
-
-.fui-diagram-selection-outline {
-  fill: none;
-  stroke: var(--fui-diagram-selection);
-  stroke-dasharray: 4 3;
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
-
-.fui-diagram-resize-handle {
-  fill: var(--fui-diagram-pane-bg);
-  stroke: var(--fui-diagram-selection);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
-
-.fui-diagram-connection-point {
-  fill: var(--fui-diagram-pane-bg);
-  stroke: var(--fui-diagram-selection);
-  stroke-width: 1.5;
-  cursor: crosshair;
-  vector-effect: non-scaling-stroke;
-}
-
-.fui-diagram-connection-point:hover,
-.fui-diagram-connection-point-target {
-  fill: var(--fui-control-selected, #ffe48d);
-  stroke-width: 2.5;
-}
-
-.fui-diagram-connector-preview {
-  fill: none;
-  stroke: var(--fui-diagram-selection);
-  stroke-dasharray: 5 4;
-  stroke-width: 1.5;
-  pointer-events: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.fui-diagram-marquee {
-  fill: color-mix(in srgb, var(--fui-diagram-selection) 14%, transparent);
-  stroke: var(--fui-diagram-selection);
-  stroke-dasharray: 5 4;
-  stroke-width: 1.5;
-  pointer-events: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.fui-diagram-inline-text-editor {
-  position: absolute;
-  z-index: 6;
-  width: 180px;
-  transform: translate(-50%, -50%);
-}
-
-.fui-diagram-inline-text-editor > .fui-editbox {
-  width: 100% !important;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
-}
-
-.fui-diagram-inline-node-editor > .fui-editbox {
-  height: 100%;
-  box-shadow: none;
-}
-
-.fui-diagram-inline-node-editor .fui-textbox {
-  width: 100% !important;
-  height: 100% !important;
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  align-items: center;
-}
-
-.fui-diagram-inline-node-editor .fui-textbox-text {
-  flex: 0 1 auto;
-  width: 100%;
-  min-height: 18px;
-  max-height: 100%;
-  padding: 0 4px;
-  overflow: hidden;
-  border-radius: 0;
-  background: transparent;
-  color: var(--fui-diagram-inline-text-color, var(--fui-control-text, #000));
-  font-size: var(--fui-diagram-inline-font-size, 14px);
-  line-height: 1.25;
-  text-align: center;
-  white-space: pre-wrap;
-}
-
-.fui-diagram-paper-form {
-  display: grid;
-  padding: 18px;
-  gap: 14px;
-}
-
-.fui-diagram-paper-field {
-  display: grid;
-  min-width: 0;
-  align-items: center;
-  grid-template-columns: 90px minmax(0, 1fr);
-  gap: 10px;
-}
-
-.fui-diagram-paper-label {
-  color: var(--fui-panel-text, inherit);
-  text-align: right;
-}
-
-.fui-diagram-paper-field > .fui-editbox {
-  width: 100% !important;
-}
-
-.fui-diagram-paper-actions {
-  display: flex;
-  padding: 8px 10px;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.fui-diagram-node-editing .fui-diagram-node-text {
-  visibility: hidden;
-}
-
-.fui-diagram-resize-n,
-.fui-diagram-resize-s {
-  cursor: ns-resize;
-}
-
-.fui-diagram-resize-e,
-.fui-diagram-resize-w {
-  cursor: ew-resize;
-}
-
-.fui-diagram-resize-ne,
-.fui-diagram-resize-sw {
-  cursor: nesw-resize;
-}
-
-.fui-diagram-resize-nw,
-.fui-diagram-resize-se {
-  cursor: nwse-resize;
-}
-
-.fui-diagram-connect-mode .fui-diagram-node {
-  cursor: crosshair;
-}
-
-.fui-diagram-connect-source .fui-diagram-node-shape {
-  filter: drop-shadow(0 0 4px var(--fui-diagram-selection));
-  stroke: var(--fui-diagram-selection);
-  stroke-width: 2.5;
-}
-
-.fui-diagram-properties-body {
-  padding: 10px;
-}
-
-.fui-diagram-property-row {
-  display: block;
-  margin: 0 0 10px;
-}
-
-.fui-diagram-property-label {
-  display: block;
-  margin-bottom: 4px;
-  color: inherit;
-  font-size: 12px;
-}
-
-.fui-diagram-property-row > .fui-editbox {
-  width: 100% !important;
-}
-
-.fui-diagram-view-toolbar {
-  display: flex;
-  position: absolute;
-  z-index: 4;
-  right: 14px;
-  bottom: 14px;
-  min-height: 34px;
-  padding: 2px;
-  border: 1px solid var(--fui-diagram-border);
-  border-radius: var(--fui-control-radius, 4px);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 16%);
-  background: var(--fui-diagram-toolbar-bg);
-  align-items: center;
-  gap: 1px;
-}
-
-.fui-diagram-zoom-label {
-  min-width: 48px;
-  padding: 0 5px;
-  text-align: center;
-}
-
-.fui-diagram:fullscreen {
-  width: 100vw !important;
-  height: 100vh !important;
-  border: 0;
-}
-
-.fui-diagram[aria-disabled="true"] {
-  opacity: .65;
-}
-
-.fui-diagram[aria-disabled="true"] .fui-diagram-node,
-.fui-diagram[aria-disabled="true"] .fui-diagram-shape-item {
-  cursor: default;
-}
-
-@media (max-width: 760px) {
-  .fui-diagram-workspace,
-  .fui-diagram-workspace.fui-diagram-no-properties {
-    grid-template-columns: 150px minmax(0, 1fr);
-  }
-
-  .fui-diagram-properties {
-    display: none;
-  }
-
-  .fui-diagram-toolbox-items {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (forced-colors: active) {
-  .fui-diagram,
-  .fui-diagram-toolbox,
-  .fui-diagram-properties,
-  .fui-diagram-toolbar,
-  .fui-diagram-pane-header,
-  .fui-diagram-view-toolbar {
-    border-color: CanvasText;
-  }
-}
 
 .fg-root {
   --fg-border: #c9c9c9;
@@ -1636,7 +1390,7 @@
   --fg-selected-bg: #dceeff;
   --fg-selected-border: #2b7fd3;
   --fg-drag-indicator-opacity: 0.55;
-  --fg-active-cell-border: 2px;
+  --fg-active-cell-border: 1px;
   --fg-editor-border: #2563eb;
   --fg-scrollbar-size: 12px;
   --fg-scrollbar-gutter-size: 22px;
@@ -4503,6 +4257,10 @@ button.fg-pivot-workspace-control:focus-visible,
   background: url("theme/images/export.png") no-repeat center center;
 }
 
+.icon-import {
+  background: url("theme/images/import.png") no-repeat center center;
+}
+
 .icon-excel {
   background: url("theme/images/excel.png") no-repeat center center;
 }
@@ -4543,6 +4301,16 @@ button.fg-pivot-workspace-control:focus-visible,
   background: url("theme/images/clear.png") no-repeat center center;
 }
 
+.icon-drag-vertical {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      currentColor 0 1px,
+      transparent 1px 4px
+    )
+    center / 12px 9px no-repeat;
+}
+
 .fg-filter-menu-clear .fg-filter-menu-funnel {
   background: url("theme/images/clear.png") no-repeat center center;
 }
@@ -4575,9 +4343,153 @@ button.fg-pivot-workspace-control:focus-visible,
   background: url("theme/images/back.png") no-repeat center center;
 }
 
+.icon-undo {
+  background: url('theme/images/undo.png?v=20260720-blue-undo-redo-v1') no-repeat center center;
+}
+
+.icon-redo {
+  background: url('theme/images/redo.png?v=20260720-blue-undo-redo-v1') no-repeat center center;
+}
+
 .fui-panel,
 .fui-window {
   --fui-panel-tools: url("theme/default/images/panel_tools.png");
+}
+
+.fui-accordion {
+  --fui-accordion-arrows: url("theme/default/images/accordion_arrows.png");
+}
+
+.fui-accordion .fui-accordion-toggle {
+  background-image: url("theme/default/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-default {
+  --fui-accordion-arrows: url("theme/default/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-default .fui-accordion-toggle {
+  background-image: url("theme/default/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-bootstrap {
+  --fui-accordion-arrows: url("theme/bootstrap/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-bootstrap .fui-accordion-toggle {
+  background-image: url("theme/bootstrap/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-cupertino {
+  --fui-accordion-arrows: url("theme/cupertino/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-cupertino .fui-accordion-toggle {
+  background-image: url("theme/cupertino/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-material {
+  --fui-accordion-arrows: url("theme/material/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-material .fui-accordion-toggle {
+  background-image: url("theme/material/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-material-blue {
+  --fui-accordion-arrows: url("theme/material-blue/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-material-blue .fui-accordion-toggle {
+  background-image: url("theme/material-blue/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-material-teal {
+  --fui-accordion-arrows: url("theme/material-teal/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-material-teal .fui-accordion-toggle {
+  background-image: url("theme/material-teal/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-metro {
+  --fui-accordion-arrows: url("theme/metro/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-metro .fui-accordion-toggle {
+  background-image: url("theme/metro/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-metro-blue {
+  --fui-accordion-arrows: url("theme/metro-blue/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-metro-blue .fui-accordion-toggle {
+  background-image: url("theme/metro-blue/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-metro-gray {
+  --fui-accordion-arrows: url("theme/metro-gray/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-metro-gray .fui-accordion-toggle {
+  background-image: url("theme/metro-gray/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-metro-green {
+  --fui-accordion-arrows: url("theme/metro-green/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-metro-green .fui-accordion-toggle {
+  background-image: url("theme/metro-green/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-metro-orange {
+  --fui-accordion-arrows: url("theme/metro-orange/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-metro-orange .fui-accordion-toggle {
+  background-image: url("theme/metro-orange/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-metro-red {
+  --fui-accordion-arrows: url("theme/metro-red/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-metro-red .fui-accordion-toggle {
+  background-image: url("theme/metro-red/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-sunny {
+  --fui-accordion-arrows: url("theme/sunny/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-sunny .fui-accordion-toggle {
+  background-image: url("theme/sunny/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-pepper-grinder {
+  --fui-accordion-arrows: url("theme/pepper-grinder/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-pepper-grinder .fui-accordion-toggle {
+  background-image: url("theme/pepper-grinder/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-dark-hive {
+  --fui-accordion-arrows: url("theme/dark-hive/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-dark-hive .fui-accordion-toggle {
+  background-image: url("theme/dark-hive/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-black {
+  --fui-accordion-arrows: url("theme/black/images/accordion_arrows.png");
+}
+
+.fui-accordion.fg-theme-black .fui-accordion-toggle {
+  background-image: url("theme/black/images/accordion_arrows.png");
 }
 
 .fui-panel.fg-theme-default,

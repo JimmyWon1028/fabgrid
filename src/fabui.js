@@ -1,6 +1,7 @@
 import { createEditorDefinitions } from './editbox/editbox-definitions.js?v=20260717-editor-names-v1';
 import { createEditBoxFactory } from './editbox/editbox.js?v=20260719-combo-fit-content-v1';
 import { createButtonFactory } from './button/button.js?v=20260719-button-anchor-v1';
+import { createAccordionFactory } from './accordion/accordion.js?v=20260720-accordion-v3';
 import { createCalendarFactory } from './calendar/calendar.js?v=20260719-i18n-theme-audit-v1';
 import { createCheckBoxFactory } from './checkbox/checkbox.js?v=20260719-i18n-theme-audit-v1';
 import { createCheckGroupFactory } from './checkgroup/checkgroup.js?v=20260719-i18n-theme-audit-v1';
@@ -10,13 +11,13 @@ import { createRadioGroupFactory } from './radiogroup/radiogroup.js?v=20260719-r
 import { createFileBoxFactory } from './filebox/filebox.js?v=20260719-i18n-theme-audit-v1';
 import { createFormFactory } from './form/form.js?v=20260719-form-radio-v1';
 import { createChartFactory } from './chart/chart.js?v=20260719-chart-tooltip-v1';
-import { createDiagramFactory } from './diagram/diagram.js?v=20260719-diagram-v9';
+import { createDiagramFactory } from './diagram/diagram.js?v=20260721-diagram-overflow-pan-v1';
 import {
   Control,
   registerControl,
   unregisterControl
 } from './core/control.js?v=20260716-control-events-v3';
-import { createFabGridFactory } from './grid/fabgrid.js?v=20260720-header-cell-style-v1';
+import { createFabGridFactory } from './grid/fabgrid.js?v=20260721-search-row-scroll-v1';
 import { CellType } from './grid/fabgrid-types.js?v=20260716-row-types-v1';
 import { createLayoutFactory } from './layout/layout.js?v=20260719-i18n-theme-audit-v1';
 import { createMenuFactory } from './menu/menu.js?v=20260719-i18n-theme-audit-v1';
@@ -80,15 +81,18 @@ var Form = createFormFactory(
 var FabGrid = createFabGridFactory(editorDefinitions);
 var Chart = createChartFactory();
 var Window = createWindowFactory(Control, registerControl, unregisterControl);
+var Menu = createMenuFactory(Control, registerControl, unregisterControl);
+var Tabs = createTabsFactory(Control, registerControl, unregisterControl);
 var Diagram = createDiagramFactory(
   Control,
   registerControl,
   unregisterControl,
   Button,
   EditBox,
-  Window
+  Window,
+  Menu,
+  Tabs
 );
-var Menu = createMenuFactory(Control, registerControl, unregisterControl);
 var MenuButton = createMenuButtonFactory(
   Control,
   registerControl,
@@ -103,13 +107,18 @@ var SplitButton = createSplitButtonFactory(
   MenuButton
 );
 var Panel = createPanelFactory(Control, registerControl, unregisterControl);
+var Accordion = createAccordionFactory(
+  Control,
+  registerControl,
+  unregisterControl,
+  Panel
+);
 var PropertyGrid = createPropertyGridFactory(
   Control,
   registerControl,
   unregisterControl,
   EditBox
 );
-var Tabs = createTabsFactory(Control, registerControl, unregisterControl);
 var Tree = createTreeFactory(Control, registerControl, unregisterControl);
 var Tooltip = createTooltipFactory(Control, registerControl, unregisterControl);
 var Layout = createLayoutFactory(Control, registerControl, unregisterControl, Panel);
@@ -149,6 +158,7 @@ var pivotNamespace = {
 var fabui = {
   version: '2026.7.18',
   editorDefinitions: editorDefinitions,
+  Accordion: Accordion,
   Button: Button,
   Calendar: Calendar,
   CheckBox: CheckBox,

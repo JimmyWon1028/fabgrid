@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fabui.Gantt Source Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260720-gantt-core-v1">
+  <link rel="stylesheet" href="../src/gantt/gantt.css?v=20260720-gantt-v2">
+  <link rel="stylesheet" href="./css/gantt-demo.css?v=20260720-gantt-v2">
+</head>
+<body class="fg-theme-default">
+  <main class="gantt-demo-shell">
+    <h1>fabui.Gantt</h1>
+    <p class="gantt-demo-lead">Pure JavaScript TreeList＋Timeline，支援階層、相依線、里程碑、進度、拖曳、縮放與四種時間 View。</p>
+    <div class="gantt-demo-controls">
+      <select id="gantt-theme">
+        <option value="default" selected>default</option>
+        <option value="bootstrap">bootstrap</option>
+        <option value="cupertino">cupertino</option>
+        <option value="material">material</option>
+        <option value="material-blue">material-blue</option>
+        <option value="material-teal">material-teal</option>
+        <option value="metro">metro</option>
+        <option value="metro-blue">metro-blue</option>
+        <option value="metro-gray">metro-gray</option>
+        <option value="metro-green">metro-green</option>
+        <option value="metro-orange">metro-orange</option>
+        <option value="metro-red">metro-red</option>
+        <option value="sunny">sunny</option>
+        <option value="pepper-grinder">pepper-grinder</option>
+        <option value="dark-hive">dark-hive</option>
+        <option value="black">black</option>
+      </select>
+      <select id="gantt-locale">
+        <option value="zh-TW" selected>繁體中文</option>
+        <option value="zh-CN">简体中文</option>
+        <option value="en">English</option>
+      </select>
+      <span class="gantt-demo-spacer"></span>
+      <a id="gantt-expand" href="javascript:void(0)">展開全部</a>
+      <a id="gantt-collapse" href="javascript:void(0)">收合全部</a>
+      <a id="gantt-today" href="javascript:void(0)">定位日期</a>
+    </div>
+    <div id="gantt"></div>
+    <p id="gantt-status" aria-live="polite"></p>
+  </main>
+  <script src="./js/gantt-demo.js?v=20260720-gantt-v2"></script>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260720-gantt-core-v1';
+    globalThis.fabui = fabui;
+    await import('../src/fabui.gantt.js?v=20260720-gantt-v4');
+    globalThis.mountFabUIGanttDemo(fabui);
+  </script>
+  <script type="module" src="./js/dev-controls.js?v=20260720-hidden-file-input-v1"></script>
+</body>
+</html>

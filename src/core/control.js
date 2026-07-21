@@ -86,3 +86,6 @@ export function unregisterControl(element, control) {
     controlRegistry.delete(element);
   }
 }
+
+Control._registerControl = registerControl;
+Control._unregisterControl = unregisterControl;

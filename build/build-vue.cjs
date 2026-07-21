@@ -20,7 +20,6 @@ const browserEntry = '(function(global) {\n' + browserSource + '\n' +
   'global.fabuiVue = plugin;\n' +
   'global.Vue.use(plugin);\n' +
   '})(typeof globalThis !== "undefined" ? globalThis : window);\n';
-const esmEntry = source + '\nexport default createFabGridVue;\n';
 const minifiedBrowserEntry = esbuild.transformSync(browserEntry, {
   minify: true,
   target: 'es2017'
@@ -34,14 +33,7 @@ fs.writeFileSync(path.join(distDir, 'fabgrid-vue.min.js'), minifiedBrowserEntry)
 fs.copyFileSync(vueRuntimeFile, path.join(wrapperDistDir, 'vue.min.js'));
 fs.writeFileSync(path.join(wrapperDistDir, 'fabgrid-vue.js'), browserEntry);
 fs.writeFileSync(path.join(wrapperDistDir, 'fabgrid-vue.min.js'), minifiedBrowserEntry);
-fs.writeFileSync(path.join(distDir, 'fabgrid-vue.esm.js'), esmEntry);
-fs.writeFileSync(path.join(distDir, 'fabgrid-vue.esm.min.js'), esbuild.transformSync(esmEntry, {
-  format: 'esm',
-  minify: true,
-  target: 'es2017'
-}).code.trim());
-
-['fabgrid-vue.js', 'fabgrid-vue.min.js', 'fabgrid-vue.esm.js', 'fabgrid-vue.esm.min.js'].forEach(function(name) {
+['fabgrid-vue.js', 'fabgrid-vue.min.js'].forEach(function(name) {
   if (!fs.existsSync(path.join(distDir, name)) || !fs.statSync(path.join(distDir, name)).size) throw new Error('Missing Vue wrapper output: ' + name);
 });
 ['vue.min.js', 'fabgrid-vue.js', 'fabgrid-vue.min.js'].forEach(function(name) {

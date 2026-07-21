@@ -184,6 +184,6 @@ app.$mount("#app");
 </script>
 
 <style>
-@import "../dist/fabui.css";
+@import "../dist/fabui.css?v=20260720-dist-style-fabui-v1";
 @import "./style/grid-grid.css";
 </style>

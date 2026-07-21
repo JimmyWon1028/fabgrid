@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFabGridFactory } from '../src/grid/fabgrid.js';
-import { applyHeaderCellStyle } from '../src/grid/fabgrid-view.js?v=20260720-header-cell-style-v1';
+import { applyHeaderCellStyle } from '../src/grid/fabgrid-view.js?v=20260720-initial-search-focus-v1';
 import { Control } from '../src/core/control.js?v=20260716-control-events-v3';
 import { CellType, GroupRow, Row, createGridPanel } from '../src/grid/fabgrid-types.js?v=20260716-row-types-v1';
 
@@ -26,6 +26,251 @@ function createFakeElement(classNames, attributes, rect) {
     }
   };
 }
+
+test('empty pagination render keeps using its internal DOM after pager alias is overwritten', function() {
+  var FabGrid = createFabGridFactory({});
+  var pagerElement = { style: {} };
+  var paginationElement = {
+    style: {},
+    innerHTML: '',
+    setAttribute: function(name, value) {
+      this[name] = value;
+    }
+  };
+  var grid = {
+    options: {
+      pageSize: 10,
+      pageNumber: 1,
+      pageList: [10],
+      showPageList: false,
+      showPageInfo: true,
+      showRefresh: false
+    },
+    paginationTotal: 0,
+    pager: { pageNumber: 1, pageSize: 10 },
+    pagination: { pageNumber: 1 },
+    _pagerElement: pagerElement,
+    _paginationElement: paginationElement,
+    getPaginationHeight: function() {
+      return 35;
+    },
+    getText: function(path, data) {
+      if (path === 'pagination.displayMsg') {
+        return data.from + '-' + data.to + '-' + data.total;
+      }
+      return path;
+    },
+    createPaginationButton: FabGrid.prototype.createPaginationButton
+  };
+
+  assert.doesNotThrow(function() {
+    FabGrid.prototype.renderPagination.call(grid);
+  });
+  assert.equal(pagerElement.style.height, '35px');
+  assert.equal(paginationElement.style.display, 'flex');
+  assert.match(paginationElement.innerHTML, />0-0-0</);
+});
+
+test('host resize observer invalidates an empty grid after its layout becomes visible', function() {
+  var FabGrid = createFabGridFactory({});
+  var OriginalResizeObserver = globalThis.ResizeObserver;
+  var observedHost = null;
+  var disconnected = false;
+  var callback;
+  var invalidations = 0;
+  var grid = {
+    host: {},
+    _resizeObserver: null,
+    invalidate: function() {
+      invalidations += 1;
+    }
+  };
+
+  globalThis.ResizeObserver = function(nextCallback) {
+    callback = nextCallback;
+    this.observe = function(host) {
+      observedHost = host;
+    };
+    this.disconnect = function() {
+      disconnected = true;
+    };
+  };
+
+  try {
+    FabGrid.prototype.bindResizeObserver.call(grid);
+    assert.equal(observedHost, grid.host);
+
+    callback();
+    assert.equal(invalidations, 1);
+
+    FabGrid.prototype.unbindResizeObserver.call(grid);
+    assert.equal(disconnected, true);
+    assert.equal(grid._resizeObserver, null);
+  } finally {
+    if (OriginalResizeObserver === undefined) {
+      delete globalThis.ResizeObserver;
+    } else {
+      globalThis.ResizeObserver = OriginalResizeObserver;
+    }
+  }
+});
+
+test('initial search row focuses the first visible column input', function() {
+  var FabGrid = createFabGridFactory({});
+  var focusedColumn = null;
+  var grid = {
+    disposed: false,
+    options: {
+      allowFiltering: true,
+      showSearchRow: true
+    },
+    visibleColumns: [
+      { _viewIndex: 0, binding: 'name' },
+      { _viewIndex: 1, binding: 'country' }
+    ],
+    focusHeaderSearchInput: function(colIndex) {
+      focusedColumn = colIndex;
+      return true;
+    }
+  };
+
+  assert.equal(FabGrid.prototype.focusInitialHeaderSearchInput.call(grid), true);
+  assert.equal(focusedColumn, 0);
+
+  grid.options.showSearchRow = false;
+  focusedColumn = null;
+  assert.equal(FabGrid.prototype.focusInitialHeaderSearchInput.call(grid), false);
+  assert.equal(focusedColumn, null);
+});
+
+test('header render preserves the active search input and caret', function() {
+  var FabGrid = createFabGridFactory({});
+  var input = {
+    selectionStart: 2,
+    selectionEnd: 4,
+    getAttribute: function(name) {
+      return name === 'data-col' ? '1' : null;
+    }
+  };
+  var grid = {
+    headerSearchFocusRequest: null,
+    getActiveHeaderSearchInput: function() {
+      return input;
+    }
+  };
+
+  assert.equal(FabGrid.prototype.captureActiveHeaderSearchFocus.call(grid), true);
+  assert.deepEqual(grid.headerSearchFocusRequest, {
+    col: 1,
+    selectionStart: 2,
+    selectionEnd: 4,
+    attempts: 1
+  });
+});
+
+test('search row down arrow focuses the same-row active cell before grid navigation', function() {
+  var FabGrid = createFabGridFactory({});
+  var selectedRows = [];
+  var scrolledRows = [];
+  var prevented = 0;
+  var stopped = 0;
+  var rootFocuses = 0;
+  var grid = {
+    options: {
+      allowFiltering: true,
+      showSearchRow: true,
+      multiSelectRows: false,
+      editOnSelect: true
+    },
+    view: [{ id: 1 }, { id: 2 }, { id: 3 }],
+    selection: { row: 0, col: 1 },
+    root: {
+      focus: function() {
+        rootFocuses += 1;
+      }
+    },
+    selectRow: function(row, col) {
+      selectedRows.push([row, col]);
+      this.selection = { row: row, col: col };
+    },
+    select: function() {
+      throw new Error('single-row navigation must use selectRow');
+    },
+    scrollIntoView: function(row, col, options) {
+      scrolledRows.push([row, col, options.directionY]);
+    }
+  };
+  var downEvent = {
+    key: 'ArrowDown',
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    preventDefault: function() { prevented += 1; },
+    stopPropagation: function() { stopped += 1; }
+  };
+  assert.equal(FabGrid.prototype.handleHeaderSearchRowNavigation.call(grid, downEvent, 0), true);
+  assert.deepEqual(selectedRows, [[0, 0]]);
+  assert.deepEqual(scrolledRows, [[0, 0, 0]]);
+  assert.equal(prevented, 1);
+  assert.equal(stopped, 1);
+  assert.equal(rootFocuses, 1);
+
+  grid.selection = { row: 2, col: 0 };
+  assert.equal(FabGrid.prototype.handleHeaderSearchRowNavigation.call(grid, downEvent, 0), true);
+  assert.deepEqual(selectedRows, [[0, 0]]);
+  assert.deepEqual(scrolledRows, [[0, 0, 0], [2, 0, 0]]);
+  assert.equal(prevented, 2);
+  assert.equal(stopped, 2);
+  assert.equal(rootFocuses, 2);
+
+  grid.options.showSearchRow = false;
+  assert.equal(FabGrid.prototype.handleHeaderSearchRowNavigation.call(grid, downEvent, 0), false);
+  assert.deepEqual(selectedRows, [[0, 0]]);
+  assert.deepEqual(scrolledRows, [[0, 0, 0], [2, 0, 0]]);
+  assert.equal(prevented, 2);
+  assert.equal(stopped, 2);
+  assert.equal(rootFocuses, 2);
+});
+
+test('first-row up arrow focuses the same-column search input only while search row is visible', function() {
+  var FabGrid = createFabGridFactory({});
+  var focusedColumns = [];
+  var prevented = 0;
+  var stopped = 0;
+  var grid = {
+    options: {
+      allowFiltering: true,
+      showSearchRow: true
+    },
+    focusHeaderSearchInput: function(col) {
+      focusedColumns.push(col);
+      return true;
+    }
+  };
+  var upEvent = {
+    key: 'ArrowUp',
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    preventDefault: function() { prevented += 1; },
+    stopPropagation: function() { stopped += 1; }
+  };
+
+  assert.equal(FabGrid.prototype.handleFirstRowSearchFocus.call(grid, upEvent, 0, 1), true);
+  assert.deepEqual(focusedColumns, [1]);
+  assert.equal(prevented, 1);
+  assert.equal(stopped, 1);
+
+  grid.options.showSearchRow = false;
+  assert.equal(FabGrid.prototype.handleFirstRowSearchFocus.call(grid, upEvent, 0, 1), false);
+  assert.deepEqual(focusedColumns, [1]);
+
+  grid.options.showSearchRow = true;
+  assert.equal(FabGrid.prototype.handleFirstRowSearchFocus.call(grid, upEvent, 1, 1), false);
+  assert.deepEqual(focusedColumns, [1]);
+});
 
 test('frozen column counts are normalized before layout', function() {
   var FabGrid = createFabGridFactory({});
@@ -501,7 +746,7 @@ test('setRowHeaderWidth normalizes the width and refreshes the grid', function()
   assert.equal(refreshCount, 3);
 });
 
-test('active cell border defaults to two pixels', function() {
+test('active cell border defaults to one pixel', function() {
   var FabGrid = createFabGridFactory({});
   var descriptor = Object.getOwnPropertyDescriptor(FabGrid.prototype, 'activeCellBorder');
   var applyCount = 0;
@@ -512,9 +757,9 @@ test('active cell border defaults to two pixels', function() {
     }
   };
 
-  assert.equal(descriptor.get.call(grid), 2);
+  assert.equal(descriptor.get.call(grid), 1);
   descriptor.set.call(grid, 'invalid');
-  assert.equal(grid.options.activeCellBorder, 2);
+  assert.equal(grid.options.activeCellBorder, 1);
   assert.equal(applyCount, 1);
 });
 

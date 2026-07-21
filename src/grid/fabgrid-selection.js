@@ -1180,6 +1180,10 @@ export function installFabGridSelection(FabGrid, context) {
       return;
     }
 
+    if (this.handleFirstRowSearchFocus(event, row, col)) {
+      return;
+    }
+
     if (this.options.autoClipboard !== false && (event.ctrlKey || event.metaKey) && !event.altKey && String(event.key).toLowerCase() === 'c') {
       event.preventDefault();
       this.copySelection();
@@ -1248,6 +1252,24 @@ export function installFabGridSelection(FabGrid, context) {
     }
     event.preventDefault();
     this.moveCell(row, col);
+  };
+
+  FabGrid.prototype.handleFirstRowSearchFocus = function(event, row, col) {
+    if (event.key !== 'ArrowUp' ||
+      event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+      row !== 0 ||
+      !this.options ||
+      this.options.allowFiltering === false ||
+      this.options.showSearchRow !== true ||
+      typeof this.focusHeaderSearchInput !== 'function') {
+      return false;
+    }
+    if (!this.focusHeaderSearchInput(col)) {
+      return false;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    return true;
   };
 
   FabGrid.prototype.handleCellRangeKeyDown = function(event) {

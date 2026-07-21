@@ -19,13 +19,24 @@
 - `res/` 位於專案根目錄，只存放本機參考檔案；build、Demo 與正式 source 不得依賴，Git/GitHub 必須忽略。
 - 日常修改不要每次都編譯到 `dist`。
 - 除非使用者明確要求「編譯」、「build」、「重建 dist」、「產生 dist」或同等意思，否則不要主動執行會更新 `dist` 的指令，例如 `npm run build` 或 `npm run smoke`。
-- 預設 `npm run build` 與 `npm run smoke` 只處理 FabUI core 與 theme；Vue 2 與 FabGrid jQuery wrapper 目前暫緩，不得在一般 build 中編譯。既有 Vue 2 與 FabGrid jQuery wrapper 原始碼及獨立 build script 保留，只有使用者未來明確要求恢復或單獨編譯 wrapper 時才可使用。FabUI EditBox jQuery wrapper 已移除，不得重新加入預設或獨立 build。
+- Build 命令固定依照以下範圍執行：
+  - `build`：執行 `npm run build`，只編譯 `fabui.*`，不包含 Diagram、`fabui.lite.*`、`fabui.gantt.*` 與 `fabui.scheduler.*`；`dist/fabui.*` 不得包含 Diagram JavaScript 或 CSS。
+  - `build lite`：執行 `npm run build:lite`，只編譯 `fabui.lite.*`。
+  - `build diagram`：只編譯獨立 Diagram，產生 `dist/diagram.js`、`dist/diagram.min.js`、`dist/diagram.css` 與 `dist/diagram.min.css`，不得重新編譯或寫入 `dist/fabui.*`。
+  - `build gantt`：執行 `npm run build:gantt`，只編譯 `fabui.gantt.*`。
+  - `build scheduler`：執行 `npm run build:scheduler`，只編譯 `fabui.scheduler.*`。
+  - `build theme`：只編譯 `dist/theme/` 下的 theme CSS 與圖片依賴，不得重新編譯或刪除其他 `dist/` 輸出。
+  - `build clear`：只清除 `dist/` 下的所有檔案與資料夾並保留 `dist/` 目錄本身，不得執行任何編譯。
+  - `build all`：依序執行 `npm run build`、`npm run build:lite`、`build diagram`、`npm run build:gantt`、`npm run build:scheduler`，編譯以上全部發佈輸出；一般 `build` 已包含 theme，因此不重複執行 `build theme`，也不得額外執行 `build clear`。
+  - 所有編譯命令都可在尾端加上 `min`，包含 `build min`、`build lite min`、`build diagram min`、`build gantt min`、`build scheduler min`、`build theme min` 與 `build all min`。加上 `min` 時，只產生並保留該範圍內檔名含 `.min.` 的壓縮版 JS／CSS，不得產生或保留同範圍的非壓縮輸出；`build diagram min` 只產生並保留 `dist/diagram.min.js` 與 `dist/diagram.min.css`；theme 所需圖片依賴仍須保留。`build clear` 不適用 `min`。
+- 所有 build 命令一律不得產生 `.esm.js`、`.esm.min.js` 或其他 ESM 發佈檔；只輸出 browser global JavaScript、壓縮 JavaScript、CSS、壓縮 CSS 與必要 theme／圖片資產。
+- Diagram、Gantt 與 Scheduler 必須保持獨立 bundle，不得併入 `fabui.*` core。Vue 2 與 FabGrid jQuery wrapper 目前暫緩，不得納入上述 build 命令。既有 Vue 2 與 FabGrid jQuery wrapper 原始碼及獨立 build script 保留，只有使用者未來明確要求恢復或單獨編譯 wrapper 時才可使用。FabUI EditBox jQuery wrapper 已移除，不得重新加入預設或獨立 build。
 - 修改確認完成後，預設啟動開發伺服器，提供本機網址讓使用者自行測試。
 - 所有 `demo/*.html`、共用 Demo 設定與動態產生的 theme selector 都必須以 `default` 作為初始主題；可以保留其他 theme 的切換功能，但不得讓個別 Demo 預設為其他 theme。
 - 若任務需要驗證但使用者沒有要求編譯，優先使用不會改寫 `dist` 的檢查方式；如果現有驗證只能透過 build/smoke 完成，先回報限制並等待使用者指示。
 - FabUI 使用的 icon 定義統一放在 `src/fabui.icon.css`，例如 `icon-datebox`、`icon-refwin`；不要在核心 CSS 直接硬編圖檔路徑。
 - 開發測試優先使用 source-mode `demo/dev-grid.html`，直接引用公開入口 `src/fabui.js` 與 `src/fabui.css`；build-mode 主 Demo 固定為 `demo/grid.html`。內部模組仍放在各自目錄。修改 source 後要同步更新 query version，避免瀏覽器快取造成誤判。
-- 除純 HTML 索引 `demo/dev.html` 與 `demo/index.html` 外，所有 Demo 畫面上的按鈕、下拉、輸入、checkbox、radio 與 file 欄位都必須優先使用對應 FabUI 元件；共用補強集中於 `demo/js/demo-controls.js`，`dev-*.html` 由 `demo/js/dev-controls.js` 注入 `src/` FabUI，非 `dev-*.html` 由 `demo/js/dist-controls.js` 注入 `dist/` FabUI，不得在個別 Demo 以硬編 CSS 仿造元件。Demo CSS 只負責頁面排版，不得以通用 `button`／`select`／`input` selector 覆蓋 `.fui-*` 的框線、背景、padding、icon、字型或互動狀態。`demo/dev.html` 必須以一般文字 `<a>` 連結並列開發版與正式版，`demo/index.html` 只列正式版；兩個索引不得載入 FabUI CSS／JavaScript，也不得將連結轉成 FabUI Button。
+- 除 Demo 索引 `demo/dev.html` 與 `demo/index.html` 外，所有 Demo 畫面上的按鈕、下拉、輸入、checkbox、radio 與 file 欄位都必須優先使用對應 FabUI 元件；共用補強集中於 `demo/js/demo-controls.js`，`dev-*.html` 由 `demo/js/dev-controls.js` 注入 `src/` FabUI，非 `dev-*.html` 由 `demo/js/dist-controls.js` 注入 `dist/` FabUI，不得在個別 Demo 以硬編 CSS 仿造元件。Demo CSS 只負責頁面排版，不得以通用 `button`／`select`／`input` selector 覆蓋 `.fui-*` 的框線、背景、padding、icon、字型或互動狀態。`demo/dev.html` 必須以一般文字 `<a>` 連結並列開發版與正式版，只有第一欄 Demo 項目可由 `demo/js/dev-index.js` 原生上下拖曳調整當次顯示順序；開發版與正式版連結不可拖曳，滑鼠移入時必須維持一般箭頭指標。`demo/index.html` 只列正式版，排列順序必須跟隨 `demo/dev.html` 中具有正式版連結的項目。兩個索引不得載入 FabUI CSS／JavaScript，也不得將連結轉成 FabUI Button。
 - 新增任何核心 UI 文字時，必須同步補齊 `en`、`zh-TW`、`zh-CN` locale key；三組 locale pack 的 key 必須一致，且 `zh-Hant`／`zh_Hant_TW` 要正規化為 `zh-TW`、`zh-Hans`／`zh_CN` 要正規化為 `zh-CN`。demo-only 文字若會隨語言切換，也要放進 demo locale pack，不要寫死單一語言。
 - 所有支援 theme 的公開元件都必須公開相同的 16 組 `themes` metadata；附加到 `document.body` 的 Form validation、Date／Combo／Color、Menu、Tooltip 等 popup 必須攜帶目前 `fg-theme-*` class，不能因脫離元件 DOM 而退回 default。Chart 與其他核心視覺不得硬編只適用淺色主題的文字、背景或線條顏色，應沿用共用 theme variables。
 - popup menu 樣式要維持一致：左側 icon 欄、icon 後分隔線、緊湊列高與清楚 hover/active 狀態；後續新增 popup menu 時沿用目前 filter menu 的視覺規則。
@@ -50,8 +61,8 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 
 ## 技術方向
 
-- `fabui` 是最上層 UI namespace，Browser global 與 ES module 公開入口目前輸出 FabGrid、Chart 與其必要定義。
-- Browser global 與 ES module 皆以 `fabui.version` 公開 `YYYY.M.D` 格式的發佈日期版本，每次 build 依本機當天日期自動產生。
+- `fabui` 是最上層 UI namespace，Browser global 發佈入口目前輸出 FabGrid、Chart 與其必要定義。
+- Browser global 以 `fabui.version` 公開 `YYYY.M.D` 格式的發佈日期版本，每次 build 依本機當天日期自動產生。
 - FabGrid 與 `fabui.EditBox` 共用的 editor 定義位於 `src/editbox/editbox-definitions.js`，由 core bundle 的 `fabui.editorDefinitions` 與 `fabui.EditBox.editorDefinitions` 公開；不可在 Grid 內維護多套數字／日期清理、格式化或 editor class。`src/editor/editor-definitions.js` 只保留舊 import path 相容入口。
 - FabGrid 與 `fabui.EditBox` 的日期 popup 共用 `src/editbox/date-popup.js`；Calendar DOM、月份選單、鍵盤導覽、outside click、`Escape` lifecycle 與 `.fui-calendar-*` 樣式以 EditBox 視覺為唯一基準。Grid 只保留 cell／Search Row 的日期寫回邏輯，不得另建 `fg-datebox-*` renderer 或 CSS。
 - 共用 DatePopup 的 `showLunar` 預設為 `false`；設為 `true` 時在國曆日期下方顯示農曆日期，FabGrid cell editor、Search Row 與 `fabui.EditBox` 必須沿用同一個 option、轉換與 DOM／CSS，不得各自實作農曆 renderer。
@@ -60,11 +71,14 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 - FabGrid 與 `fabui.EditBox` 的顏色 popup 共用 `src/editbox/color-popup.js`；色票、HSV、Alpha、pointer drag、outside click、`Escape` lifecycle 與 `.fui-colorbox-*` 樣式以 EditBox 視覺為唯一基準。Grid 只保留 cell／Search Row 的顏色寫回邏輯與顏色名稱原樣保存契約，不得另建 `fg-color-*` popup renderer 或 CSS。
 - FabGrid 年月編輯統一使用 `date`；當 mask 為 `9999/99` 或 `9999-99` 時，popup 固定使用年份／月份選擇模式，不另外定義年月專用 editor。FabGrid 與 `fabui.EditBox` 的 DateBox `autoUnmask` 預設皆為 `true`，複製日期／年月內容時必須移除遮罩字面值；只有明確設定 `autoUnmask: false` 時才保留遮罩。
 - FabGrid 位於 `fabui.FabGrid`；`src/fabui.js` 是入口，`src/grid/fabgrid.js` 是 Grid 子模組。
+- FabGrid 的 `activeCellBorder` 預設為 `1`，active cell 與 cell editor 必須共用此邊框寬度；設為 `0` 時隱藏邊框。
 - Chart 位於 `fabui.Chart`；使用 pure JavaScript SVG rendering，只支援直條圖、橫條圖、折線圖與圓餅圖，原始碼位於 `src/chart/` 並納入主 bundle。
 - PivotChart 位於 `fabui.pivot.PivotChart`；直接監聽共用 PivotEngine 的 `updatedView`，只負責將 Pivot view 轉成既有 `fabui.Chart` 的 categories／series，不得重新彙總原始資料或複製 Chart renderer。
 - FabGrid 與 `fabui.EditBox` 的公開 editor 名稱統一為 `text`、`number`、`date`、`combo`、`color`；舊 `textbox`、`numberbox`、`datebox`、`combobox` 僅保留為相容別名，CSS class 名稱不必跟著改。`fabui.EditBox` 是 TextBox、NumberBox、DateBox、ComboBox 的單一公開替代 class；editor 類型別名、共用 definitions、icon descriptor 與 Color palette／HSV／alpha 樣式契約必須和 FabGrid 一致。原四個 Box class 只保留為 `fabui.EditBox` 內部實作，原始碼統一放在 `src/editbox/` 的 `text-editbox.*`、`number-editbox.*`、`date-editbox.*`、`combo-editbox.*`，不得再建立分散的 `src/*box/` 目錄，也不得在 `fabui` 頂層公開。`fabui.EditBox` 必須納入 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 與 `dist/fabui.*`，不得另行輸出 `dist/editbox.*`。
 - FabGrid cell editor、Search Row 與 `fabui.EditBox` 的 icon descriptor 公開標準欄位統一為 `iconCls`、`title`、`ariaLabel`、`text`、`width`、`align`、`keepFocus`、`onClick`，並由 `src/editbox/editor-icons.js` 單次正規化；`className`／`iconClass`／`icon`、`label`、`click`／`handler` 只保留舊寫法相容，renderer 不得各自重複解析別名。
 - `fabui.Button` 已由 FabUI core 公開，原始碼位於 `src/button/`；API 與視覺參考 jQuery EasyUI LinkButton／Default theme，host 一律使用 `<a>`，支援尺寸、disabled、plain、outline、toggle、group、四方向 `iconCls`、theme、Control registry 與 dispose 還原，icon 預設位於文字左側，統一使用 `icon-xxx` 並由 `src/fabui.icon.css` 定義。`fabui.Calendar` 位於 `src/calendar/`，API 與視覺參考 jQuery EasyUI Calendar／Default theme；必須以嵌入模式共用 `src/editbox/date-popup.js` 的 renderer、月份選單、農民曆與 `.fui-calendar-*` 樣式，不得維護第二套 Calendar DOM，`showLunar` 預設為 `false`。`fabui.Tabs` 位於 `src/tabs/`，API 與視覺參考 jQuery EasyUI Tabs／Default theme，支援 markup／programmatic panels、動態新增／插入／更新／關閉、tab tools、header tools、四方向、overflow、遠端內容、keyboard、theme、locale、Control registry 與 dispose；所有 icon 一律使用 `iconCls: 'icon-xxx'` 並由 `src/fabui.icon.css` 定義。`fabui.Panel` 已由 FabUI core 公開，原始碼位於 `src/panel/`；提供 header／body／footer、custom tools、狀態、遠端 lazy load、cache、theme、locale、Control registry 與可取消 lifecycle；最大化／還原、收合／展開預設使用 180ms 過渡動畫，支援關閉動畫並遵守 `prefers-reduced-motion`。`fabui.Window` 位於 `src/window/`，另提供浮動定位、拖曳、八方向縮放、modal mask 與置中；八方向 pointer 縮放期間只更新獨立虛線 proxy，不得改變 Window options、實際 geometry 或觸發內容重排，pointer up 才一次提交位置／尺寸並發出 `Resize`，pointer cancel 必須放棄預覽；右上角預設只顯示最大化／還原與關閉，狀態切換使用可關閉的過渡動畫，疊合後只保留約 38px 高的標題列，展開時恢復原高度；最小化預設保留約 220×38px 標題列並停靠可用範圍左下角，也可用 `minimizeTarget` 指定 Element、selector、rect 或 function，讓最小化／還原動畫精確對準單一目標矩形；最小化工具切換為還原，點擊後回復原位置與尺寸，viewport resize listener 只在最小化期間綁定；左上角標題 icon 統一使用 `iconCls: 'icon-xxx'` 並由 `src/fabui.icon.css` 定義。Panel 與 Window 的收合、展開、最小化、最大化、還原與關閉 icon 必須使用各 theme 對應的 `src/theme/<theme>/images/panel_tools.png`，sprite 定義集中於 `src/fabui.icon.css`；Panel 的收合／展開 icon 與 Window 這六種內建 icon 不得顯示滑鼠 hover 背景或透明度變化，但必須保留鍵盤 `focus-visible` 提示；16 組 header、body、footer、frame、gradient、shadow、mask 與其他 tool hover 樣式必須逐一對應本機 `res/themes/<theme>/panel.css`／`window.css`，正式 source、Demo 與 build 不得依賴 `res/`。`fabui.Layout` 位於 `src/layout/`，north／south／east／west／center 五區必須重用 `fabui.Panel`，Layout 只維護 dock geometry、collapsed bar、float／dock expand、pointer／keyboard Splitter、動態 add／remove、split／unsplit、巢狀 resize 與 lifecycle，不得複製 Panel renderer；edge region 收起／展開必須同步動畫 center、Splitter 與 collapsed bar，預設啟用並遵守 `prefers-reduced-motion`。Layout 收合／展開 icon 不得顯示滑鼠 hover 背景或透明度變化；Splitter hover 不得變色，拖曳時只允許目前操作的單一分隔線使用 active 色。Pointer 拖曳期間只能移動 Splitter 預覽，不得更新 region options、Panel geometry 或觸發內容重排；pointer up 才一次提交尺寸與發出 `RegionResize`，pointer cancel 必須放棄預覽。Layout 的 16 組 Splitter、active proxy、collapsed bar、border、文字與箭頭 sprite 必須逐一對應本機 `res/themes/<theme>/layout.css`／`images/layout_arrows.png`，箭頭定義集中於 `src/fabui.icon.css` 並使用 `src/theme/<theme>/images/` 資產，正式 source、Demo 與 build 不得依賴 `res/`。這些元件不得加入 jQuery／EasyUI runtime 依賴。
+- `fabui.Accordion` 位於 `src/accordion/`，API 與視覺參考 jQuery EasyUI Accordion；每個 pane 必須直接建立既有 `fabui.Panel`，Accordion 只維護單一／多重展開、collection API、三方向排列、尺寸、鍵盤、ARIA、theme、locale、Control registry 與 dispose，不得複製 Panel renderer、遠端 loader 或 lifecycle。Header 箭頭使用各 theme 對應的 `src/theme/<theme>/images/accordion_arrows.png`，定義集中於 `src/fabui.icon.css`；收合狀態必須顯示 expand 箭頭，展開狀態必須顯示 collapse 箭頭。展開／收合預設使用 180ms 的 Panel 尺寸、Accordion flex 比例、內容透明度與 header 色彩過渡動畫，並遵守 `prefers-reduced-motion`；16 組容器、一般 header、selected header、文字與箭頭樣式必須逐一對應本機 `res/themes/<theme>/accordion.css`，正式 source、Demo 與 build 不得依賴 `res/`。
+- `fabui.Scheduler` 是獨立附加元件，原始碼位於 `src/scheduler/`，source 入口為 `src/fabui.scheduler.js`／`src/fabui.scheduler.css`，輸出固定為 `dist/fabui.scheduler.js`、`.min.js`、`.css`、`.min.css`。原本 `src/fabui.js`、`src/fabui.css` 與 `dist/fabui.*` 不得匯入或公開 Scheduler；Browser global 必須先載入 `fabui.*` 再載入 `fabui.scheduler.*`，獨立 bundle 只附加 `fabui.Scheduler`，不得建立第二份 `fabui`。Scheduler 使用 pure JavaScript，支援 Day／Work Week／Week／Month／Year／Agenda／Timeline、本機行程 CRUD、全天行程、resource color、拖曳移動、調整結束時間、鍵盤、三語系、16 組 theme、Control registry 與 dispose；工具列與編輯器必須重用既有 `fabui.Button`、`fabui.Window`、`fabui.EditBox`、`fabui.CheckBox`，不得複製這些 renderer。Document pointer listener 只在拖曳／調整期間綁定，pointer up、pointer cancel 或 dispose 時立即解除，pointer cancel 不得提交變更。
 - `fabui.CheckBox` 位於 `src/checkbox/`，API 與視覺參考 jQuery EasyUI CheckBox／Default theme；必須保留原生 `<input type="checkbox">` 的表單 name/value、label、鍵盤、disabled 與 reset 語意，支援尺寸、checked、三種 label position、label alignment、runtime state API、三語系 ARIA、16 組 theme、Control registry 與 dispose 還原；不得以自製 div 取代原生 input。
 - `fabui.CheckGroup` 位於 `src/checkgroup/`，API 與視覺參考 jQuery EasyUI CheckGroup／Default theme；每個 data 項目必須直接建立既有 `fabui.CheckBox` 與原生 `<input type="checkbox">`，不得複製 CheckBox renderer。支援 name／value／data、水平／垂直排列、itemStyle、label 設定、整組與單項 disabled、原生 FormData／reset、三語系、16 組 theme、Control registry 與 dispose 還原。
 - `fabui.SwitchButton` 位於 `src/switchbutton/`，API、滑動方式與視覺參考 jQuery EasyUI SwitchButton 1.11.5；必須直接包裝原生 `<input type="checkbox">`，保留 name/value、FormData、label、鍵盤、disabled 與 reset 語意，支援 ON／OFF／handle text、尺寸、handleWidth、checked、readonly、reversed、runtime state API、三語系 ARIA、16 組 theme、Control registry 與 dispose 還原。各主題顏色、圓角與字級必須逐一對應本機 `res/themes/<theme>/switchbutton.css`，但正式 source、Demo 與 build 不得依賴 `res/`。
@@ -80,20 +94,49 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 - `fabui.Tabs` 的 `draggable` 預設為 `false`，此時滑鼠位於 Tab 上必須使用一般箭頭游標；設為 `true` 時只有標題文字是 drag handle，icon、Tab 留白、tools 與關閉按鈕不得觸發拖曳，並允許 `top`／`bottom` 頁籤以滑鼠左右拖曳排序，必須保留目前選取 panel 與 DOM 對應。跟隨游標的 drag image 使用 50% 透明背景、文字與 icon，保留目前 theme 的清楚外框與陰影，原位置 Tab 保持原樣且目的地仍可透視；往左拖時在目標 Tab 左側顯示 55% 半透明垂直線並插到左方，往右拖時在目標 Tab 右側顯示垂直線並插到右方。提示不顯示箭頭、不得被 Tab 的 overflow 裁切，顏色由各 theme 的主色補色變數定義。`left`／`right` 位置不得啟用水平拖曳。
 - `fabui.Tree` 位於 `src/tree/`，API 與視覺參考 jQuery EasyUI Tree／Default theme；支援 nested markup／data、展開收合、checkbox cascade、lines、`iconCls: 'icon-xxx'`、動態節點 API、右鍵事件、拖放、inline edit、filter、callback／Promise lazy loader、鍵盤、ARIA、三語系、16 組 theme、Control registry 與 dispose 還原。展開／收合、階層線、資料夾、檔案、checkbox 與 loading icon 必須使用各自 theme 的 `src/theme/<theme>/images/tree_icons.png`／`loading.gif`；hover／selected 的背景與文字色、editor 邊框及主題字級也必須逐一對應 `res/themes/<theme>/tree.css`，不得只套用共用近似色，且正式 source 不得直接依賴本機參考用 `res/`。Tree 拖放的 before／after 插入線必須使用 55% 半透明；核心不得依賴 jQuery／EasyUI。
 - `fabui.PropertyGrid` 位於 `src/propertygrid/`，API 與視覺參考 jQuery EasyUI PropertyGrid／Default theme；支援兩欄 property data、`showGroup`／`groupField`／`groupFormatter(group, rows)`、自訂 columns、排序、inline editor、變更追蹤、遠端 loader、鍵盤、ARIA、三語系、16 組 theme、Control registry 與 dispose 還原。文字、數字、日期、清單與顏色 editor 必須重用 `fabui.EditBox`，不得另建重複 editor。
-- `fabui.Diagram` 位於 `src/diagram/`，介面參考 DevExtreme Diagram Overview，但以 pure JavaScript SVG 自行實作且不得依賴 DevExtreme／jQuery；支援 44 種一般、流程圖與 DFD 工具箱圖形及搜尋、DFD 弧線 Data Flow connector 工具、node／connector、框選與多選、群組移動／刪除、每個圖形六個連接點拖曳連線、node／connector 雙擊就地文字編輯、拖曳、八方向縮放、格線／snap、連線模式、屬性區、zoom／fit／fullscreen、undo／redo、JSON 匯入匯出、SVG 匯出、鍵盤、ARIA、三語系、16 組 theme、Control registry 與 dispose 還原。畫布空白處雙擊必須開啟重用 `fabui.Window`、`fabui.EditBox` 與 `fabui.Button` 的 modal 紙張設定視窗；紙張預設 A4 橫向，支援 A3／A4／A5／Letter／Legal 與直向／橫向。公開 API 使用 `getPaper()`／`setPaper(size, orientation)`，`getData()`／`setData()` 與 JSON 匯入匯出必須透過 `page` 欄位保留尺寸、方向、寬高及底色。工具箱的「一般／流程圖／DFD」分類標題必須重用 `fabui.Button`，可各自疊合與展開並在切換語系／搜尋時保留狀態；44 種圖形預覽必須重用 Diagram SVG shape renderer 並統一使用空心輪廓，不得以另一套實心 CSS 圖形取代。DFD 提供 Entity、Process、Data Store 節點與 Data Flow 工具；Entity、Process、Data Store 必須保留一般 node 的雙擊圖形內文字編輯；Data Flow 必須建立 `type: 'curved'` 且帶箭頭的 connector，不得建立成可縮放的箭頭 node。Connector 使用 `fromPoint`／`toPoint` 保存指定連接點；指定或自動端點都必須沿連線方向投影到實際圖形輪廓，不得停在外接矩形的空白區。Node 與 Connector 的就地文字輸入必須共用 `fabui.EditBox` 與相同提交／取消 lifecycle；Node 必須使用透明多行 EditBox 疊在圖形內並自動全選，不得顯示為圖形外的獨立輸入框。Diagram 內建操作按鈕必須重用 `fabui.Button`，搜尋與屬性 editor 必須重用 `fabui.EditBox`，不得複製 Button／EditBox renderer。
+- `fabui.Diagram` 位於 `src/diagram/`，介面參考 DevExtreme Diagram Overview，但以 pure JavaScript SVG 自行實作且不得依賴 DevExtreme／jQuery；支援 47 種一般、流程圖、DFD 與組織圖工具箱圖形及搜尋、DFD 弧線 Data Flow connector 工具、置中紙張、node／connector、框選與多選、群組移動／刪除、每個圖形六個連接點拖曳連線、可拖曳 connector 與弧度控制、node／connector 雙擊就地文字編輯、拖曳、八方向縮放、格線／snap、連線模式、屬性區、zoom／fit／fullscreen、undo／redo、JSON 匯入匯出、SVG／PNG 匯出、列印、鍵盤、ARIA、三語系、16 組 theme、Control registry 與 dispose 還原。紙張小於 viewport 時必須水平與垂直置中；放大超過 viewport 時自動 margin 必須退回 0，保留正常左上起點與捲動。Connector 拖曳必須沿用 interaction 期間才綁定的 document pointer lifecycle，並以 `controlX`／`controlY` 保存控制點；直線形成折點、直角線移動中段、弧線改變二次貝茲曲線弧度，且必須支援 JSON 與 undo／redo。`fitToPage()` 必須依目前 viewport 與紙張寬高縮放到整頁可見，且 Demo 初次開啟、還原範例及切換紙張後都要呼叫此元件方法，不得在 Demo 硬編固定 zoom。畫布空白處雙擊必須開啟重用 `fabui.Window`、`fabui.EditBox` 與 `fabui.Button` 的 modal 紙張設定視窗；紙張預設 A4 橫向，支援 A3／A4／A5／Letter／Legal、直向／橫向與最小 5px 的吸附間距。公開 API 使用 `getPaper()`／`setPaper(size, orientation, gridSize?)`，`getData()`／`setData()` 與 JSON 匯入匯出必須透過 `page` 欄位保留尺寸、方向、寬高、底色及 `gridSize`；套用吸附間距後必須同步更新格線與 node／connector snap。工具箱的「一般／流程圖／DFD／組織圖」分類標題必須重用 `fabui.Button`，可各自疊合與展開並在切換語系／搜尋時保留狀態；47 種圖形預覽必須重用 Diagram SVG shape renderer，一般、流程圖與 DFD 維持空心輪廓，組織圖的人像預留區依圖形顯示在左側、右側或上方，不得以另一套 CSS 圖形取代。三種組織圖人員卡片必須保留一般 node 的拖曳、縮放、六點連線、屬性與圖形內文字編輯。DFD 提供 Entity、Process、Data Store 節點與 Data Flow 工具；Entity、Process、Data Store 必須保留一般 node 的雙擊圖形內文字編輯；Data Flow 必須建立 `type: 'curved'` 且帶箭頭的 connector，不得建立成可縮放的箭頭 node。Connector 使用 `fromPoint`／`toPoint` 保存指定連接點；指定或自動端點都必須沿連線方向投影到實際圖形輪廓，不得停在外接矩形的空白區。Node 與 Connector 的就地文字輸入必須共用 `fabui.EditBox` 與相同提交／取消 lifecycle；Node 必須使用透明多行 EditBox 疊在圖形內並自動全選，不得顯示為圖形外的獨立輸入框。Diagram 內建操作按鈕必須重用 `fabui.Button`，搜尋與屬性 editor 必須重用 `fabui.EditBox`，做圖區右鍵匯出 PNG／SVG 與列印選單必須重用 `fabui.Menu` 並沿用 theme、Escape、外部點擊及 dispose lifecycle；工具箱與屬性區不得觸發此選單，不得複製 Button／EditBox／Menu renderer。
+- Diagram 的 JavaScript 與 CSS 必須保持獨立發佈；一般 `build` 與 `dist/fabui.*` 不得包含 Diagram。`build diagram` 固定產生 `dist/diagram.js`、`dist/diagram.min.js`、`dist/diagram.css`、`dist/diagram.min.css`，`build diagram min` 則只產生後兩個壓縮檔。
+- `fabui.Gantt` 位於 `src/gantt/`，以 pure JavaScript TreeList＋Timeline 重新設計 Kendo UI Gantt 的資訊架構，不得依賴或複製 Kendo／jQuery runtime。支援階層 Task、可調 Splitter、day／week／month／year View、進度、摘要、里程碑、FS／FF／SS／SF 相依線、選取、鍵盤、Task bar 拖曳／開始與結束縮放／進度調整、三語系、16 組 theme、Control registry 與 dispose。Task editor 與 toolbar 必須重用 `fabui.Window`、`fabui.EditBox`、`fabui.Button`。Gantt source、CSS 與 browser global 保持獨立；build 產生四個 `dist/fabui.gantt.*`，`dist/fabui.*` 不得包含 Gantt。Browser global 必須先載入 `fabui.*` 再載入 `fabui.gantt.*`，反向載入要拋出明確 dependency error。
+- Diagram node 公開 `hyperlink` 與 `hyperlinkTrigger: 'click' | 'dblclick'`；選取 node 後，屬性區必須在「文字」正下方顯示重用 `fabui.EditBox` 的三語系「超連結」欄位，下一列以 Combo 顯示「單擊觸發／雙擊觸發」，預設為 `click`，並由既有 property lifecycle 保存 JSON 及支援 undo／redo。有效連結文字必須顯示底線與手形指標，且只有符合 `hyperlinkTrigger` 的單擊或雙擊才能觸發；圖形不必預先選取，第一次直接點文字就必須觸發，不得要求先選圖形再點文字。HTTP／HTTPS、mailto、tel、相對網址與頁內錨點使用 `window.open(url, '_blank', 'noopener,noreferrer')` 開啟，`javascript:` 則以 `window.location.href` 在目前 Diagram 頁面執行，兩者都必須觸發 `HyperlinkClick`。觸發超連結的單擊／雙擊不得進入文字編輯模式；圖形內文字以外區域仍可雙擊編輯。未指定協定時補上 HTTPS，其他協定不得啟用；`javascript:` 可執行任意頁面程式，只能使用可信任的 Diagram JSON 與超連結內容。
+- Diagram 的刪除、復原／重做、方向鍵移動與 Escape 等全域鍵盤捷徑，只能在事件焦點不位於屬性 EditBox、工具箱搜尋、就地文字編輯或其他 input／textarea／select／button／link／contenteditable 互動控件時執行；互動控件必須保留 Backspace、Delete、方向鍵與組合鍵的原生行為，不得因此刪除或移動圖形／連線。
+- Diagram 在可編輯模式下點選 SVG 圖形、連線或畫布時必須將焦點留在 Diagram host，讓選取後直接按 `Delete`／`Backspace`、方向鍵或復原／重做快捷鍵即可操作，不得要求使用者再點外框；進入屬性或就地 EditBox 後仍由互動控件取得焦點並保留原生按鍵。
+- Diagram 繪圖 viewport 必須以非 passive `wheel` listener 支援滾輪縮放：向上放大、向下縮小，以滑鼠所在位置為縮放錨點並限制於 `minZoom`／`maxZoom`；只攔截 viewport 的垂直滾輪，工具箱與屬性區仍維持一般捲動，唯讀模式仍可使用縮放。
+- Diagram connector 公開 `arrowDirection: 'none' | 'end' | 'start' | 'both'`，預設為 `end`；選取線條後，屬性區必須以共用 `fabui.EditBox` Combo 提供三語系選項，SVG 使用 `marker-start`／`marker-end` 呈現，並透過既有 property change lifecycle 保存 JSON 與支援 undo／redo。
+- Diagram 工具列連線模式必須讓 viewport 與其中內容顯示十字指標，並優先攔截 node 的 move／resize；使用者可從起點圖形內任意位置拖曳到另一個圖形內任意位置，放開後建立未指定 `fromPoint`／`toPoint` 的 connector，讓元件依兩圖形位置自動選擇最佳端點。空白處、同一圖形或 pointer cancel 不得新增連線。
+- Diagram 上方工具列必須提供重用 `fabui.Button` 的「工具箱」toggle；pressed 狀態與 `options.toolbox` 同步。關閉工具箱時必須同時隱藏 toolbox splitter 並讓 viewport 接手空間，重新開啟時保留既有寬度與各分類展開／疊合狀態。
+- Diagram 工具箱的每個分類標題右側必須提供重用 `fabui.Button` 與 `icon-drag-vertical` 的專用拖曳把手；只有從把手開始的上下拖曳可調整 `toolboxOrder`，分類標題仍只控制展開／疊合。插入提示使用 55% 半透明線；有效的 `toolboxStateKey` 必須將分類順序與 `_toolboxCollapsed` 一起保存，並相容舊版只有分類布林值的儲存內容。
+- Diagram 工具箱最上方 pane header 必須作為整個工具箱的拖曳把手：從停靠狀態往工作區拖曳時改為浮動面板，浮動時可在工作區範圍內移動，拖至左側或右側停靠提示區並放開時重新 dock；若目標側已有屬性面板，兩者必須依 `sameSideDockMode` 使用下方標籤的共用 Tabs，或工具箱在上、屬性在下的同側上下排列，不得改變屬性面板的停靠側。停靠時內側 6px 透明邊緣可調寬，該側必須顯示 1px 面板框線；浮動時左右兩側的 6px 透明邊緣可調寬，上下兩側的 6px 透明邊緣可調高，並維持完整外框，不得顯示額外 splitter 色帶。Document pointer listener 只在面板拖曳或調整尺寸期間綁定，pointer up、pointer cancel 或 dispose 時立即解除，pointer cancel 必須還原開始前的停靠／浮動狀態、停靠側、位置、寬度與高度。分類標題右側 icon 的上下排序行為不得被整體面板拖曳取代。
+- Diagram 屬性 pane header 必須作為整個屬性面板的拖曳把手：從停靠狀態往工作區拖曳時改為浮動面板，浮動時可在工作區範圍內移動，拖至左側或右側停靠提示區並放開時重新 dock；若目標側已有工具箱，兩者必須依 `sameSideDockMode` 使用下方標籤的共用 Tabs，或工具箱在上、屬性在下的同側上下排列，不得改變工具箱的停靠側。停靠時內側 6px 透明邊緣可調寬，浮動時左右兩側可調寬、上下兩側可調高；面板內 EditBox 與其他屬性操作不得觸發整體拖曳。Document pointer listener 只在面板拖曳或調整尺寸期間綁定，pointer up、pointer cancel 或 dispose 時立即解除，pointer cancel 必須還原開始前的停靠／浮動狀態、停靠側、位置、寬度與高度。
+- Diagram 工具箱與屬性面板同時浮動時，點擊任一面板的標題、內容、控件或尺寸調整邊緣，必須將該面板與所有 resizer 一起提到另一面板上方；切換層級不得改變浮動位置、尺寸或觸發拖曳。
+- Diagram `toolboxStateKey` 必須以相容舊版分類布林值與 `order` 的格式，同時保存工具箱分類狀態，以及工具箱／屬性面板的顯示、浮動、左右停靠側、浮動位置、各自寬度與高度；工具列開關、任一面板尺寸調整、浮動移動、重新停靠、切換同側排列模式或 tab 完成後立即更新，重新載入時完整恢復。兩個 docked 面板可以同在左側或右側；`sameSideDockMode: 'tabs'` 必須重用 `fabui.Tabs`，工具箱／屬性標籤固定顯示於下方，只顯示作用中面板；`sameSideDockMode: 'stacked'` 必須在單一側欄讓工具箱置於上方、屬性置於下方並同時顯示。排列模式、作用中 tab，以及紙張尺寸、方向、寬高、底色與 `gridSize` 都必須保存；紙張設定套用或載入含 `page` 的 JSON 後立即更新記憶。
+- Diagram 紙張放大超過 viewport 可視範圍後，左鍵從沒有 node、connector 或控制點的空白處拖曳必須以 `scrollLeft`／`scrollTop` 平移做圖區，並顯示 grab／grabbing 游標；pointer listener 只在拖曳期間綁定，`pointercancel` 必須還原起始捲動位置。紙張未超出範圍時仍保留原本 marquee；超出時按住 `Shift`／`Ctrl`／`Cmd` 拖曳也必須改為 marquee，點到圖形、線條與控制點的既有操作不得改變。
+- Diagram 拖曳單一或多個 node 時，若未自訂控制點的相連 orthogonal connector 端點只差少量距離即可成為水平或垂直直線，必須在格線吸附後微調整組 node 位置完成對齊；門檻為 `gridSize * 0.75` 並限制在 5 至 16px。兩端都在移動、超過門檻、非 orthogonal 或已有 `controlX`／`controlY` 的 connector 不得套用此自動對齊。
+- Diagram node 屬性面板的 `X`／`Y` 必須並排於同一列，`width`／`height` 必須並排於下一列；每個欄位仍使用獨立 `fabui.EditBox`，不得合併資料寫回或改變既有 property undo／redo lifecycle。
+- Diagram `print()` 必須使用目前頁面的隱藏 iframe 列印紙張 SVG，不得以 `window.open()` 開啟新分頁或新視窗；列印專用 SVG 副本必須移除 grid pattern 並將 page fill 還原為目前 `pageColor`，不得改變做圖區或 SVG／PNG 匯出的網格契約。列印文件的 `@page size` 必須同時使用目前 `paperSize` 與 `paperOrientation`，讓列印預覽方向與做圖紙張一致。`@page` 實體 margin 必須為 0，以預設排除瀏覽器 header／footer，原本 12mm 留白改由 border-box body padding 提供。SVG 必須以 `!important` 覆蓋匯出內容的固定 inline 寬高，同時限制在可列印寬度與高度內、保持比例置中且不得產生空白第二頁；列印完成後必須移除暫存 iframe。
+- Diagram 必須提供兩種不同的全螢幕：右下角檢視工具列顯示「全螢幕」，其 `toggleFullscreen()` 以完整 Diagram host 為 target，包含主工具列、工具箱、屬性區、做圖 viewport 與下方檢視工具列；做圖區右鍵 `fabui.Menu` 必須顯示「投影片展示／離開投影片展示」，其 `togglePresentationFullscreen()` 只以 viewport 為 target，不包含其他編輯介面。兩種模式都要在 fullscreen layout 生效後以 24px 留白重新 `fitToPage()`，並只在全螢幕期間以 `ResizeObserver` 跟隨最終 viewport 尺寸；observer 必須比較 viewport border box，手動縮放造成的捲軸或 content box 變化不得重新執行 `fitToPage()`、限制使用者在 `minZoom` 至 `maxZoom` 間縮放。離開後立即解除 observer 並還原原本 zoom 與 scroll。右鍵選單必須在兩種 fullscreen top layer 內保持可見與可操作。
+- Diagram 工具箱分類的疊合／展開箭頭固定使用清楚的 20px 尺寸；預設只展開第一個「一般」分類，其餘分類疊合，並可用 `toolboxStateKey` 將最後分類狀態安全保存至 `localStorage`。工具箱預設／最小／最大寬度為 260／140／420px，屬性面板為 230／180／420px；浮動高度預設／最小／最大值皆為 520／180／720px。左右透明邊緣支援 pointer 拖曳與左右方向鍵，上下透明邊緣只在浮動時顯示並支援 pointer 拖曳與上下方向鍵。Document pointer listener 只在實際拖曳期間綁定，pointer up、pointer cancel 或 dispose 時立即解除；pointer cancel 必須還原拖曳前寬度、高度與浮動位置。
+- Diagram 上方工具列必須提供三語系「清除頁面」，使用既有 `icon-clear` 與 `fabui.Button`；`clearPage()` 只清除所有 node／connector，保留紙張尺寸、方向與底色，空白頁面時停用，且必須寫入既有 history 以支援 undo／redo。
+- Diagram 上方工具列必須提供三語系「唯讀」toggle，呼叫 `setReadOnly()` 控制作圖區並同步 pressed 狀態；狀態改變時觸發 `ReadOnlyChanged`。唯讀時主工具列必須維持可見以便解除唯讀；復原、重做、刪除、清除、載入、連線、工具箱與屬性等編輯操作停用，工具箱與屬性區隱藏，但縮放、符合內容、格線、全螢幕、下載、右鍵匯出與投影片展示等檢視操作保留。
+- Diagram 上方工具列必須提供三語系「下載／載入」FabUI Button；下載使用既有 `export('fabui-diagram.json')` 保存包含 `page`、nodes 與 connectors 的完整 JSON，載入使用隱藏且只接受 `.json`／`application/json` 的原生 file input，讀取後必須透過既有 `import()`／`setData()`，不得建立另一套資料轉換。有效檔案完成後觸發 `JsonLoaded` 並 `fitToPage()`；讀取失敗或 JSON 無效時觸發 `LoadError` 且不得改變目前圖面；FileReader callback 在 dispose 後不得再操作元件。
+- Diagram 上方工具列與做圖區右鍵選單都必須提供三語系「匯出 PNG」、「匯出 SVG」與「列印」；兩處直接共用既有 `exportPng()`、`exportSvg()` 與 `print()`，右鍵功能必須保留。上方工具列由左至右固定分為「下載／載入」、「匯出 PNG／匯出 SVG／列印」、「復原／重做／刪除／清除頁面」、「連線／工具箱／屬性／唯讀」四組，組間使用垂直分隔線。
+- Diagram 右下角檢視工具列必須可從縮放百分比或空白處拖曳，並限制在 Diagram host 範圍內；純文字「投影片展示／離開投影片展示」必須緊鄰「全螢幕」左側且不得設定 icon，並與做圖區右鍵選單共用 `togglePresentationFullscreen()` 及同步展示狀態文字。按鈕不得觸發拖曳。Document pointer listener 只在拖曳期間綁定，pointer up、pointer cancel 或 dispose 時立即解除，pointer cancel 必須還原拖曳前位置。有效的 `toolboxStateKey` 必須與既有版面狀態一起保存檢視工具列左／上座標，重新載入時還原，並相容於舊版儲存內容。
+- Diagram node／connector 的就地文字 EditBox 定位必須同時納入目前 zoom、viewport scroll 與 SVG 因整頁置中產生的實際 offset；任何縮放比例都必須準確疊在圖形或連線標籤上，不得只以 SVG 內座標換算。
+- Diagram connector 未指定 `fromPoint`／`toPoint` 時，必須在每次重繪依兩個圖形目前位置評分自動邊中點，兼顧距離與端點朝向；直角線第一段與最後一段必須符合所選邊的 outward direction，圖形拖曳後自動重選。明確指定的六點連接位置仍須保持，不得被自動選點覆寫。
 - 未來發佈任何 standalone 控件時，必須建立獨立 entry、CSS、demo、API 文件與驗證；不得併回 FabGrid core bundle。
 - 核心使用不綁定框架的 pure JavaScript。
 - 第一版 demo 不需要後端。
 - core package 不依賴 Vue。
 - 資料來源選項 `remote` 預設為 `false`；`remote: true` 已支援 GET／POST、Promise loader、遠端分頁、排序、全域搜尋與欄位篩選。
 - core 必須能打包成可在其他專案引用的 library 檔案。
-- 發佈主檔固定為 `fabui.js`、`fabui.min.js`、`fabui.esm.js`、`fabui.esm.min.js`、`fabui.css`、`fabui.min.css`，並輸出 `dist/theme` 下的 theme CSS 與圖片依賴。
+- 發佈主檔固定為 `fabui.js`、`fabui.min.js`、`fabui.css`、`fabui.min.css`，不得包含 Diagram，並輸出 `dist/theme/fabui.<theme>.css`、`dist/theme/fabui.<theme>.min.css` 與圖片依賴；`dist/` 不得產生以 `fabgrid.*` 命名的樣式檔。
+- Diagram 發佈檔固定為 `diagram.js`、`diagram.min.js`、`diagram.css`、`diagram.min.css`，不得併入 `dist/fabui.*`。
+- 精簡發佈檔固定為 `fabui.lite.js`、`fabui.lite.min.js`、`fabui.lite.css`、`fabui.lite.min.css`；只公開 FabGrid（必須包含 `src/grid/fabgrid-tree.js` 的 TreeGrid 行為）、Chart、`fabui.pivot` 與必要的 Control、editor definitions、locale、theme、popup 依賴，不得納入其他 FabUI 控件 factory 或元件 CSS。`npm run build:lite` 只更新這四個 Lite 檔與其必要圖片，不得清除完整 `dist/fabui.*`。
 - `dist/fabui.min.js` 必須是可用 `<script>` 直接引用的 browser global 壓縮版本。
 - Vue 2 與 FabGrid jQuery wrapper 目前暫緩開發，不列入預設 build、smoke 或發佈輸出；以下 wrapper 條目保留作為既有實作與未來恢復時的技術契約。
 - Vue 2 Options API wrapper 位於 `packages/fabgrid-vue`，只負責把 props、events、lifecycle 對應到 pure JS core。
 - Vue wrapper 使用 `fabgrid-vue` 獨立 build，不可併入 FabUI 主 bundle，也不可讓 Vue 接管 cell rendering。
 - jQuery wrapper 位於 `packages/fabgrid-jquery`，使用 `$.fn.fabgrid` 對應 core options、events、methods 與 lifecycle；不得複製 core 行為或讓 jQuery 接管 cell rendering。
-- jQuery wrapper 使用獨立 build，不可併入 FabUI 主 bundle；browser bundle 依賴全域 `jQuery` 與 `fabui`，ESM 入口由使用者注入依賴。
+- jQuery wrapper 使用獨立 build，不可併入 FabUI 主 bundle；browser bundle 依賴全域 `jQuery` 與 `fabui`。
 - 在大資料量情境下，Vue 不應該接管每個 cell 的渲染。
 
 建議套件方向：
@@ -131,7 +174,7 @@ fabgrid-jquery
 - 欄位搜尋列遇到 `date`、`combo`、`color` editor 時沿用對應下拉 panel；搜尋輸入只建立 filter，不執行 cell validation。
 - Header 漏斗採互斥的兩套欄位篩選：`showSearchRow: true` 使用原 Search Row 運算子，`false` 使用 Excel-like 值篩選；每次切換模式先清除另一套欄位條件，右下角 Quick Search 保留。
 - Filterable Header 文字必須垂直置中，漏斗 icon 疊在右上方；icon 必須維持獨立且高於文字的 hit area，點擊只開啟篩選選單，不得觸發排序或欄位拖曳；Header 右邊界的 resize handle 必須高於 filter icon，確保拖曳調寬與雙擊 AutoFit 可用。
-- `allowFiltering` 是 Search Row 與 Excel-like 欄位篩選的共用開關；設為 `false` 時必須隱藏兩套欄位篩選 UI、清除兩套欄位條件，但保留右下角 Quick Search。
+- `allowFiltering` 是 Search Row 與 Excel-like 欄位篩選的共用開關；設為 `false` 時必須隱藏兩套欄位篩選 UI、清除兩套欄位條件，但保留右下角 Quick Search。FabGrid 初始化時若 Search Row 已啟用，必須在本機初次 render 或遠端初次 load 結束後聚焦第一個可見欄位的搜尋 input；後續 Header 重繪必須保存目前搜尋 input 的焦點與游標範圍。只有 Search Row 顯示時才套用資料列與搜尋列的方向鍵焦點切換：Search input 聚焦時，無 modifier 的 `ArrowDown` 必須將 active cell 切到目前 selected row 與 Search input 所屬的同一 column，但不得移動 selected row 或啟動 cell editor；若目前 active cell／selected row 已被捲出可視範圍，必須先捲動使其出現。input 隨即失焦並把焦點轉到 Grid，下一次方向鍵才開始 Grid 導航。active cell 位於第一列時，無 modifier 的 `ArrowUp` 必須將焦點交回同一 column 的 Search input。Search input 聚焦時的 `ArrowUp` 保留 input 焦點與既有向上選取行為。已開啟的 Date／Combo／Color popup 優先處理方向鍵。
 - Excel-like 篩選 popup 開啟時按 `Escape` 必須只關閉 popup，不可套用或清除尚未提交的篩選草稿。
 - 左上角欄位選擇器 popup 必須支援按 `Escape` 與點擊 popup 外部關閉；點擊 popup 內部或觸發按鈕不得誤關閉。
 - 一般 Grid popup 由欄位 Header Row 的右鍵操作開啟，不再由左上角列頭 cell 開啟；Search Row 與一般資料列不觸發此 popup。TreeGrid 樹欄資料 cell 例外，使用同一 popup 容器顯示 TreeGrid 全部展開／全部疊合項目。
@@ -168,15 +211,13 @@ fabgrid-jquery
 - selected row 對應的 Column、Bar、Pie mark 使用 1px dashed 描邊；Line Chart selected point 使用 1px solid，折線本身維持實線。
 - 動畫、selection、dataLabel、palette 與資料監測都必須實作在 Chart 元件；Demo 只負責建立資料與傳入 options。
 - `demo/dev-grid-chart.html` 是 source-mode 開發版，引用 `src/fabui.js`；`demo/grid-chart.html` 是 build-mode ES5 語法範例，只引用 `dist/fabui.min.js` 與 `dist/fabui.css`。兩版都要保留並維持 2 x 2 Grid／Column-Bar／Line／Pie 範例。
-- 日常 source 修改不要主動 build。只有使用者明確要求 build 時才更新 `dist`；build 後需確認六個主檔存在，ES5 Build Demo 必須可由 browser global 建立 Grid 與 Chart。
+- 日常 source 修改不要主動 build。只有使用者明確要求 build 時才更新 `dist`；build 後需確認四個主檔存在，ES5 Build Demo 必須可由 browser global 建立 Grid 與 Chart。
 - Chart 修改至少執行 `node --check src/chart/chart.js` 與 `npm test`；涉及 SVG 顯示、動畫、selection 或 CSS 時，應再用瀏覽器檢查實際 path、computed style 與互動狀態。
 
 建議輸出檔案：
 
 ```txt
 dist/
-  fabui.esm.js
-  fabui.esm.min.js
   fabui.js
   fabui.min.js
   fabui.css
@@ -457,8 +498,6 @@ package.json
 build/
   build.js
 dist/
-  fabui.esm.js
-  fabui.esm.min.js
   fabui.js
   fabui.min.js
   fabui.css
@@ -468,12 +507,12 @@ dist/
 打包需求：
 
 - Source code 使用 ES6 modules 維護。
-- `dist/fabui.esm.js` 提供 ES module 可讀版本。
-- `dist/fabui.esm.min.js` 提供 ES module 壓縮版本。
 - `dist/fabui.js` 提供 browser global 可讀版本。
 - `dist/fabui.min.js` 提供 browser global 壓縮版本。
 - `dist/fabui.css` 整合所有核心控件、icon 與主題，圖片路徑指向 `dist/theme`。
 - `dist/fabui.min.css` 提供整合 CSS 壓縮版本。
+- `dist/theme/fabui.<theme>.css` 與 `dist/theme/fabui.<theme>.min.css` 提供 16 組獨立主題樣式，不保留 `fabgrid.*.css` 舊檔名。
+- `dist/fabui.lite.*` 提供只包含 FabGrid、內建 TreeGrid、Pivot、Chart 與必要依賴的 browser global、CSS 及壓縮版本。
 - Browser global namespace 使用 `fabui.FabGrid`。
 - Browser global namespace 使用 `fabui`，FabGrid 由 `fabui.FabGrid` 取得。
 - 每次 build 必須先清理 `dist`，主檔之外只保留必要的 `theme` CSS 與圖片依賴。
@@ -563,7 +602,7 @@ Wrapper 職責：
 - 將 core events 轉成 kebab-case Vue events，handler 必須在 destroy 時解除。
 - `control` 保持 non-reactive，透過 component ref 公開底層 FabGrid instance。
 - `columns` prop 優先於 declarative `FabGridColumn`，兩者不可合併。
-- browser wrapper bundle 依賴全域 `Vue` 與 `fabui`，ESM bundle 公開 `createFabGridVue(Vue, fabui)` factory。
+- browser wrapper bundle 依賴全域 `Vue` 與 `fabui`。
 - 未來明確恢復 Vue wrapper build 時，完整輸出到 `packages/fabgrid-vue/dist`，並將 `vue.min.js`、browser global `fabgrid-vue.js` 與 `fabgrid-vue.min.js` 同步到 `dist/wrapper`；不得併入 `dist/fabui.*` 主 bundle。
 - Vue Demo 固定使用 `demo/grid-vue2.html`，依序載入 `dist/wrapper/vue.min.js`、`dist/fabui.min.js` 與 `dist/wrapper/fabgrid-vue.min.js` browser global，再由 SystemJS runtime loader 動態載入 `demo/js/grid-vue2.vue`。目前不提供獨立 production HTML；不得恢復已移除的 `demo/vue2-grid-app.html`，除非使用者明確要求新的發布流程。
 - Vue Demo 的工具列、欄位 editor、theme、locale、群組、篩選、remote、Popup Grid、匯出與 runtime stats 必須和 `demo/dev-grid.html` 保持同等功能；Vue 只負責 wrapper props、events 與 Demo 狀態，cell rendering 仍由 core 處理。
@@ -599,8 +638,8 @@ V1 符合以下條件時可視為成功：
 - Editing 能正確把值寫回 source data。
 - Column resizing 能正確更新 layout。
 - `frozenColumns` 能固定左側指定數量 columns，且不破壞雙向 virtualization。
-- `dist` 產生六個 FabUI 主檔與必要的 `theme` CSS／圖片依賴。
+- `dist` 產生四個 FabUI 主檔與必要的 `theme` CSS／圖片依賴；FabUI Lite 四個檔案由 `npm run build:lite` 獨立產生。
 - 能用 `<script src="./fabui.min.js">` 建立 `fabui.FabGrid` 與其他 FabUI 控件。
 - Demo 頁面使用打包後的 dist 檔案運作。
 - `dispose()` 會移除 listeners，且不留下明顯的殘留行為。
-- 每次使用者明確要求 build 時，只執行 FabUI core 與 theme build、`npm test`、core smoke test、六個主發佈檔檢查及 `git diff --check`；Vue 2 與 FabGrid jQuery wrapper 暫緩且不納入 build gate。
+- 每次使用者明確要求 build 時，依「開發工作流程」定義的 `build`、`build lite`、`build diagram`、`build gantt`、`build scheduler`、`build theme`、`build clear`、`build all` 或上述命令的 `min` 形式執行對應操作與檢查；Vue 2 與 FabGrid jQuery wrapper 暫緩且不納入 build gate。

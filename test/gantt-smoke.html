@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="/dist/fabui.css">
+  <link rel="stylesheet" href="/dist/fabui.gantt.css">
+</head>
+<body class="fg-theme-default">
+  <div id="gantt"></div>
+  <pre id="result"></pre>
+  <script src="/dist/fabui.js"></script>
+  <script>
+    window.coreHasGanttBeforeExtension = typeof window.fabui.Gantt === 'function';
+  </script>
+  <script src="/dist/fabui.gantt.js"></script>
+  <script>
+    (function() {
+      var tasks = [
+        {
+          id: 1,
+          parentId: null,
+          title: 'Project',
+          start: new Date(2026, 6, 1),
+          end: new Date(2026, 6, 12),
+          summary: true,
+          expanded: true,
+          percentComplete: 0.5
+        },
+        {
+          id: 2,
+          parentId: 1,
+          title: 'Task',
+          start: new Date(2026, 6, 2),
+          end: new Date(2026, 6, 6),
+          percentComplete: 0.25
+        },
+        {
+          id: 3,
+          parentId: 1,
+          title: 'Milestone',
+          start: new Date(2026, 6, 8),
+          end: new Date(2026, 6, 8),
+          milestone: true
+        }
+      ];
+      var gantt = new fabui.Gantt('#gantt', {
+        dataSource: tasks,
+        dependencies: [
+          { predecessorId: 2, successorId: 3, type: 'FS' }
+        ],
+        locale: 'zh-TW',
+        view: 'week',
+        height: 420
+      });
+      var result = {
+        coreHasGanttBeforeExtension: window.coreHasGanttBeforeExtension,
+        hasGantt: typeof fabui.Gantt === 'function',
+        controlLookupWorks: fabui.Control.getControl('#gantt') === gantt,
+        taskRows: document.querySelectorAll('.fui-gantt-list-row').length,
+        taskBars: document.querySelectorAll('.fui-gantt-task').length,
+        dependencyPaths: document.querySelectorAll('.fui-gantt-dependencies > path').length,
+        milestoneBars: document.querySelectorAll('.fui-gantt-task-milestone').length,
+        localeWorks: document.querySelector('.fui-gantt-toolbar').textContent.indexOf('新增任務') >= 0
+      };
+      gantt.setView('month');
+      result.monthViewWorks = gantt.getView() === 'month';
+      gantt.select(2);
+      result.selectionWorks = document.querySelectorAll('.fui-gantt-selected').length >= 2;
+      var added = gantt.addTask({
+        title: 'Added',
+        start: new Date(2026, 6, 9),
+        end: new Date(2026, 6, 10)
+      }, 1);
+      gantt.updateTask(added.id, { percentComplete: 0.8 });
+      result.crudWorks = gantt.getTask(added.id).percentComplete === 0.8;
+      gantt.removeTask(added.id);
+      result.removeWorks = gantt.getTask(added.id) === null;
+      gantt.dispose();
+      result.disposeWorks = fabui.Control.getControl('#gantt') === null;
+      document.getElementById('result').textContent = JSON.stringify(result);
+    }());
+  </script>
+</body>
+</html>

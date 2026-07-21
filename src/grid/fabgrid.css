@@ -14,7 +14,7 @@
   --fg-selected-bg: #dceeff;
   --fg-selected-border: #2b7fd3;
   --fg-drag-indicator-opacity: 0.55;
-  --fg-active-cell-border: 2px;
+  --fg-active-cell-border: 1px;
   --fg-editor-border: #2563eb;
   --fg-scrollbar-size: 12px;
   --fg-scrollbar-gutter-size: 22px;

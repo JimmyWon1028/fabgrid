@@ -26,17 +26,6 @@ Browser global：
 </script>
 ```
 
-ES module：
-
-```js
-import fabui from './dist/fabui.esm.js';
-
-var editBox = new fabui.EditBox('#name', {
-  editor: 'text',
-  clearButton: true
-});
-```
-
 Source mode：
 
 ```js

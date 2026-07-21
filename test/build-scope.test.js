@@ -11,6 +11,29 @@ test('default build compiles FabUI core without wrapper bundles', function() {
   assert.doesNotMatch(smokeSource, /'wrapper'/);
 });
 
+test('all build commands omit ESM output files', function() {
+  var packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  var buildScripts = [
+    'build/build.cjs',
+    'build/build-lite.cjs',
+    'build/build-gantt.cjs',
+    'build/build-scheduler.cjs',
+    'build/build-vue.cjs',
+    'build/build-jquery.cjs'
+  ];
+  var vuePackage = JSON.parse(fs.readFileSync('packages/fabgrid-vue/package.json', 'utf8'));
+  var jqueryPackage = JSON.parse(fs.readFileSync('packages/fabgrid-jquery/package.json', 'utf8'));
+
+  assert.equal(packageJson.module, undefined);
+  assert.equal(vuePackage.module, undefined);
+  assert.equal(jqueryPackage.module, undefined);
+  buildScripts.forEach(function(filePath) {
+    var source = fs.readFileSync(filePath, 'utf8');
+    assert.doesNotMatch(source, /format:\s*['"]esm['"]/, filePath);
+    assert.doesNotMatch(source, /writeFileSync\([\s\S]{0,160}\.esm\./, filePath);
+  });
+});
+
 test('EditBox jQuery wrapper remains removed', function() {
   var packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   var removedPaths = [

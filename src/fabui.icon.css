@@ -38,6 +38,10 @@
   background: url('theme/images/export.png') no-repeat center center;
 }
 
+.icon-import {
+  background: url('theme/images/import.png') no-repeat center center;
+}
+
 .icon-excel {
   background: url('theme/images/excel.png') no-repeat center center;
 }
@@ -78,6 +82,16 @@
   background: url('theme/images/clear.png') no-repeat center center;
 }
 
+.icon-drag-vertical {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      currentColor 0 1px,
+      transparent 1px 4px
+    )
+    center / 12px 9px no-repeat;
+}
+
 .fg-filter-menu-clear .fg-filter-menu-funnel {
   background: url('theme/images/clear.png') no-repeat center center;
 }
@@ -110,9 +124,153 @@
   background: url('theme/images/back.png') no-repeat center center;
 }
 
+.icon-undo {
+  background: url('theme/images/undo.png?v=20260720-blue-undo-redo-v1') no-repeat center center;
+}
+
+.icon-redo {
+  background: url('theme/images/redo.png?v=20260720-blue-undo-redo-v1') no-repeat center center;
+}
+
 .fui-panel,
 .fui-window {
   --fui-panel-tools: url('theme/default/images/panel_tools.png');
+}
+
+.fui-accordion {
+  --fui-accordion-arrows: url('theme/default/images/accordion_arrows.png');
+}
+
+.fui-accordion .fui-accordion-toggle {
+  background-image: url('theme/default/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-default {
+  --fui-accordion-arrows: url('theme/default/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-default .fui-accordion-toggle {
+  background-image: url('theme/default/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-bootstrap {
+  --fui-accordion-arrows: url('theme/bootstrap/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-bootstrap .fui-accordion-toggle {
+  background-image: url('theme/bootstrap/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-cupertino {
+  --fui-accordion-arrows: url('theme/cupertino/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-cupertino .fui-accordion-toggle {
+  background-image: url('theme/cupertino/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-material {
+  --fui-accordion-arrows: url('theme/material/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-material .fui-accordion-toggle {
+  background-image: url('theme/material/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-material-blue {
+  --fui-accordion-arrows: url('theme/material-blue/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-material-blue .fui-accordion-toggle {
+  background-image: url('theme/material-blue/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-material-teal {
+  --fui-accordion-arrows: url('theme/material-teal/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-material-teal .fui-accordion-toggle {
+  background-image: url('theme/material-teal/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-metro {
+  --fui-accordion-arrows: url('theme/metro/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-metro .fui-accordion-toggle {
+  background-image: url('theme/metro/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-metro-blue {
+  --fui-accordion-arrows: url('theme/metro-blue/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-metro-blue .fui-accordion-toggle {
+  background-image: url('theme/metro-blue/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-metro-gray {
+  --fui-accordion-arrows: url('theme/metro-gray/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-metro-gray .fui-accordion-toggle {
+  background-image: url('theme/metro-gray/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-metro-green {
+  --fui-accordion-arrows: url('theme/metro-green/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-metro-green .fui-accordion-toggle {
+  background-image: url('theme/metro-green/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-metro-orange {
+  --fui-accordion-arrows: url('theme/metro-orange/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-metro-orange .fui-accordion-toggle {
+  background-image: url('theme/metro-orange/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-metro-red {
+  --fui-accordion-arrows: url('theme/metro-red/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-metro-red .fui-accordion-toggle {
+  background-image: url('theme/metro-red/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-sunny {
+  --fui-accordion-arrows: url('theme/sunny/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-sunny .fui-accordion-toggle {
+  background-image: url('theme/sunny/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-pepper-grinder {
+  --fui-accordion-arrows: url('theme/pepper-grinder/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-pepper-grinder .fui-accordion-toggle {
+  background-image: url('theme/pepper-grinder/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-dark-hive {
+  --fui-accordion-arrows: url('theme/dark-hive/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-dark-hive .fui-accordion-toggle {
+  background-image: url('theme/dark-hive/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-black {
+  --fui-accordion-arrows: url('theme/black/images/accordion_arrows.png');
+}
+
+.fui-accordion.fg-theme-black .fui-accordion-toggle {
+  background-image: url('theme/black/images/accordion_arrows.png');
 }
 
 .fui-panel.fg-theme-default,

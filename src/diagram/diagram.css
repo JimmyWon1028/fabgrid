@@ -38,31 +38,167 @@
   text-decoration: none;
 }
 
-.fui-diagram-command-undo,
-.fui-diagram-command-redo,
+.fui-diagram-toolbar-separator {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: var(--fui-diagram-border);
+  flex: 0 0 auto;
+}
+
 .fui-diagram-command-zoomOut,
 .fui-diagram-command-zoomIn {
   font-size: 18px;
 }
 
 .fui-diagram-workspace {
+  position: relative;
   display: grid;
+  overflow: hidden;
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
-  grid-template-columns: 190px minmax(0, 1fr) 230px;
+  grid-template-columns:
+    var(--fui-diagram-toolbox-width, 260px)
+    minmax(0, 1fr)
+    var(--fui-diagram-properties-width, 230px);
+  grid-template-areas: "toolbox viewport properties";
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-right.fui-diagram-properties-left:not(
+  .fui-diagram-no-toolbox
+):not(.fui-diagram-no-properties) {
+  grid-template-columns:
+    var(--fui-diagram-properties-width, 230px)
+    minmax(0, 1fr)
+    var(--fui-diagram-toolbox-width, 260px);
+  grid-template-areas: "properties viewport toolbox";
+}
+
+.fui-diagram-workspace.fui-diagram-properties-left:not(
+  .fui-diagram-toolbox-right
+):not(.fui-diagram-no-toolbox):not(.fui-diagram-no-properties) {
+  grid-template-columns:
+    var(--fui-diagram-toolbox-width, 260px)
+    var(--fui-diagram-properties-width, 230px)
+    minmax(0, 1fr);
+  grid-template-areas: "toolbox properties viewport";
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-right:not(
+  .fui-diagram-properties-left
+):not(.fui-diagram-no-toolbox):not(.fui-diagram-no-properties) {
+  grid-template-columns:
+    minmax(0, 1fr)
+    var(--fui-diagram-toolbox-width, 260px)
+    var(--fui-diagram-properties-width, 230px);
+  grid-template-areas: "viewport toolbox properties";
 }
 
 .fui-diagram-workspace.fui-diagram-no-toolbox {
-  grid-template-columns: minmax(0, 1fr) 230px;
+  grid-template-columns:
+    minmax(0, 1fr)
+    var(--fui-diagram-properties-width, 230px);
+  grid-template-areas: "viewport properties";
+}
+
+.fui-diagram-workspace.fui-diagram-properties-left.fui-diagram-no-toolbox {
+  grid-template-columns:
+    var(--fui-diagram-properties-width, 230px)
+    minmax(0, 1fr);
+  grid-template-areas: "properties viewport";
 }
 
 .fui-diagram-workspace.fui-diagram-no-properties {
-  grid-template-columns: 190px minmax(0, 1fr);
+  grid-template-columns:
+    var(--fui-diagram-toolbox-width, 260px)
+    minmax(0, 1fr);
+  grid-template-areas: "toolbox viewport";
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-right.fui-diagram-no-properties {
+  grid-template-columns:
+    minmax(0, 1fr)
+    var(--fui-diagram-toolbox-width, 260px);
+  grid-template-areas: "viewport toolbox";
 }
 
 .fui-diagram-workspace.fui-diagram-no-toolbox.fui-diagram-no-properties {
   grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "viewport";
+}
+
+.fui-diagram-workspace.fui-diagram-same-side-dock-tabs.fui-diagram-same-side-dock-tabs-left:not(
+  .fui-diagram-no-toolbox
+):not(.fui-diagram-no-properties) {
+  grid-template-columns:
+    var(--fui-diagram-dock-tabs-width, 260px)
+    minmax(0, 1fr);
+  grid-template-areas: "dock-tabs viewport";
+}
+
+.fui-diagram-workspace.fui-diagram-same-side-dock-tabs.fui-diagram-same-side-dock-tabs-right:not(
+  .fui-diagram-no-toolbox
+):not(.fui-diagram-no-properties) {
+  grid-template-columns:
+    minmax(0, 1fr)
+    var(--fui-diagram-dock-tabs-width, 260px);
+  grid-template-areas: "viewport dock-tabs";
+}
+
+.fui-diagram-workspace.fui-diagram-same-side-dock-stack.fui-diagram-same-side-dock-stack-left:not(
+  .fui-diagram-no-toolbox
+):not(.fui-diagram-no-properties) {
+  grid-template-columns:
+    var(--fui-diagram-dock-stack-width, 260px)
+    minmax(0, 1fr);
+  grid-template-areas: "dock-stack viewport";
+}
+
+.fui-diagram-workspace.fui-diagram-same-side-dock-stack.fui-diagram-same-side-dock-stack-right:not(
+  .fui-diagram-no-toolbox
+):not(.fui-diagram-no-properties) {
+  grid-template-columns:
+    minmax(0, 1fr)
+    var(--fui-diagram-dock-stack-width, 260px);
+  grid-template-areas: "viewport dock-stack";
+}
+
+.fui-diagram-dock-tabs {
+  min-width: 0;
+  min-height: 0;
+  grid-area: dock-tabs;
+}
+
+.fui-diagram-dock-tabs[hidden] {
+  display: none;
+}
+
+.fui-diagram-dock-stack {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  grid-area: dock-stack;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.fui-diagram-dock-stack[hidden] {
+  display: none;
+}
+
+.fui-diagram-workspace.fui-diagram-same-side-dock-tabs
+  .fui-diagram-toolbox-resizer,
+.fui-diagram-workspace.fui-diagram-same-side-dock-tabs
+  .fui-diagram-properties-resizer {
+  grid-area: dock-tabs;
+}
+
+.fui-diagram-workspace.fui-diagram-same-side-dock-stack
+  .fui-diagram-toolbox-resizer,
+.fui-diagram-workspace.fui-diagram-same-side-dock-stack
+  .fui-diagram-properties-resizer {
+  grid-area: dock-stack;
 }
 
 .fui-diagram-toolbox,
@@ -76,10 +212,396 @@
 
 .fui-diagram-toolbox {
   border-right: 1px solid var(--fui-diagram-border);
+  border-left: 0;
+  grid-area: toolbox;
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-right:not(
+  .fui-diagram-toolbox-floating
+) .fui-diagram-toolbox {
+  border-right: 0;
+  border-left: 1px solid var(--fui-diagram-border);
+}
+
+.fui-diagram-toolbox-resizer {
+  grid-area: toolbox;
+}
+
+.fui-diagram-viewport {
+  grid-area: viewport;
 }
 
 .fui-diagram-properties {
+  grid-area: properties;
+}
+
+.fui-diagram-properties-resizer {
+  grid-area: properties;
+}
+
+.fui-diagram-toolbox > .fui-diagram-pane-header,
+.fui-diagram-properties > .fui-diagram-pane-header {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.fui-diagram-toolbox-panel-dragging,
+.fui-diagram-toolbox-panel-dragging *,
+.fui-diagram-properties-panel-dragging,
+.fui-diagram-properties-panel-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-floating
+  .fui-diagram-toolbox {
+  position: absolute;
+  z-index: 10;
+  top: var(--fui-diagram-toolbox-top, 12px);
+  left: var(--fui-diagram-toolbox-left, 12px);
+  box-sizing: border-box;
+  width: var(--fui-diagram-toolbox-width, 260px);
+  height: var(--fui-diagram-toolbox-height, 520px);
+  border: 1px solid var(--fui-diagram-border);
+  box-shadow: 0 8px 22px color-mix(
+    in srgb,
+    var(--fui-diagram-pane-text) 24%,
+    transparent
+  );
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-floating
+  .fui-diagram-toolbox-resizer.fui-diagram-panel-resizer-left,
+.fui-diagram-workspace.fui-diagram-toolbox-floating
+  .fui-diagram-toolbox-resizer.fui-diagram-panel-resizer-right {
+  position: absolute;
+  z-index: 11;
+  top: var(--fui-diagram-toolbox-top, 12px);
+  height: var(--fui-diagram-toolbox-height, 520px);
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-floating
+  .fui-diagram-toolbox-resizer.fui-diagram-panel-resizer-left {
+  left: var(--fui-diagram-toolbox-left, 12px);
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-floating
+  .fui-diagram-toolbox-resizer.fui-diagram-panel-resizer-right {
+  left: calc(
+    var(--fui-diagram-toolbox-left, 12px) +
+    var(--fui-diagram-toolbox-width, 260px) -
+    6px
+  );
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-floating
+  .fui-diagram-toolbox-resizer.fui-diagram-panel-resizer-top,
+.fui-diagram-workspace.fui-diagram-toolbox-floating
+  .fui-diagram-toolbox-resizer.fui-diagram-panel-resizer-bottom {
+  position: absolute;
+  z-index: 11;
+  left: var(--fui-diagram-toolbox-left, 12px);
+  width: var(--fui-diagram-toolbox-width, 260px);
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-floating
+  .fui-diagram-toolbox-resizer.fui-diagram-panel-resizer-top {
+  top: var(--fui-diagram-toolbox-top, 12px);
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-floating
+  .fui-diagram-toolbox-resizer.fui-diagram-panel-resizer-bottom {
+  top: calc(
+    var(--fui-diagram-toolbox-top, 12px) +
+    var(--fui-diagram-toolbox-height, 520px) -
+    6px
+  );
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-dock-preview-left::before {
+  position: absolute;
+  z-index: 9;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(var(--fui-diagram-toolbox-width, 260px), 32%);
+  border-right: 2px solid var(--fui-diagram-selection);
+  background: color-mix(
+    in srgb,
+    var(--fui-diagram-selection) 16%,
+    transparent
+  );
+  content: "";
+  pointer-events: none;
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-dock-preview-right::after {
+  position: absolute;
+  z-index: 9;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(var(--fui-diagram-toolbox-width, 260px), 32%);
+  border-left: 2px solid var(--fui-diagram-selection);
+  background: color-mix(
+    in srgb,
+    var(--fui-diagram-selection) 16%,
+    transparent
+  );
+  content: "";
+  pointer-events: none;
+}
+
+.fui-diagram-workspace:not(.fui-diagram-properties-left):not(
+  .fui-diagram-properties-floating
+):not(
+  .fui-diagram-no-properties
+).fui-diagram-toolbox-dock-preview-right::after {
+  right: var(--fui-diagram-properties-width, 230px);
+}
+
+.fui-diagram-workspace.fui-diagram-properties-floating
+  .fui-diagram-properties {
+  position: absolute;
+  z-index: 10;
+  top: var(--fui-diagram-properties-top, 12px);
+  left: var(--fui-diagram-properties-left, 12px);
+  box-sizing: border-box;
+  width: var(--fui-diagram-properties-width, 230px);
+  height: var(--fui-diagram-properties-height, 520px);
+  border: 1px solid var(--fui-diagram-border);
+  box-shadow: 0 8px 22px color-mix(
+    in srgb,
+    var(--fui-diagram-pane-text) 24%,
+    transparent
+  );
+}
+
+.fui-diagram-workspace.fui-diagram-properties-floating
+  .fui-diagram-properties-resizer.fui-diagram-panel-resizer-left,
+.fui-diagram-workspace.fui-diagram-properties-floating
+  .fui-diagram-properties-resizer.fui-diagram-panel-resizer-right {
+  position: absolute;
+  z-index: 11;
+  top: var(--fui-diagram-properties-top, 12px);
+  height: var(--fui-diagram-properties-height, 520px);
+}
+
+.fui-diagram-workspace.fui-diagram-properties-floating
+  .fui-diagram-properties-resizer.fui-diagram-panel-resizer-left {
+  left: var(--fui-diagram-properties-left, 12px);
+}
+
+.fui-diagram-workspace.fui-diagram-properties-floating
+  .fui-diagram-properties-resizer.fui-diagram-panel-resizer-right {
+  left: calc(
+    var(--fui-diagram-properties-left, 12px) +
+    var(--fui-diagram-properties-width, 230px) -
+    6px
+  );
+}
+
+.fui-diagram-workspace.fui-diagram-properties-floating
+  .fui-diagram-properties-resizer.fui-diagram-panel-resizer-top,
+.fui-diagram-workspace.fui-diagram-properties-floating
+  .fui-diagram-properties-resizer.fui-diagram-panel-resizer-bottom {
+  position: absolute;
+  z-index: 11;
+  left: var(--fui-diagram-properties-left, 12px);
+  width: var(--fui-diagram-properties-width, 230px);
+}
+
+.fui-diagram-workspace.fui-diagram-properties-floating
+  .fui-diagram-properties-resizer.fui-diagram-panel-resizer-top {
+  top: var(--fui-diagram-properties-top, 12px);
+}
+
+.fui-diagram-workspace.fui-diagram-properties-floating
+  .fui-diagram-properties-resizer.fui-diagram-panel-resizer-bottom {
+  top: calc(
+    var(--fui-diagram-properties-top, 12px) +
+    var(--fui-diagram-properties-height, 520px) -
+    6px
+  );
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-floating.fui-diagram-properties-floating.fui-diagram-floating-front-toolbox
+  .fui-diagram-toolbox {
+  z-index: 14;
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-floating.fui-diagram-properties-floating.fui-diagram-floating-front-toolbox
+  .fui-diagram-toolbox-resizer,
+.fui-diagram-workspace.fui-diagram-toolbox-floating.fui-diagram-properties-floating.fui-diagram-floating-front-properties
+  .fui-diagram-properties-resizer {
+  z-index: 15;
+}
+
+.fui-diagram-workspace.fui-diagram-toolbox-floating.fui-diagram-properties-floating.fui-diagram-floating-front-properties
+  .fui-diagram-properties {
+  z-index: 14;
+}
+
+.fui-diagram-workspace.fui-diagram-properties-dock-preview-left::before {
+  position: absolute;
+  z-index: 9;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(var(--fui-diagram-properties-width, 230px), 32%);
+  border-right: 2px solid var(--fui-diagram-selection);
+  background: color-mix(
+    in srgb,
+    var(--fui-diagram-selection) 16%,
+    transparent
+  );
+  content: "";
+  pointer-events: none;
+}
+
+.fui-diagram-workspace:not(.fui-diagram-toolbox-right):not(
+  .fui-diagram-toolbox-floating
+):not(.fui-diagram-no-toolbox).fui-diagram-properties-dock-preview-left::before {
+  left: var(--fui-diagram-toolbox-width, 260px);
+}
+
+.fui-diagram-workspace.fui-diagram-properties-dock-preview-right::after {
+  position: absolute;
+  z-index: 9;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(var(--fui-diagram-properties-width, 230px), 32%);
+  border-left: 2px solid var(--fui-diagram-selection);
+  background: color-mix(
+    in srgb,
+    var(--fui-diagram-selection) 16%,
+    transparent
+  );
+  content: "";
+  pointer-events: none;
+}
+
+.fui-diagram-properties {
+  border-right: 0;
   border-left: 1px solid var(--fui-diagram-border);
+}
+
+.fui-diagram-dock-tabs.fui-tabs {
+  width: 100%;
+  height: 100%;
+  background: var(--fui-diagram-pane-bg);
+}
+
+.fui-diagram-dock-tabs.fui-tabs .fui-tabs-panels,
+.fui-diagram-dock-tabs.fui-tabs .fui-tabs-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fui-diagram-dock-tabs.fui-tabs
+  .fui-tabs-panel > .fui-diagram-toolbox,
+.fui-diagram-dock-tabs.fui-tabs
+  .fui-tabs-panel > .fui-diagram-properties {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.fui-diagram-dock-tabs.fui-tabs .fui-tabs-header {
+  z-index: 5;
+  border-color: var(--fui-diagram-border);
+}
+
+.fui-diagram-dock-tabs.fui-tabs .fui-tabs-tab {
+  flex: 1 1 50%;
+}
+
+.fui-diagram-dock-stack > .fui-diagram-toolbox,
+.fui-diagram-dock-stack > .fui-diagram-properties {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  grid-area: auto;
+}
+
+.fui-diagram-dock-stack > .fui-diagram-toolbox {
+  border-bottom: 1px solid var(--fui-diagram-border);
+}
+
+.fui-diagram-workspace.fui-diagram-properties-left:not(
+  .fui-diagram-properties-floating
+) .fui-diagram-properties {
+  border-right: 1px solid var(--fui-diagram-border);
+  border-left: 0;
+}
+
+.fui-diagram-panel-resizer {
+  position: relative;
+  z-index: 12;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  touch-action: none;
+}
+
+.fui-diagram-panel-resizer-left,
+.fui-diagram-panel-resizer-right {
+  align-self: stretch;
+  width: 6px;
+  min-width: 6px;
+  cursor: col-resize;
+}
+
+.fui-diagram-panel-resizer-left {
+  justify-self: start;
+}
+
+.fui-diagram-panel-resizer-right {
+  justify-self: end;
+}
+
+.fui-diagram-panel-resizer-top,
+.fui-diagram-panel-resizer-bottom {
+  align-self: stretch;
+  height: 6px;
+  min-height: 6px;
+  cursor: row-resize;
+}
+
+.fui-diagram-panel-resizer-top {
+  align-self: start;
+}
+
+.fui-diagram-panel-resizer-bottom {
+  align-self: end;
+}
+
+.fui-diagram-panel-resizer[hidden] {
+  display: none;
+}
+
+.fui-diagram-panel-resizing-horizontal {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.fui-diagram-panel-resizing-vertical {
+  cursor: row-resize;
+  user-select: none;
+}
+
+.fui-diagram-print-frame {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .fui-diagram-pane-header {
@@ -109,6 +631,8 @@
 }
 
 .fui-diagram-toolbox-title {
+  position: relative;
+  display: flex;
   margin: 0;
   padding: 0;
   border-top: 1px solid color-mix(in srgb, var(--fui-diagram-border) 55%, transparent);
@@ -119,7 +643,7 @@
 }
 
 .fui-diagram-toolbox-toggle.fui-button {
-  width: 100%;
+  width: calc(100% - 32px);
   overflow: visible;
   border-radius: 0;
   color: inherit;
@@ -129,12 +653,64 @@
   justify-content: flex-start;
 }
 
+.fui-diagram-toolbox-drag-handle.fui-button {
+  width: 32px;
+  min-width: 32px;
+  border-radius: 0;
+  cursor: grab;
+  flex: 0 0 32px;
+  touch-action: none;
+}
+
+.fui-diagram-toolbox-drag-handle.fui-button:active {
+  cursor: grabbing;
+}
+
+.fui-diagram-toolbox-drag-handle .fui-button-inner {
+  min-height: 32px;
+  padding: 0;
+  justify-content: center;
+}
+
+.fui-diagram-toolbox-group {
+  position: relative;
+}
+
+.fui-diagram-toolbox-group-dragging {
+  opacity: 0.55;
+}
+
+.fui-diagram-toolbox-group-drop-before::before,
+.fui-diagram-toolbox-group-drop-after::after {
+  position: absolute;
+  z-index: 5;
+  right: 4px;
+  left: 4px;
+  height: 2px;
+  background: color-mix(
+    in srgb,
+    var(--fui-diagram-selection) 55%,
+    transparent
+  );
+  content: "";
+  pointer-events: none;
+}
+
+.fui-diagram-toolbox-group-drop-before::before {
+  top: -1px;
+}
+
+.fui-diagram-toolbox-group-drop-after::after {
+  bottom: -1px;
+}
+
 .fui-diagram-toolbox-toggle.fui-button::before {
-  width: 12px;
-  margin-left: 8px;
+  width: 20px;
+  margin-left: 6px;
   content: "▸";
-  flex: 0 0 12px;
-  font-size: 12px;
+  flex: 0 0 20px;
+  font-size: 20px;
+  font-weight: 700;
   line-height: 1;
   text-align: center;
 }
@@ -218,6 +794,17 @@
   fill: none;
 }
 
+.fui-diagram-toolbox-preview-shape .fui-diagram-org-image {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0.72;
+}
+
+.fui-diagram-toolbox-preview-shape .fui-diagram-org-preview-lines {
+  fill: none;
+  stroke: currentColor;
+}
+
 .fui-diagram-shape-label {
   width: 100%;
   overflow: hidden;
@@ -229,6 +816,7 @@
 
 .fui-diagram-viewport {
   position: relative;
+  display: flex;
   min-width: 0;
   min-height: 0;
   overflow: auto;
@@ -236,8 +824,20 @@
   overscroll-behavior: contain;
 }
 
+.fui-diagram-viewport.fui-diagram-viewport-pannable {
+  cursor: grab;
+}
+
+.fui-diagram-panning .fui-diagram-viewport,
+.fui-diagram-panning .fui-diagram-viewport * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
 .fui-diagram-svg {
   display: block;
+  flex: 0 0 auto;
+  margin: auto;
   min-width: 1px;
   min-height: 1px;
   box-shadow: 0 2px 10px rgb(0 0 0 / 18%);
@@ -270,8 +870,14 @@
   user-select: none;
 }
 
-.fui-diagram-connector {
+.fui-diagram-node-text-linked {
+  text-decoration: underline;
+  pointer-events: auto;
   cursor: pointer;
+}
+
+.fui-diagram-connector {
+  cursor: move;
 }
 
 .fui-diagram-connector-hit {
@@ -291,6 +897,18 @@
 .fui-diagram-connector-selected .fui-diagram-connector-line {
   stroke: var(--fui-diagram-selection);
   stroke-width: 2.5;
+}
+
+.fui-diagram-connector-control {
+  fill: var(--fui-diagram-pane-bg);
+  stroke: var(--fui-diagram-selection);
+  stroke-width: 1.5;
+  cursor: move;
+  vector-effect: non-scaling-stroke;
+}
+
+.fui-diagram-connector-control:hover {
+  fill: var(--fui-control-selected, #ffe48d);
 }
 
 .fui-diagram-selection-outline {
@@ -438,8 +1056,9 @@
   cursor: nwse-resize;
 }
 
-.fui-diagram-connect-mode .fui-diagram-node {
-  cursor: crosshair;
+.fui-diagram-connect-mode .fui-diagram-viewport,
+.fui-diagram-connect-mode .fui-diagram-viewport * {
+  cursor: crosshair !important;
 }
 
 .fui-diagram-connect-source .fui-diagram-node-shape {
@@ -468,6 +1087,19 @@
   width: 100% !important;
 }
 
+.fui-diagram-property-pair {
+  display: grid;
+  min-width: 0;
+  margin: 0 0 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.fui-diagram-property-pair > .fui-diagram-property-row {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
 .fui-diagram-view-toolbar {
   display: flex;
   position: absolute;
@@ -482,18 +1114,45 @@
   background: var(--fui-diagram-toolbar-bg);
   align-items: center;
   gap: 1px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.fui-diagram-view-toolbar .fui-button {
+  cursor: pointer;
 }
 
 .fui-diagram-zoom-label {
   min-width: 48px;
   padding: 0 5px;
   text-align: center;
+  cursor: grab;
 }
 
-.fui-diagram:fullscreen {
+.fui-diagram-view-toolbar-dragging,
+.fui-diagram-view-toolbar-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+.fui-diagram:fullscreen,
+.fui-diagram:-webkit-full-screen,
+.fui-diagram.fui-diagram-fullscreen-editor {
   width: 100vw !important;
   height: 100vh !important;
   border: 0;
+}
+
+.fui-diagram-viewport:fullscreen,
+.fui-diagram-viewport:-webkit-full-screen,
+.fui-diagram-viewport.fui-diagram-fullscreen-presentation {
+  box-sizing: border-box;
+  width: 100vw !important;
+  height: 100vh !important;
+  padding: 24px;
+  border: 0;
+  background: var(--fui-diagram-canvas-bg);
 }
 
 .fui-diagram[aria-disabled="true"] {
@@ -508,11 +1167,75 @@
 @media (max-width: 760px) {
   .fui-diagram-workspace,
   .fui-diagram-workspace.fui-diagram-no-properties {
-    grid-template-columns: 150px minmax(0, 1fr);
+    grid-template-columns:
+      var(--fui-diagram-toolbox-width, 260px)
+      minmax(0, 1fr);
+    grid-template-areas: "toolbox viewport";
   }
 
-  .fui-diagram-properties {
+  .fui-diagram-workspace.fui-diagram-toolbox-right,
+  .fui-diagram-workspace.fui-diagram-toolbox-right.fui-diagram-no-properties {
+    grid-template-columns:
+      minmax(0, 1fr)
+      var(--fui-diagram-toolbox-width, 260px);
+    grid-template-areas: "viewport toolbox";
+  }
+
+  .fui-diagram-workspace.fui-diagram-no-toolbox,
+  .fui-diagram-workspace.fui-diagram-no-toolbox.fui-diagram-no-properties {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "viewport";
+  }
+
+  .fui-diagram-properties,
+  .fui-diagram-properties-resizer {
     display: none;
+  }
+
+  .fui-diagram-workspace.fui-diagram-same-side-dock-tabs.fui-diagram-same-side-dock-tabs-left:not(
+    .fui-diagram-no-toolbox
+  ):not(.fui-diagram-no-properties) {
+    grid-template-columns:
+      var(--fui-diagram-dock-tabs-width, 260px)
+      minmax(0, 1fr);
+    grid-template-areas: "dock-tabs viewport";
+  }
+
+  .fui-diagram-workspace.fui-diagram-same-side-dock-tabs.fui-diagram-same-side-dock-tabs-right:not(
+    .fui-diagram-no-toolbox
+  ):not(.fui-diagram-no-properties) {
+    grid-template-columns:
+      minmax(0, 1fr)
+      var(--fui-diagram-dock-tabs-width, 260px);
+    grid-template-areas: "viewport dock-tabs";
+  }
+
+  .fui-diagram-workspace.fui-diagram-same-side-dock-stack.fui-diagram-same-side-dock-stack-left:not(
+    .fui-diagram-no-toolbox
+  ):not(.fui-diagram-no-properties) {
+    grid-template-columns:
+      var(--fui-diagram-dock-stack-width, 260px)
+      minmax(0, 1fr);
+    grid-template-areas: "dock-stack viewport";
+  }
+
+  .fui-diagram-workspace.fui-diagram-same-side-dock-stack.fui-diagram-same-side-dock-stack-right:not(
+    .fui-diagram-no-toolbox
+  ):not(.fui-diagram-no-properties) {
+    grid-template-columns:
+      minmax(0, 1fr)
+      var(--fui-diagram-dock-stack-width, 260px);
+    grid-template-areas: "viewport dock-stack";
+  }
+
+  .fui-diagram-workspace.fui-diagram-same-side-dock-tabs
+    .fui-diagram-properties {
+    display: block;
+  }
+
+  .fui-diagram-workspace.fui-diagram-same-side-dock-stack
+    .fui-diagram-properties {
+    display: block;
   }
 
   .fui-diagram-toolbox-items {

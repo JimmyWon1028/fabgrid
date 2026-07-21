@@ -20,18 +20,6 @@ Browser global：
 </script>
 ```
 
-ES module：
-
-```js
-import fabui from './dist/fabui.esm.js';
-
-var fileBox = new fabui.FileBox('#images', {
-  accept: 'image/*',
-  multiple: true,
-  separator: '；'
-});
-```
-
 建構式必須傳入已附加至文件的 `<input type="file">`。相同 input 重複建立時會回傳原 instance。
 
 ## Options

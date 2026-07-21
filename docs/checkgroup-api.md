@@ -25,18 +25,6 @@ Browser global：
 </script>
 ```
 
-ES module：
-
-```js
-import fabui from './dist/fabui.esm.js';
-
-var group = new fabui.CheckGroup('#features', {
-  name: 'features',
-  dir: 'v',
-  data: featureItems
-});
-```
-
 ## Data
 
 每個資料項目支援：

@@ -1164,6 +1164,9 @@ export function installFabGridFilterUi(FabGrid, context) {
     if (this.handleHeaderSearchColorKeyDown(event, input)) {
       return true;
     }
+    if (this.handleHeaderSearchRowNavigation(event, colIndex)) {
+      return true;
+    }
     if (event.key !== 'Enter' && event.key !== 'Tab') {
       return false;
     }
@@ -1181,6 +1184,45 @@ export function installFabGridFilterUi(FabGrid, context) {
       this.focusHeaderSearchInput(colIndex);
     } else {
       this.moveHeaderSearchFocus(colIndex, direction);
+    }
+    return true;
+  };
+
+  FabGrid.prototype.handleHeaderSearchRowNavigation = function(event, searchCol) {
+    var direction;
+    var currentRow;
+    var targetRow;
+    var col;
+    if ((event.key !== 'ArrowDown' && event.key !== 'ArrowUp') ||
+      event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+      !this.options ||
+      this.options.allowFiltering === false ||
+      this.options.showSearchRow !== true ||
+      !this.view || !this.view.length) {
+      return false;
+    }
+    direction = event.key === 'ArrowDown' ? 1 : -1;
+    currentRow = this.selection ? this.selection.row : 0;
+    col = searchCol >= 0 ? searchCol : this.selection ? this.selection.col : 0;
+    targetRow = direction > 0 ?
+      currentRow :
+      Math.max(0, Math.min(this.view.length - 1, currentRow + direction));
+    event.preventDefault();
+    event.stopPropagation();
+    if (targetRow !== currentRow || !this.selection || this.selection.col !== col) {
+      if (this.options.multiSelectRows === true) {
+        this.select(targetRow, col);
+      } else {
+        this.selectRow(targetRow, col);
+      }
+    }
+    if (this.selection && this.selection.row === targetRow) {
+      this.scrollIntoView(targetRow, col, {
+        directionY: targetRow === currentRow ? 0 : direction
+      });
+    }
+    if (direction > 0 && this.root && typeof this.root.focus === 'function') {
+      this.root.focus();
     }
     return true;
   };
@@ -1368,6 +1410,37 @@ export function installFabGridFilterUi(FabGrid, context) {
       return null;
     }
     return closest(active, 'fg-header-search-input');
+  };
+
+  FabGrid.prototype.captureActiveHeaderSearchFocus = function() {
+    var input = this.getActiveHeaderSearchInput();
+    var colIndex;
+    if (!input) {
+      return false;
+    }
+    colIndex = toNumber(input.getAttribute('data-col'), -1);
+    if (colIndex < 0) {
+      return false;
+    }
+    this.headerSearchFocusRequest = {
+      col: colIndex,
+      selectionStart: input.selectionStart,
+      selectionEnd: input.selectionEnd,
+      attempts: 1
+    };
+    return true;
+  };
+
+  FabGrid.prototype.focusInitialHeaderSearchInput = function() {
+    if (this.disposed ||
+      !this.options ||
+      this.options.allowFiltering === false ||
+      this.options.showSearchRow !== true ||
+      !this.visibleColumns ||
+      !this.visibleColumns.length) {
+      return false;
+    }
+    return this.focusHeaderSearchInput(this.visibleColumns[0]._viewIndex);
   };
 
   FabGrid.prototype.focusHeaderSearchInput = function(colIndex, selectionStart, selectionEnd) {

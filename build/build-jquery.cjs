@@ -19,7 +19,6 @@ const browserEntry = '(function(global) {\n' + browserSource + '\n' +
   'var plugin = createFabGridJQuery(global.jQuery, global.fabui);\n' +
   'global.fabuiJQuery = plugin;\n' +
   '})(typeof globalThis !== "undefined" ? globalThis : window);\n';
-const esmEntry = source;
 const minifiedBrowserEntry = esbuild.transformSync(browserEntry, {
   minify: true,
   target: 'es2017'
@@ -31,14 +30,7 @@ fs.mkdirSync(wrapperDistDir, { recursive: true });
 fs.writeFileSync(path.join(distDir, 'fabgrid-jquery.js'), browserEntry);
 fs.writeFileSync(path.join(distDir, 'fabgrid-jquery.min.js'), minifiedBrowserEntry);
 fs.writeFileSync(path.join(wrapperDistDir, 'fabgrid-jquery.min.js'), minifiedBrowserEntry);
-fs.writeFileSync(path.join(distDir, 'fabgrid-jquery.esm.js'), esmEntry);
-fs.writeFileSync(path.join(distDir, 'fabgrid-jquery.esm.min.js'), esbuild.transformSync(esmEntry, {
-  format: 'esm',
-  minify: true,
-  target: 'es2017'
-}).code.trim());
-
-['fabgrid-jquery.js', 'fabgrid-jquery.min.js', 'fabgrid-jquery.esm.js', 'fabgrid-jquery.esm.min.js'].forEach(function(name) {
+['fabgrid-jquery.js', 'fabgrid-jquery.min.js'].forEach(function(name) {
   if (!fs.existsSync(path.join(distDir, name)) || !fs.statSync(path.join(distDir, name)).size) {
     throw new Error('Missing jQuery wrapper output: ' + name);
   }

@@ -21,16 +21,6 @@ Browser global build 依序載入 jQuery、FabUI 與 wrapper：
 </script>
 ```
 
-ES module 可自行注入 jQuery 與 FabUI：
-
-```js
-import $ from "jquery";
-import fabui from "./fabui.esm.js";
-import { createFabGridJQuery } from "./fabgrid-jquery.esm.js";
-
-createFabGridJQuery($, fabui);
-```
-
 ## Instance 與方法
 
 ```js

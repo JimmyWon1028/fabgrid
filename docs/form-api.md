@@ -26,19 +26,6 @@ Browser global：
 </script>
 ```
 
-ES module：
-
-```js
-import fabui from './dist/fabui.esm.js';
-
-var form = new fabui.Form('#contact-form', {
-  url: '/api/contact',
-  queryParams: {
-    source: 'website'
-  }
-});
-```
-
 建構式必須傳入 `<form>` element 或 selector。相同 form 重複建立時會回傳既有 instance。
 
 ## Options

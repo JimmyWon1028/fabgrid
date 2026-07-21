@@ -764,7 +764,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     this.editor.style.zIndex = isScrollableEditor ? '3' : '10';
     this.editorIconHost.style.zIndex = isScrollableEditor ? '3' : '11';
     if (this.editorConfig && (isDateLikeEditorType(this.editorConfig.type) || this.editorConfig.type === 'combo' || this.editorConfig.type === 'color' || (this.editorIconConfigs && this.editorIconConfigs.length))) {
-      editorBorderInset = Math.max(0, toNumber(this.options.activeCellBorder, 2));
+      editorBorderInset = Math.max(0, toNumber(this.options.activeCellBorder, 1));
       editorVerticalInset = editorBorderInset + 1;
       this.editorIconHost.style.left = (left + width - this.getEditorIconHostWidth() - editorBorderInset) + 'px';
       this.editorIconHost.style.top = (top + editorVerticalInset) + 'px';

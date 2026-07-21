@@ -423,24 +423,46 @@ server.listen(port, '127.0.0.1', async function() {
     ) {
       throw new Error('Smoke assertions failed: ' + JSON.stringify(result));
     }
-    const expectedDistFiles = [
+    const requiredDistFiles = [
       'fabui.css',
-      'fabui.esm.js',
-      'fabui.esm.min.js',
       'fabui.js',
       'fabui.min.css',
       'fabui.min.js',
       'theme'
     ];
-    const actualDistFiles = fs.readdirSync(path.join(root, 'dist')).sort();
-    if (JSON.stringify(actualDistFiles) !== JSON.stringify(expectedDistFiles)) {
-      throw new Error('Smoke assertions failed: unexpected dist output ' + JSON.stringify(actualDistFiles));
+    const standaloneBundlePattern = /^fabui\.(?:lite|gantt|scheduler)(?:\..+)?$/;
+    const actualDistFiles = fs.readdirSync(path.join(root, 'dist')).filter(function(file) {
+      return file !== '.DS_Store';
+    }).sort();
+    const missingDistFiles = requiredDistFiles.filter(function(file) {
+      return actualDistFiles.indexOf(file) < 0;
+    });
+    const unexpectedDistFiles = actualDistFiles.filter(function(file) {
+      return requiredDistFiles.indexOf(file) < 0 && !standaloneBundlePattern.test(file);
+    });
+    const unexpectedEsmFiles = actualDistFiles.filter(function(file) {
+      return /\.esm(?:\.min)?\.js$/i.test(file);
+    });
+    if (missingDistFiles.length || unexpectedDistFiles.length || unexpectedEsmFiles.length) {
+      throw new Error(
+        'Smoke assertions failed: unexpected dist output missing=' +
+        JSON.stringify(missingDistFiles) +
+        ' unexpected=' +
+        JSON.stringify(unexpectedDistFiles) +
+        ' esm=' +
+        JSON.stringify(unexpectedEsmFiles)
+      );
     }
     if (!fs.existsSync(path.join(root, 'dist', 'theme', 'images', 'datebox_arrow.png')) ||
-      !fs.existsSync(path.join(root, 'dist', 'theme', 'fabgrid.black.css')) ||
-      !fs.existsSync(path.join(root, 'dist', 'theme', 'fabgrid.black.min.css')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'fabui.black.css')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'fabui.black.min.css')) ||
       !fs.existsSync(path.join(root, 'dist', 'theme', 'black', 'images', 'pagination_icons.png'))) {
       throw new Error('Smoke assertions failed: theme dependencies are incomplete.');
+    }
+    if (fs.readdirSync(path.join(root, 'dist', 'theme')).some(function(file) {
+      return /^fabgrid\..+\.css$/i.test(file);
+    })) {
+      throw new Error('Smoke assertions failed: legacy FabGrid theme CSS filenames remain.');
     }
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {

@@ -739,6 +739,7 @@ export function installFabGridView(FabGrid, context) {
       return;
     }
 
+    this.captureActiveHeaderSearchFocus();
     if (this.emit('updatingView', {}) === false) {
       return;
     }
@@ -1023,6 +1024,8 @@ export function installFabGridView(FabGrid, context) {
 
   FabGrid.prototype.renderPagination = function() {
     var height = this.getPaginationHeight();
+    var pager = this._pagerElement || (this.pager && this.pager.style ? this.pager : null);
+    var pagination = this._paginationElement || (this.pagination && this.pagination.style ? this.pagination : null);
     var total = this.paginationTotal;
     var pageSize = Math.max(1, this.options.pageSize);
     var pageCount = Math.max(1, Math.ceil(total / pageSize));
@@ -1036,16 +1039,16 @@ export function installFabGridView(FabGrid, context) {
     var refreshHtml = '';
     var i;
     var value;
-    if (!this.pager || !this.pagination) {
+    if (!pager || !pagination) {
       return;
     }
-    this.pager.style.height = height + 'px';
-    this.pager.style.display = height ? 'block' : 'none';
-    this.pagination.setAttribute('aria-label', this.getText('pagination.ariaLabel'));
-    this.pagination.style.height = '100%';
-    this.pagination.style.display = height ? 'flex' : 'none';
+    pager.style.height = height + 'px';
+    pager.style.display = height ? 'block' : 'none';
+    pagination.setAttribute('aria-label', this.getText('pagination.ariaLabel'));
+    pagination.style.height = '100%';
+    pagination.style.display = height ? 'flex' : 'none';
     if (!height) {
-      this.pagination.innerHTML = '';
+      pagination.innerHTML = '';
       return;
     }
     for (i = 0; i < pageList.length; i += 1) {
@@ -1064,7 +1067,7 @@ export function installFabGridView(FabGrid, context) {
       refreshHtml = '<span class="fg-pagination-separator"></span>' +
         this.createPaginationButton('refresh', 'pagination-load', this.getText('pagination.refresh'), false);
     }
-    this.pagination.innerHTML =
+    pagination.innerHTML =
       '<div class="fg-pagination-controls">' +
         pageListHtml +
         this.createPaginationButton('first', 'pagination-first', this.getText('pagination.first'), pageNumber <= 1) +

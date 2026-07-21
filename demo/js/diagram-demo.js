@@ -9,107 +9,258 @@
   ];
   var initialData = {
     nodes: [{
-      id: 'start',
+      id: 'title',
+      type: 'text',
+      text: '生產製造流程',
+      x: 210,
+      y: 30,
+      width: 700,
+      height: 55,
+      fill: '#ffffff',
+      stroke: '#ffffff'
+    }, {
+      id: 'customer-order',
       type: 'terminator',
-      text: '收到訂單',
-      x: 80,
-      y: 100,
-      width: 150,
+      text: '客戶訂單',
+      x: 40,
+      y: 115,
+      width: 160,
       height: 70,
       fill: '#dbeafe',
       stroke: '#2563eb'
     }, {
-      id: 'review',
+      id: 'stock-quantity',
+      type: 'database',
+      text: '庫存生產數量',
+      x: 40,
+      y: 235,
+      width: 160,
+      height: 80,
+      fill: '#e0f2fe',
+      stroke: '#0284c7'
+    }, {
+      id: 'manufacturing-order',
       type: 'process',
-      text: '檢查庫存與付款',
+      text: '開立製令',
+      x: 250,
+      y: 170,
+      width: 170,
+      height: 80,
+      fill: '#dcfce7',
+      stroke: '#16a34a'
+    }, {
+      id: 'manufacturing-details',
+      type: 'document',
+      text: '投料日(預計開始日)\n需求日(預計完工日)\n完工日\n工序版型，配料，員工 機台，機台使用批次(年度)',
+      x: 450,
+      y: 105,
+      width: 330,
+      height: 220,
+      fill: '#fef3c7',
+      stroke: '#d97706'
+    }, {
+      id: 'warehouse-issue',
+      type: 'process',
+      text: '倉庫：領料\n投入生產',
+      x: 810,
+      y: 165,
+      width: 190,
+      height: 100,
+      fill: '#f3e8ff',
+      stroke: '#9333ea'
+    }, {
+      id: 'deduct-stock',
+      type: 'database',
+      text: '扣庫存',
+      x: 810,
+      y: 330,
+      width: 190,
+      height: 70,
+      fill: '#fee2e2',
+      stroke: '#dc2626'
+    }, {
+      id: 'first-operation',
+      type: 'roundedRectangle',
+      text: '投料量\n紀錄第一工序',
+      x: 810,
+      y: 465,
+      width: 190,
+      height: 90,
+      fill: '#dcfce7',
+      stroke: '#16a34a'
+    }, {
+      id: 'production-operation',
+      type: 'process',
+      text: '生產工序N',
+      x: 570,
+      y: 475,
+      width: 170,
+      height: 70,
+      fill: '#dbeafe',
+      stroke: '#2563eb'
+    }, {
+      id: 'production-progress',
+      type: 'process',
+      text: '生產進度(進度)\n損耗數量',
       x: 330,
-      y: 100,
+      y: 455,
+      width: 180,
+      height: 110,
+      fill: '#fef9c3',
+      stroke: '#ca8a04'
+    }, {
+      id: 'finished-stock',
+      type: 'terminator',
+      text: '完工入庫',
+      x: 70,
+      y: 475,
       width: 180,
       height: 70,
       fill: '#dcfce7',
       stroke: '#16a34a'
     }, {
-      id: 'decision',
-      type: 'decision',
-      text: '可以出貨？',
-      x: 620,
-      y: 80,
-      width: 170,
-      height: 110,
-      fill: '#fef3c7',
-      stroke: '#d97706'
-    }, {
-      id: 'ship',
+      id: 'finished-writeback',
       type: 'document',
-      text: '建立出貨單',
-      x: 900,
-      y: 40,
-      width: 170,
-      height: 80,
+      text: '完工入庫\n回寫完工數量\n檢查是否結案',
+      x: 70,
+      y: 620,
+      width: 220,
+      height: 100,
       fill: '#f3e8ff',
       stroke: '#9333ea'
     }, {
-      id: 'hold',
-      type: 'roundedRectangle',
-      text: '通知客戶等待',
-      x: 900,
-      y: 190,
-      width: 170,
-      height: 70,
+      id: 'close-order',
+      type: 'decision',
+      text: '制令結案:\n1. 產出數量 = 預計生產量\n2. 經紗用完\n3. 手動結案',
+      x: 360,
+      y: 595,
+      width: 250,
+      height: 140,
+      fill: '#fef3c7',
+      stroke: '#d97706'
+    }, {
+      id: 'order-note',
+      type: 'document',
+      text: '製令只能一個料號\n如有插單, 改機台\n皆需開立新的製令',
+      x: 700,
+      y: 620,
+      width: 260,
+      height: 100,
       fill: '#fee2e2',
       stroke: '#dc2626'
-    }, {
-      id: 'archive',
-      type: 'database',
-      text: '訂單資料庫',
-      x: 620,
-      y: 290,
-      width: 170,
-      height: 100,
-      fill: '#e0f2fe',
-      stroke: '#0284c7'
-    }, {
-      id: 'notice',
-      type: 'cloud',
-      text: '外部通知',
-      x: 900,
-      y: 320,
-      width: 170,
-      height: 90,
-      fill: '#fef9c3',
-      stroke: '#ca8a04'
     }],
     connectors: [{
       id: 'c1',
-      from: 'start',
-      to: 'review'
+      from: 'customer-order',
+      to: 'manufacturing-order'
     }, {
       id: 'c2',
-      from: 'review',
-      to: 'decision'
+      from: 'stock-quantity',
+      to: 'manufacturing-order'
     }, {
       id: 'c3',
-      from: 'decision',
-      to: 'ship',
-      text: '是'
+      from: 'manufacturing-order',
+      to: 'manufacturing-details'
     }, {
       id: 'c4',
-      from: 'decision',
-      to: 'hold',
-      text: '否',
+      from: 'manufacturing-details',
+      to: 'warehouse-issue'
+    }, {
+      id: 'c5',
+      from: 'warehouse-issue',
+      to: 'first-operation'
+    }, {
+      id: 'c6',
+      from: 'warehouse-issue',
+      to: 'deduct-stock'
+    }, {
+      id: 'c7',
+      from: 'first-operation',
+      to: 'production-operation'
+    }, {
+      id: 'c8',
+      from: 'production-operation',
+      to: 'production-progress'
+    }, {
+      id: 'c9',
+      from: 'production-progress',
+      to: 'production-operation',
+      type: 'curved',
       lineStyle: 'dashed'
+    }, {
+      id: 'c10',
+      from: 'production-progress',
+      to: 'finished-stock'
+    }, {
+      id: 'c11',
+      from: 'finished-stock',
+      to: 'finished-writeback'
     }]
   };
 
-  function mountDiagramDemo(fabui) {
+  function centerDiagramDataOnPaper(data, paper) {
+    var nodes = data.nodes.map(function(node) {
+      return Object.assign({}, node);
+    });
+    var connectors = data.connectors.map(function(connector) {
+      return Object.assign({}, connector);
+    });
+    var bounds;
+    var offsetX;
+    var offsetY;
+    if (!nodes.length || !paper) {
+      return {
+        nodes: nodes,
+        connectors: connectors
+      };
+    }
+    bounds = nodes.reduce(function(result, node) {
+      result.left = Math.min(result.left, node.x);
+      result.top = Math.min(result.top, node.y);
+      result.right = Math.max(result.right, node.x + node.width);
+      result.bottom = Math.max(result.bottom, node.y + node.height);
+      return result;
+    }, {
+      left: Infinity,
+      top: Infinity,
+      right: -Infinity,
+      bottom: -Infinity
+    });
+    offsetX = (paper.width - (bounds.right - bounds.left)) / 2 - bounds.left;
+    offsetY = (paper.height - (bounds.bottom - bounds.top)) / 2 - bounds.top;
+    nodes.forEach(function(node) {
+      node.x += offsetX;
+      node.y += offsetY;
+    });
+    connectors.forEach(function(connector) {
+      if (typeof connector.controlX === 'number') connector.controlX += offsetX;
+      if (typeof connector.controlY === 'number') connector.controlY += offsetY;
+    });
+    return {
+      nodes: nodes,
+      connectors: connectors
+    };
+  }
+
+  function mountDiagramDemo(fabui, demoOptions) {
     var themeSelect = document.getElementById('diagram-theme');
     var localeSelect = document.getElementById('diagram-locale');
+    var dockModeSelect = document.getElementById('diagram-dock-mode');
     var readOnly = document.getElementById('diagram-readonly');
     var status = document.getElementById('diagram-status');
+    var demoData = initialData;
     var diagram;
 
     function setStatus(message) {
       status.textContent = message;
+    }
+
+    function syncReadOnlyControl(value) {
+      var control = readOnly.__fabuiDevControl;
+      readOnly.checked = Boolean(value);
+      if (!control || control.isChecked() === Boolean(value)) return;
+      if (value) control.check();
+      else control.uncheck();
     }
 
     if (!fabui || typeof fabui.Diagram !== 'function') {
@@ -119,6 +270,8 @@
     diagram = new fabui.Diagram('#diagram', {
       height: 660,
       locale: localeSelect.value,
+      sameSideDockMode: dockModeSelect ? dockModeSelect.value : 'tabs',
+      toolboxStateKey: 'fabui.diagram.demo.toolbox',
       nodes: initialData.nodes,
       connectors: initialData.connectors,
       onSelectionChanged: function(instance, event) {
@@ -131,8 +284,23 @@
       onChanged: function(instance, event) {
         setStatus('異動：' + event.action + '，節點 ' +
           event.data.nodes.length + '，連線 ' + event.data.connectors.length);
+        if (event.action === 'pageChange' &&
+          typeof instance.fitToPage === 'function') {
+          instance.fitToPage();
+        }
+      },
+      onReadOnlyChanged: function(instance, event) {
+        syncReadOnlyControl(event.readOnly);
       }
     });
+    if (demoOptions && demoOptions.centerInitialData) {
+      demoData = centerDiagramDataOnPaper(initialData, diagram.getPaper());
+      diagram.setData(demoData);
+    }
+    if (typeof diagram.fitToPage === 'function') diagram.fitToPage();
+    if (dockModeSelect && typeof diagram.getSameSideDockMode === 'function') {
+      dockModeSelect.value = diagram.getSameSideDockMode();
+    }
 
     themeSelect.addEventListener('change', function() {
       THEMES.forEach(function(theme) {
@@ -146,12 +314,19 @@
       diagram.setLocale(localeSelect.value);
     });
 
+    if (dockModeSelect) {
+      dockModeSelect.addEventListener('change', function() {
+        diagram.setSameSideDockMode(dockModeSelect.value);
+      });
+    }
+
     readOnly.addEventListener('change', function() {
       diagram.setReadOnly(readOnly.checked);
     });
 
     document.getElementById('diagram-reset').addEventListener('click', function() {
-      diagram.setData(initialData);
+      diagram.setData(demoData);
+      if (typeof diagram.fitToPage === 'function') diagram.fitToPage();
       setStatus('已還原範例流程');
     });
 
