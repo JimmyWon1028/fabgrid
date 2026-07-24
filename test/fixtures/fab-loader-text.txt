@@ -1,0 +1,1 @@
+fabLoader text fixture

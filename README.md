@@ -234,6 +234,7 @@ Diagram Demo 內建無外部依賴的生產製造流程範例。完整行為與 
 | Default | 內建於 FabUI core 與 Lite CSS。 |
 | 其他主題 | 18 組外部 Theme CSS 必須最後載入，並直接覆蓋 Default selector。 |
 | Mono | `mono`、`mono-red`、`mono-green` 共用 `dist/theme/mono/` 的單色 SVG。 |
+| 樣式隔離 | FabUI core 原生控制節點使用固定 component class 與隔離基底，避免一般 `button`、`input`、`label`、`select`、`textarea`、`a` selector 改變元件外觀。 |
 | 多語系 | 內建 `en`、`zh-TW`、`zh-CN`，並正規化常用繁簡中文別名。 |
 
 所有 Demo 預設使用 `default`。選擇其他主題時，頁面會更換 Theme CSS 並重新載入。
@@ -276,9 +277,10 @@ Source mode 直接引用 `src/`，適合開發測試；Build mode 引用 `dist/`
 | Gantt | `dist/fabui.gantt.{js,min.js,css,min.css}` | 獨立附加 `fabui.Gantt`。 |
 | Scheduler | `dist/fabui.scheduler.{js,min.js,css,min.css}` | 獨立附加 `fabui.Scheduler`。 |
 | HtmlEditor | `dist/fabui.htmleditor.{js,min.js,css,min.css}` | 獨立附加 `fabui.HtmlEditor`。 |
+| fabLoader | `dist/fabLoader.{js,min.js}` | 實驗性的獨立動態資源 Loader，內建 DOM helper，不附加到 `fabui`。 |
 | Theme | `dist/theme/fabui.<theme>.{css,min.css}` | Default 以外 18 組主題與必要圖片。 |
 
-`fabui.EditBox` 已納入 core，不再產生獨立 bundle。Vue 2 與 FabGrid jQuery wrapper 目前暫緩，不納入預設 build；既有原始碼與文件仍保留。
+`fabui.EditBox` 已納入 core，不再產生獨立 bundle。實驗性的 fabLoader 不納入 `build:all`。fabDom 只保留供 fabLoader 組合使用的原始碼，不再產生獨立 dist。Vue 2 與 FabGrid jQuery wrapper 目前暫緩，不納入預設 build；既有原始碼與文件仍保留。
 
 Browser global 使用以下 namespace：
 
@@ -303,6 +305,239 @@ fabui.setConfig({
 
 使用 `fabui.getConfig()` 可取得目前設定的獨立副本。
 
+## 實驗性 fabLoader
+
+`fabLoader` 是不依賴其他套件的獨立 browser global，目前先由正式版
+Diagram Demo 試用，不併入 `fabui` namespace。發佈檔已內建小型 DOM
+helper，可由 `fabLoader.dom()` 使用；頁面沒有 jQuery 且 `$` 尚未被
+占用時，也會安全地提供 `$` 別名。
+
+完整操作與參數請參閱 [fabLoader API](./docs/fabloader-api.md)。
+
+| API | 用途 |
+| --- | --- |
+| `setConfig(options)`、`getConfig()` | 使用前集中設定 Script、CSS、圖片與文字四個載入桶；未設定時使用內建預設，`getConfig()` 回傳獨立副本。 |
+| `cancel(bucket?, url?)` | 取消指定 URL、指定載入桶，或全部尚未完成的載入；`style` 可作為 `css` 的別名。 |
+| `style()`、`script()`、`module()`、`vue()`、`react()`、`run()`、`wait()` | 從第一個操作自動建立 LAB.js 風格的獨立載入佇列，不必先呼叫 `queue()`；`wait()` 是為相容舊寫法提供的 `run()` 別名；`style(url)` 載入單一 CSS，`style([url, ...])` 平行載入一組 CSS；`script(url)` 循序載入，`script([url, ...])` 平行載入整組並等待全部完成。 |
+| `queue()` | 選用；需要明確建立空佇列時使用。 |
+| `loadScript(url, options)` | 動態載入 JavaScript，同一資源只載入一次。 |
+| `loadCss(url, options)` | 動態載入 CSS，同一資源只載入一次。 |
+| `preloadImage(urlOrCollection, options)` | 單一 URL 共用同一次圖片預載請求但每次呼叫回傳不同 `<img>`；陣列或名稱物件會平行預載並回傳可重複讀取的集合。 |
+| `loadText(url, options)` | 非同步下載文字並快取於記憶體；同一 URL 與 credentials 只下載一次。 |
+| `getText(url, options)` | 同步取得已完成的文字快取，未命中或尚未完成時回傳 `null`。 |
+| `loadXml(url, options)` | 使用共用文字快取載入 XML，解析成功後回傳新的 `XMLDocument`。 |
+| `loadHtml(urlOrCollection, options)` | `loadText()` 的 HTML 相容名稱，使用相同文字快取；接受單一 URL、平行載入的 URL 陣列，或保留名稱的 `{ name: url }` 物件。 |
+| `getHtml(url, options)` | `getText()` 的 HTML 相容名稱，使用相同文字快取。 |
+| `clearTextCache(url?, options?)` | 清除指定或全部共用文字／HTML／XML 原文快取。省略 options 時會清除該 URL 的全部 credentials 變體。 |
+| `mountHtml(target, url, options)` | 載入 HTML、放入指定元素，並依原始順序執行其中的 script。 |
+| `dom(target)` | 取得 jQuery-like collection；`dom(target).load(url, callback)` 直接橋接 `mountHtml()`。 |
+| `useDom()` | 回傳可作為局部 `$` 的 DOM provider；頁面有 jQuery 時回傳 jQuery，否則回傳內建 `fabLoader.dom`，不修改既有全域 `$`。 |
+
+未呼叫 `setConfig()` 時，四個載入桶的 timeout 都是 30 秒；
+Script 預設 `async: false` 與 `crossorigin="anonymous"`，CSS 預設
+`media: "all"`，圖片預設 `crossOrigin: "anonymous"`，文字 Fetch
+預設 `credentials: "same-origin"`。可在第一次載入前集中覆寫：
+
+```js
+fabLoader.setConfig({
+  script: {
+    timeout: 15000,
+    attributes: {
+      crossorigin: 'anonymous'
+    }
+  },
+  css: {
+    timeout: 15000
+  },
+  image: {
+    timeout: 10000
+  },
+  text: {
+    timeout: 10000,
+    credentials: 'include'
+  }
+});
+```
+
+單次呼叫的 options 仍可覆寫所屬桶的設定。會影響資源身份的
+`type`、`async`、attributes、`media`、圖片請求屬性與 credentials
+會納入快取鍵；timeout 不納入。失敗、逾時或取消會清除該筆載入紀錄，
+所以相同資源可以重新嘗試。
+
+```js
+fabLoader.cancel('text', './data.xml');
+fabLoader.cancel('image');
+fabLoader.cancel();
+```
+
+圖片陣列的每個數字索引都是可重複使用的 getter；每次讀取都回傳來源
+相同但 DOM identity 不同的 `<img>`，所以可直接插入不同位置：
+
+```js
+fabLoader.preloadImage([
+  './images/unlocked32.png',
+  './images/exit32.png'
+]).then(function(images) {
+  window.myImages = images;
+});
+
+$('#place-a').append(myImages[0]);
+$('#place-b').append(myImages[0]);
+```
+
+因此 `myImages[0] !== myImages[0]`。若要修改單次節點的 `alt`、class
+或其他屬性，先將該次讀取結果存入變數再設定。
+
+需要名稱時可直接以物件預載，fabLoader 會為每個名稱建立相同的
+可重複 getter：
+
+```js
+fabLoader.preloadImage({
+  loader: './images/fab-loader.svg',
+  unlock: './images/unlocked32.png'
+}).then(function(images) {
+  window.myImage = images;
+});
+
+$('#place-a').append(myImage.loader);
+$('#place-b').append(myImage.loader);
+$('#place-b').append(myImage.unlock);
+```
+
+`vue(url)` 是選用的 Vue 2 SFC 佇列步驟。未呼叫時 fabLoader
+不依賴 Vue 或 SystemJS；呼叫時才檢查頁面已有 `System.import()`、
+Vue 2 完整版與瀏覽器 template compiler，並將 `.vue` 交給既有
+SystemJS loader 設定載入。缺少依賴或匯入失敗會進入同一條
+`catch()`。`demo2/index.html` 提供不依賴 CDN 的簡單展示。
+
+`react(url)` 是選用的 React JSX 佇列步驟。未呼叫時 fabLoader
+不依賴 React 或 SystemJS；呼叫時才檢查頁面已有 `System.import()`、
+React 與提供 `createRoot()` 的 ReactDOM Client，再將 `.jsx` 交給既有
+SystemJS JSX loader 設定載入。Demo2 使用獨立的 `runtime.config.js`
+設定本機 systemjs-plugin-babel，原本的 `systemjs.config.js` 只保留
+Vue 設定。
+
+`mountHtml()` 預設取代目標元素內容；可用 `append: true` 改為追加，也可用 `executeScripts: false` 只插入 HTML。HTML 內相對路徑會以最終回應 URL 為基準解析。
+
+內建 DOM helper 的 `.load()` 採用接近 jQuery 的格式，立即回傳原
+collection，因此可繼續鏈接；載入完成後呼叫
+`callback(responseText, status, result)`。`status` 是 `success` 或
+`error`，callback 的 `this` 是目前目標元素。實際下載、快取、timeout
+及片段 script 執行都只由 `mountHtml()` 處理：
+
+```js
+$('#target')
+  .load('./fragment.html', function(responseText, status, result) {
+    if (status === 'success') {
+      $(this).addClass('ready');
+    }
+  })
+  .attr('data-loading', 'true');
+```
+
+若頁面已有 jQuery，Loader 不會覆蓋 `$`；此時可固定使用
+`fabLoader.dom('#target').load(...)`。
+
+需要讓同一份程式自動使用 jQuery 或內建 DOM helper 時，先取得局部
+`$`。即使頁面呼叫過 `jQuery.noConflict()`，也不需要重新占用全域
+`$`：
+
+```js
+var $ = fabLoader.useDom();
+
+$('#target').addClass('ready');
+```
+
+```js
+fabLoader.loadText('./notes.txt').then(function(text) {
+  console.log(text);
+});
+
+fabLoader.loadXml('./data.xml').then(function(xml) {
+  console.log(xml.documentElement);
+});
+```
+
+`loadText()` 會發出請求或等待既有請求；`getText()` 只同步讀取已完成
+的記憶體快取，不會發出請求。`loadXml()` 只快取 XML 原文，每次呼叫
+都回傳重新解析的 `XMLDocument`，避免呼叫端修改共用 Document。
+XML 格式錯誤時 Promise 會 reject，並清除該筆原文快取以便修正後重試。
+
+```js
+fabLoader
+  .style(['base.css', 'feature.css'])
+  .script('core.js')
+  .run(function() {
+    startApplication();
+  })
+  .module('controls.js')
+  .catch(function(error) {
+    console.error(error);
+  });
+```
+
+```js
+fabLoader
+  .script(['library-a.js', 'library-b.js'])
+  .run(function() {
+    startApplication();
+  });
+```
+
+陣列中的 scripts 會平行載入且不保證彼此執行順序；只有互不依賴的 scripts 適合放在同一組。後續步驟會等待整組完成。
+
+## 實驗性 fabDom
+
+`fabDom` 的實作位於 `src/fabdom/fabDom.js`，已納入
+`dist/fabLoader.{js,min.js}` 並由 `fabLoader.dom` 公開，不再產生
+獨立 fabDom dist。載入 fabLoader 時若頁面沒有 jQuery，且 `$` 尚未
+被其他程式使用，會自動將 `$` 指向內建 fabDom；否則不覆蓋既有 `$`。
+
+```js
+$('#target')
+  .html('<strong>replace</strong>')
+  .append('<span>append</span>')
+  .addClass('ready')
+  .on('click', function() {
+    $(this).toggleClass('active');
+  });
+
+$('input').val('new value');
+$('#target').attr('data-state', 'ready');
+$('#target').css({
+  color: '#333',
+  width: 240
+});
+```
+
+| 分類 | API |
+| --- | --- |
+| Collection | `each()`、`get()`、`eq()`、`first()`、`last()` |
+| 內容與插入 | `html()`、`text()`、`val()`、`append()`、`prepend()`、`before()`、`after()`、`load()` |
+| Attribute／Property | `attr()`、`removeAttr()`、`prop()` |
+| CSS class | `css()`、`addClass()`、`removeClass()`、`toggleClass()`、`hasClass()` |
+| Event | `on()`、`off()`；支援直接事件與 selector 委派 |
+| 移除與遍歷 | `empty()`、`remove()`、`find()`、`closest()`、`parent()`、`children()`、`is()` |
+
+Getter 讀取第一個符合元素，setter 套用到全部元素並保持鏈式操作；
+常用 setter 支援 callback，`attr({...})`、`prop({...})`、`css({...})`
+支援 object setter。`attr(name, null)` 移除 attribute，
+`css(name, null)` 移除 inline style，數值 CSS 除 unitless property
+外自動補上 `px`。`on()`／`off()` 不提供 event namespace、data、
+trigger 或自訂 event system。
+
+`append()`、`prepend()`、`before()` 與 `after()` 同時接受可信任的
+HTML 字串、DOM Node、fabDom collection 或 NodeList。DOM Node 會直接
+插入頁面，不會被轉成 `[object HTMLImageElement]` 等文字；插入多個
+目標時，前面的目標使用深層複本，最後一個目標使用原始節點。
+
+HTML 插入方法不會自動 sanitization，只能直接使用固定或可信任內容。
+fabDom 不是完整 jQuery 替代品，也不提供動畫、完整 Ajax 或 plugin
+相容；`.load()` 只在 fabLoader 存在時橋接 `mountHtml()`。API 穩定後
+預計以 `fabui.loader` 與 `fabui.dom` 併入 FabUI。Demo2 只直接載入
+fabLoader；本機 jQuery 4 slim 載入行保留為註解，取消註解時 `$` 由
+jQuery 接管，`fabLoader.dom` 仍可獨立使用。
+
 ## 本機開發與 Build
 
 ### 開發伺服器
@@ -324,6 +559,7 @@ npm run serve
 | `npm run build:gantt` | 只重建 `fabui.gantt.*`。 |
 | `npm run build:scheduler` | 只重建 `fabui.scheduler.*`。 |
 | `npm run build:htmleditor` | 只重建 `fabui.htmleditor.*`。 |
+| `npm run build:loader` | 只重建實驗性的 `dist/fabLoader.js` 與 `dist/fabLoader.min.js`。 |
 | `npm run build:theme` | 只重建 `dist/theme/`。 |
 | `npm run build:all` | 依序重建 core、Lite、Diagram、Gantt、Scheduler 與 HtmlEditor。 |
 | `npm run benchmark:grid` | 以 20,000×50 資料集量測 binding、全域搜尋、雙欄排序與雙向 virtualization 上限，不重建 `dist`。 |
@@ -336,6 +572,8 @@ npm run serve
 使用 Codex 時可用 `build <scope>,<scope> [min]` 依指定順序組合 `fabui`、`lite`、`diagram`、`gantt`、`scheduler`、`htmleditor`、`theme`，例如 `build fabui,htmleditor min`。逗號左右不可留空白；`all` 與 `clear` 必須單獨使用。
 
 `build htmleditor min` 對應 `npm run build:htmleditor -- min`，只產生並保留 `dist/fabui.htmleditor.min.js` 與 `dist/fabui.htmleditor.min.css`，不重建 FabUI core 或其他獨立 bundle。
+
+`build loader` 對應 `npm run build:loader`，只產生 `dist/fabLoader.js` 與 `dist/fabLoader.min.js`；`build loader min` 對應 `npm run build:loader -- min`，只產生並保留 `dist/fabLoader.min.js`。Loader 不納入 `build all` 或逗號分隔的多範圍 build。
 
 ### 效能基準
 
@@ -355,6 +593,7 @@ npm run benchmark:grid
 | `src/pivot/`、`src/chart/` | Pivot 分析元件與 SVG Chart renderer。 |
 | `src/diagram/` | Diagram renderer、工具箱、互動、歷程與匯出。 |
 | `src/gantt/`、`src/scheduler/`、`src/htmleditor/` | 獨立 Gantt、Scheduler 與 HtmlEditor 原始碼。 |
+| `src/fabloader/` | 實驗性的獨立動態資源 Loader。 |
 | `src/theme/`、`src/locales/` | 主題、圖片與 `en`／`zh-TW`／`zh-CN` 語系。 |
 | `src/<component>/` | Button、Calendar、Form、Tabs、Tree、Panel、Window 等一般元件。 |
 | `packages/` | 暫緩的 Vue 2 與 jQuery wrapper。 |

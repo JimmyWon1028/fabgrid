@@ -1,0 +1,192 @@
+:root {
+  color: #1f2937;
+  background: #f3f4f6;
+  font-family: Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.page {
+  width: min(980px, calc(100% - 32px));
+  margin: 32px auto;
+}
+
+h1 {
+  margin-bottom: 8px;
+}
+
+.intro {
+  margin-top: 0;
+  color: #6b7280;
+}
+
+.panel {
+  margin-top: 16px;
+  padding: 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.panel h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+}
+
+#status-list {
+  margin: 0;
+  padding-left: 24px;
+  line-height: 1.8;
+}
+
+#status-list .success {
+  color: #047857;
+}
+
+#image-demo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+#image-demo img {
+  display: block;
+  max-width: 100%;
+}
+
+.html-fragment {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.html-fragment span {
+  color: #047857;
+}
+
+.react-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.react-card p {
+  margin: 0;
+  color: #312e81;
+  font-weight: 700;
+}
+
+.fabui-demo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.fabui-component-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.fabui-component-card h3 {
+  margin: 0 0 12px;
+  color: #374151;
+  font-size: 15px;
+}
+
+.fabui-row,
+.fabui-choice-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.fabui-choice-list {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.fabui-demo button,
+.fabui-demo input,
+.fabui-demo label,
+.fabui-demo select,
+.fabui-demo textarea,
+.fabui-demo a,
+.fabui-hostile-element:is(
+  div,
+  span,
+  i,
+  img,
+  svg,
+  canvas,
+  table,
+  thead,
+  tbody,
+  tfoot,
+  tr,
+  th,
+  td,
+  ul,
+  ol,
+  li,
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  strong
+) {
+  appearance: none;
+  box-sizing: content-box;
+  margin: 9px;
+  padding: 11px 15px;
+  border: 4px dashed #dc2626;
+  border-radius: 16px;
+  color: #fff;
+  background: #7c3aed;
+  box-shadow: 0 0 0 4px #fde047;
+  font: italic 19px/1.8 Georgia, serif;
+  letter-spacing: 3px;
+  text-align: right;
+  text-decoration: underline;
+  text-transform: uppercase;
+}
+
+button {
+  padding: 8px 12px;
+  border: 1px solid #4f46e5;
+  border-radius: 6px;
+  color: #fff;
+  background: #4f46e5;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #4338ca;
+}
+
+@media (max-width: 720px) {
+  .fabui-demo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.has-error::before {
+  display: block;
+  padding: 10px;
+  color: #991b1b;
+  background: #fee2e2;
+  content: '測試發生錯誤，請查看 Console。';
+  text-align: center;
+}

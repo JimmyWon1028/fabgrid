@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FabUI native control isolation</title>
+  <link
+    id="isolation-core"
+    rel="stylesheet"
+    href="../src/fabui.css?v=20260724-native-elements-v3"
+  >
+  <link
+    id="isolation-theme"
+    rel="stylesheet"
+    href="../src/theme/fabgrid.default.css?v=20260724-native-elements-v3"
+  >
+  <script>
+    var isolationParams = new URLSearchParams(location.search);
+    var isolationTheme = isolationParams.get('theme') || 'default';
+    document.getElementById('isolation-theme').href =
+      '../src/theme/fabgrid.' +
+      isolationTheme +
+      '.css?v=20260724-native-elements-v3';
+    if (isolationParams.get('mode') === 'dist') {
+      document.getElementById('isolation-core').href =
+        '../dist/fabui.css?v=20260722-theme-css-split-v1';
+    }
+  </script>
+  <style>
+    body {
+      margin: 20px;
+      font-family: Arial, sans-serif;
+    }
+
+    #isolation-stage {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .native-hostile button,
+    .native-hostile input,
+    .native-hostile label,
+    .native-hostile select,
+    .native-hostile textarea,
+    .native-hostile a,
+    .native-hostile div,
+    .native-hostile span,
+    .native-hostile i,
+    .native-hostile img,
+    .native-hostile svg,
+    .native-hostile canvas,
+    .native-hostile table,
+    .native-hostile thead,
+    .native-hostile tbody,
+    .native-hostile tfoot,
+    .native-hostile tr,
+    .native-hostile th,
+    .native-hostile td,
+    .native-hostile ul,
+    .native-hostile ol,
+    .native-hostile li,
+    .native-hostile p,
+    .native-hostile section,
+    .native-hostile strong {
+      appearance: none;
+      box-sizing: content-box;
+      margin: 13px;
+      padding: 17px;
+      border: 9px dashed #ff00ff;
+      border-radius: 25px;
+      background: #4f46e5;
+      box-shadow: 0 0 0 7px #00ff00;
+      color: #ffffff;
+      font: italic 24px/2 serif;
+      letter-spacing: 5px;
+      text-align: right;
+      text-decoration: underline;
+      text-indent: 11px;
+      text-shadow: 2px 2px #ff0000;
+      text-transform: uppercase;
+      word-spacing: 9px;
+    }
+  </style>
+</head>
+<body>
+  <h1>FabUI native control isolation</h1>
+  <button id="toggle-hostile" type="button">Toggle hostile styles</button>
+  <div id="isolation-stage" class="fg-root"></div>
+  <script>
+    (function() {
+      'use strict';
+
+      var stage = document.getElementById('isolation-stage');
+      document.getElementById('toggle-hostile').addEventListener('click', function() {
+        document.body.classList.toggle('native-hostile');
+      });
+      var buttonClasses = [
+        'fg-pagination-button',
+        'fg-top-left-menu-item',
+        'fg-column-chooser-trigger',
+        'fg-header-search-icon',
+        'fg-editor-trigger',
+        'fg-excel-filter-button',
+        'fui-textbox-icon',
+        'fui-textbox-button',
+        'fui-numberbox-spinner-button',
+        'fui-calendar-title',
+        'fui-calendar-nav',
+        'fui-calendar-day',
+        'fui-calendar-menu-year-nav',
+        'fui-calendar-menu-month',
+        'fui-datebox-button',
+        'fui-colorbox-swatch',
+        'fui-panel-tool',
+        'fui-propertygrid-group-toggle',
+        'fui-tabs-scroll',
+        'fui-tabs-tab',
+        'fui-tabs-tool',
+        'fui-tree-expander',
+        'fui-tree-checkbox',
+        'fui-layout-expand-button',
+        'fui-window-tool',
+        'fg-pivot-detail-close',
+        'fg-pivot-toggle',
+        'fg-pivot-panel-action',
+        'fg-pivot-slicer-button',
+        'fg-pivot-workspace-control'
+      ];
+      var textInputClasses = [
+        'fui-textbox-text',
+        'fui-calendar-menu-year',
+        'fui-propertygrid-editor-source',
+        'fui-tree-editor',
+        'fui-messager-input',
+        'fg-editor',
+        'fg-header-search-input',
+        'fg-excel-filter-search',
+        'fg-pivot-panel-filter-search',
+        'fg-pivot-slicer-search',
+        'fg-pagination-number'
+      ];
+      var checkInputClasses = [
+        'fui-checkbox-input',
+        'fui-switchbutton-input',
+        'fui-radiobutton-input',
+        'fg-selection-checkbox',
+        'fg-excel-filter-select-all-check',
+        'fg-excel-filter-value-check',
+        'fg-column-chooser-check',
+        'fg-pivot-panel-field-check',
+        'fg-pivot-panel-filter-check',
+        'fg-pivot-slicer-check'
+      ];
+      var labelClasses = [
+        'fui-checkbox-label',
+        'fui-switchbutton-label',
+        'fui-radiobutton-label',
+        'fui-textbox-label',
+        'fg-excel-filter-select-all',
+        'fg-excel-filter-value-item',
+        'fg-column-chooser-item',
+        'fg-pivot-panel-field-control',
+        'fg-pivot-panel-filter-select-all',
+        'fg-pivot-panel-filter-value',
+        'fg-pivot-slicer-select-all',
+        'fg-pivot-slicer-value'
+      ];
+      var selectClasses = [
+        'fg-pagination-page-list',
+        'fui-propertygrid-boolean-editor',
+        'fg-pivot-filter-field-select',
+        'fg-pivot-workspace-control fg-pivot-workspace-chart-type'
+      ];
+      var structuralClasses = [
+        ['div', 'fui-accordion'],
+        ['div', 'fui-calendar'],
+        ['div', 'fui-checkbox'],
+        ['div', 'fui-switchbutton'],
+        ['div', 'fui-radiobutton'],
+        ['div', 'fui-chart'],
+        ['div', 'fui-textbox-field'],
+        ['div', 'fui-combobox-panel'],
+        ['div', 'fui-colorbox-panel'],
+        ['div', 'fui-menu'],
+        ['div', 'fui-panel'],
+        ['div', 'fui-propertygrid'],
+        ['div', 'fui-tabs'],
+        ['div', 'fui-tree'],
+        ['div', 'fui-tooltip'],
+        ['div', 'fui-layout'],
+        ['div', 'fui-window'],
+        ['div', 'fui-messager-host'],
+        ['span', 'fui-button-inner'],
+        ['span', 'fui-menu-text'],
+        ['span', 'fui-tabs-title'],
+        ['span', 'fui-tree-title'],
+        ['span', 'fg-header-label'],
+        ['i', 'fui-chart-legend-item'],
+        ['table', 'fui-propertygrid-table'],
+        ['tr', 'fui-propertygrid-row'],
+        ['th', 'fui-propertygrid-header-cell'],
+        ['td', 'fui-propertygrid-cell'],
+        ['p', 'fui-messager-message'],
+        ['section', 'fg-pivot-workspace-pane'],
+        ['strong', 'fg-pivot-detail-title'],
+        ['svg', 'fui-chart-svg']
+      ];
+
+      function append(tagName, className, type) {
+        var element = document.createElement(tagName);
+        element.className = className;
+        element.setAttribute('data-isolation-control', className);
+        if (type) element.type = type;
+        if (tagName === 'select') {
+          element.appendChild(new Option('Option', 'option'));
+        } else if (tagName !== 'input') {
+          element.textContent = className;
+        } else {
+          element.value = 'value';
+        }
+        stage.appendChild(element);
+      }
+
+      append('a', 'fui-button');
+      append('a', 'fui-button fui-button-plain');
+      append('a', 'fui-button fui-button-outline');
+      append('a', 'fui-button fui-button-selected');
+      append('a', 'fui-button fui-button-disabled');
+      buttonClasses.forEach(function(className) {
+        append('button', className, 'button');
+      });
+      append('button', 'fg-top-left-menu-item fg-top-left-menu-item-active', 'button');
+      append('button', 'fui-calendar-day fui-calendar-selected', 'button');
+      append('button', 'fui-calendar-day fui-calendar-disabled', 'button');
+      append('button', 'fui-calendar-day fui-calendar-sunday', 'button');
+      append('button', 'fui-calendar-day fui-calendar-saturday', 'button');
+      append('button', 'fui-calendar-day fui-calendar-today', 'button');
+      append('button', 'fui-calendar-menu-month fui-calendar-menu-month-disabled', 'button');
+      append('button', 'fui-calendar-menu-month fui-calendar-menu-month-selected', 'button');
+      append('button', 'fui-colorbox-swatch fui-colorbox-swatch-selected', 'button');
+      append('button', 'fui-tree-expander fui-tree-expander-empty', 'button');
+      append('button', 'fg-pivot-toggle fg-pivot-column-toggle', 'button');
+      append('button', 'fui-textbox-icon icon-search', 'button');
+      append('button', 'fg-editor-trigger fg-editor-trigger-custom icon-search', 'button');
+      textInputClasses.forEach(function(className) {
+        append('input', className, 'text');
+      });
+      checkInputClasses.forEach(function(className) {
+        append('input', className, 'checkbox');
+      });
+      labelClasses.forEach(function(className) {
+        append('label', className);
+      });
+      selectClasses.forEach(function(className) {
+        append('select', className);
+      });
+      append('textarea', 'fui-textbox-text');
+      var editBoxField = document.createElement('span');
+      var editBox = document.createElement('span');
+      var editBoxInput = document.createElement('input');
+      var editBoxClear = document.createElement('button');
+      editBoxField.className = 'fui-textbox-field';
+      editBoxField.setAttribute('data-isolation-control', 'fui-textbox-live');
+      editBox.className = 'fui-textbox';
+      editBoxInput.className = 'fui-textbox-text';
+      editBoxInput.type = 'text';
+      editBoxInput.value = 'EditBox hover';
+      editBoxClear.className = 'fui-textbox-icon fui-textbox-clear-icon';
+      editBoxClear.type = 'button';
+      editBoxClear.setAttribute('aria-label', 'Clear');
+      editBox.appendChild(editBoxInput);
+      editBox.appendChild(editBoxClear);
+      editBoxField.appendChild(editBox);
+      stage.appendChild(editBoxField);
+      structuralClasses.forEach(function(item) {
+        append(item[0], item[1]);
+      });
+    }());
+  </script>
+</body>
+</html>

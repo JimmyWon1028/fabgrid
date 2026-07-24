@@ -1,5 +1,38 @@
 # FabGrid TODO
 
+## fabLoader 後續優化
+
+目前版本已足夠 Diagram Demo 正式使用，以下項目先記錄，暫不實作：
+
+- [x] Script、CSS、圖片與文字載入提供四個集中設定桶、預設 30 秒 timeout，以及 `cancel()`；文字 Fetch 使用 `AbortController` 中止請求。
+- [x] 影響資源身份的 Script type／async／attributes、CSS media／attributes、圖片請求屬性及文字 credentials 納入快取鍵。
+- [ ] 補充 `mountHtml()` script 錯誤契約，說明資源載入錯誤可由 `.catch()` 處理，但 script 執行階段的 runtime error 不保證進入 Loader queue 的 `.catch()`。
+- [ ] 擴充 HTML 相對路徑轉換，評估支援 `srcset`、`formaction`、`object[data]` 與 inline style 的 `url()`。
+- [ ] 長時間執行且載入大量不同資源時，評估文字快取容量上限、LRU 淘汰，以及已完成 Script／CSS／圖片載入紀錄的清除 API。
+- [x] 補齊 bucket 預設設定、設定副本、逾時、取消、失敗後重試、不同 options、圖片節點去重、可重複索引／命名的圖片集合與文字快取清理的單元測試及瀏覽器 smoke。
+- [ ] 補充重複 `mountHtml()` 與更多掛載失敗路徑的測試。
+
+## fabDom
+
+目前實作已納入 fabLoader，只保留共用原始碼，不再產生獨立 dist：
+
+- [x] `fabDom(selector)` 選取符合的元素，回傳可鏈接的 collection。
+- [x] 沒有 jQuery 且 `$` 尚未被使用時，自動提供 `$` 別名；既有 jQuery 或其他 `$` 一律不覆蓋。
+- [x] `each()`、`get()`、`eq()`、`first()`、`last()` collection 操作。
+- [x] `html()`、`append()`、`prepend()`、`before()`、`after()` 內容與插入操作。
+- [x] 提供 jQuery-like `text()`、`val()`、`attr()` 與 `css()` getter／setter、callback setter 及 `attr({...})`／`css({...})`。
+- [x] `removeAttr()`、`prop()`、`addClass()`、`removeClass()`、`toggleClass()` 與 `hasClass()`。
+- [x] `on()`／`off()` 直接與 selector 委派事件，並保留可精準解除的 handler 記錄。
+- [x] `empty()`、`remove()`、`find()`、`closest()`、`parent()`、`children()` 與 `is()`。
+- [x] 移除已無用途的獨立 `build dom`、browser smoke 與 `dist/fabDom.{js,min.js}`，DOM helper 只由 fabLoader 發佈。
+- [x] `demo2/` 只直接載入 fabLoader；註解本機 jQuery 4 slim 時 `$` 自動使用內建 fabDom，取消註解後 `$` 由 jQuery 接管且 `fabLoader.dom` 保持可用。
+- [x] 將 fabDom 的實作整合進 fabLoader，公開 `fabLoader.dom()` 並保留安全的 `$` 別名；`$().load()` 只橋接既有 `mountHtml()`，不得重複實作資源載入。
+- [ ] API 方向確認穩定後合併到 `fabui`，公開名稱固定為 `fabui.loader` 與 `fabui.dom`；整合時再決定 standalone 相容期。
+
+HTML 插入方法不負責清理內容；只可直接插入固定或可信任的 HTML，
+外部輸入必須先經過適當的 sanitization。目前不提供動畫、Ajax、
+event namespace、trigger、custom event system、plugin 或完整 jQuery API。
+
 ## FabUI PivotGrid
 
 - [x] 由 `fabui.pivot` 公開 `PivotEngine`、`PivotField`、`PivotPanel`、`PivotGrid`、`PivotChart`、`PivotWorkspace`、`PivotAggregate` 與 `PivotShowTotals`。

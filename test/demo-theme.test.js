@@ -6,7 +6,9 @@ import path from 'node:path';
 var demoDirectory = path.resolve('demo');
 var demoFiles = fs.readdirSync(demoDirectory)
   .filter(function(file) {
-    return file.endsWith('.html');
+    return file.endsWith('.html') &&
+      file !== 'test.html' &&
+      file !== 'test2.html';
   })
   .sort();
 

@@ -44027,6 +44027,7 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     item.setAttribute('data-field-key', field.key);
     item.setAttribute('data-area-item', 'fields');
     item.setAttribute('role', 'option');
+    label.className = 'fg-pivot-panel-field-control';
     checkbox.type = 'checkbox';
     checkbox.className = 'fg-pivot-panel-field-check';
     checkbox.checked = !!this._getAssignedArea(field);
@@ -44510,6 +44511,7 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
     selectAllLabel.className = 'fg-pivot-panel-filter-select-all';
     selectAll = document.createElement('input');
     selectAll.type = 'checkbox';
+    selectAll.className = 'fg-pivot-panel-filter-check';
     selectAll.setAttribute('data-filter-select-all', '');
     selectAllText = document.createElement('span');
     selectAllText.textContent = this.getText('pivot.panel.selectAll');
@@ -44577,6 +44579,7 @@ function createPivotPanelFactory(Control, registerControl, unregisterControl, Pi
       label.setAttribute('role', 'option');
       input = document.createElement('input');
       input.type = 'checkbox';
+      input.className = 'fg-pivot-panel-filter-check';
       input.checked = this._filterDraftKeys[key] === true;
       input.setAttribute('data-filter-value-key', key);
       label.setAttribute('aria-selected', input.checked ? 'true' : 'false');
@@ -45025,6 +45028,7 @@ function createPivotSlicerFactory(
     this.selectAllLabel.className = 'fg-pivot-slicer-select-all';
     this.selectAllInput = document.createElement('input');
     this.selectAllInput.type = 'checkbox';
+    this.selectAllInput.className = 'fg-pivot-slicer-check';
     this.selectAllText = document.createElement('span');
     this.selectAllLabel.appendChild(this.selectAllInput);
     this.selectAllLabel.appendChild(this.selectAllText);
@@ -45036,9 +45040,11 @@ function createPivotSlicerFactory(
     this.footerElement.className = 'fg-pivot-slicer-footer';
     this.applyButton = document.createElement('button');
     this.applyButton.type = 'button';
+    this.applyButton.className = 'fg-pivot-slicer-button';
     this.applyButton.setAttribute('data-action', 'apply');
     this.clearButton = document.createElement('button');
     this.clearButton.type = 'button';
+    this.clearButton.className = 'fg-pivot-slicer-button';
     this.clearButton.setAttribute('data-action', 'clear');
     this.footerElement.appendChild(this.clearButton);
     this.footerElement.appendChild(this.applyButton);
@@ -45156,6 +45162,7 @@ function createPivotSlicerFactory(
       label.setAttribute('role', 'option');
       input = document.createElement('input');
       input.type = 'checkbox';
+      input.className = 'fg-pivot-slicer-check';
       input.checked = this._draftKeys[key] === true;
       input.setAttribute('data-value-key', key);
       label.setAttribute('aria-selected', input.checked ? 'true' : 'false');
@@ -46476,7 +46483,7 @@ function createPivotWorkspaceFactory(
 }
 
 global.fabui = global.fabui || {};
-global.fabui.version = "2026.7.23";
+global.fabui.version = "2026.7.24";
 global.fabui.setConfig = setConfig;
 global.fabui.getConfig = getConfig;
 global.fabui.editorDefinitions = createEditorDefinitions();

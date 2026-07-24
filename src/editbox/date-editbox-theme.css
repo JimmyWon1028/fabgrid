@@ -1,5 +1,5 @@
-.fui-datebox-panel,
-.fui-calendar {
+:root .fui-datebox-panel,
+:root .fui-calendar {
   --fui-control-border: #95b8e7;
   --fui-control-trigger-bg: #e0ecff;
   --fui-panel-bg: #fff;

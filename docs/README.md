@@ -9,6 +9,12 @@
 | [Control](./control-api.md) | Control registry 與受管理的 DOM listener。 |
 | [Theme](./theme-api.md) | 19 組主題、CSS 載入順序與相容 API。 |
 
+## 獨立工具
+
+| 文件 | 公開入口 |
+| --- | --- |
+| [fabLoader](./fabloader-api.md) | `window.fabLoader` |
+
 ## 資料與分析
 
 | 文件 | 內容 |

@@ -1,10 +1,10 @@
 /* NumberBox inherits the default TextBox theme. */
-.fui-numberbox .fui-textbox-text {
+:root .fui-numberbox .fui-textbox-text {
   ime-mode: disabled;
   text-align: right;
 }
 
-.fui-numberbox-spinner {
+:root .fui-numberbox-spinner {
   display: inline-flex;
   flex: 0 0 28px;
   flex-direction: column;
@@ -14,7 +14,7 @@
   background: transparent;
 }
 
-.fui-numberbox-spinner-button {
+:root .fui-numberbox-spinner-button {
   position: relative;
   flex: 1 1 50%;
   box-sizing: border-box;
@@ -28,11 +28,11 @@
   opacity: 0.6;
 }
 
-.fui-numberbox-spinner-button + .fui-numberbox-spinner-button {
+:root .fui-numberbox-spinner-button + .fui-numberbox-spinner-button {
   border-top: 1px solid var(--fui-control-border, #95b8e7);
 }
 
-.fui-numberbox-spinner-button::before {
+:root .fui-numberbox-spinner-button::before {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -44,23 +44,23 @@
   transform: translate(-50%, -50%);
 }
 
-.fui-numberbox-spinner-up::before {
+:root .fui-numberbox-spinner-up::before {
   border-bottom: 4px solid currentColor;
 }
 
-.fui-numberbox-spinner-down::before {
+:root .fui-numberbox-spinner-down::before {
   border-top: 4px solid currentColor;
 }
 
-.fui-numberbox-spinner-button:hover,
-.fui-numberbox-spinner-button:focus-visible {
+:root .fui-numberbox-spinner-button:hover,
+:root .fui-numberbox-spinner-button:focus-visible {
   outline: 0;
   background: var(--fui-control-hover, #eaf2ff);
   color: var(--fui-control-icon, #555);
   opacity: 1;
 }
 
-.fui-numberbox-spinner-button:disabled {
+:root .fui-numberbox-spinner-button:disabled {
   cursor: default;
   opacity: 0.6;
 }

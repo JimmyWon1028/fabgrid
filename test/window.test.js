@@ -224,7 +224,7 @@ test('Window built-in tool icons do not change on mouse hover', function() {
     /\.fui-window-tool\s*\{([^}]*)\}/
   );
   var sharedStateRule = css.match(
-    /\.fui-window-tool:hover,\s*\.fui-window-tool:focus-visible\s*\{([^}]*)\}/
+    /\.fui-window-tool:hover,\s*(?::root\s+)?\.fui-window-tool:focus-visible\s*\{([^}]*)\}/
   );
   var tools = [
     'minimize',
@@ -277,11 +277,11 @@ test('Window collapses to an approximately 38px title bar', function() {
 
   assert.match(
     css,
-    /\.fui-window-collapsed,\s*\.fui-window-minimized\s*\{[\s\S]*?min-height:\s*38px;/
+    /\.fui-window-collapsed,\s*(?::root\s+)?\.fui-window-minimized\s*\{[\s\S]*?min-height:\s*38px;/
   );
   assert.match(
     css,
-    /\.fui-window-collapsed \.fui-window-header,\s*\.fui-window-minimized \.fui-window-header\s*\{[\s\S]*?min-height:\s*26px;[\s\S]*?flex-basis:\s*26px;[\s\S]*?padding-bottom:\s*5px;/
+    /\.fui-window-collapsed \.fui-window-header,\s*(?::root\s+)?\.fui-window-minimized \.fui-window-header\s*\{[\s\S]*?min-height:\s*26px;[\s\S]*?flex-basis:\s*26px;[\s\S]*?padding-bottom:\s*5px;/
   );
   assert.match(source, /return Math\.max\(38,/);
   assert.ok(collapsedClassIndex >= 0);
@@ -362,7 +362,7 @@ test('Window minimized state remains visible and exposes restore', function() {
 
   assert.match(
     css,
-    /\.fui-window-collapsed,\s*\.fui-window-minimized\s*\{[\s\S]*?min-height:\s*38px;/
+    /\.fui-window-collapsed,\s*(?::root\s+)?\.fui-window-minimized\s*\{[\s\S]*?min-height:\s*38px;/
   );
   assert.match(
     css,

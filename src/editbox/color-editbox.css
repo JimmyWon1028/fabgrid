@@ -1,4 +1,4 @@
-.fui-colorbox .fui-textbox-text {
+:root .fui-colorbox .fui-textbox-text {
   padding-left: 26px;
   background-image: linear-gradient(var(--fui-colorbox-value), var(--fui-colorbox-value));
   background-position: 6px center;
@@ -6,7 +6,7 @@
   background-size: 14px 18px;
 }
 
-.fui-colorbox-panel {
+:root .fui-colorbox-panel {
   position: fixed;
   z-index: 11000;
   display: flex;
@@ -23,11 +23,11 @@
   touch-action: none;
 }
 
-.fui-colorbox-panel[hidden] {
+:root .fui-colorbox-panel[hidden] {
   display: none;
 }
 
-.fui-colorbox-palette {
+:root .fui-colorbox-palette {
   display: grid;
   flex: 0 0 202px;
   grid-template-columns: repeat(10, 18px);
@@ -36,7 +36,7 @@
   gap: 2px;
 }
 
-.fui-colorbox-swatch {
+:root .fui-colorbox-swatch {
   width: 18px;
   height: 20px;
   margin: 0;
@@ -47,18 +47,18 @@
   cursor: pointer;
 }
 
-.fui-colorbox-swatch:hover,
-.fui-colorbox-swatch:focus-visible {
+:root .fui-colorbox-swatch:hover,
+:root .fui-colorbox-swatch:focus-visible {
   border-color: var(--fui-control-focus, #2563eb);
   outline: 1px solid var(--fui-panel-bg, #fff);
 }
 
-.fui-colorbox-swatch-selected {
+:root .fui-colorbox-swatch-selected {
   border-color: var(--fui-control-selected, #2563eb);
   outline: 1px solid var(--fui-control-selected, #2563eb);
 }
 
-.fui-colorbox-controls {
+:root .fui-colorbox-controls {
   display: grid;
   flex: 1 0 194px;
   grid-template-columns: minmax(156px, 1fr) 18px;
@@ -67,21 +67,21 @@
   min-width: 194px;
 }
 
-.fui-colorbox-sv,
-.fui-colorbox-hue,
-.fui-colorbox-alpha {
+:root .fui-colorbox-sv,
+:root .fui-colorbox-hue,
+:root .fui-colorbox-alpha {
   position: relative;
   cursor: crosshair;
   user-select: none;
 }
 
-.fui-colorbox-sv {
+:root .fui-colorbox-sv {
   background-image:
     linear-gradient(to top, #000, transparent),
     linear-gradient(to right, #fff, rgba(255, 255, 255, 0));
 }
 
-.fui-colorbox-hue {
+:root .fui-colorbox-hue {
   background: linear-gradient(
     to bottom,
     #f00 0%,
@@ -94,7 +94,7 @@
   );
 }
 
-.fui-colorbox-alpha {
+:root .fui-colorbox-alpha {
   grid-column: 1;
   overflow: hidden;
   background-color: #fff;
@@ -107,12 +107,12 @@
   background-size: 10px 10px;
 }
 
-.fui-colorbox-alpha-fill {
+:root .fui-colorbox-alpha-fill {
   position: absolute;
   inset: 0;
 }
 
-.fui-colorbox-marker {
+:root .fui-colorbox-marker {
   position: absolute;
   z-index: 1;
   box-sizing: border-box;
@@ -125,14 +125,14 @@
   transform: translate(-50%, -50%);
 }
 
-.fui-colorbox-hue-marker {
+:root .fui-colorbox-hue-marker {
   left: 50%;
   width: 22px;
   height: 8px;
   border-radius: 4px;
 }
 
-.fui-colorbox-alpha-marker {
+:root .fui-colorbox-alpha-marker {
   top: 50%;
   width: 8px;
   height: 22px;
@@ -140,7 +140,7 @@
 }
 
 @media (max-width: 480px) {
-  .fui-colorbox-panel {
+  :root .fui-colorbox-panel {
     width: 218px !important;
     max-height: calc(100vh - 12px);
     flex-wrap: wrap;

@@ -344,6 +344,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     item.setAttribute('data-field-key', field.key);
     item.setAttribute('data-area-item', 'fields');
     item.setAttribute('role', 'option');
+    label.className = 'fg-pivot-panel-field-control';
     checkbox.type = 'checkbox';
     checkbox.className = 'fg-pivot-panel-field-check';
     checkbox.checked = !!this._getAssignedArea(field);
@@ -827,6 +828,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     selectAllLabel.className = 'fg-pivot-panel-filter-select-all';
     selectAll = document.createElement('input');
     selectAll.type = 'checkbox';
+    selectAll.className = 'fg-pivot-panel-filter-check';
     selectAll.setAttribute('data-filter-select-all', '');
     selectAllText = document.createElement('span');
     selectAllText.textContent = this.getText('pivot.panel.selectAll');
@@ -894,6 +896,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
       label.setAttribute('role', 'option');
       input = document.createElement('input');
       input.type = 'checkbox';
+      input.className = 'fg-pivot-panel-filter-check';
       input.checked = this._filterDraftKeys[key] === true;
       input.setAttribute('data-filter-value-key', key);
       label.setAttribute('aria-selected', input.checked ? 'true' : 'false');

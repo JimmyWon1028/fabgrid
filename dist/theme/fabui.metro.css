@@ -1,5 +1,5 @@
 /*! FabGrid theme metro | performance-first data grid */
-.fui-tabs {
+:root .fui-tabs {
   --fui-tabs-radius: 0;
   --fui-tabs-border: #dddddd;
   --fui-tabs-header-bg: #ffffff;
@@ -22,13 +22,13 @@
   --fui-tabs-drag-indicator: #ff8728;
 }
 
-.fui-tabs .fui-tabs-close,
-.fui-tabs .fui-tabs-scroll-prev,
-.fui-tabs .fui-tabs-scroll-next {
+:root .fui-tabs .fui-tabs-close,
+:root .fui-tabs .fui-tabs-scroll-prev,
+:root .fui-tabs .fui-tabs-scroll-next {
   background-image: url("metro/images/tabs_icons.png");
 }
 
-/* Values adapted from res/themes/metro/{textbox,combo,combobox,calendar,datebox}.css. */
+:root /* Values adapted from res/themes/metro/{textbox,:root combo,:root combobox,:root calendar,:root datebox}.css. */
 :root {
   --fui-control-border: #dddddd;
   --fui-control-focus: #c4c4c4;
@@ -58,7 +58,7 @@
 }
 
 /* Component theme overrides. */
-.fui-accordion {
+:root .fui-accordion {
   --fui-accordion-border: #ddd;
   --fui-accordion-bg: #fff;
   --fui-accordion-header-bg: #fff;
@@ -66,7 +66,7 @@
   --fui-accordion-selected-text: #000;
 }
 
-.fui-button {
+:root .fui-button {
   --fui-button-bg-start: #fff;
   --fui-button-bg-end: #fff;
   --fui-button-bg-hover: #e6e6e6;
@@ -76,8 +76,8 @@
   border-radius: 0;
 }
 
-.fui-datebox-panel,
-.fui-calendar {
+:root .fui-datebox-panel,
+:root .fui-calendar {
   --fui-control-border: #ddd;
   --fui-control-trigger-bg: #fff;
   --fui-panel-bg: #fff;
@@ -97,24 +97,24 @@
   --fui-control-radius: 0;
 }
 
-.fui-accordion {
+:root .fui-accordion {
   --fui-accordion-arrows: url("metro/images/accordion_arrows.png");
 }
 
-.fui-accordion .fui-accordion-toggle {
+:root .fui-accordion .fui-accordion-toggle {
   background-image: url("metro/images/accordion_arrows.png");
 }
 
-.fui-panel,
-.fui-window {
+:root .fui-panel,
+:root .fui-window {
   --fui-panel-tools: url("metro/images/panel_tools.png");
 }
 
-.fui-layout {
+:root .fui-layout {
   --fui-layout-arrows: url("metro/images/layout_arrows.png");
 }
 
-.fui-layout {
+:root .fui-layout {
   --fui-layout-splitter: #fff;
   --fui-layout-splitter-active: #b3b3b3;
   --fui-layout-expand-bg: #fff;
@@ -123,7 +123,7 @@
   --fui-layout-font-size: 14px;
 }
 
-.fui-menu {
+:root .fui-menu {
   --fui-menu-bg: #fafafa;
   --fui-menu-border: #dddddd;
   --fui-menu-divider: #e5e5e5;
@@ -133,7 +133,7 @@
   border-radius: 0;
 }
 
-.fui-panel {
+:root .fui-panel {
   --fui-panel-border: #ddd;
   --fui-panel-header-bg: #fff;
   --fui-panel-header-text: #777;
@@ -146,7 +146,7 @@
   --fui-panel-font-size: 14px;
 }
 
-.fui-switchbutton {
+:root .fui-switchbutton {
   --fui-switchbutton-border: #ddd;
   --fui-switchbutton-on-bg: #cce6ff;
   --fui-switchbutton-on-text: #000;
@@ -158,18 +158,18 @@
   --fui-switchbutton-font-size: 14px;
 }
 
-.fui-tooltip {
+:root .fui-tooltip {
   --fui-tooltip-bg: #fafafa;
   --fui-tooltip-text: #404040;
   --fui-tooltip-radius: 0;
 }
 
-.fui-tooltip {
+:root .fui-tooltip {
   --fui-tooltip-border: #ddd;
   --fui-tooltip-text: #444;
 }
 
-.fui-tree {
+:root .fui-tree {
   --fui-tree-icons: url("metro/images/tree_icons.png");
   --fui-tree-loading: url("metro/images/loading.gif");
   --fui-tree-hover-bg: #E6E6E6;
@@ -179,11 +179,11 @@
   --fui-tree-editor-border: #dddddd;
 }
 
-.fui-window-mask {
+:root .fui-window-mask {
   --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
 }
 
-.fui-window {
+:root .fui-window {
   --fui-window-border: #ddd;
   --fui-window-frame: #fff;
   --fui-window-header-bg: transparent;
@@ -199,12 +199,12 @@
   --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
 }
 
-.fui-gantt {
+:root .fui-gantt {
   --fui-gantt-accent: #007acc;
   --fui-gantt-accent-dark: #005a9e;
 }
 
-.fui-scheduler {
+:root .fui-scheduler {
   --fui-scheduler-border: #ddd;
   --fui-scheduler-bg: #fff;
   --fui-scheduler-text: #333;
@@ -216,8 +216,8 @@
   --fui-scheduler-accent: #3b8ec2;
 }
 
-.fg-root,
-.fui-tabs {
+:root .fg-root,
+:root .fui-tabs {
   --fg-border: #ccc;
   --fg-border-strong: #ccc;
   --fg-frozen-divider: #b8b8b8;
@@ -240,99 +240,99 @@
   color: #444;
 }
 
-.fg-root .fg-header,
-.fg-root .fg-header-frozen,
-.fg-root .fg-header-frozen-right,
-.fg-root .fg-footer,
-.fg-root .fg-footer-frozen,
-.fg-root .fg-footer-frozen-right {
+:root .fg-root .fg-header,
+:root .fg-root .fg-header-frozen,
+:root .fg-root .fg-header-frozen-right,
+:root .fg-root .fg-footer,
+:root .fg-root .fg-footer-frozen,
+:root .fg-root .fg-footer-frozen-right {
   background: #fff;
 }
 
-.fg-root .fg-row-header-top,
-.fg-root .fg-selection-top,
-.fg-root .fg-header-cell,
-.fg-root .fg-footer-row-header,
-.fg-root .fg-footer-selection,
-.fg-root .fg-footer-cell,
-.fg-root .fg-row-header-cell {
+:root .fg-root .fg-row-header-top,
+:root .fg-root .fg-selection-top,
+:root .fg-root .fg-header-cell,
+:root .fg-root .fg-footer-row-header,
+:root .fg-root .fg-footer-selection,
+:root .fg-root .fg-footer-cell,
+:root .fg-root .fg-row-header-cell {
   background-color: var(--fg-header-bg);
   color: gray;
 }
 
-.fg-root .fg-body,
-.fg-root .fg-frozen-pane,
-.fg-root .fg-frozen-pane-right,
-.fg-root .fg-selection-pane,
-.fg-root .fg-cell,
-.fg-root .fg-selection-cell {
+:root .fg-root .fg-body,
+:root .fg-root .fg-frozen-pane,
+:root .fg-root .fg-frozen-pane-right,
+:root .fg-root .fg-selection-pane,
+:root .fg-root .fg-cell,
+:root .fg-root .fg-selection-cell {
   background: #fff;
   color: #444;
 }
 
-.fg-root .fg-cell.fg-row-even,
-.fg-root .fg-selection-cell.fg-row-even,
-.fg-root .fg-selection-cell.fg-row-alt,
-.fg-root .fg-cell.fg-row-alt {
+:root .fg-root .fg-cell.fg-row-even,
+:root .fg-root .fg-selection-cell.fg-row-even,
+:root .fg-root .fg-selection-cell.fg-row-alt,
+:root .fg-root .fg-cell.fg-row-alt {
   background-color: #fafafa;
   color: #444;
 }
 
-.fg-root .fg-cell.fg-row-hovered,
-.fg-root .fg-selection-cell.fg-row-hovered,
-.fg-root .fg-cell:hover,
-.fg-root .fg-cell.fg-row-hovered:hover {
+:root .fg-root .fg-cell.fg-row-hovered,
+:root .fg-root .fg-selection-cell.fg-row-hovered,
+:root .fg-root .fg-cell:hover,
+:root .fg-root .fg-cell.fg-row-hovered:hover {
   background: #E6E6E6;
   color: #444;
 }
 
-.fg-root .fg-cell.fg-row-selected,
-.fg-root .fg-selection-cell.fg-row-selected,
-.fg-root .fg-cell.fg-row-selected:hover,
-.fg-root .fg-row-selected.fg-selected {
+:root .fg-root .fg-cell.fg-row-selected,
+:root .fg-root .fg-selection-cell.fg-row-selected,
+:root .fg-root .fg-cell.fg-row-selected:hover,
+:root .fg-root .fg-row-selected.fg-selected {
   background: #CCE6FF;
   color: #000;
 }
 
-.fg-root .fg-selected {
+:root .fg-root .fg-selected {
   background: #E6E6E6;
   color: #444;
   outline-color: #de8f3a;
 }
 
-.fg-root .fg-cell.fg-row-selected.fg-selected {
+:root .fg-root .fg-cell.fg-row-selected.fg-selected {
   background: var(--fg-row-hover-bg);
   color: var(--fg-cell-text);
 }
 
-.fg-root .fg-sort-asc {
+:root .fg-root .fg-sort-asc {
   border-bottom-color: #6190CD;
 }
 
-.fg-root .fg-sort-desc {
+:root .fg-root .fg-sort-desc {
   border-top-color: #6190CD;
 }
 
-.fg-root .fg-editor {
+:root .fg-root .fg-editor {
   border-color: #ffbe80;
 }
 
-.fg-root .pagination-first {
+:root .fg-root .pagination-first {
   background: url("metro/images/pagination_icons.png") no-repeat 0 center;
 }
 
-.fg-root .pagination-prev {
+:root .fg-root .pagination-prev {
   background: url("metro/images/pagination_icons.png") no-repeat -16px center;
 }
 
-.fg-root .pagination-next {
+:root .fg-root .pagination-next {
   background: url("metro/images/pagination_icons.png") no-repeat -32px center;
 }
 
-.fg-root .pagination-last {
+:root .fg-root .pagination-last {
   background: url("metro/images/pagination_icons.png") no-repeat -48px center;
 }
 
-.fg-root .pagination-load {
+:root .fg-root .pagination-load {
   background: url("metro/images/pagination_icons.png") no-repeat -64px center;
 }

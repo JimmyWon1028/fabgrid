@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fabLoader 功能展示</title>
+  <script src="../dist/fabLoader.js?v=20260724-loader-v14"></script>
+</head>
+<body class="fg-theme-default">
+  <main class="page">
+    <h1>fabLoader 功能展示</h1>
+    <p class="intro">這個頁面只直接載入 fabLoader，其餘資源全部由 Loader 動態載入。</p>
+
+    <section class="panel">
+      <h2>載入狀態</h2>
+      <ul id="status-list">
+        <li data-status="style">CSS：等待中</li>
+        <li data-status="script">Script／DOM helper：等待中</li>
+        <li data-status="module">ES module：等待中</li>
+        <li data-status="image">圖片預載：等待中</li>
+        <li data-status="html-cache">HTML 記憶體快取：等待中</li>
+        <li data-status="html-mount">HTML 掛載與 $ 操作：等待中</li>
+        <li data-status="fabui">FabUI 元件：等待中</li>
+        <li data-status="vue">Vue 2 SFC：等待中</li>
+        <li data-status="react">React JSX：等待中</li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>圖片預載</h2>
+      <div id="image-demo"></div>
+      <div id="image-demo2"></div>
+    </section>
+
+    <section class="panel">
+      <h2>HTML 掛載</h2>
+      <div id="html-demo">等待載入 HTML…</div>
+    </section>
+
+    <section class="panel">
+      <h2>FabUI 元件與通用 CSS 隔離</h2>
+      <div class="fabui-demo">
+        <div class="fabui-component-card">
+          <h3>EditBox／Button</h3>
+          <div class="fabui-row">
+            <input id="fabui-editbox" type="text" value="FabUI EditBox">
+            <a id="fabui-button" href="javascript:void(0)"></a>
+          </div>
+        </div>
+
+        <div class="fabui-component-card">
+          <h3>Number EditBox／Spinner</h3>
+          <input id="fabui-numberbox" type="text" value="42">
+        </div>
+
+        <div class="fabui-component-card">
+          <h3>CheckBox／RadioButton</h3>
+          <div class="fabui-choice-list">
+            <input id="fabui-checkbox" type="checkbox" name="demo-enabled">
+            <input id="fabui-radio-a" type="radio" name="demo-choice" value="A">
+            <input id="fabui-radio-b" type="radio" name="demo-choice" value="B">
+          </div>
+        </div>
+
+        <div class="fabui-component-card">
+          <h3>SwitchButton</h3>
+          <input id="fabui-switch" type="checkbox" name="demo-switch">
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Vue 2 `.vue()`</h2>
+      <div id="vue-demo">等待載入 Vue 元件…</div>
+    </section>
+
+    <section class="panel">
+      <h2>React `.react()`</h2>
+      <div id="react-demo">等待載入 React 元件…</div>
+    </section>
+  </main>
+
+  <script>
+    (function() {
+      'use strict';
+
+      var $;
+
+      function setStatus(name, message) {
+        var $item = $('[data-status="' + name + '"]');
+        if (!$item.length) return;
+        $item.text(message).attr('class', 'success');
+      }
+
+      function mountFabUI() {
+        var clickCount = 0;
+        var editBox = new fabui.EditBox('#fabui-editbox', {
+          editor: 'text',
+          width: 240,
+          clearButton: true
+        });
+        var numberBox = new fabui.EditBox('#fabui-numberbox', {
+          editor: 'number',
+          width: 180,
+          spinner: true,
+          precision: 0
+        });
+        var button = new fabui.Button('#fabui-button', {
+          text: '更新 EditBox',
+          onClick: function() {
+            clickCount += 1;
+            editBox.setValue('FabUI 已更新 ' + clickCount + ' 次');
+          }
+        });
+        var checkbox = new fabui.CheckBox('#fabui-checkbox', {
+          label: '啟用測試',
+          labelPosition: 'after',
+          checked: true
+        });
+        var radioA = new fabui.RadioButton('#fabui-radio-a', {
+          label: '選項 A',
+          labelPosition: 'after',
+          checked: true
+        });
+        var radioB = new fabui.RadioButton('#fabui-radio-b', {
+          label: '選項 B',
+          labelPosition: 'after'
+        });
+        var switchButton = new fabui.SwitchButton('#fabui-switch', {
+          label: '通知',
+          labelPosition: 'after',
+          checked: true,
+          onText: '開',
+          offText: '關'
+        });
+
+        $(
+          '[class^="fui-"], ' +
+          '[class*=" fui-"], ' +
+          '[class^="fg-"], ' +
+          '[class*=" fg-"]'
+        ).each(function() {
+          var $element = $(this);
+          if ($element.is('body')) return;
+          $element.addClass('fabui-hostile-element');
+        });
+
+        window.demo2FabUIControls = {
+          editBox: editBox,
+          numberBox: numberBox,
+          button: button,
+          checkbox: checkbox,
+          radioA: radioA,
+          radioB: radioB,
+          switchButton: switchButton
+        };
+        setStatus('fabui', 'FabUI 元件：完成');
+      }
+
+      window.demo2SetStatus = setStatus;
+
+      fabLoader
+        // Uncomment the next line to let jQuery own the `$` alias.
+        // .script('./vendor/jquery-4.0.0.slim.min.js')
+        .run(function() {
+          $ = fabLoader.useDom();
+          setStatus('script', 'Script／DOM helper：完成');
+        })
+        .style([
+          './styles/demo.css',
+          '../dist/fabui.min.css'
+        ])
+        .run(function() {
+          setStatus('style', 'CSS：完成');
+        })
+        .script('./assets/demo-helper.js')
+        .script('../dist/fabui.min.js')
+        .run(function() {
+          mountFabUI();
+        })
+        .module('./assets/demo-module.js')
+        .run(function() {
+          window.demo2Helper.mark('module', 'ES module：完成');
+        })
+        .run(function() {
+          return fabLoader.preloadImage({
+            loader: './assets/fab-loader.svg',
+            unlock: './assets/unlocked32.png'
+          }).then(function(images) {
+            window.myImage = images;
+
+            $('#image-demo').append(myImage.loader)
+              .append(myImage.loader)
+              .append(myImage.unlock);
+            $('#image-demo2').append(myImage.unlock);
+            setStatus('image', '圖片預載：完成（同圖插入兩次）');
+          });
+        })
+        .run(function() {
+          return fabLoader.loadHtml('./fragments/sample.html').then(function() {
+            var cached = fabLoader.getHtml('./fragments/sample.html');
+            setStatus(
+              'html-cache',
+              cached ? 'HTML 記憶體快取：完成' : 'HTML 記憶體快取：失敗'
+            );
+          });
+        })
+        .run(function() {
+          var $htmlDemo = $('#html-demo');
+          if (typeof $htmlDemo.load !== 'function') {
+            $htmlDemo = fabLoader.dom('#html-demo');
+          }
+
+          $htmlDemo.load(
+            './fragments/sample.html',
+            function(html, status, result) {
+              if (status === 'error') {
+                $('body').addClass('has-error');
+                console.error('HTML 掛載失敗', result);
+                setStatus('html-mount', 'HTML 掛載與 $ 操作：失敗');
+                return;
+              }
+
+              $('#html-script-result').html('<a id="html-script-link"></a>');
+              $('#html-script-link')
+                .text('片段 script 已執行')
+                .attr('href', "javascript:console.log('test')")
+                .css('cursor', 'pointer');
+              $('#html-value-result')
+                .val('dom-ready')
+                .attr('data-value', $('#html-value-result').val());
+              setStatus('html-mount', 'HTML 掛載與 $ 操作：完成');
+            }
+          );
+        })
+        .script([
+          './vendor/vue.min.js',
+          './vendor/system.js',
+          './vendor/react-runtime.min.js'
+        ])
+        .script('./systemjs.config.js')
+        .script('./runtime.config.js')
+        .vue('./components/hello.vue')
+        .run(function() {
+          setStatus('vue', 'Vue 2 SFC：完成');
+        })
+        .react('./components/hello.jsx')
+        .run(function() {
+          setStatus('react', 'React JSX：完成');
+        })
+        .catch(function(error) {
+          var message = error && error.message ? error.message : String(error);
+          $('body').addClass('has-error');
+          console.error('fabLoader 測試失敗：' + message, error);
+        });
+    }());
+  </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-.fui-textbox-field {
+:root .fui-textbox-field {
   display: inline-flex;
   align-items: center;
   box-sizing: border-box;
@@ -6,12 +6,12 @@
   vertical-align: middle;
 }
 
-.fui-textbox-label-top-field {
+:root .fui-textbox-label-top-field {
   display: inline-grid;
   align-items: start;
 }
 
-.fui-textbox {
+:root .fui-textbox {
   position: relative;
   display: inline-flex;
   align-items: stretch;
@@ -25,7 +25,7 @@
   white-space: nowrap;
 }
 
-.fui-textbox-text {
+:root .fui-textbox-text {
   flex: 1 1 auto;
   box-sizing: border-box;
   min-width: 0;
@@ -42,28 +42,28 @@
   resize: none;
 }
 
-textarea.fui-textbox-text {
+:root textarea.fui-textbox-text {
   padding: 6px 4px;
   white-space: pre-wrap;
 }
 
-.fui-textbox-text::placeholder {
+:root .fui-textbox-text::placeholder {
   color: var(--fui-control-placeholder, #aaa);
   opacity: 1;
 }
 
-.fui-textbox-addon {
+:root .fui-textbox-addon {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: stretch;
   height: 100%;
 }
 
-.fui-textbox-addon:empty {
+:root .fui-textbox-addon:empty {
   display: none;
 }
 
-.fui-textbox-icon {
+:root .fui-textbox-icon {
   display: inline-block;
   flex: 0 0 auto;
   height: 100%;
@@ -80,30 +80,30 @@ textarea.fui-textbox-text {
   text-decoration: none;
 }
 
-.fui-textbox-icon:hover,
-.fui-textbox-icon:focus-visible {
+:root .fui-textbox-icon:hover,
+:root .fui-textbox-icon:focus-visible {
   opacity: 1;
 }
 
-.fui-textbox-icon:disabled,
-.fui-textbox-icon-readonly {
+:root .fui-textbox-icon:disabled,
+:root .fui-textbox-icon-readonly {
   cursor: default;
   opacity: 0.6;
 }
 
-.fui-textbox-icon-hidden {
+:root .fui-textbox-icon-hidden {
   visibility: hidden;
   pointer-events: none;
 }
 
-.fui-textbox-clear-icon::before {
+:root .fui-textbox-clear-icon::before {
   content: "\00d7";
   display: block;
   color: var(--fui-control-icon, #555);
   font: bold 18px/1 Arial, sans-serif;
 }
 
-.fui-textbox-button {
+:root .fui-textbox-button {
   box-sizing: border-box;
   min-width: 34px;
   height: 100%;
@@ -120,27 +120,27 @@ textarea.fui-textbox-text {
   cursor: pointer;
 }
 
-.fui-textbox-button.fui-textbox-button-with-icon {
+:root .fui-textbox-button.fui-textbox-button-with-icon {
   padding-left: 30px;
   background-color: var(--fui-control-button-bg, #f4f4f4);
   background-position: 8px center;
 }
 
-.fui-textbox-button.fui-textbox-button-with-icon:hover {
+:root .fui-textbox-button.fui-textbox-button-with-icon:hover {
   background-color: var(--fui-control-button-hover-bg, var(--fui-control-hover, #eaf2ff));
 }
 
-.fui-textbox-addon-left .fui-textbox-button {
+:root .fui-textbox-addon-left .fui-textbox-button {
   border-right: 1px solid var(--fui-control-button-border, var(--fui-control-border, #95b8e7));
   border-left: 0;
 }
 
-.fui-textbox-button:hover {
+:root .fui-textbox-button:hover {
   background-color: var(--fui-control-button-hover-bg, var(--fui-control-hover, #eaf2ff));
   color: var(--fui-control-button-hover-text, var(--fui-control-hover-text, #000));
 }
 
-.fui-textbox-label {
+:root .fui-textbox-label {
   display: inline-block;
   box-sizing: border-box;
   height: 30px;
@@ -155,32 +155,32 @@ textarea.fui-textbox-text {
   cursor: default;
 }
 
-.fui-textbox-label-after {
+:root .fui-textbox-label-after {
   padding-right: 0;
   padding-left: 5px;
 }
 
-.fui-textbox-label-top {
+:root .fui-textbox-label-top {
   display: block;
   width: auto !important;
   padding: 0;
 }
 
-.fui-textbox-focused {
+:root .fui-textbox-focused {
   border-color: var(--fui-control-focus, #6b9cde);
   box-shadow: 0 0 3px 0 var(--fui-control-border, #95b8e7);
 }
 
-.fui-textbox-disabled,
-.fui-textbox-label-disabled {
+:root .fui-textbox-disabled,
+:root .fui-textbox-label-disabled {
   opacity: 0.6;
 }
 
-.fui-textbox-disabled .fui-textbox,
-.fui-textbox-readonly .fui-textbox {
+:root .fui-textbox-disabled .fui-textbox,
+:root .fui-textbox-readonly .fui-textbox {
   background-color: var(--fui-control-disabled-bg, #f5f5f5);
 }
 
-.fui-textbox-disabled .fui-textbox-button {
+:root .fui-textbox-disabled .fui-textbox-button {
   cursor: default;
 }

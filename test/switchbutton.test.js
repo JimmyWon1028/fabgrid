@@ -121,6 +121,7 @@ test('SwitchButton preserves the native checkbox and form lifecycle', function()
   assert.match(source, /unregisterControl\(this\.hostElement, this\)/);
   assert.match(source, /restoreSwitchButtonAttribute/);
   assert.match(css, /\.fui-switchbutton-inner/);
+  assert.match(css, /line-height:\s*inherit/);
   assert.match(css, /transition: margin-left 200ms ease/);
   assert.doesNotMatch(css, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
 });

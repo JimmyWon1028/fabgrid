@@ -40,8 +40,8 @@ import {
 } from './pivot/pivot-engine.js?v=20260721-mono-variants-v1';
 import { createPivotChartFactory } from './pivot/pivot-chart.js?v=20260721-mono-variants-v1';
 import { createPivotGridFactory } from './pivot/pivot-grid.js?v=20260721-mono-variants-v1';
-import { createPivotPanelFactory } from './pivot/pivot-panel.js?v=20260721-mono-variants-v1';
-import { createPivotSlicerFactory } from './pivot/pivot-slicer.js?v=20260721-mono-variants-v1';
+import { createPivotPanelFactory } from './pivot/pivot-panel.js?v=20260724-native-controls-v1';
+import { createPivotSlicerFactory } from './pivot/pivot-slicer.js?v=20260724-native-controls-v1';
 import { createPivotWorkspaceFactory } from './pivot/pivot-workspace.js?v=20260723-pointer-cancel-v1';
 
 var editorDefinitions = createEditorDefinitions();

@@ -1,22 +1,22 @@
-.fui-messager-dialog {
+:root .fui-messager-dialog {
   --fui-messager-icon-size: 36px;
 }
 
-.fui-messager-dialog .fui-window-body {
+:root .fui-messager-dialog .fui-window-body {
   display: flex;
   padding: 18px 20px;
   align-items: stretch;
 }
 
-.fui-messager-dialog .fui-window-footer {
+:root .fui-messager-dialog .fui-window-footer {
   padding: 7px 10px;
 }
 
-.fui-messager-host {
+:root .fui-messager-host {
   width: 100%;
 }
 
-.fui-messager-content {
+:root .fui-messager-content {
   display: grid;
   width: 100%;
   min-height: 54px;
@@ -24,12 +24,12 @@
   align-items: center;
 }
 
-.fui-messager-content-icon {
+:root .fui-messager-content-icon {
   grid-template-columns: var(--fui-messager-icon-size) minmax(0, 1fr);
   column-gap: 14px;
 }
 
-.fui-messager-icon {
+:root .fui-messager-icon {
   position: relative;
   display: block;
   width: var(--fui-messager-icon-size);
@@ -38,13 +38,13 @@
   background-size: var(--fui-messager-icon-size) var(--fui-messager-icon-size);
 }
 
-.fui-messager-message {
+:root .fui-messager-message {
   min-width: 0;
   overflow-wrap: anywhere;
   line-height: 1.55;
 }
 
-.fui-messager-input {
+:root .fui-messager-input {
   width: 100%;
   height: 30px;
   margin-top: 12px;
@@ -58,52 +58,52 @@
   font: inherit;
 }
 
-.fui-messager-input:focus {
+:root .fui-messager-input:focus {
   border-color: #6aa7e8;
   box-shadow: 0 0 0 1px rgba(106, 167, 232, 0.25);
 }
 
-.fui-messager-buttons {
+:root .fui-messager-buttons {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
 
-.fui-messager-buttons .fui-button {
+:root .fui-messager-buttons .fui-button {
   min-width: 78px;
 }
 
-.fui-messager-toast {
+:root .fui-messager-toast {
   --fui-messager-show-speed: 600ms;
 }
 
-.fui-messager-toast .fui-window-body {
+:root .fui-messager-toast .fui-window-body {
   padding: 12px 14px;
   line-height: 1.5;
 }
 
-.fui-messager-toast-slide {
+:root .fui-messager-toast-slide {
   animation: fui-messager-slide-in var(--fui-messager-show-speed) cubic-bezier(0.2, 0, 0, 1);
 }
 
-.fui-messager-toast-fade {
+:root .fui-messager-toast-fade {
   animation: fui-messager-fade-in var(--fui-messager-show-speed) ease;
 }
 
-.fui-messager-progress-host {
+:root .fui-messager-progress-host {
   display: flex;
   min-height: 64px;
   flex-direction: column;
   justify-content: center;
 }
 
-.fui-messager-progress-message {
+:root .fui-messager-progress-message {
   margin-bottom: 12px;
   line-height: 1.5;
 }
 
-.fui-messager-progress-track {
+:root .fui-messager-progress-track {
   position: relative;
   height: 22px;
   overflow: hidden;
@@ -112,13 +112,13 @@
   background: rgba(127, 127, 127, 0.12);
 }
 
-.fui-messager-progress-value {
+:root .fui-messager-progress-value {
   height: 100%;
   background: #6aa7e8;
   transition: width 160ms ease;
 }
 
-.fui-messager-progress-text {
+:root .fui-messager-progress-text {
   position: absolute;
   inset: 0;
   color: var(--fui-window-body-text);
@@ -127,7 +127,7 @@
   text-align: center;
 }
 
-.fui-messager-progress-indeterminate .fui-messager-progress-value {
+:root .fui-messager-progress-indeterminate .fui-messager-progress-value {
   animation: fui-messager-progress 1.2s ease-in-out infinite;
 }
 
@@ -153,9 +153,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fui-messager-toast-slide,
-  .fui-messager-toast-fade,
-  .fui-messager-progress-indeterminate .fui-messager-progress-value {
+  :root .fui-messager-toast-slide,
+  :root .fui-messager-toast-fade,
+  :root .fui-messager-progress-indeterminate .fui-messager-progress-value {
     animation: none;
   }
 }

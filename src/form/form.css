@@ -1,36 +1,36 @@
-.fui-form .fui-form-invalid {
+:root .fui-form .fui-form-invalid {
   outline: 0;
   background-color: var(--fui-form-invalid-bg, #fff3f3);
 }
 
-.fui-form .fui-form-invalid-control {
+:root .fui-form .fui-form-invalid-control {
   border-color: var(--fui-form-invalid-color, #ffa8a8);
   background-color: var(--fui-form-invalid-bg, #fff3f3);
 }
 
-.fui-form input.fui-form-invalid:not(.fui-textbox-text),
-.fui-form select.fui-form-invalid,
-.fui-form textarea.fui-form-invalid:not(.fui-textbox-text) {
+:root .fui-form input.fui-form-invalid:not(.fui-textbox-text),
+:root .fui-form select.fui-form-invalid,
+:root .fui-form textarea.fui-form-invalid:not(.fui-textbox-text) {
   border-color: var(--fui-form-invalid-color, #ffa8a8);
 }
 
-.fui-form .fui-checkbox-control.fui-form-invalid-control,
-.fui-form .fui-checkgroup.fui-form-invalid-control,
-.fui-form .fui-radiobutton-control.fui-form-invalid-control,
-.fui-form .fui-radiogroup.fui-form-invalid-control {
+:root .fui-form .fui-checkbox-control.fui-form-invalid-control,
+:root .fui-form .fui-checkgroup.fui-form-invalid-control,
+:root .fui-form .fui-radiobutton-control.fui-form-invalid-control,
+:root .fui-form .fui-radiogroup.fui-form-invalid-control {
   outline: 1px solid var(--fui-form-invalid-color, #ffa8a8);
   outline-offset: 2px;
   border-radius: 2px;
 }
 
-.fui-form-validation-disabled .fui-form-invalid,
-.fui-form-validation-disabled .fui-form-invalid-control {
+:root .fui-form-validation-disabled .fui-form-invalid,
+:root .fui-form-validation-disabled .fui-form-invalid-control {
   outline: 0;
   border-color: var(--fui-control-border, #95b8e7);
   background-color: transparent;
 }
 
-.fui-form-validation-tip {
+:root .fui-form-validation-tip {
   position: absolute;
   z-index: 9900000;
   box-sizing: border-box;
@@ -44,12 +44,12 @@
   box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
 }
 
-.fui-form-validation-tip[hidden] {
+:root .fui-form-validation-tip[hidden] {
   display: none;
 }
 
-.fui-form-validation-tip::before,
-.fui-form-validation-tip::after {
+:root .fui-form-validation-tip::before,
+:root .fui-form-validation-tip::after {
   position: absolute;
   left: 50%;
   width: 0;
@@ -59,24 +59,24 @@
   transform: translateX(-50%);
 }
 
-.fui-form-validation-tip::before {
+:root .fui-form-validation-tip::before {
   top: -13px;
   border-bottom-color: var(--fui-form-validation-tip-border, #e6d38a);
 }
 
-.fui-form-validation-tip::after {
+:root .fui-form-validation-tip::after {
   top: -12px;
   border-bottom-color: var(--fui-form-validation-tip-bg, #fff8d6);
 }
 
-.fui-form-validation-tip-top::before {
+:root .fui-form-validation-tip-top::before {
   top: auto;
   bottom: -13px;
   border-top-color: var(--fui-form-validation-tip-border, #e6d38a);
   border-bottom-color: transparent;
 }
 
-.fui-form-validation-tip-top::after {
+:root .fui-form-validation-tip-top::after {
   top: auto;
   bottom: -12px;
   border-top-color: var(--fui-form-validation-tip-bg, #fff8d6);

@@ -1,8 +1,8 @@
 /*! FabGrid theme material-teal | performance-first data grid */
-@import './material-teal/tabs.css?v=20260718-tabs-drag-right-v1';
-@import './material-teal/components.css?v=20260719-components-theme-v2';
-.fg-root,
-.fui-tabs {
+@import './material-teal/tabs.css?v=20260724-native-elements-v2';
+@import './material-teal/components.css?v=20260724-native-elements-v2';
+:root .fg-root,
+:root .fui-tabs {
   --fg-border: #ccc;
   --fg-border-strong: #ccc;
   --fg-frozen-divider: #b8b8b8;
@@ -25,99 +25,99 @@
   color: #404040;
 }
 
-.fg-root .fg-header,
-.fg-root .fg-header-frozen,
-.fg-root .fg-header-frozen-right,
-.fg-root .fg-footer,
-.fg-root .fg-footer-frozen,
-.fg-root .fg-footer-frozen-right {
+:root .fg-root .fg-header,
+:root .fg-root .fg-header-frozen,
+:root .fg-root .fg-header-frozen-right,
+:root .fg-root .fg-footer,
+:root .fg-root .fg-footer-frozen,
+:root .fg-root .fg-footer-frozen-right {
   background: #fff;
 }
 
-.fg-root .fg-row-header-top,
-.fg-root .fg-selection-top,
-.fg-root .fg-header-cell,
-.fg-root .fg-footer-row-header,
-.fg-root .fg-footer-selection,
-.fg-root .fg-footer-cell,
-.fg-root .fg-row-header-cell {
+:root .fg-root .fg-row-header-top,
+:root .fg-root .fg-selection-top,
+:root .fg-root .fg-header-cell,
+:root .fg-root .fg-footer-row-header,
+:root .fg-root .fg-footer-selection,
+:root .fg-root .fg-footer-cell,
+:root .fg-root .fg-row-header-cell {
   background-color: var(--fg-header-bg);
   color: gray;
 }
 
-.fg-root .fg-body,
-.fg-root .fg-frozen-pane,
-.fg-root .fg-frozen-pane-right,
-.fg-root .fg-selection-pane,
-.fg-root .fg-cell,
-.fg-root .fg-selection-cell {
+:root .fg-root .fg-body,
+:root .fg-root .fg-frozen-pane,
+:root .fg-root .fg-frozen-pane-right,
+:root .fg-root .fg-selection-pane,
+:root .fg-root .fg-cell,
+:root .fg-root .fg-selection-cell {
   background: #ffffff;
   color: #404040;
 }
 
-.fg-root .fg-cell.fg-row-even,
-.fg-root .fg-selection-cell.fg-row-even,
-.fg-root .fg-selection-cell.fg-row-alt,
-.fg-root .fg-cell.fg-row-alt {
+:root .fg-root .fg-cell.fg-row-even,
+:root .fg-root .fg-selection-cell.fg-row-even,
+:root .fg-root .fg-selection-cell.fg-row-alt,
+:root .fg-root .fg-cell.fg-row-alt {
   background-color: #fafafa;
   color: #404040;
 }
 
-.fg-root .fg-cell.fg-row-hovered,
-.fg-root .fg-selection-cell.fg-row-hovered,
-.fg-root .fg-cell:hover,
-.fg-root .fg-cell.fg-row-hovered:hover {
+:root .fg-root .fg-cell.fg-row-hovered,
+:root .fg-root .fg-selection-cell.fg-row-hovered,
+:root .fg-root .fg-cell:hover,
+:root .fg-root .fg-cell.fg-row-hovered:hover {
   background: #eee;
   color: #404040;
 }
 
-.fg-root .fg-cell.fg-row-selected,
-.fg-root .fg-selection-cell.fg-row-selected,
-.fg-root .fg-cell.fg-row-selected:hover,
-.fg-root .fg-row-selected.fg-selected {
+:root .fg-root .fg-cell.fg-row-selected,
+:root .fg-root .fg-selection-cell.fg-row-selected,
+:root .fg-root .fg-cell.fg-row-selected:hover,
+:root .fg-root .fg-row-selected.fg-selected {
   background: #eee;
   color: #39c;
 }
 
-.fg-root .fg-selected {
+:root .fg-root .fg-selected {
   background: #eee;
   color: #404040;
   outline-color: #d4794c;
 }
 
-.fg-root .fg-cell.fg-row-selected.fg-selected {
+:root .fg-root .fg-cell.fg-row-selected.fg-selected {
   background: var(--fg-row-hover-bg);
   color: var(--fg-cell-text);
 }
 
-.fg-root .fg-sort-asc {
+:root .fg-root .fg-sort-asc {
   border-bottom-color: #333;
 }
 
-.fg-root .fg-sort-desc {
+:root .fg-root .fg-sort-desc {
   border-top-color: #333;
 }
 
-.fg-root .fg-editor {
+:root .fg-root .fg-editor {
   border-color: #e5b299;
 }
 
-.fg-root .pagination-first {
+:root .fg-root .pagination-first {
   background: url('material-teal/images/pagination_icons.png') no-repeat 0 center;
 }
 
-.fg-root .pagination-prev {
+:root .fg-root .pagination-prev {
   background: url('material-teal/images/pagination_icons.png') no-repeat -16px center;
 }
 
-.fg-root .pagination-next {
+:root .fg-root .pagination-next {
   background: url('material-teal/images/pagination_icons.png') no-repeat -32px center;
 }
 
-.fg-root .pagination-last {
+:root .fg-root .pagination-last {
   background: url('material-teal/images/pagination_icons.png') no-repeat -48px center;
 }
 
-.fg-root .pagination-load {
+:root .fg-root .pagination-load {
   background: url('material-teal/images/pagination_icons.png') no-repeat -64px center;
 }

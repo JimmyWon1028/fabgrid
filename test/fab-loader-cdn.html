@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fabLoader CDN Test</title>
+  <script src="../dist/fabLoader.js?v=20260724-loader-v14"></script>
+</head>
+<body>
+  <h1>fabLoader CDN Test</h1>
+  <p id="cdn-status">正在透過 fabLoader 載入 Day.js CDN…</p>
+  <script>
+    window.fabLoader
+      .script('https://cdn.jsdelivr.net/npm/dayjs@1.11.13/dayjs.min.js')
+      .run(function() {
+        document.getElementById('cdn-status').textContent =
+          '載入成功：' + window.dayjs('2026-07-23').format('YYYY/MM/DD');
+      })
+      .catch(function(error) {
+        document.getElementById('cdn-status').textContent =
+          '載入失敗：' + error.message;
+      });
+  </script>
+</body>
+</html>

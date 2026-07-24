@@ -1,9 +1,9 @@
-.fui-button,
-.fui-button * {
+:root .fui-button,
+:root .fui-button * {
   box-sizing: border-box;
 }
 
-.fui-button {
+:root .fui-button {
   --fui-button-bg-start: #fff;
   --fui-button-bg-end: #eee;
   --fui-button-bg-hover: #eaf2ff;
@@ -32,7 +32,7 @@
   vertical-align: middle;
 }
 
-.fui-button-inner {
+:root .fui-button-inner {
   display: flex;
   min-width: 0;
   min-height: 28px;
@@ -42,7 +42,7 @@
   gap: 6px;
 }
 
-.fui-button-text {
+:root .fui-button-text {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -51,99 +51,99 @@
   white-space: nowrap;
 }
 
-.fui-button-icon {
+:root .fui-button-icon {
   display: block;
   width: 16px;
   height: 16px;
   flex: 0 0 16px;
 }
 
-.fui-button-icon[hidden] {
+:root .fui-button-icon[hidden] {
   display: none;
 }
 
-.fui-button-icon-right .fui-button-inner {
+:root .fui-button-icon-right .fui-button-inner {
   flex-direction: row-reverse;
 }
 
-.fui-button-icon-top .fui-button-inner {
+:root .fui-button-icon-top .fui-button-inner {
   padding-top: 4px;
   padding-bottom: 4px;
   flex-direction: column;
   gap: 0;
 }
 
-.fui-button-icon-bottom .fui-button-inner {
+:root .fui-button-icon-bottom .fui-button-inner {
   padding-top: 4px;
   padding-bottom: 4px;
   flex-direction: column-reverse;
   gap: 0;
 }
 
-.fui-button-icon-only .fui-button-text {
+:root .fui-button-icon-only .fui-button-text {
   display: none;
 }
 
-.fui-button-size-large .fui-button-inner {
+:root .fui-button-size-large .fui-button-inner {
   min-height: 44px;
   padding-right: 8px;
   padding-left: 8px;
   gap: 8px;
 }
 
-.fui-button-size-large .fui-button-text {
+:root .fui-button-size-large .fui-button-text {
   line-height: 44px;
 }
 
-.fui-button-size-large .fui-button-icon {
+:root .fui-button-size-large .fui-button-icon {
   width: 32px;
   height: 32px;
   flex-basis: 32px;
 }
 
-.fui-button-size-large.fui-button-icon-top .fui-button-inner,
-.fui-button-size-large.fui-button-icon-bottom .fui-button-inner {
+:root .fui-button-size-large.fui-button-icon-top .fui-button-inner,
+:root .fui-button-size-large.fui-button-icon-bottom .fui-button-inner {
   min-width: 48px;
   padding-top: 6px;
   padding-bottom: 6px;
   gap: 2px;
 }
 
-.fui-button-size-large.fui-button-icon-top .fui-button-text,
-.fui-button-size-large.fui-button-icon-bottom .fui-button-text {
+:root .fui-button-size-large.fui-button-icon-top .fui-button-text,
+:root .fui-button-size-large.fui-button-icon-bottom .fui-button-text {
   line-height: 24px;
 }
 
-.fui-button:not(.fui-button-disabled):hover {
+:root .fui-button:not(.fui-button-disabled):hover {
   border-color: var(--fui-button-border-hover);
   background: var(--fui-button-bg-hover);
   color: var(--fui-button-text-hover);
 }
 
-.fui-button:focus-visible {
+:root .fui-button:focus-visible {
   outline: 1px dotted #0000ff;
   outline-offset: 1px;
 }
 
-.fui-button-plain {
+:root .fui-button-plain {
   border-color: transparent;
   background: transparent;
 }
 
-.fui-button-outline {
+:root .fui-button-outline {
   border-color: var(--fui-button-border-hover);
   background: transparent;
 }
 
-.fui-button-selected,
-.fui-button-selected:not(.fui-button-disabled):hover {
+:root .fui-button-selected,
+:root .fui-button-selected:not(.fui-button-disabled):hover {
   border-color: var(--fui-button-border);
   background: var(--fui-button-bg-selected);
   color: var(--fui-button-text-hover);
 }
 
-.fui-button-disabled,
-.fui-button-disabled:hover {
+:root .fui-button-disabled,
+:root .fui-button-disabled:hover {
   opacity: 0.5;
   cursor: default;
 }

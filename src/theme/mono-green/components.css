@@ -28,7 +28,7 @@
 }
 
 /* Component theme overrides. */
-.fui-button {
+:root .fui-button {
   --fui-button-bg-start: #fff;
   --fui-button-bg-end: #fff;
   --fui-button-bg-hover: #e6e6e6;
@@ -38,7 +38,7 @@
   border-radius: 0;
 }
 
-.fui-menu {
+:root .fui-menu {
   --fui-menu-bg: #fafafa;
   --fui-menu-border: #dddddd;
   --fui-menu-divider: #e5e5e5;
@@ -48,27 +48,27 @@
   border-radius: 0;
 }
 
-.fui-menu {
+:root .fui-menu {
   --fui-menu-hover-bg: #eaf2c7;
   --fui-menu-hover-border: #7e8f24;
 }
 
-.fui-tooltip {
+:root .fui-tooltip {
   --fui-tooltip-bg: #fafafa;
   --fui-tooltip-text: #404040;
   --fui-tooltip-radius: 0;
 }
 
-.fui-tooltip {
+:root .fui-tooltip {
   --fui-tooltip-border: #b1c242;
 }
 
-.fui-gantt {
+:root .fui-gantt {
   --fui-gantt-accent: #7f9f35;
   --fui-gantt-accent-dark: #526a20;
 }
 
-.fui-scheduler {
+:root .fui-scheduler {
   --fui-scheduler-border: #ddd;
   --fui-scheduler-bg: #fff;
   --fui-scheduler-text: #333;
@@ -80,12 +80,12 @@
   --fui-scheduler-accent: #3b8ec2;
 }
 
-.fui-scheduler {
+:root .fui-scheduler {
   --fui-scheduler-accent: #8aa51f;
 }
 
 /* Mono variants share Metro Gray defaults and override only their palette below. */
-.fui-accordion {
+:root .fui-accordion {
   --fui-accordion-border: #abafb8;
   --fui-accordion-bg: #fafafa;
   --fui-accordion-header-bg: #c7ccd1;
@@ -93,19 +93,19 @@
   --fui-accordion-selected-text: #fff;
 }
 
-.fui-accordion .fui-accordion-expand {
+:root .fui-accordion .fui-accordion-expand {
   background-image: url('../mono/images/accordion-expand.svg');
   background-position: center;
 }
 
-.fui-accordion .fui-accordion-collapse,
-.fui-accordion .fui-accordion-toggle-expanded {
+:root .fui-accordion .fui-accordion-collapse,
+:root .fui-accordion .fui-accordion-toggle-expanded {
   background-image: url('../mono/images/accordion-collapse.svg');
   background-position: center;
 }
 
-.fui-datebox-panel,
-.fui-calendar {
+:root .fui-datebox-panel,
+:root .fui-calendar {
   --fui-control-border: #abafb8;
   --fui-control-trigger-bg: #c7ccd1;
   --fui-panel-bg: #fafafa;
@@ -125,7 +125,7 @@
   --fui-control-radius: 0;
 }
 
-.fui-layout {
+:root .fui-layout {
   --fui-layout-splitter: #fafafa;
   --fui-layout-splitter-active: #84909c;
   --fui-layout-expand-bg: #c7ccd1;
@@ -134,7 +134,7 @@
   --fui-layout-font-size: 14px;
 }
 
-.fui-panel {
+:root .fui-panel {
   --fui-panel-border: #abafb8;
   --fui-panel-header-bg: #c7ccd1;
   --fui-panel-header-text: #404040;
@@ -147,63 +147,63 @@
   --fui-panel-font-size: 14px;
 }
 
-.fui-panel .fui-panel-tool-minimize,
-.fui-window .fui-window-tool-minimize {
+:root .fui-panel .fui-panel-tool-minimize,
+:root .fui-window .fui-window-tool-minimize {
   background-image: url('../mono/images/panel-minimize.svg');
   background-position: center;
 }
 
-.fui-panel .fui-panel-tool-maximize,
-.fui-window .fui-window-tool-maximize {
+:root .fui-panel .fui-panel-tool-maximize,
+:root .fui-window .fui-window-tool-maximize {
   background-image: url('../mono/images/panel-maximize.svg');
   background-position: center;
 }
 
-.fui-panel .fui-panel-tool-restore,
-.fui-window .fui-window-tool-restore {
+:root .fui-panel .fui-panel-tool-restore,
+:root .fui-window .fui-window-tool-restore {
   background-image: url('../mono/images/panel-restore.svg');
   background-position: center;
 }
 
-.fui-panel .fui-panel-tool-close,
-.fui-window .fui-window-tool-close {
+:root .fui-panel .fui-panel-tool-close,
+:root .fui-window .fui-window-tool-close {
   background-image: url('../mono/images/panel-close.svg');
   background-position: center;
 }
 
-.fui-panel .fui-panel-tool-collapse,
-.fui-window .fui-window-tool-collapse {
+:root .fui-panel .fui-panel-tool-collapse,
+:root .fui-window .fui-window-tool-collapse {
   background-image: url('../mono/images/panel-collapse.svg');
   background-position: center;
 }
 
-.fui-panel .fui-panel-tool-expand,
-.fui-window .fui-window-tool-expand {
+:root .fui-panel .fui-panel-tool-expand,
+:root .fui-window .fui-window-tool-expand {
   background-image: url('../mono/images/panel-expand.svg');
   background-position: center;
 }
 
-.fui-layout .fui-layout-button-up {
+:root .fui-layout .fui-layout-button-up {
   background-image: url('../mono/images/layout-up.svg');
   background-position: center;
 }
 
-.fui-layout .fui-layout-button-down {
+:root .fui-layout .fui-layout-button-down {
   background-image: url('../mono/images/layout-down.svg');
   background-position: center;
 }
 
-.fui-layout .fui-layout-button-left {
+:root .fui-layout .fui-layout-button-left {
   background-image: url('../mono/images/layout-left.svg');
   background-position: center;
 }
 
-.fui-layout .fui-layout-button-right {
+:root .fui-layout .fui-layout-button-right {
   background-image: url('../mono/images/layout-right.svg');
   background-position: center;
 }
 
-.fui-switchbutton {
+:root .fui-switchbutton {
   --fui-switchbutton-border: #84909c;
   --fui-switchbutton-on-bg: #84909c;
   --fui-switchbutton-on-text: #fff;
@@ -215,7 +215,7 @@
   --fui-switchbutton-font-size: 14px;
 }
 
-.fui-tree {
+:root .fui-tree {
   --fui-tree-loading: url('../mono/images/loading.svg');
   --fui-tree-hover-bg: #E6E6E6;
   --fui-tree-hover-text: #404040;
@@ -224,86 +224,86 @@
   --fui-tree-editor-border: #abafb8;
 }
 
-.fui-tree .fui-tree-expander-closed::before {
+:root .fui-tree .fui-tree-expander-closed::before {
   background-image: url('../mono/images/tree-expand.svg');
   background-position: center;
 }
 
-.fui-tree .fui-tree-expander-open::before {
+:root .fui-tree .fui-tree-expander-open::before {
   background-image: url('../mono/images/tree-collapse.svg');
   background-position: center;
 }
 
-.fui-tree .fui-tree-checkbox-unchecked::before {
+:root .fui-tree .fui-tree-checkbox-unchecked::before {
   background-image: url('../mono/images/tree-checkbox-unchecked.svg');
   background-position: center;
 }
 
-.fui-tree .fui-tree-checkbox-checked::before {
+:root .fui-tree .fui-tree-checkbox-checked::before {
   background-image: url('../mono/images/tree-checkbox-checked.svg');
   background-position: center;
 }
 
-.fui-tree .fui-tree-checkbox-mixed::before {
+:root .fui-tree .fui-tree-checkbox-mixed::before {
   background-image: url('../mono/images/tree-checkbox-mixed.svg');
   background-position: center;
 }
 
-.fui-tree .fui-tree-icon-folder::before {
+:root .fui-tree .fui-tree-icon-folder::before {
   background-image: url('../mono/images/tree-folder.svg');
   background-position: center;
 }
 
-.fui-tree .fui-tree-icon-folder-open::before {
+:root .fui-tree .fui-tree-icon-folder-open::before {
   background-image: url('../mono/images/tree-folder-open.svg');
   background-position: center;
 }
 
-.fui-tree .fui-tree-icon-file::before {
+:root .fui-tree .fui-tree-icon-file::before {
   background-image: url('../mono/images/tree-file.svg');
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-indent-line::before {
+:root .fui-tree.fui-tree-lines .fui-tree-indent-line::before {
   background-image: url('../mono/images/tree-line.svg');
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-expander-open::before {
+:root .fui-tree.fui-tree-lines .fui-tree-expander-open::before {
   background-image: url('../mono/images/tree-line-collapse.svg');
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-expander-closed::before {
+:root .fui-tree.fui-tree-lines .fui-tree-expander-closed::before {
   background-image: url('../mono/images/tree-line-expand.svg');
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-expander-empty::before {
+:root .fui-tree.fui-tree-lines .fui-tree-expander-empty::before {
   background-image: url('../mono/images/tree-line-empty.svg');
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-open::before {
+:root .fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-open::before {
   background-image: url('../mono/images/tree-line-last-collapse.svg');
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-closed::before {
+:root .fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-closed::before {
   background-image: url('../mono/images/tree-line-last-expand.svg');
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-empty::before {
+:root .fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-empty::before {
   background-image: url('../mono/images/tree-line-last-empty.svg');
   background-position: center;
 }
 
-.fui-window-mask {
+:root .fui-window-mask {
   --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
 }
 
-.fui-window {
+:root .fui-window {
   --fui-window-border: #abafb8;
   --fui-window-frame: #c7ccd1;
   --fui-window-header-bg: transparent;
@@ -320,7 +320,7 @@
 }
 
 /* Mono Green keeps Metro Green component colors after the shared icon rules. */
-.fui-accordion {
+:root .fui-accordion {
   --fui-accordion-border: #b1c242;
   --fui-accordion-bg: #fafafa;
   --fui-accordion-header-bg: #e5f0c9;
@@ -328,8 +328,8 @@
   --fui-accordion-selected-text: #404040;
 }
 
-.fui-datebox-panel,
-.fui-calendar {
+:root .fui-datebox-panel,
+:root .fui-calendar {
   --fui-control-border: #b1c242;
   --fui-control-trigger-bg: #e5f0c9;
   --fui-panel-bg: #fafafa;
@@ -349,7 +349,7 @@
   --fui-control-radius: 0;
 }
 
-.fui-layout {
+:root .fui-layout {
   --fui-layout-splitter: #fafafa;
   --fui-layout-splitter-active: #859416;
   --fui-layout-expand-bg: #e5f0c9;
@@ -358,7 +358,7 @@
   --fui-layout-font-size: 14px;
 }
 
-.fui-panel {
+:root .fui-panel {
   --fui-panel-border: #b1c242;
   --fui-panel-header-bg: #e5f0c9;
   --fui-panel-header-text: #404040;
@@ -371,7 +371,7 @@
   --fui-panel-font-size: 14px;
 }
 
-.fui-switchbutton {
+:root .fui-switchbutton {
   --fui-switchbutton-border: #9ba842;
   --fui-switchbutton-on-bg: #c8d47b;
   --fui-switchbutton-on-text: #404040;
@@ -383,7 +383,7 @@
   --fui-switchbutton-font-size: 14px;
 }
 
-.fui-tree {
+:root .fui-tree {
   --fui-tree-loading: url('../mono/images/loading.svg');
   --fui-tree-hover-bg: #e0f892;
   --fui-tree-hover-text: #404040;
@@ -392,7 +392,7 @@
   --fui-tree-editor-border: #b1c242;
 }
 
-.fui-window {
+:root .fui-window {
   --fui-window-border: #b1c242;
   --fui-window-frame: #e5f0c9;
   --fui-window-header-bg: transparent;
@@ -408,174 +408,174 @@
   --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
 }
 
-.pagination-first {
+:root .pagination-first {
   background-image: url('../mono/images/pagination-first.svg');
 }
 
-.pagination-prev {
+:root .pagination-prev {
   background-image: url('../mono/images/pagination-prev.svg');
 }
 
-.pagination-next {
+:root .pagination-next {
   background-image: url('../mono/images/pagination-next.svg');
 }
 
-.pagination-last {
+:root .pagination-last {
   background-image: url('../mono/images/pagination-last.svg');
 }
 
-.pagination-load {
+:root .pagination-load {
   background-image: url('../mono/images/pagination-load.svg');
 }
 
-.pagination-loading,
-.fui-tabs-loading {
+:root .pagination-loading,
+:root .fui-tabs-loading {
   background-image: url('../mono/images/loading.svg');
 }
 
-.icon-datebox {
+:root .icon-datebox {
   background-image: url('../mono/images/datebox_arrow.svg');
 }
 
-.icon-refwin,
-.icon-window {
+:root .icon-refwin,
+:root .icon-window {
   background-image: url('../mono/images/refwin.svg');
 }
 
-.icon-export {
+:root .icon-export {
   background-image: url('../mono/images/export.svg');
 }
 
-.icon-import {
+:root .icon-import {
   background-image: url('../mono/images/import.svg');
 }
 
-.icon-excel {
+:root .icon-excel {
   background-image: url('../mono/images/excel.svg');
 }
 
-.icon-add {
+:root .icon-add {
   background-image: url('../mono/images/edit_add.svg');
 }
 
-.icon-edit,
-.icon-pencil {
+:root .icon-edit,
+:root .icon-pencil {
   background-image: url('../mono/images/pencil.svg');
 }
 
-.icon-remove {
+:root .icon-remove {
   background-image: url('../mono/images/edit_remove.svg');
 }
 
-.icon-save {
+:root .icon-save {
   background-image: url('../mono/images/filesave.svg');
 }
 
-.icon-cut {
+:root .icon-cut {
   background-image: url('../mono/images/cut.svg');
 }
 
-.icon-ok {
+:root .icon-ok {
   background-image: url('../mono/images/ok.svg');
 }
 
-.icon-cancel {
+:root .icon-cancel {
   background-image: url('../mono/images/cancel.svg');
 }
 
-.icon-close {
+:root .icon-close {
   background-image: url('../mono/images/close.svg');
 }
 
-.icon-clear,
-.fg-filter-menu-clear .fg-filter-menu-funnel {
+:root .icon-clear,
+:root .fg-filter-menu-clear .fg-filter-menu-funnel {
   background-image: url('../mono/images/clear.svg');
 }
 
-.icon-check {
+:root .icon-check {
   background-image: url('../mono/images/check.svg');
 }
 
-.icon-fullscreen {
+:root .icon-fullscreen {
   background-image: url('../mono/images/fullscreen.svg');
 }
 
-.icon-projector-screen {
+:root .icon-projector-screen {
   background-image: url('../mono/images/projector-screen.svg');
 }
 
-.icon-search {
+:root .icon-search {
   background-image: url('../mono/images/search.svg');
 }
 
-.icon-print {
+:root .icon-print {
   background-image: url('../mono/images/print.svg');
 }
 
-.icon-reload {
+:root .icon-reload {
   background-image: url('../mono/images/reload.svg');
 }
 
-.icon-help {
+:root .icon-help {
   background-image: url('../mono/images/help.svg');
 }
 
-.icon-back {
+:root .icon-back {
   background-image: url('../mono/images/back.svg');
 }
 
-.icon-undo {
+:root .icon-undo {
   background-image: url('../mono/images/undo.svg');
 }
 
-.icon-redo {
+:root .icon-redo {
   background-image: url('../mono/images/redo.svg');
 }
 
-.icon-row-number {
+:root .icon-row-number {
   background-image: url('../mono/images/row-number.svg');
 }
 
-.icon-filter {
+:root .icon-filter {
   background-image: url('../mono/images/filter.svg');
 }
 
-.icon-lock {
+:root .icon-lock {
   background-image: url('../mono/images/lock.svg');
 }
 
-.icon-man {
+:root .icon-man {
   background-image: url('../mono/images/man.svg');
 }
 
-.icon-mini-add {
+:root .icon-mini-add {
   background-image: url('../mono/images/mini_add.svg');
 }
 
-.icon-mini-edit {
+:root .icon-mini-edit {
   background-image: url('../mono/images/mini_edit.svg');
 }
 
-.icon-mini-refresh {
+:root .icon-mini-refresh {
   background-image: url('../mono/images/mini_refresh.svg');
 }
 
-.icon-more {
+:root .icon-more {
   background-image: url('../mono/images/more.svg');
 }
 
-.icon-no {
+:root .icon-no {
   background-image: url('../mono/images/no.svg');
 }
 
-.icon-sum {
+:root .icon-sum {
   background-image: url('../mono/images/sum.svg');
 }
 
-.icon-tip {
+:root .icon-tip {
   background-image: url('../mono/images/tip.svg');
 }
 
-.icon-blank {
+:root .icon-blank {
   background-image: url('../mono/images/blank.svg');
 }

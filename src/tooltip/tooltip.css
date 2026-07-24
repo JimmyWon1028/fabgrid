@@ -1,9 +1,9 @@
-.fui-tooltip,
-.fui-tooltip * {
+:root .fui-tooltip,
+:root .fui-tooltip * {
   box-sizing: border-box;
 }
 
-.fui-tooltip {
+:root .fui-tooltip {
   --fui-tooltip-bg: #ffffff;
   --fui-tooltip-border: #95B8E7;
   --fui-tooltip-text: #000000;
@@ -21,17 +21,17 @@
   opacity: 1;
 }
 
-.fui-tooltip[hidden] {
+:root .fui-tooltip[hidden] {
   display: none;
 }
 
-.fui-tooltip-content {
+:root .fui-tooltip-content {
   overflow-wrap: anywhere;
   font-size: 14px;
 }
 
-.fui-tooltip-arrow-outer,
-.fui-tooltip-arrow {
+:root .fui-tooltip-arrow-outer,
+:root .fui-tooltip-arrow {
   position: absolute;
   width: 0;
   height: 0;
@@ -40,49 +40,49 @@
   line-height: 0;
 }
 
-.fui-tooltip-right .fui-tooltip-arrow-outer {
+:root .fui-tooltip-right .fui-tooltip-arrow-outer {
   left: -13px;
   margin-top: -6px;
   border-right-color: var(--fui-tooltip-border);
 }
 
-.fui-tooltip-right .fui-tooltip-arrow {
+:root .fui-tooltip-right .fui-tooltip-arrow {
   left: -12px;
   margin-top: -6px;
   border-right-color: var(--fui-tooltip-bg);
 }
 
-.fui-tooltip-left .fui-tooltip-arrow-outer {
+:root .fui-tooltip-left .fui-tooltip-arrow-outer {
   right: -13px;
   margin-top: -6px;
   border-left-color: var(--fui-tooltip-border);
 }
 
-.fui-tooltip-left .fui-tooltip-arrow {
+:root .fui-tooltip-left .fui-tooltip-arrow {
   right: -12px;
   margin-top: -6px;
   border-left-color: var(--fui-tooltip-bg);
 }
 
-.fui-tooltip-top .fui-tooltip-arrow-outer {
+:root .fui-tooltip-top .fui-tooltip-arrow-outer {
   bottom: -13px;
   margin-left: -6px;
   border-top-color: var(--fui-tooltip-border);
 }
 
-.fui-tooltip-top .fui-tooltip-arrow {
+:root .fui-tooltip-top .fui-tooltip-arrow {
   bottom: -12px;
   margin-left: -6px;
   border-top-color: var(--fui-tooltip-bg);
 }
 
-.fui-tooltip-bottom .fui-tooltip-arrow-outer {
+:root .fui-tooltip-bottom .fui-tooltip-arrow-outer {
   top: -13px;
   margin-left: -6px;
   border-bottom-color: var(--fui-tooltip-border);
 }
 
-.fui-tooltip-bottom .fui-tooltip-arrow {
+:root .fui-tooltip-bottom .fui-tooltip-arrow {
   top: -12px;
   margin-left: -6px;
   border-bottom-color: var(--fui-tooltip-bg);

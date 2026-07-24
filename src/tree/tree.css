@@ -1,9 +1,9 @@
-.fui-tree,
-.fui-tree * {
+:root .fui-tree,
+:root .fui-tree * {
   box-sizing: border-box;
 }
 
-.fui-tree {
+:root .fui-tree {
   --fui-tree-icons: url('../theme/default/images/tree_icons.png');
   --fui-tree-loading: url('../theme/default/images/loading.gif');
   --fui-tree-font-size: 14px;
@@ -25,19 +25,19 @@
   user-select: none;
 }
 
-.fui-tree-root,
-.fui-tree-children {
+:root .fui-tree-root,
+:root .fui-tree-children {
   display: block;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.fui-tree-children[hidden] {
+:root .fui-tree-children[hidden] {
   display: none;
 }
 
-.fui-tree-item {
+:root .fui-tree-item {
   position: relative;
   display: block;
   min-width: max-content;
@@ -45,7 +45,7 @@
   padding: 0;
 }
 
-.fui-tree-node {
+:root .fui-tree-node {
   position: relative;
   display: flex;
   min-width: max-content;
@@ -57,32 +57,32 @@
   cursor: default;
 }
 
-.fui-tree-node:hover {
+:root .fui-tree-node:hover {
   border-color: transparent;
   background: var(--fui-tree-hover-bg);
   color: var(--fui-tree-hover-text);
 }
 
-.fui-tree-node:focus-visible {
+:root .fui-tree-node:focus-visible {
   box-shadow: inset 0 0 0 2px var(--fui-tree-focus);
 }
 
-.fui-tree-node-selected {
+:root .fui-tree-node-selected {
   border-color: transparent;
   background: var(--fui-tree-selected-bg);
   color: var(--fui-tree-selected-text);
 }
 
-.fui-tree-node-selected:hover {
+:root .fui-tree-node-selected:hover {
   border-color: transparent;
   background: var(--fui-tree-selected-bg);
   color: var(--fui-tree-selected-text);
 }
 
-.fui-tree-indent,
-.fui-tree-expander,
-.fui-tree-checkbox,
-.fui-tree-icon {
+:root .fui-tree-indent,
+:root .fui-tree-expander,
+:root .fui-tree-checkbox,
+:root .fui-tree-icon {
   position: relative;
   display: inline-flex;
   width: 18px;
@@ -93,8 +93,8 @@
   overflow: hidden;
 }
 
-.fui-tree-expander,
-.fui-tree-checkbox {
+:root .fui-tree-expander,
+:root .fui-tree-checkbox {
   margin: 0;
   padding: 0;
   border: 0;
@@ -105,12 +105,12 @@
   cursor: pointer;
 }
 
-.fui-tree-expander::before,
-.fui-tree-checkbox::before,
-.fui-tree-icon-folder::before,
-.fui-tree-icon-folder-open::before,
-.fui-tree-icon-file::before,
-.fui-tree-lines .fui-tree-indent-line::before {
+:root .fui-tree-expander::before,
+:root .fui-tree-checkbox::before,
+:root .fui-tree-icon-folder::before,
+:root .fui-tree-icon-folder-open::before,
+:root .fui-tree-icon-file::before,
+:root .fui-tree-lines .fui-tree-indent-line::before {
   position: absolute;
   top: 2px;
   left: 1px;
@@ -121,44 +121,44 @@
   content: "";
 }
 
-.fui-tree-expander-closed::before {
+:root .fui-tree-expander-closed::before {
   background-position: 0 0;
 }
 
-.fui-tree-expander-open::before {
+:root .fui-tree-expander-open::before {
   background-position: -18px 0;
 }
 
-.fui-tree-expander-closed:hover::before {
+:root .fui-tree-expander-closed:hover::before {
   background-position: -32px 0;
 }
 
-.fui-tree-expander-open:hover::before {
+:root .fui-tree-expander-open:hover::before {
   background-position: -50px 0;
 }
 
-.fui-tree-expander-empty {
+:root .fui-tree-expander-empty {
   visibility: hidden;
   pointer-events: none;
 }
 
-.fui-tree-checkbox-unchecked::before {
+:root .fui-tree-checkbox-unchecked::before {
   background-position: -208px -18px;
 }
 
-.fui-tree-checkbox-checked::before {
+:root .fui-tree-checkbox-checked::before {
   background-position: -224px -18px;
 }
 
-.fui-tree-checkbox-mixed::before {
+:root .fui-tree-checkbox-mixed::before {
   background-position: -240px -18px;
 }
 
-.fui-tree-icon {
+:root .fui-tree-icon {
   margin-right: 2px;
 }
 
-.fui-tree-icon::before {
+:root .fui-tree-icon::before {
   position: absolute;
   top: 2px;
   left: 1px;
@@ -167,25 +167,25 @@
   content: "";
 }
 
-.fui-tree-icon-folder::before {
+:root .fui-tree-icon-folder::before {
   background-image: var(--fui-tree-icons);
   background-repeat: no-repeat;
   background-position: -208px 0;
 }
 
-.fui-tree-icon-folder-open::before {
+:root .fui-tree-icon-folder-open::before {
   background-image: var(--fui-tree-icons);
   background-repeat: no-repeat;
   background-position: -224px 0;
 }
 
-.fui-tree-icon-file::before {
+:root .fui-tree-icon-file::before {
   background-image: var(--fui-tree-icons);
   background-repeat: no-repeat;
   background-position: -240px 0;
 }
 
-.fui-tree-title {
+:root .fui-tree-title {
   display: inline-flex;
   min-width: 0;
   min-height: 22px;
@@ -196,7 +196,7 @@
   white-space: nowrap;
 }
 
-.fui-tree-editor {
+:root .fui-tree-editor {
   width: max(120px, 100%);
   height: 22px;
   margin: 0;
@@ -211,55 +211,55 @@
   user-select: text;
 }
 
-.fui-tree-node-loading .fui-tree-icon::before {
+:root .fui-tree-node-loading .fui-tree-icon::before {
   background-image: var(--fui-tree-loading);
   background-position: center;
   background-repeat: no-repeat;
 }
 
-.fui-tree-lines .fui-tree-indent-line::before {
+:root .fui-tree-lines .fui-tree-indent-line::before {
   background-position: -176px 0;
 }
 
-.fui-tree-lines .fui-tree-expander-open::before {
+:root .fui-tree-lines .fui-tree-expander-open::before {
   background-position: -144px 0;
 }
 
-.fui-tree-lines .fui-tree-expander-closed::before {
+:root .fui-tree-lines .fui-tree-expander-closed::before {
   background-position: -128px 0;
 }
 
-.fui-tree-lines .fui-tree-expander-empty {
+:root .fui-tree-lines .fui-tree-expander-empty {
   visibility: visible;
 }
 
-.fui-tree-lines .fui-tree-expander-empty::before {
+:root .fui-tree-lines .fui-tree-expander-empty::before {
   background-position: -192px 0;
 }
 
-.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-open::before {
+:root .fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-open::before {
   background-position: -80px 0;
 }
 
-.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-closed::before {
+:root .fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-closed::before {
   background-position: -64px 0;
 }
 
-.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-empty::before {
+:root .fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-empty::before {
   background-position: -160px 0;
 }
 
-.fui-tree-dnd .fui-tree-node {
+:root .fui-tree-dnd .fui-tree-node {
   cursor: grab;
 }
 
-.fui-tree-node-dragging {
+:root .fui-tree-node-dragging {
   opacity: 0.5;
   cursor: grabbing;
 }
 
-.fui-tree-drop-before::before,
-.fui-tree-drop-after::after {
+:root .fui-tree-drop-before::before,
+:root .fui-tree-drop-after::after {
   position: absolute;
   z-index: 2;
   right: 0;
@@ -272,20 +272,20 @@
   pointer-events: none;
 }
 
-.fui-tree-drop-before::before {
+:root .fui-tree-drop-before::before {
   top: -2px;
 }
 
-.fui-tree-drop-after::after {
+:root .fui-tree-drop-after::after {
   bottom: -2px;
 }
 
-.fui-tree-drop-append {
+:root .fui-tree-drop-append {
   border-color: var(--fui-tree-drag-indicator);
   background: color-mix(in srgb, var(--fui-tree-drag-indicator) 18%, transparent);
 }
 
-.fui-tree {
+:root .fui-tree {
   --fui-tree-icons: url('../theme/default/images/tree_icons.png');
   --fui-tree-loading: url('../theme/default/images/loading.gif');
   --fui-tree-hover-bg: #eaf2ff;
@@ -296,9 +296,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fui-tree *,
-  .fui-tree *::before,
-  .fui-tree *::after {
+  :root .fui-tree *,
+  :root .fui-tree *::before,
+  :root .fui-tree *::after {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
   }

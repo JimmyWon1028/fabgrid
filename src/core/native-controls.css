@@ -1,0 +1,312 @@
+/*
+ * Keep FabUI core controls isolated from generic author styles such as
+ * button, input, label, select, textarea, links and structural elements.
+ * Component styles loaded after this file restore their own themed values.
+ */
+
+:root :is(
+  .fui-button,
+  .fui-accordion,
+  .fui-calendar-control,
+  .fui-calendar,
+  .fui-checkbox,
+  .fui-checkgroup,
+  .fui-switchbutton,
+  .fui-radiobutton,
+  .fui-radiogroup,
+  .fui-chart,
+  .fui-textbox-field,
+  .fui-combobox-panel,
+  .fui-colorbox-panel,
+  .fui-menu,
+  .fui-panel,
+  .fui-propertygrid,
+  .fui-tabs,
+  .fui-tree,
+  .fui-tooltip,
+  .fui-layout,
+  .fui-window,
+  .fui-window-mask,
+  .fui-messager-host,
+  .fg-root
+),
+:root :where(
+  .fui-button,
+  .fui-accordion,
+  .fui-calendar-control,
+  .fui-calendar,
+  .fui-checkbox,
+  .fui-checkgroup,
+  .fui-switchbutton,
+  .fui-radiobutton,
+  .fui-radiogroup,
+  .fui-chart,
+  .fui-textbox-field,
+  .fui-combobox-panel,
+  .fui-colorbox-panel,
+  .fui-menu,
+  .fui-panel,
+  .fui-propertygrid,
+  .fui-tabs,
+  .fui-tree,
+  .fui-tooltip,
+  .fui-layout,
+  .fui-window,
+  .fui-window-mask,
+  .fui-messager-host,
+  .fg-root
+) :is(
+  [class^='fui-'],
+  [class*=' fui-'],
+  [class^='fg-'],
+  [class*=' fg-']
+) {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: normal;
+  line-height: normal;
+  list-style: none;
+  text-align: start;
+  text-decoration: none;
+  text-indent: 0;
+  text-shadow: none;
+  text-transform: none;
+  word-spacing: normal;
+}
+
+:root :where(
+  .fui-button,
+  .fg-pagination-button,
+  .fg-top-left-menu-item,
+  .fg-column-chooser-trigger,
+  .fg-header-search-icon,
+  .fg-editor-trigger,
+  .fg-excel-filter-button,
+  .fui-textbox-icon,
+  .fui-textbox-button,
+  .fui-numberbox-spinner-button,
+  .fui-calendar-title,
+  .fui-calendar-nav,
+  .fui-calendar-day,
+  .fui-calendar-menu-year-nav,
+  .fui-calendar-menu-month,
+  .fui-datebox-button,
+  .fui-colorbox-swatch,
+  .fui-panel-tool,
+  .fui-propertygrid-group-toggle,
+  .fui-tabs-scroll,
+  .fui-tabs-tab,
+  .fui-tabs-tool,
+  .fui-tree-expander,
+  .fui-tree-checkbox,
+  .fui-layout-expand-button,
+  .fui-window-tool,
+  .fg-pivot-detail-close,
+  .fg-pivot-toggle,
+  .fg-pivot-panel-action,
+  .fg-pivot-slicer-button,
+  .fg-pivot-workspace-control
+) {
+  appearance: none;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: normal;
+  line-height: normal;
+  text-align: center;
+  text-decoration: none;
+  text-indent: 0;
+  text-shadow: none;
+  text-transform: none;
+  word-spacing: normal;
+}
+
+:root :is(
+  .fui-button,
+  .fg-pagination-button,
+  .fg-top-left-menu-item,
+  .fg-column-chooser-trigger,
+  .fg-header-search-icon,
+  .fg-editor-trigger,
+  .fg-excel-filter-button,
+  .fui-textbox-icon,
+  .fui-textbox-button,
+  .fui-numberbox-spinner-button,
+  .fui-calendar-title,
+  .fui-calendar-nav,
+  .fui-calendar-day,
+  .fui-calendar-menu-year-nav,
+  .fui-calendar-menu-month,
+  .fui-datebox-button,
+  .fui-colorbox-swatch,
+  .fui-panel-tool,
+  .fui-propertygrid-group-toggle,
+  .fui-tabs-scroll,
+  .fui-tabs-tab,
+  .fui-tabs-tool,
+  .fui-tree-expander,
+  .fui-tree-checkbox,
+  .fui-layout-expand-button,
+  .fui-window-tool,
+  .fg-pivot-detail-close,
+  .fg-pivot-toggle,
+  .fg-pivot-panel-action,
+  .fg-pivot-slicer-button,
+  .fg-pivot-workspace-control
+) {
+  appearance: none;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: normal;
+  line-height: normal;
+  text-align: center;
+  text-decoration: none;
+  text-indent: 0;
+  text-shadow: none;
+  text-transform: none;
+  word-spacing: normal;
+}
+
+:root :is(
+  .fui-textbox-text,
+  .fui-calendar-menu-year,
+  .fui-propertygrid-editor-source,
+  .fui-tree-editor,
+  .fui-messager-input,
+  .fg-editor,
+  .fg-header-search-input,
+  .fg-excel-filter-search,
+  .fg-pivot-panel-filter-search,
+  .fg-pivot-slicer-search,
+  .fg-pagination-number
+) {
+  appearance: none;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: normal;
+  line-height: normal;
+  text-align: start;
+  text-decoration: none;
+  text-indent: 0;
+  text-shadow: none;
+  text-transform: none;
+  word-spacing: normal;
+}
+
+:root :is(
+  .fui-checkbox-input,
+  .fui-switchbutton-input,
+  .fui-radiobutton-input,
+  .fg-selection-checkbox,
+  .fg-excel-filter-select-all-check,
+  .fg-excel-filter-value-check,
+  .fg-column-chooser-check,
+  .fg-pivot-panel-field-check,
+  .fg-pivot-panel-filter-check,
+  .fg-pivot-slicer-check
+) {
+  appearance: auto;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: normal;
+  text-align: start;
+  text-decoration: none;
+  text-indent: 0;
+  text-shadow: none;
+  text-transform: none;
+  word-spacing: normal;
+}
+
+:root :is(
+  .fui-checkbox-label,
+  .fui-switchbutton-label,
+  .fui-radiobutton-label,
+  .fui-textbox-label,
+  .fg-excel-filter-select-all,
+  .fg-excel-filter-value-item,
+  .fg-column-chooser-item,
+  .fg-pivot-panel-field-control,
+  .fg-pivot-panel-filter-select-all,
+  .fg-pivot-panel-filter-value,
+  .fg-pivot-slicer-select-all,
+  .fg-pivot-slicer-value
+) {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: normal;
+  line-height: normal;
+  text-align: start;
+  text-decoration: none;
+  text-indent: 0;
+  text-shadow: none;
+  text-transform: none;
+  word-spacing: normal;
+}
+
+:root :is(
+  .fg-pagination-page-list,
+  .fui-propertygrid-boolean-editor,
+  .fg-pivot-filter-field-select,
+  .fg-pivot-workspace-chart-type
+) {
+  appearance: auto;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: normal;
+  line-height: normal;
+  text-align: start;
+  text-decoration: none;
+  text-indent: 0;
+  text-shadow: none;
+  text-transform: none;
+  word-spacing: normal;
+}

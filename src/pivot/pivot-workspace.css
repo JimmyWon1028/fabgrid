@@ -1,4 +1,4 @@
-.fg-root.fg-pivot-workspace {
+:root .fg-root.fg-pivot-workspace {
   --fg-pivot-workspace-panel-size: 300px;
   --fg-pivot-workspace-chart-size: 350px;
   --fg-pivot-workspace-splitter-size: 7px;
@@ -14,7 +14,7 @@
   font-family: helvetica, tahoma, verdana, sans-serif;
 }
 
-.fg-pivot-workspace-horizontal {
+:root .fg-pivot-workspace-horizontal {
   grid-template-columns:
     var(--fg-pivot-workspace-panel-size)
     var(--fg-pivot-workspace-splitter-size)
@@ -24,25 +24,25 @@
   grid-template-rows: minmax(0, 1fr);
 }
 
-.fg-pivot-workspace-horizontal.fg-pivot-workspace-panel-hidden {
+:root .fg-pivot-workspace-horizontal.fg-pivot-workspace-panel-hidden {
   grid-template-columns:
     minmax(0, 1fr)
     var(--fg-pivot-workspace-splitter-size)
     var(--fg-pivot-workspace-chart-size);
 }
 
-.fg-pivot-workspace-horizontal.fg-pivot-workspace-chart-hidden {
+:root .fg-pivot-workspace-horizontal.fg-pivot-workspace-chart-hidden {
   grid-template-columns:
     var(--fg-pivot-workspace-panel-size)
     var(--fg-pivot-workspace-splitter-size)
     minmax(0, 1fr);
 }
 
-.fg-pivot-workspace-horizontal.fg-pivot-workspace-panel-hidden.fg-pivot-workspace-chart-hidden {
+:root .fg-pivot-workspace-horizontal.fg-pivot-workspace-panel-hidden.fg-pivot-workspace-chart-hidden {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.fg-pivot-workspace-vertical {
+:root .fg-pivot-workspace-vertical {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows:
     var(--fg-pivot-workspace-panel-size)
@@ -52,25 +52,25 @@
     var(--fg-pivot-workspace-chart-size);
 }
 
-.fg-pivot-workspace-vertical.fg-pivot-workspace-panel-hidden {
+:root .fg-pivot-workspace-vertical.fg-pivot-workspace-panel-hidden {
   grid-template-rows:
     minmax(0, 1fr)
     var(--fg-pivot-workspace-splitter-size)
     var(--fg-pivot-workspace-chart-size);
 }
 
-.fg-pivot-workspace-vertical.fg-pivot-workspace-chart-hidden {
+:root .fg-pivot-workspace-vertical.fg-pivot-workspace-chart-hidden {
   grid-template-rows:
     var(--fg-pivot-workspace-panel-size)
     var(--fg-pivot-workspace-splitter-size)
     minmax(0, 1fr);
 }
 
-.fg-pivot-workspace-vertical.fg-pivot-workspace-panel-hidden.fg-pivot-workspace-chart-hidden {
+:root .fg-pivot-workspace-vertical.fg-pivot-workspace-panel-hidden.fg-pivot-workspace-chart-hidden {
   grid-template-rows: minmax(0, 1fr);
 }
 
-.fg-pivot-workspace-pane {
+:root .fg-pivot-workspace-pane {
   display: flex;
   min-width: 0;
   min-height: 0;
@@ -79,7 +79,7 @@
   background: var(--fg-cell-bg);
 }
 
-.fg-pivot-workspace-pane-header {
+:root .fg-pivot-workspace-pane-header {
   display: flex;
   flex: 0 0 38px;
   align-items: center;
@@ -96,13 +96,13 @@
   white-space: nowrap;
 }
 
-.fg-pivot-workspace-pane-title {
+:root .fg-pivot-workspace-pane-title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.fg-pivot-workspace-pane-actions {
+:root .fg-pivot-workspace-pane-actions {
   display: inline-flex;
   min-width: 0;
   margin-left: auto;
@@ -110,7 +110,7 @@
   gap: 7px;
 }
 
-.fg-pivot-workspace-progress {
+:root .fg-pivot-workspace-progress {
   max-width: 190px;
   overflow: hidden;
   color: var(--fg-header-text);
@@ -120,19 +120,19 @@
   white-space: nowrap;
 }
 
-.fg-pivot-workspace-updating .fg-pivot-workspace-progress {
+:root .fg-pivot-workspace-updating .fg-pivot-workspace-progress {
   color: var(--fg-selected-border);
 }
 
-.fg-pivot-workspace-error .fg-pivot-workspace-progress {
+:root .fg-pivot-workspace-error .fg-pivot-workspace-progress {
   color: #b42318;
 }
 
-.fg-pivot-workspace-cancel {
+:root .fg-pivot-workspace-cancel {
   flex: 0 0 auto;
 }
 
-.fg-pivot-workspace-control {
+:root .fg-pivot-workspace-control {
   height: 28px;
   min-width: 0;
   padding: 0 9px;
@@ -144,37 +144,37 @@
   font-weight: 400;
 }
 
-button.fg-pivot-workspace-control {
+:root button.fg-pivot-workspace-control {
   cursor: pointer;
 }
 
-button.fg-pivot-workspace-control:hover,
-button.fg-pivot-workspace-control:focus-visible,
-.fg-pivot-workspace-control:focus-visible {
+:root button.fg-pivot-workspace-control:hover,
+:root button.fg-pivot-workspace-control:focus-visible,
+:root .fg-pivot-workspace-control:focus-visible {
   border-color: var(--fg-selected-border);
   outline: none;
 }
 
-.fg-pivot-workspace-chart-type {
+:root .fg-pivot-workspace-chart-type {
   width: 96px;
   padding-right: 24px;
 }
 
-.fg-pivot-workspace-control.fg-pivot-workspace-fullscreen {
+:root .fg-pivot-workspace-control.fg-pivot-workspace-fullscreen {
   flex: 0 0 30px;
   width: 30px;
   padding: 0;
   background-color: var(--fg-cell-bg);
 }
 
-.fg-pivot-workspace-control.fg-pivot-workspace-fullscreen:disabled {
+:root .fg-pivot-workspace-control.fg-pivot-workspace-fullscreen:disabled {
   cursor: default;
   opacity: .45;
 }
 
-.fg-pivot-workspace-pane:fullscreen,
-.fg-pivot-workspace-pane:-webkit-full-screen,
-.fg-pivot-workspace-pane-fullscreen {
+:root .fg-pivot-workspace-pane:fullscreen,
+:root .fg-pivot-workspace-pane:-webkit-full-screen,
+:root .fg-pivot-workspace-pane-fullscreen {
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -183,7 +183,7 @@ button.fg-pivot-workspace-control:focus-visible,
   background: var(--fg-cell-bg);
 }
 
-.fg-pivot-workspace-pane-fullscreen {
+:root .fg-pivot-workspace-pane-fullscreen {
   position: fixed;
   z-index: 2147483000;
   inset: 0;
@@ -192,11 +192,11 @@ button.fg-pivot-workspace-control:focus-visible,
   height: 100dvh;
 }
 
-.fg-pivot-workspace-headers-hidden .fg-pivot-workspace-pane-header {
+:root .fg-pivot-workspace-headers-hidden .fg-pivot-workspace-pane-header {
   display: none;
 }
 
-.fg-pivot-workspace-pane-body {
+:root .fg-pivot-workspace-pane-body {
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -204,7 +204,7 @@ button.fg-pivot-workspace-control:focus-visible,
   overflow: hidden;
 }
 
-.fg-pivot-workspace-pane-body > .fg-root {
+:root .fg-pivot-workspace-pane-body > .fg-root {
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -212,12 +212,12 @@ button.fg-pivot-workspace-control:focus-visible,
   border: 0;
 }
 
-.fg-pivot-workspace .fg-pivot-panel {
+:root .fg-pivot-workspace .fg-pivot-panel {
   min-width: 0;
   min-height: 0;
 }
 
-.fg-pivot-workspace-splitter {
+:root .fg-pivot-workspace-splitter {
   position: relative;
   z-index: 4;
   background: var(--fg-header-bg);
@@ -225,18 +225,18 @@ button.fg-pivot-workspace-control:focus-visible,
   touch-action: none;
 }
 
-.fg-pivot-workspace-splitter::after {
+:root .fg-pivot-workspace-splitter::after {
   position: absolute;
   content: '';
   background: var(--fg-border-strong);
   transition: background-color .12s ease, box-shadow .12s ease;
 }
 
-.fg-pivot-workspace-horizontal > .fg-pivot-workspace-splitter {
+:root .fg-pivot-workspace-horizontal > .fg-pivot-workspace-splitter {
   cursor: col-resize;
 }
 
-.fg-pivot-workspace-horizontal > .fg-pivot-workspace-splitter::after {
+:root .fg-pivot-workspace-horizontal > .fg-pivot-workspace-splitter::after {
   top: 0;
   bottom: 0;
   left: 50%;
@@ -244,11 +244,11 @@ button.fg-pivot-workspace-control:focus-visible,
   transform: translateX(-50%);
 }
 
-.fg-pivot-workspace-vertical > .fg-pivot-workspace-splitter {
+:root .fg-pivot-workspace-vertical > .fg-pivot-workspace-splitter {
   cursor: row-resize;
 }
 
-.fg-pivot-workspace-vertical > .fg-pivot-workspace-splitter::after {
+:root .fg-pivot-workspace-vertical > .fg-pivot-workspace-splitter::after {
   top: 50%;
   right: 0;
   left: 0;
@@ -256,20 +256,20 @@ button.fg-pivot-workspace-control:focus-visible,
   transform: translateY(-50%);
 }
 
-.fg-pivot-workspace-splitter:hover::after,
-.fg-pivot-workspace-splitter:focus-visible::after,
-.fg-pivot-workspace-resizing .fg-pivot-workspace-splitter::after {
+:root .fg-pivot-workspace-splitter:hover::after,
+:root .fg-pivot-workspace-splitter:focus-visible::after,
+:root .fg-pivot-workspace-resizing .fg-pivot-workspace-splitter::after {
   background: var(--fg-selected-border);
   box-shadow: 0 0 0 1px var(--fg-selected-border);
 }
 
-.fg-pivot-workspace-panel-hidden > .fg-pivot-workspace-panel-pane,
-.fg-pivot-workspace-panel-hidden > .fg-pivot-workspace-panel-splitter,
-.fg-pivot-workspace-chart-hidden > .fg-pivot-workspace-chart-pane,
-.fg-pivot-workspace-chart-hidden > .fg-pivot-workspace-chart-splitter {
+:root .fg-pivot-workspace-panel-hidden > .fg-pivot-workspace-panel-pane,
+:root .fg-pivot-workspace-panel-hidden > .fg-pivot-workspace-panel-splitter,
+:root .fg-pivot-workspace-chart-hidden > .fg-pivot-workspace-chart-pane,
+:root .fg-pivot-workspace-chart-hidden > .fg-pivot-workspace-chart-splitter {
   display: none;
 }
 
-.fg-pivot-workspace-resizing {
+:root .fg-pivot-workspace-resizing {
   user-select: none;
 }

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="96" viewBox="0 0 240 96" role="img" aria-labelledby="title">
+  <title id="title">fabLoader</title>
+  <rect width="240" height="96" rx="16" fill="#eef2ff"/>
+  <circle cx="48" cy="48" r="24" fill="#4f46e5"/>
+  <path d="M41 35h14v8H49v18h-8z" fill="#fff"/>
+  <text x="84" y="57" fill="#1e1b4b" font-family="Arial, sans-serif" font-size="24" font-weight="700">fabLoader</text>
+</svg>

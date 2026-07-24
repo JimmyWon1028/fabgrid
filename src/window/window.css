@@ -1,9 +1,9 @@
-.fui-window,
-.fui-window * {
+:root .fui-window,
+:root .fui-window * {
   box-sizing: border-box;
 }
 
-.fui-window {
+:root .fui-window {
   --fui-window-border: #dfdfdf;
   --fui-window-frame: #fafafa;
   --fui-window-header-bg: #fafafa;
@@ -35,24 +35,24 @@
   font: var(--fui-window-font-size) Arial, sans-serif;
 }
 
-.fui-window[hidden],
-.fui-window-mask[hidden] {
+:root .fui-window[hidden],
+:root .fui-window-mask[hidden] {
   display: none;
 }
 
-.fui-window-shadow {
+:root .fui-window-shadow {
   box-shadow: 2px 2px 3px var(--fui-window-shadow-color);
 }
 
-.fui-window-inline {
+:root .fui-window-inline {
   position: absolute;
 }
 
-.fui-window-fixed {
+:root .fui-window-fixed {
   position: fixed;
 }
 
-.fui-window-header {
+:root .fui-window-header {
   position: relative;
   flex: 0 0 27px;
   min-height: 27px;
@@ -63,7 +63,7 @@
   user-select: none;
 }
 
-.fui-window-title {
+:root .fui-window-title {
   height: 21px;
   overflow: hidden;
   font-weight: bold;
@@ -72,11 +72,11 @@
   white-space: nowrap;
 }
 
-.fui-window-title-with-icon {
+:root .fui-window-title-with-icon {
   padding-left: 20px;
 }
 
-.fui-window-icon {
+:root .fui-window-icon {
   position: absolute;
   top: 2px;
   left: 1px;
@@ -84,7 +84,7 @@
   height: 16px;
 }
 
-.fui-window-tools {
+:root .fui-window-tools {
   position: absolute;
   top: 2px;
   right: 1px;
@@ -94,7 +94,7 @@
   gap: 2px;
 }
 
-.fui-window-tool {
+:root .fui-window-tool {
   position: relative;
   width: 16px;
   height: 16px;
@@ -107,23 +107,23 @@
   opacity: 0.6;
 }
 
-.fui-window-tool:hover,
-.fui-window-tool:focus-visible {
+:root .fui-window-tool:hover,
+:root .fui-window-tool:focus-visible {
   background-color: var(--fui-window-tool-hover);
   opacity: 1;
 }
 
-.fui-window-tool-minimize:hover:not(:focus-visible),
-.fui-window-tool-maximize:hover:not(:focus-visible),
-.fui-window-tool-restore:hover:not(:focus-visible),
-.fui-window-tool-close:hover:not(:focus-visible),
-.fui-window-tool-collapse:hover:not(:focus-visible),
-.fui-window-tool-expand:hover:not(:focus-visible) {
+:root .fui-window-tool-minimize:hover:not(:focus-visible),
+:root .fui-window-tool-maximize:hover:not(:focus-visible),
+:root .fui-window-tool-restore:hover:not(:focus-visible),
+:root .fui-window-tool-close:hover:not(:focus-visible),
+:root .fui-window-tool-collapse:hover:not(:focus-visible),
+:root .fui-window-tool-expand:hover:not(:focus-visible) {
   background-color: transparent;
   opacity: 0.6;
 }
 
-.fui-window-body {
+:root .fui-window-body {
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
@@ -134,7 +134,7 @@
   color: var(--fui-window-body-text);
 }
 
-.fui-window-footer {
+:root .fui-window-footer {
   flex: 0 0 auto;
   min-height: 34px;
   padding: 6px 8px;
@@ -144,127 +144,127 @@
   color: var(--fui-window-footer-text);
 }
 
-.fui-window-footer[hidden] {
+:root .fui-window-footer[hidden] {
   display: none;
 }
 
-.fui-window-mask {
+:root .fui-window-mask {
   --fui-window-mask-bg: rgba(204, 204, 204, 0.4);
   position: fixed;
   inset: 0;
   background: var(--fui-window-mask-bg);
 }
 
-.fui-window-mask.fui-window-inline {
+:root .fui-window-mask.fui-window-inline {
   position: absolute;
 }
 
-.fui-window-mask {
+:root .fui-window-mask {
   --fui-window-mask-bg: rgba(204, 204, 204, 0.4);
 }
 
-.fui-window-resize {
+:root .fui-window-resize {
   position: absolute;
   z-index: 2;
 }
 
-.fui-window-resize-n,
-.fui-window-resize-s {
+:root .fui-window-resize-n,
+:root .fui-window-resize-s {
   right: 8px;
   left: 8px;
   height: 7px;
   cursor: ns-resize;
 }
 
-.fui-window-resize-e,
-.fui-window-resize-w {
+:root .fui-window-resize-e,
+:root .fui-window-resize-w {
   top: 8px;
   bottom: 8px;
   width: 7px;
   cursor: ew-resize;
 }
 
-.fui-window-resize-n { top: -2px; }
-.fui-window-resize-s { bottom: -2px; }
-.fui-window-resize-e { right: -2px; }
-.fui-window-resize-w { left: -2px; }
+:root .fui-window-resize-n { top: -2px; }
+:root .fui-window-resize-s { bottom: -2px; }
+:root .fui-window-resize-e { right: -2px; }
+:root .fui-window-resize-w { left: -2px; }
 
-.fui-window-resize-ne,
-.fui-window-resize-nw,
-.fui-window-resize-se,
-.fui-window-resize-sw {
+:root .fui-window-resize-ne,
+:root .fui-window-resize-nw,
+:root .fui-window-resize-se,
+:root .fui-window-resize-sw {
   width: 11px;
   height: 11px;
 }
 
-.fui-window-resize-ne { top: -2px; right: -2px; cursor: nesw-resize; }
-.fui-window-resize-nw { top: -2px; left: -2px; cursor: nwse-resize; }
-.fui-window-resize-se { right: -2px; bottom: -2px; cursor: nwse-resize; }
-.fui-window-resize-sw { bottom: -2px; left: -2px; cursor: nesw-resize; }
+:root .fui-window-resize-ne { top: -2px; right: -2px; cursor: nesw-resize; }
+:root .fui-window-resize-nw { top: -2px; left: -2px; cursor: nwse-resize; }
+:root .fui-window-resize-se { right: -2px; bottom: -2px; cursor: nwse-resize; }
+:root .fui-window-resize-sw { bottom: -2px; left: -2px; cursor: nesw-resize; }
 
-.fui-window-resize-proxy {
+:root .fui-window-resize-proxy {
   box-sizing: border-box;
   border: 1px dashed;
   background: transparent;
   pointer-events: none;
 }
 
-.fui-window-maximized {
+:root .fui-window-maximized {
   border-radius: 0;
 }
 
-.fui-window-collapsed,
-.fui-window-minimized {
+:root .fui-window-collapsed,
+:root .fui-window-minimized {
   min-height: 38px;
 }
 
-.fui-window-collapsed .fui-window-header,
-.fui-window-minimized .fui-window-header {
+:root .fui-window-collapsed .fui-window-header,
+:root .fui-window-minimized .fui-window-header {
   min-height: 26px;
   flex-basis: 26px;
   padding-bottom: 5px;
 }
 
-.fui-window-maximized .fui-window-resize,
-.fui-window-collapsed .fui-window-resize,
-.fui-window-minimized .fui-window-resize,
-.fui-window-minimized .fui-window-tool-collapse,
-.fui-window-minimized .fui-window-tool-maximize {
+:root .fui-window-maximized .fui-window-resize,
+:root .fui-window-collapsed .fui-window-resize,
+:root .fui-window-minimized .fui-window-resize,
+:root .fui-window-minimized .fui-window-tool-collapse,
+:root .fui-window-minimized .fui-window-tool-maximize {
   display: none;
 }
 
-.fui-window-minimized {
+:root .fui-window-minimized {
   position: fixed;
   border-radius: var(--fui-window-border-radius);
 }
 
-.fui-window-minimized.fui-window-minimized-target {
+:root .fui-window-minimized.fui-window-minimized-target {
   min-width: 0;
   min-height: 0;
 }
 
-.fui-window-minimized.fui-window-inline {
+:root .fui-window-minimized.fui-window-inline {
   position: absolute;
 }
 
-.fui-window-no-border {
+:root .fui-window-no-border {
   padding: 0;
   border: 0;
 }
 
-.fui-window-thin-border {
+:root .fui-window-thin-border {
   padding: 0;
 }
 
-.fui-window-thin-border .fui-window-header {
+:root .fui-window-thin-border .fui-window-header {
   padding: 5px 87px 6px 5px;
 }
 
-.fui-window-interacting {
+:root .fui-window-interacting {
   user-select: none;
 }
 
-.fui-window-transitioning {
+:root .fui-window-transitioning {
   transition:
     left var(--fui-window-animation-duration) cubic-bezier(0.2, 0, 0, 1),
     top var(--fui-window-animation-duration) cubic-bezier(0.2, 0, 0, 1),
@@ -275,19 +275,19 @@
   will-change: left, top, width, height, opacity, transform;
 }
 
-.fui-window-minimized-visual {
+:root .fui-window-minimized-visual {
   opacity: 0;
   transform: translateY(14px) scale(0.94);
   pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fui-window-transitioning {
+  :root .fui-window-transitioning {
     transition: none;
   }
 }
 
-.fui-window {
+:root .fui-window {
   --fui-window-border: #95b8e7;
   --fui-window-frame: linear-gradient(to bottom, #eff5ff 0, #e0ecff 20%);
   --fui-window-header-bg: transparent;
@@ -303,6 +303,6 @@
   --fui-window-mask-bg: rgba(204, 204, 204, 0.4);
 }
 
-.fui-window.fui-window-maximized {
+:root .fui-window.fui-window-maximized {
   border-radius: 0;
 }

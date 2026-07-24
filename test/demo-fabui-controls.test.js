@@ -72,6 +72,8 @@ function getBuildPages() {
       return /\.html$/.test(name) &&
         !/^dev/.test(name) &&
         name !== 'index.html' &&
+        name !== 'test.html' &&
+        name !== 'test2.html' &&
         !/vue2/.test(name);
     });
 }
@@ -483,6 +485,22 @@ test('Every build-mode Demo loads dist FabUI and the shared control enhancer', f
   assert.ok(pages.length > 0);
   pages.forEach(function(name) {
     var html = readFileSync(new URL(name, demoDirectory), 'utf8');
+    if (name === 'diagram.html') {
+      assert.match(html, /\.style\(\[[\s\S]*?\.\.\/dist\/fabui\.css/, name);
+      assert.match(html, /\.script\(\[[\s\S]*?\.\.\/dist\/fabui\.min\.js/, name);
+      assert.match(
+        html,
+        /\.module\(\s*'\.\/js\/dist-controls\.js/,
+        name
+      );
+      assert.doesNotMatch(
+        html,
+        /<(?:link|script)[^>]+(?:href|src)="(?:\.\.\/dist\/fabui|\.\/js\/dist-controls)/,
+        name
+      );
+      assert.doesNotMatch(html, /\.\.\/src\//, name);
+      return;
+    }
     assert.match(
       html,
       /<link\s+rel="stylesheet"\s+href="\.\.\/dist\/fabui\.css\?v=20260722-theme-css-split-v1"\s*\/?>/,

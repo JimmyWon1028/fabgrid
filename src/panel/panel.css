@@ -1,9 +1,9 @@
-.fui-panel,
-.fui-panel * {
+:root .fui-panel,
+:root .fui-panel * {
   box-sizing: border-box;
 }
 
-.fui-panel {
+:root .fui-panel {
   --fui-panel-border: #dfdfdf;
   --fui-panel-header-bg: #fafafa;
   --fui-panel-header-text: #404040;
@@ -26,17 +26,17 @@
   font: var(--fui-panel-font-size) Arial, sans-serif;
 }
 
-.fui-panel[hidden] {
+:root .fui-panel[hidden] {
   display: none;
 }
 
-.fui-panel-header,
-.fui-panel-body,
-.fui-panel-footer {
+:root .fui-panel-header,
+:root .fui-panel-body,
+:root .fui-panel-footer {
   border: 1px solid var(--fui-panel-border);
 }
 
-.fui-panel-header {
+:root .fui-panel-header {
   position: relative;
   flex: 0 0 auto;
   min-height: 32px;
@@ -46,12 +46,12 @@
   user-select: none;
 }
 
-.fui-panel-header[hidden],
-.fui-panel-footer[hidden] {
+:root .fui-panel-header[hidden],
+:root .fui-panel-footer[hidden] {
   display: none;
 }
 
-.fui-panel-title {
+:root .fui-panel-title {
   min-width: 0;
   height: 20px;
   overflow: hidden;
@@ -61,11 +61,11 @@
   white-space: nowrap;
 }
 
-.fui-panel-title-with-icon {
+:root .fui-panel-title-with-icon {
   padding-left: 20px;
 }
 
-.fui-panel-icon {
+:root .fui-panel-icon {
   position: absolute;
   top: 8px;
   left: 6px;
@@ -73,7 +73,7 @@
   height: 16px;
 }
 
-.fui-panel-tools {
+:root .fui-panel-tools {
   position: absolute;
   top: 8px;
   right: 5px;
@@ -82,7 +82,7 @@
   gap: 2px;
 }
 
-.fui-panel-tool {
+:root .fui-panel-tool {
   position: relative;
   width: 16px;
   height: 16px;
@@ -95,19 +95,19 @@
   opacity: 0.6;
 }
 
-.fui-panel-tool:hover,
-.fui-panel-tool:focus-visible {
+:root .fui-panel-tool:hover,
+:root .fui-panel-tool:focus-visible {
   background-color: var(--fui-panel-tool-hover);
   opacity: 1;
 }
 
-.fui-panel-tool-collapse:hover:not(:focus-visible),
-.fui-panel-tool-expand:hover:not(:focus-visible) {
+:root .fui-panel-tool-collapse:hover:not(:focus-visible),
+:root .fui-panel-tool-expand:hover:not(:focus-visible) {
   background-color: transparent;
   opacity: 0.6;
 }
 
-.fui-panel-body {
+:root .fui-panel-body {
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
@@ -118,7 +118,7 @@
   color: var(--fui-panel-body-text);
 }
 
-.fui-panel-footer {
+:root .fui-panel-footer {
   flex: 0 0 auto;
   min-height: 34px;
   padding: 6px 8px;
@@ -127,35 +127,35 @@
   color: var(--fui-panel-footer-text);
 }
 
-.fui-panel-no-border .fui-panel-header {
+:root .fui-panel-no-border .fui-panel-header {
   border-width: 0 0 1px;
 }
 
-.fui-panel-no-border .fui-panel-body {
+:root .fui-panel-no-border .fui-panel-body {
   border-width: 0;
 }
 
-.fui-panel-no-border .fui-panel-footer {
+:root .fui-panel-no-border .fui-panel-footer {
   border-width: 1px 0 0;
 }
 
-.fui-panel-positioned,
-.fui-panel-maximized {
+:root .fui-panel-positioned,
+:root .fui-panel-maximized {
   position: absolute;
 }
 
-.fui-panel-collapsed.fui-panel-halign-top {
+:root .fui-panel-collapsed.fui-panel-halign-top {
   height: fit-content !important;
   min-height: 0 !important;
 }
 
-.fui-panel-collapsed.fui-panel-halign-left,
-.fui-panel-collapsed.fui-panel-halign-right {
+:root .fui-panel-collapsed.fui-panel-halign-left,
+:root .fui-panel-collapsed.fui-panel-halign-right {
   width: fit-content !important;
   min-width: 0 !important;
 }
 
-.fui-panel-transitioning {
+:root .fui-panel-transitioning {
   transition:
     left var(--fui-panel-animation-duration) cubic-bezier(0.2, 0, 0, 1),
     top var(--fui-panel-animation-duration) cubic-bezier(0.2, 0, 0, 1),
@@ -164,57 +164,57 @@
   will-change: left, top, width, height;
 }
 
-.fui-panel-transitioning .fui-panel-body,
-.fui-panel-transitioning .fui-panel-footer {
+:root .fui-panel-transitioning .fui-panel-body,
+:root .fui-panel-transitioning .fui-panel-footer {
   transition: opacity var(--fui-panel-animation-duration) ease;
   will-change: opacity;
 }
 
-.fui-panel-content-hidden .fui-panel-body,
-.fui-panel-content-hidden .fui-panel-footer {
+:root .fui-panel-content-hidden .fui-panel-body,
+:root .fui-panel-content-hidden .fui-panel-footer {
   opacity: 0;
   pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fui-panel-transitioning,
-  .fui-panel-transitioning .fui-panel-body,
-  .fui-panel-transitioning .fui-panel-footer {
+  :root .fui-panel-transitioning,
+  :root .fui-panel-transitioning .fui-panel-body,
+  :root .fui-panel-transitioning .fui-panel-footer {
     transition: none;
   }
 }
 
-.fui-panel-halign-left,
-.fui-panel-halign-right {
+:root .fui-panel-halign-left,
+:root .fui-panel-halign-right {
   flex-direction: row;
 }
 
-.fui-panel-halign-left .fui-panel-header,
-.fui-panel-halign-right .fui-panel-header {
+:root .fui-panel-halign-left .fui-panel-header,
+:root .fui-panel-halign-right .fui-panel-header {
   width: 34px;
   min-height: 0;
   padding: 28px 5px 76px;
 }
 
-.fui-panel-halign-right .fui-panel-header {
+:root .fui-panel-halign-right .fui-panel-header {
   order: 2;
 }
 
-.fui-panel-halign-left .fui-panel-body,
-.fui-panel-halign-right .fui-panel-body {
+:root .fui-panel-halign-left .fui-panel-body,
+:root .fui-panel-halign-right .fui-panel-body {
   border-top-width: 1px;
 }
 
-.fui-panel-halign-left .fui-panel-body {
+:root .fui-panel-halign-left .fui-panel-body {
   border-left: 0;
 }
 
-.fui-panel-halign-right .fui-panel-body {
+:root .fui-panel-halign-right .fui-panel-body {
   border-right: 0;
 }
 
-.fui-panel-halign-left .fui-panel-title,
-.fui-panel-halign-right .fui-panel-title {
+:root .fui-panel-halign-left .fui-panel-title,
+:root .fui-panel-halign-right .fui-panel-title {
   position: absolute;
   top: 28px;
   left: 27px;
@@ -225,8 +225,8 @@
   white-space: nowrap;
 }
 
-.fui-panel-halign-left.fui-panel-title-up .fui-panel-title,
-.fui-panel-halign-right.fui-panel-title-up .fui-panel-title {
+:root .fui-panel-halign-left.fui-panel-title-up .fui-panel-title,
+:root .fui-panel-halign-right.fui-panel-title-up .fui-panel-title {
   right: 7px;
   bottom: 28px;
   left: auto;
@@ -234,21 +234,21 @@
   transform-origin: 100% 100%;
 }
 
-.fui-panel-halign-left .fui-panel-icon,
-.fui-panel-halign-right .fui-panel-icon {
+:root .fui-panel-halign-left .fui-panel-icon,
+:root .fui-panel-halign-right .fui-panel-icon {
   top: 6px;
   left: 8px;
 }
 
-.fui-panel-halign-left .fui-panel-tools,
-.fui-panel-halign-right .fui-panel-tools {
+:root .fui-panel-halign-left .fui-panel-tools,
+:root .fui-panel-halign-right .fui-panel-tools {
   top: auto;
   right: 7px;
   bottom: 5px;
   flex-direction: column;
 }
 
-.fui-panel {
+:root .fui-panel {
   --fui-panel-border: #95b8e7;
   --fui-panel-header-bg: linear-gradient(to bottom, #eff5ff 0, #e0ecff 100%);
   --fui-panel-header-text: #0e2d5f;
@@ -261,7 +261,7 @@
   --fui-panel-font-size: 14px;
 }
 
-.fui-panel-loading {
+:root .fui-panel-loading {
   min-height: 42px;
   padding: 12px 12px 12px 34px;
   background:

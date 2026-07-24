@@ -1,4 +1,4 @@
-.fg-root.fg-pivot-panel {
+:root .fg-root.fg-pivot-panel {
   display: flex;
   flex-direction: column;
   min-width: 260px;
@@ -11,7 +11,7 @@
   font-size: 14px;
 }
 
-.fg-pivot-panel-header {
+:root .fg-pivot-panel-header {
   display: flex;
   flex: 0 0 38%;
   min-height: 150px;
@@ -19,14 +19,14 @@
   border-bottom: 1px solid var(--fg-border-strong);
 }
 
-.fg-pivot-panel-areas {
+:root .fg-pivot-panel-areas {
   display: grid;
   flex: 1 1 auto;
   min-height: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.fg-pivot-panel-section {
+:root .fg-pivot-panel-section {
   display: flex;
   min-width: 0;
   min-height: 0;
@@ -35,11 +35,11 @@
   border-bottom: 1px solid var(--fg-border);
 }
 
-.fg-pivot-panel-section:nth-child(2n) {
+:root .fg-pivot-panel-section:nth-child(2n) {
   border-right: 0;
 }
 
-.fg-pivot-panel-section-title {
+:root .fg-pivot-panel-section-title {
   display: flex;
   flex: 0 0 30px;
   align-items: center;
@@ -51,7 +51,7 @@
   font-weight: 600;
 }
 
-.fg-pivot-panel-list {
+:root .fg-pivot-panel-list {
   position: relative;
   flex: 1 1 auto;
   min-height: 52px;
@@ -61,27 +61,27 @@
   transition: background-color .12s ease, box-shadow .12s ease;
 }
 
-.fg-pivot-panel-fields {
+:root .fg-pivot-panel-fields {
   display: grid;
   align-content: start;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.fg-pivot-panel-field,
-.fg-pivot-panel-item {
+:root .fg-pivot-panel-field,
+:root .fg-pivot-panel-item {
   min-width: 0;
   min-height: 30px;
   border: 1px solid transparent;
   border-radius: 2px;
 }
 
-.fg-pivot-panel-field:hover,
-.fg-pivot-panel-item:hover {
+:root .fg-pivot-panel-field:hover,
+:root .fg-pivot-panel-item:hover {
   border-color: var(--fg-border);
   background: var(--fg-cell-hover-bg);
 }
 
-.fg-pivot-panel-field label {
+:root .fg-pivot-panel-field-control {
   display: flex;
   align-items: center;
   min-width: 0;
@@ -91,12 +91,12 @@
   cursor: pointer;
 }
 
-.fg-pivot-panel-field-check {
+:root .fg-pivot-panel-field-check {
   flex: 0 0 auto;
   margin: 0;
 }
 
-.fg-pivot-panel-field-type {
+:root .fg-pivot-panel-field-type {
   display: inline-flex;
   flex: 0 0 18px;
   align-items: center;
@@ -108,15 +108,15 @@
   font-size: 11px;
 }
 
-.fg-pivot-panel-field-label,
-.fg-pivot-panel-item-label {
+:root .fg-pivot-panel-field-label,
+:root .fg-pivot-panel-item-label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.fg-pivot-panel-item {
+:root .fg-pivot-panel-item {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -128,11 +128,11 @@
   cursor: grab;
 }
 
-.fg-pivot-panel-item:last-child {
+:root .fg-pivot-panel-item:last-child {
   margin-bottom: 0;
 }
 
-.fg-pivot-panel-drag {
+:root .fg-pivot-panel-drag {
   flex: 0 0 14px;
   color: var(--fg-header-text);
   font-size: 10px;
@@ -140,26 +140,26 @@
   touch-action: none;
 }
 
-.fg-pivot-panel-item-label {
+:root .fg-pivot-panel-item-label {
   flex: 1 1 auto;
 }
 
-.fg-pivot-panel-value-item .fg-pivot-panel-item-label {
+:root .fg-pivot-panel-value-item .fg-pivot-panel-item-label {
   font-weight: 600;
 }
 
-.fg-pivot-panel-aggregate-menu,
-.fg-pivot-panel-sort-menu,
-.fg-pivot-panel-filter-menu {
+:root .fg-pivot-panel-aggregate-menu,
+:root .fg-pivot-panel-sort-menu,
+:root .fg-pivot-panel-filter-menu {
   z-index: 48;
 }
 
-.fg-pivot-panel-aggregate-menu {
+:root .fg-pivot-panel-aggregate-menu {
   max-height: min(520px, calc(100% - 8px));
   overflow: auto;
 }
 
-.fg-pivot-panel-filter-menu {
+:root .fg-pivot-panel-filter-menu {
   width: 250px;
   max-width: calc(100% - 8px);
   max-height: min(420px, calc(100% - 8px));
@@ -167,7 +167,7 @@
   overflow: hidden;
 }
 
-.fg-pivot-panel-filter-search {
+:root .fg-pivot-panel-filter-search {
   flex: 0 0 30px;
   min-width: 0;
   height: 30px;
@@ -179,8 +179,8 @@
   font: inherit;
 }
 
-.fg-pivot-panel-filter-select-all,
-.fg-pivot-panel-filter-value {
+:root .fg-pivot-panel-filter-select-all,
+:root .fg-pivot-panel-filter-value {
   display: flex;
   min-height: 28px;
   align-items: center;
@@ -189,25 +189,25 @@
   cursor: pointer;
 }
 
-.fg-pivot-panel-filter-select-all {
+:root .fg-pivot-panel-filter-select-all {
   flex: 0 0 auto;
   border-top: 1px solid var(--fg-border);
   border-bottom: 1px solid var(--fg-border);
   background: var(--fg-header-bg);
 }
 
-.fg-pivot-panel-filter-values {
+:root .fg-pivot-panel-filter-values {
   flex: 1 1 auto;
   min-height: 72px;
   overflow: auto;
   padding: 3px;
 }
 
-.fg-pivot-panel-filter-value:hover {
+:root .fg-pivot-panel-filter-value:hover {
   background: var(--fg-cell-hover-bg);
 }
 
-.fg-pivot-panel-filter-footer {
+:root .fg-pivot-panel-filter-footer {
   display: flex;
   flex: 0 0 38px;
   align-items: center;
@@ -218,14 +218,14 @@
   background: var(--fg-header-bg);
 }
 
-.fg-pivot-panel-filter-footer .fg-pivot-panel-action {
+:root .fg-pivot-panel-filter-footer .fg-pivot-panel-action {
   width: auto;
   min-width: 58px;
   padding: 0 10px;
   border: 1px solid var(--fg-border-strong);
 }
 
-.fg-pivot-panel-menu-title {
+:root .fg-pivot-panel-menu-title {
   overflow: hidden;
   min-height: 32px;
   padding: 7px 10px;
@@ -238,12 +238,12 @@
   white-space: nowrap;
 }
 
-.fg-pivot-panel-item-actions {
+:root .fg-pivot-panel-item-actions {
   display: inline-flex;
   flex: 0 0 auto;
 }
 
-.fg-pivot-panel-action {
+:root .fg-pivot-panel-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -258,14 +258,14 @@
   cursor: pointer;
 }
 
-.fg-pivot-panel-action:hover,
-.fg-pivot-panel-action:focus-visible {
+:root .fg-pivot-panel-action:hover,
+:root .fg-pivot-panel-action:focus-visible {
   background: var(--fg-selected-bg);
   color: var(--fg-cell-text);
   outline: none;
 }
 
-.fg-pivot-panel-empty {
+:root .fg-pivot-panel-empty {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -276,16 +276,16 @@
   text-align: center;
 }
 
-.fg-pivot-panel-drop-active {
+:root .fg-pivot-panel-drop-active {
   background: var(--fg-selected-bg);
   box-shadow: inset 0 0 0 2px var(--fg-selected-border);
 }
 
-.fg-pivot-panel-dragging {
+:root .fg-pivot-panel-dragging {
   opacity: .45;
 }
 
-.fg-pivot-panel-insert-line {
+:root .fg-pivot-panel-insert-line {
   position: relative;
   z-index: 2;
   flex: 0 0 2px;
@@ -298,7 +298,7 @@
   pointer-events: none;
 }
 
-.fg-pivot-panel-insert-line::before {
+:root .fg-pivot-panel-insert-line::before {
   position: absolute;
   top: -2px;
   left: -2px;
@@ -310,11 +310,11 @@
 }
 
 @media (max-width: 920px) {
-  .fg-root.fg-pivot-panel {
+  :root .fg-root.fg-pivot-panel {
     min-height: 520px;
   }
 
-  .fg-pivot-panel-fields {
+  :root .fg-pivot-panel-fields {
     grid-template-columns: 1fr;
   }
 }

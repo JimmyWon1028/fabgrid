@@ -1,5 +1,5 @@
 /* TimeBox inherits the default TextBox and NumberBox spinner themes. */
-.fui-timebox .fui-textbox-text {
+:root .fui-timebox .fui-textbox-text {
   ime-mode: disabled;
   text-align: left;
 }

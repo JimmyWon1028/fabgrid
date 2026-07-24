@@ -1,9 +1,9 @@
-.fui-switchbutton,
-.fui-switchbutton * {
+:root .fui-switchbutton,
+:root .fui-switchbutton * {
   box-sizing: border-box;
 }
 
-.fui-switchbutton {
+:root .fui-switchbutton {
   --fui-switchbutton-border: #bbb;
   --fui-switchbutton-on-bg: #ffe48d;
   --fui-switchbutton-on-text: #000;
@@ -22,21 +22,21 @@
   vertical-align: middle;
 }
 
-.fui-switchbutton-label-before {
+:root .fui-switchbutton-label-before {
   flex-direction: row-reverse;
   justify-content: flex-end;
 }
 
-.fui-switchbutton-label-after {
+:root .fui-switchbutton-label-after {
   flex-direction: row;
 }
 
-.fui-switchbutton-label-top {
+:root .fui-switchbutton-label-top {
   flex-direction: column-reverse;
   align-items: flex-start;
 }
 
-.fui-switchbutton-control {
+:root .fui-switchbutton-control {
   position: relative;
   display: inline-block;
   flex: 0 0 auto;
@@ -49,7 +49,7 @@
   cursor: pointer;
 }
 
-.fui-switchbutton-inner {
+:root .fui-switchbutton-inner {
   position: relative;
   display: flex;
   top: -1px;
@@ -59,31 +59,32 @@
   white-space: nowrap;
 }
 
-.fui-switchbutton-on,
-.fui-switchbutton-off,
-.fui-switchbutton-handle {
+:root .fui-switchbutton-on,
+:root .fui-switchbutton-off,
+:root .fui-switchbutton-handle {
   display: block;
   flex: 0 0 auto;
   overflow: hidden;
   height: 100%;
   border-radius: var(--fui-switchbutton-radius);
+  line-height: inherit;
   text-align: center;
   white-space: nowrap;
 }
 
-.fui-switchbutton-on {
+:root .fui-switchbutton-on {
   border-radius: var(--fui-switchbutton-radius) 0 0 var(--fui-switchbutton-radius);
   background: var(--fui-switchbutton-on-bg);
   color: var(--fui-switchbutton-on-text);
 }
 
-.fui-switchbutton-off {
+:root .fui-switchbutton-off {
   border-radius: 0 var(--fui-switchbutton-radius) var(--fui-switchbutton-radius) 0;
   background: var(--fui-switchbutton-off-bg);
   color: var(--fui-switchbutton-off-text);
 }
 
-.fui-switchbutton-handle {
+:root .fui-switchbutton-handle {
   position: absolute;
   z-index: 1;
   top: 0;
@@ -94,7 +95,7 @@
   color: var(--fui-switchbutton-handle-text);
 }
 
-.fui-switchbutton-input {
+:root .fui-switchbutton-input {
   position: absolute;
   z-index: 2;
   inset: 0;
@@ -105,19 +106,19 @@
   cursor: pointer;
 }
 
-.fui-switchbutton-reversed .fui-switchbutton-off {
+:root .fui-switchbutton-reversed .fui-switchbutton-off {
   border-radius: var(--fui-switchbutton-radius) 0 0 var(--fui-switchbutton-radius);
 }
 
-.fui-switchbutton-reversed .fui-switchbutton-on {
+:root .fui-switchbutton-reversed .fui-switchbutton-on {
   border-radius: 0 var(--fui-switchbutton-radius) var(--fui-switchbutton-radius) 0;
 }
 
-.fui-switchbutton-control:focus-within {
+:root .fui-switchbutton-control:focus-within {
   box-shadow: 0 0 3px 0 var(--fui-switchbutton-border);
 }
 
-.fui-switchbutton-label {
+:root .fui-switchbutton-label {
   overflow: hidden;
   color: inherit;
   text-overflow: ellipsis;
@@ -125,30 +126,30 @@
   cursor: pointer;
 }
 
-.fui-switchbutton-label-before .fui-switchbutton-label {
+:root .fui-switchbutton-label-before .fui-switchbutton-label {
   margin-right: 8px;
 }
 
-.fui-switchbutton-label-after .fui-switchbutton-label {
+:root .fui-switchbutton-label-after .fui-switchbutton-label {
   margin-left: 8px;
 }
 
-.fui-switchbutton-label-top .fui-switchbutton-label {
+:root .fui-switchbutton-label-top .fui-switchbutton-label {
   margin-bottom: 5px;
 }
 
-.fui-switchbutton-disabled {
+:root .fui-switchbutton-disabled {
   opacity: 0.5;
 }
 
-.fui-switchbutton-disabled .fui-switchbutton-input,
-.fui-switchbutton-disabled .fui-switchbutton-label,
-.fui-switchbutton-readonly .fui-switchbutton-input,
-.fui-switchbutton-readonly .fui-switchbutton-label {
+:root .fui-switchbutton-disabled .fui-switchbutton-input,
+:root .fui-switchbutton-disabled .fui-switchbutton-label,
+:root .fui-switchbutton-readonly .fui-switchbutton-input,
+:root .fui-switchbutton-readonly .fui-switchbutton-label {
   cursor: default;
 }
 
-.fui-switchbutton {
+:root .fui-switchbutton {
   --fui-switchbutton-border: #bbb;
   --fui-switchbutton-on-bg: #ffe48d;
   --fui-switchbutton-on-text: #000;
@@ -161,26 +162,26 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fui-switchbutton-inner {
+  :root .fui-switchbutton-inner {
     transition: none;
   }
 }
 
 @media (forced-colors: active) {
-  .fui-switchbutton-control,
-  .fui-switchbutton-handle {
+  :root .fui-switchbutton-control,
+  :root .fui-switchbutton-handle {
     border-color: CanvasText;
     background: Canvas;
     box-shadow: none;
   }
 
-  .fui-switchbutton-on,
-  .fui-switchbutton-off,
-  .fui-switchbutton-handle {
+  :root .fui-switchbutton-on,
+  :root .fui-switchbutton-off,
+  :root .fui-switchbutton-handle {
     color: CanvasText;
   }
 
-  .fui-switchbutton-disabled {
+  :root .fui-switchbutton-disabled {
     opacity: 1;
   }
 }

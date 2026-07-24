@@ -1,0 +1,12 @@
+<section id="fab-loader-fragment">
+  <strong>Mounted HTML</strong>
+  <script>
+    window.fabLoaderMountOrder = ['inline-first'];
+  </script>
+  <script src="./fab-loader-mounted-script.js"></script>
+  <script>
+    window.fabLoaderMountOrder.push('inline-last');
+    document.getElementById('fab-loader-fragment')
+      .setAttribute('data-script-ready', 'true');
+  </script>
+</section>

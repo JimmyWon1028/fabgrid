@@ -1,9 +1,9 @@
-.fui-checkbox,
-.fui-checkbox * {
+:root .fui-checkbox,
+:root .fui-checkbox * {
   box-sizing: border-box;
 }
 
-.fui-checkbox {
+:root .fui-checkbox {
   --fui-checkbox-accent: #ffab3f;
   --fui-checkbox-border: var(--fui-checkbox-accent);
   --fui-checkbox-bg: var(--fui-control-bg, var(--fg-cell-bg, #fff));
@@ -22,21 +22,21 @@
   vertical-align: middle;
 }
 
-.fui-checkbox-label-before {
+:root .fui-checkbox-label-before {
   flex-direction: row-reverse;
   justify-content: flex-end;
 }
 
-.fui-checkbox-label-after {
+:root .fui-checkbox-label-after {
   flex-direction: row;
 }
 
-.fui-checkbox-label-top {
+:root .fui-checkbox-label-top {
   flex-direction: column-reverse;
   align-items: flex-start;
 }
 
-.fui-checkbox-control {
+:root .fui-checkbox-control {
   position: relative;
   display: inline-flex;
   flex: 0 0 auto;
@@ -46,7 +46,7 @@
   height: 20px;
 }
 
-.fui-checkbox-input {
+:root .fui-checkbox-input {
   position: absolute;
   z-index: 1;
   inset: 0;
@@ -57,7 +57,7 @@
   cursor: pointer;
 }
 
-.fui-checkbox-box {
+:root .fui-checkbox-box {
   position: relative;
   display: block;
   width: 20px;
@@ -69,16 +69,16 @@
   pointer-events: none;
 }
 
-.fui-checkbox-input:hover + .fui-checkbox-box {
+:root .fui-checkbox-input:hover + .fui-checkbox-box {
   background: var(--fui-checkbox-hover);
 }
 
-.fui-checkbox-input:focus-visible + .fui-checkbox-box {
+:root .fui-checkbox-input:focus-visible + .fui-checkbox-box {
   outline: 2px solid var(--fui-checkbox-focus);
   outline-offset: 2px;
 }
 
-.fui-checkbox-checked .fui-checkbox-box::after {
+:root .fui-checkbox-checked .fui-checkbox-box::after {
   position: absolute;
   top: 44%;
   left: 50%;
@@ -90,13 +90,13 @@
   transform: translate(-50%, -55%) rotate(-45deg);
 }
 
-.fui-checkbox-checked .fui-checkbox-box,
-.fui-checkbox-checked .fui-checkbox-input:hover + .fui-checkbox-box {
+:root .fui-checkbox-checked .fui-checkbox-box,
+:root .fui-checkbox-checked .fui-checkbox-input:hover + .fui-checkbox-box {
   border-color: var(--fui-checkbox-accent);
   background: var(--fui-checkbox-accent);
 }
 
-.fui-checkbox-label {
+:root .fui-checkbox-label {
   overflow: hidden;
   color: inherit;
   text-overflow: ellipsis;
@@ -104,44 +104,44 @@
   cursor: pointer;
 }
 
-.fui-checkbox-label-before .fui-checkbox-label {
+:root .fui-checkbox-label-before .fui-checkbox-label {
   margin-right: 8px;
 }
 
-.fui-checkbox-label-after .fui-checkbox-label {
+:root .fui-checkbox-label-after .fui-checkbox-label {
   margin-left: 8px;
 }
 
-.fui-checkbox-label-top .fui-checkbox-label {
+:root .fui-checkbox-label-top .fui-checkbox-label {
   margin-bottom: 5px;
 }
 
-.fui-checkbox-disabled {
+:root .fui-checkbox-disabled {
   opacity: var(--fui-checkbox-disabled-opacity);
 }
 
-.fui-checkbox-disabled .fui-checkbox-input,
-.fui-checkbox-disabled .fui-checkbox-label {
+:root .fui-checkbox-disabled .fui-checkbox-input,
+:root .fui-checkbox-disabled .fui-checkbox-label {
   cursor: default;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fui-checkbox-box {
+  :root .fui-checkbox-box {
     transition: none;
   }
 }
 
 @media (forced-colors: active) {
-  .fui-checkbox-box {
+  :root .fui-checkbox-box {
     border-color: CanvasText;
     background: Canvas;
   }
 
-  .fui-checkbox-checked .fui-checkbox-box::after {
+  :root .fui-checkbox-checked .fui-checkbox-box::after {
     border-color: CanvasText;
   }
 
-  .fui-checkbox-disabled {
+  :root .fui-checkbox-disabled {
     opacity: 1;
   }
 }

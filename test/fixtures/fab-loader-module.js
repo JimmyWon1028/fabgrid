@@ -1,0 +1,1 @@
+window.fabLoaderQueueOrder.push('module');

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>fabLoader Smoke</title>
+  <script src="/dist/fabLoader.js"></script>
+</head>
+<body>
+  <div id="fab-loader-css-probe"></div>
+  <div id="fab-loader-html-target"></div>
+  <pre id="result">{"passed":false}</pre>
+  <script>
+    (function() {
+      'use strict';
+
+      var loader = window.fabLoader;
+      var scriptA = loader.loadScript('/test/fixtures/fab-loader-script.js');
+      var scriptB = loader.loadScript('/test/fixtures/fab-loader-script.js');
+      var cssA = loader.loadCss('/test/fixtures/fab-loader.css');
+      var cssB = loader.loadCss('/test/fixtures/fab-loader.css');
+      var imageA = loader.preloadImage('/test/fixtures/fab-loader-image.svg');
+      var imageB = loader.preloadImage('/test/fixtures/fab-loader-image.svg');
+      var imageList = loader.preloadImage([
+        '/test/fixtures/fab-loader-image.svg'
+      ]);
+      var imageMap = loader.preloadImage({
+        loader: '/test/fixtures/fab-loader-image.svg'
+      });
+      var htmlUrl = '/test/fixtures/fab-loader-fragment.html';
+      var htmlA = loader.loadHtml(htmlUrl);
+      var htmlB = loader.loadHtml(htmlUrl);
+      var htmlList = loader.loadHtml([htmlUrl, htmlUrl]);
+      var htmlMap = loader.loadHtml({
+        first: htmlUrl,
+        second: htmlUrl
+      });
+      var textUrl = '/test/fixtures/fab-loader-text.txt';
+      var textA = loader.loadText(textUrl);
+      var textB = loader.loadHtml(textUrl);
+      var xmlUrl = '/test/fixtures/fab-loader-data.xml';
+      var xmlA = loader.loadXml(xmlUrl);
+      var xmlText = loader.loadText(xmlUrl);
+      var config = loader.getConfig();
+      var loadedResources;
+
+      Promise.all([
+        scriptA,
+        scriptB,
+        cssA,
+        cssB,
+        imageA,
+        imageB,
+        htmlA,
+        htmlB,
+        textA,
+        textB,
+        xmlA,
+        xmlText,
+        imageList,
+        imageMap,
+        htmlList,
+        htmlMap
+      ]).then(function(resources) {
+        loadedResources = resources;
+        return new Promise(function(resolve, reject) {
+          loader.dom('#fab-loader-html-target').load(
+            htmlUrl,
+            function(responseText, status, result) {
+              if (status === 'error') {
+                reject(result);
+                return;
+              }
+              resolve(result);
+            }
+          );
+        });
+      }).then(function() {
+        window.fabLoaderQueueOrder = [];
+        return new Promise(function(resolve, reject) {
+          loader
+            .style(['/test/fixtures/fab-loader.css'])
+            .script('/test/fixtures/fab-loader-script.js')
+            .wait(function() {
+              window.fabLoaderQueueOrder.push('wait');
+            })
+            .module('/test/fixtures/fab-loader-module.js')
+            .run(function() {
+              window.fabLoaderQueueOrder.push('after-module');
+            })
+            .done(resolve)
+            .catch(reject);
+        });
+      }).then(function() {
+        var resources = loadedResources;
+        var target = document.getElementById('fab-loader-html-target');
+        var probe = document.getElementById('fab-loader-css-probe');
+        var fragment = document.getElementById('fab-loader-fragment');
+        var reusableImageA = resources[12][0];
+        var reusableImageB = resources[12][0];
+        var namedImageA = resources[13].loader;
+        var namedImageB = resources[13].loader;
+        var waitQueue = loader.queue();
+        var result = {
+          passed: true,
+          globalPublished: loader.version === '0.12.0',
+          waitAlias: loader.wait === loader.run &&
+            waitQueue.wait === waitQueue.run,
+          domPublished: loader.dom === window.fabDom &&
+            window.$ === window.fabDom,
+          configDefaults: config.script.timeout === 30000 &&
+            config.css.timeout === 30000 &&
+            config.image.timeout === 30000 &&
+            config.text.timeout === 30000 &&
+            config.text.credentials === 'same-origin',
+          queuePassed: JSON.stringify(window.fabLoaderQueueOrder) ===
+            '["wait","module","after-module"]',
+          scriptDeduplicated: resources[0] === resources[1] &&
+            window.fabLoaderStandaloneScriptRuns === 1,
+          cssDeduplicated: resources[2] === resources[3],
+          cssApplied: getComputedStyle(probe).width === '37px',
+          imageDeduplicated: resources[4] !== resources[5] &&
+            resources[4].src === resources[5].src,
+          imageArrayReusable: Array.isArray(resources[12]) &&
+            resources[12].length === 1 &&
+            reusableImageA !== reusableImageB &&
+            reusableImageA.src === reusableImageB.src,
+          imageMapReusable: namedImageA !== namedImageB &&
+            namedImageA.src === namedImageB.src,
+          htmlDeduplicated: resources[6] === resources[7],
+          htmlArrayLoaded: Array.isArray(resources[14]) &&
+            resources[14][0] === resources[6] &&
+            resources[14][1] === resources[6],
+          htmlMapLoaded: resources[15].first === resources[6] &&
+            resources[15].second === resources[6],
+          htmlCached: loader.getHtml(htmlUrl) === resources[6],
+          textSharedWithHtml: resources[8] === resources[9],
+          textCached: loader.getText(textUrl) === resources[8],
+          xmlParsed: resources[10].documentElement.nodeName === 'catalog',
+          xmlTextCached: loader.getText(xmlUrl) === resources[11],
+          htmlMounted: Boolean(fragment && target.contains(fragment)),
+          relativeScriptLoaded: window.fabLoaderMountedScriptRuns === 1,
+          scriptsOrdered: JSON.stringify(window.fabLoaderMountOrder) ===
+            '["inline-first","external","inline-last"]',
+          scriptTouchedDom: fragment &&
+            fragment.getAttribute('data-script-ready') === 'true'
+        };
+        document.getElementById('result').textContent = JSON.stringify(result);
+      }).catch(function(error) {
+        document.getElementById('result').textContent = JSON.stringify({
+          passed: false,
+          error: error && error.message
+        });
+      });
+    }());
+  </script>
+</body>
+</html>

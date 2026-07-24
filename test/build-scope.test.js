@@ -32,6 +32,8 @@ test('default build compiles FabUI core without wrapper bundles', function() {
     smokeSource,
     /\(\?:diagram\|lite\|gantt\|scheduler\|htmleditor\)/
   );
+  assert.match(smokeSource, /fabLoader\(\?:\\\.min\)\?\\\.js/);
+  assert.doesNotMatch(smokeSource, /fabDom\(\?:\\\.min\)\?\\\.js/);
   assert.doesNotMatch(smokeSource, /wrapper outputs are incomplete/);
   assert.doesNotMatch(smokeSource, /'wrapper'/);
 });
@@ -45,6 +47,7 @@ test('all build commands omit ESM output files', function() {
     'build/build-gantt.cjs',
     'build/build-scheduler.cjs',
     'build/build-htmleditor.cjs',
+    'build/build-loader.cjs',
     'build/build-theme.cjs',
     'build/build-vue.cjs',
     'build/build-jquery.cjs'
@@ -60,6 +63,28 @@ test('all build commands omit ESM output files', function() {
     assert.doesNotMatch(source, /format:\s*['"]esm['"]/, filePath);
     assert.doesNotMatch(source, /writeFileSync\([\s\S]{0,160}\.esm\./, filePath);
   });
+});
+
+test('default build preserves descendant pseudo selectors in minified CSS', function() {
+  var tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fabui-core-build-'));
+  var result;
+  var minifiedCss;
+
+  try {
+    result = spawnSync(process.execPath, ['build/build.cjs'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: Object.assign({}, process.env, { FABUI_DIST_DIR: tempDir })
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    minifiedCss = fs.readFileSync(path.join(tempDir, 'fabui.min.css'), 'utf8');
+    assert.match(minifiedCss, /:root :is\(/);
+    assert.match(minifiedCss, /:root :where\(/);
+    assert.doesNotMatch(minifiedCss, /:root:is\(/);
+    assert.doesNotMatch(minifiedCss, /:root:where\(/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test('theme build supports regular and min-only isolated output', function() {
@@ -180,9 +205,14 @@ test('build command contract supports comma-separated scopes', function() {
   assert.match(agents, /`build <scope>,<scope> \[min\]`/);
   assert.match(agents, /`build fabui,htmleditor min`/);
   assert.match(agents, /`build htmleditor min`/);
+  assert.match(agents, /`build loader`/);
+  assert.match(agents, /`build loader min`/);
+  assert.doesNotMatch(agents, /`build dom(?: min)?`/);
   assert.match(agents, /逗號左右不得有空白/);
   assert.match(agents, /`all` 與 `clear` 必須單獨使用/);
   assert.match(readme, /`build fabui,htmleditor min`/);
+  assert.match(readme, /`build loader min`/);
+  assert.doesNotMatch(readme, /`build dom(?: min)?`/);
   assert.match(
     readme,
     /`build htmleditor min` 對應 `npm run build:htmleditor -- min`/

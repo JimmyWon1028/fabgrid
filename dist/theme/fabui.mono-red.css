@@ -1,5 +1,5 @@
 /*! FabGrid theme mono-red | Metro Red palette with monochrome SVG icons */
-/* Values adapted from res/themes/metro-red/{textbox,combo,combobox,calendar,datebox}.css. */
+:root /* Values adapted from res/themes/metro-red/{textbox,:root combo,:root combobox,:root calendar,:root datebox}.css. */
 :root {
   --fui-control-border: #f6c1bc;
   --fui-control-focus: #f0978f;
@@ -29,7 +29,7 @@
 }
 
 /* Component theme overrides. */
-.fui-accordion {
+:root .fui-accordion {
   --fui-accordion-border: #f6c1bc;
   --fui-accordion-bg: #fafafa;
   --fui-accordion-header-bg: #f0e1e3;
@@ -37,7 +37,7 @@
   --fui-accordion-selected-text: #404040;
 }
 
-.fui-button {
+:root .fui-button {
   --fui-button-bg-start: #fff;
   --fui-button-bg-end: #fff;
   --fui-button-bg-hover: #e6e6e6;
@@ -47,8 +47,8 @@
   border-radius: 0;
 }
 
-.fui-datebox-panel,
-.fui-calendar {
+:root .fui-datebox-panel,
+:root .fui-calendar {
   --fui-control-border: #f6c1bc;
   --fui-control-trigger-bg: #f0e1e3;
   --fui-panel-bg: #fafafa;
@@ -68,24 +68,24 @@
   --fui-control-radius: 0;
 }
 
-.fui-accordion {
+:root .fui-accordion {
   --fui-accordion-arrows: url("metro-red/images/accordion_arrows.png");
 }
 
-.fui-accordion .fui-accordion-toggle {
+:root .fui-accordion .fui-accordion-toggle {
   background-image: url("metro-red/images/accordion_arrows.png");
 }
 
-.fui-panel,
-.fui-window {
+:root .fui-panel,
+:root .fui-window {
   --fui-panel-tools: url("metro-red/images/panel_tools.png");
 }
 
-.fui-layout {
+:root .fui-layout {
   --fui-layout-arrows: url("metro-red/images/layout_arrows.png");
 }
 
-.fui-layout {
+:root .fui-layout {
   --fui-layout-splitter: #fafafa;
   --fui-layout-splitter-active: #c75252;
   --fui-layout-expand-bg: #f0e1e3;
@@ -94,7 +94,7 @@
   --fui-layout-font-size: 14px;
 }
 
-.fui-menu {
+:root .fui-menu {
   --fui-menu-bg: #fafafa;
   --fui-menu-border: #dddddd;
   --fui-menu-divider: #e5e5e5;
@@ -104,12 +104,12 @@
   border-radius: 0;
 }
 
-.fui-menu {
+:root .fui-menu {
   --fui-menu-hover-bg: #fde4e1;
   --fui-menu-hover-border: #e45447;
 }
 
-.fui-panel {
+:root .fui-panel {
   --fui-panel-border: #f6c1bc;
   --fui-panel-header-bg: #f0e1e3;
   --fui-panel-header-text: #404040;
@@ -122,7 +122,7 @@
   --fui-panel-font-size: 14px;
 }
 
-.fui-switchbutton {
+:root .fui-switchbutton {
   --fui-switchbutton-border: #c75252;
   --fui-switchbutton-on-bg: #f09090;
   --fui-switchbutton-on-text: #404040;
@@ -134,17 +134,17 @@
   --fui-switchbutton-font-size: 14px;
 }
 
-.fui-tooltip {
+:root .fui-tooltip {
   --fui-tooltip-bg: #fafafa;
   --fui-tooltip-text: #404040;
   --fui-tooltip-radius: 0;
 }
 
-.fui-tooltip {
+:root .fui-tooltip {
   --fui-tooltip-border: #f6c1bc;
 }
 
-.fui-tree {
+:root .fui-tree {
   --fui-tree-icons: url("metro-red/images/tree_icons.png");
   --fui-tree-loading: url("metro-red/images/loading.gif");
   --fui-tree-hover-bg: #fff0e6;
@@ -154,11 +154,11 @@
   --fui-tree-editor-border: #f6c1bc;
 }
 
-.fui-window-mask {
+:root .fui-window-mask {
   --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
 }
 
-.fui-window {
+:root .fui-window {
   --fui-window-border: #f6c1bc;
   --fui-window-frame: #f0e1e3;
   --fui-window-header-bg: transparent;
@@ -174,12 +174,12 @@
   --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
 }
 
-.fui-gantt {
+:root .fui-gantt {
   --fui-gantt-accent: #b83400;
   --fui-gantt-accent-dark: #7c2500;
 }
 
-.fui-scheduler {
+:root .fui-scheduler {
   --fui-scheduler-border: #ddd;
   --fui-scheduler-bg: #fff;
   --fui-scheduler-text: #333;
@@ -191,11 +191,11 @@
   --fui-scheduler-accent: #3b8ec2;
 }
 
-.fui-scheduler {
+:root .fui-scheduler {
   --fui-scheduler-accent: #d85a5a;
 }
 
-.fui-tabs {
+:root .fui-tabs {
   --fui-tabs-radius: 0;
   --fui-tabs-border: #f6c1bc;
   --fui-tabs-header-bg: #f0e1e3;
@@ -218,17 +218,17 @@
   --fui-tabs-drag-indicator: #26acb0;
 }
 
-.fui-tabs .fui-tabs-close {
+:root .fui-tabs .fui-tabs-close {
   background-image: url("mono/tabs-close.svg");
   background-position: center;
 }
 
-.fui-tabs .fui-tabs-scroll-prev {
+:root .fui-tabs .fui-tabs-scroll-prev {
   background-image: url("mono/tabs-prev.svg");
   background-position: center;
 }
 
-.fui-tabs .fui-tabs-scroll-next {
+:root .fui-tabs .fui-tabs-scroll-next {
   background-image: url("mono/tabs-next.svg");
   background-position: center;
 }
@@ -263,7 +263,7 @@
 }
 
 /* Component theme overrides. */
-.fui-button {
+:root .fui-button {
   --fui-button-bg-start: #fff;
   --fui-button-bg-end: #fff;
   --fui-button-bg-hover: #e6e6e6;
@@ -273,7 +273,7 @@
   border-radius: 0;
 }
 
-.fui-menu {
+:root .fui-menu {
   --fui-menu-bg: #fafafa;
   --fui-menu-border: #dddddd;
   --fui-menu-divider: #e5e5e5;
@@ -283,27 +283,27 @@
   border-radius: 0;
 }
 
-.fui-menu {
+:root .fui-menu {
   --fui-menu-hover-bg: #fde4e1;
   --fui-menu-hover-border: #e45447;
 }
 
-.fui-tooltip {
+:root .fui-tooltip {
   --fui-tooltip-bg: #fafafa;
   --fui-tooltip-text: #404040;
   --fui-tooltip-radius: 0;
 }
 
-.fui-tooltip {
+:root .fui-tooltip {
   --fui-tooltip-border: #f6c1bc;
 }
 
-.fui-gantt {
+:root .fui-gantt {
   --fui-gantt-accent: #b83400;
   --fui-gantt-accent-dark: #7c2500;
 }
 
-.fui-scheduler {
+:root .fui-scheduler {
   --fui-scheduler-border: #ddd;
   --fui-scheduler-bg: #fff;
   --fui-scheduler-text: #333;
@@ -315,12 +315,12 @@
   --fui-scheduler-accent: #3b8ec2;
 }
 
-.fui-scheduler {
+:root .fui-scheduler {
   --fui-scheduler-accent: #d85a5a;
 }
 
 /* Mono variants share Metro Gray defaults and override only their palette below. */
-.fui-accordion {
+:root .fui-accordion {
   --fui-accordion-border: #abafb8;
   --fui-accordion-bg: #fafafa;
   --fui-accordion-header-bg: #c7ccd1;
@@ -328,19 +328,19 @@
   --fui-accordion-selected-text: #fff;
 }
 
-.fui-accordion .fui-accordion-expand {
+:root .fui-accordion .fui-accordion-expand {
   background-image: url("mono/accordion-expand.svg");
   background-position: center;
 }
 
-.fui-accordion .fui-accordion-collapse,
-.fui-accordion .fui-accordion-toggle-expanded {
+:root .fui-accordion .fui-accordion-collapse,
+:root .fui-accordion .fui-accordion-toggle-expanded {
   background-image: url("mono/accordion-collapse.svg");
   background-position: center;
 }
 
-.fui-datebox-panel,
-.fui-calendar {
+:root .fui-datebox-panel,
+:root .fui-calendar {
   --fui-control-border: #abafb8;
   --fui-control-trigger-bg: #c7ccd1;
   --fui-panel-bg: #fafafa;
@@ -360,7 +360,7 @@
   --fui-control-radius: 0;
 }
 
-.fui-layout {
+:root .fui-layout {
   --fui-layout-splitter: #fafafa;
   --fui-layout-splitter-active: #84909c;
   --fui-layout-expand-bg: #c7ccd1;
@@ -369,7 +369,7 @@
   --fui-layout-font-size: 14px;
 }
 
-.fui-panel {
+:root .fui-panel {
   --fui-panel-border: #abafb8;
   --fui-panel-header-bg: #c7ccd1;
   --fui-panel-header-text: #404040;
@@ -382,63 +382,63 @@
   --fui-panel-font-size: 14px;
 }
 
-.fui-panel .fui-panel-tool-minimize,
-.fui-window .fui-window-tool-minimize {
+:root .fui-panel .fui-panel-tool-minimize,
+:root .fui-window .fui-window-tool-minimize {
   background-image: url("mono/panel-minimize.svg");
   background-position: center;
 }
 
-.fui-panel .fui-panel-tool-maximize,
-.fui-window .fui-window-tool-maximize {
+:root .fui-panel .fui-panel-tool-maximize,
+:root .fui-window .fui-window-tool-maximize {
   background-image: url("mono/panel-maximize.svg");
   background-position: center;
 }
 
-.fui-panel .fui-panel-tool-restore,
-.fui-window .fui-window-tool-restore {
+:root .fui-panel .fui-panel-tool-restore,
+:root .fui-window .fui-window-tool-restore {
   background-image: url("mono/panel-restore.svg");
   background-position: center;
 }
 
-.fui-panel .fui-panel-tool-close,
-.fui-window .fui-window-tool-close {
+:root .fui-panel .fui-panel-tool-close,
+:root .fui-window .fui-window-tool-close {
   background-image: url("mono/panel-close.svg");
   background-position: center;
 }
 
-.fui-panel .fui-panel-tool-collapse,
-.fui-window .fui-window-tool-collapse {
+:root .fui-panel .fui-panel-tool-collapse,
+:root .fui-window .fui-window-tool-collapse {
   background-image: url("mono/panel-collapse.svg");
   background-position: center;
 }
 
-.fui-panel .fui-panel-tool-expand,
-.fui-window .fui-window-tool-expand {
+:root .fui-panel .fui-panel-tool-expand,
+:root .fui-window .fui-window-tool-expand {
   background-image: url("mono/panel-expand.svg");
   background-position: center;
 }
 
-.fui-layout .fui-layout-button-up {
+:root .fui-layout .fui-layout-button-up {
   background-image: url("mono/layout-up.svg");
   background-position: center;
 }
 
-.fui-layout .fui-layout-button-down {
+:root .fui-layout .fui-layout-button-down {
   background-image: url("mono/layout-down.svg");
   background-position: center;
 }
 
-.fui-layout .fui-layout-button-left {
+:root .fui-layout .fui-layout-button-left {
   background-image: url("mono/layout-left.svg");
   background-position: center;
 }
 
-.fui-layout .fui-layout-button-right {
+:root .fui-layout .fui-layout-button-right {
   background-image: url("mono/layout-right.svg");
   background-position: center;
 }
 
-.fui-switchbutton {
+:root .fui-switchbutton {
   --fui-switchbutton-border: #84909c;
   --fui-switchbutton-on-bg: #84909c;
   --fui-switchbutton-on-text: #fff;
@@ -450,7 +450,7 @@
   --fui-switchbutton-font-size: 14px;
 }
 
-.fui-tree {
+:root .fui-tree {
   --fui-tree-loading: url("mono/loading.svg");
   --fui-tree-hover-bg: #E6E6E6;
   --fui-tree-hover-text: #404040;
@@ -459,86 +459,86 @@
   --fui-tree-editor-border: #abafb8;
 }
 
-.fui-tree .fui-tree-expander-closed::before {
+:root .fui-tree .fui-tree-expander-closed::before {
   background-image: url("mono/tree-expand.svg");
   background-position: center;
 }
 
-.fui-tree .fui-tree-expander-open::before {
+:root .fui-tree .fui-tree-expander-open::before {
   background-image: url("mono/tree-collapse.svg");
   background-position: center;
 }
 
-.fui-tree .fui-tree-checkbox-unchecked::before {
+:root .fui-tree .fui-tree-checkbox-unchecked::before {
   background-image: url("mono/tree-checkbox-unchecked.svg");
   background-position: center;
 }
 
-.fui-tree .fui-tree-checkbox-checked::before {
+:root .fui-tree .fui-tree-checkbox-checked::before {
   background-image: url("mono/tree-checkbox-checked.svg");
   background-position: center;
 }
 
-.fui-tree .fui-tree-checkbox-mixed::before {
+:root .fui-tree .fui-tree-checkbox-mixed::before {
   background-image: url("mono/tree-checkbox-mixed.svg");
   background-position: center;
 }
 
-.fui-tree .fui-tree-icon-folder::before {
+:root .fui-tree .fui-tree-icon-folder::before {
   background-image: url("mono/tree-folder.svg");
   background-position: center;
 }
 
-.fui-tree .fui-tree-icon-folder-open::before {
+:root .fui-tree .fui-tree-icon-folder-open::before {
   background-image: url("mono/tree-folder-open.svg");
   background-position: center;
 }
 
-.fui-tree .fui-tree-icon-file::before {
+:root .fui-tree .fui-tree-icon-file::before {
   background-image: url("mono/tree-file.svg");
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-indent-line::before {
+:root .fui-tree.fui-tree-lines .fui-tree-indent-line::before {
   background-image: url("mono/tree-line.svg");
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-expander-open::before {
+:root .fui-tree.fui-tree-lines .fui-tree-expander-open::before {
   background-image: url("mono/tree-line-collapse.svg");
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-expander-closed::before {
+:root .fui-tree.fui-tree-lines .fui-tree-expander-closed::before {
   background-image: url("mono/tree-line-expand.svg");
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-expander-empty::before {
+:root .fui-tree.fui-tree-lines .fui-tree-expander-empty::before {
   background-image: url("mono/tree-line-empty.svg");
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-open::before {
+:root .fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-open::before {
   background-image: url("mono/tree-line-last-collapse.svg");
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-closed::before {
+:root .fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-closed::before {
   background-image: url("mono/tree-line-last-expand.svg");
   background-position: center;
 }
 
-.fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-empty::before {
+:root .fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-empty::before {
   background-image: url("mono/tree-line-last-empty.svg");
   background-position: center;
 }
 
-.fui-window-mask {
+:root .fui-window-mask {
   --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
 }
 
-.fui-window {
+:root .fui-window {
   --fui-window-border: #abafb8;
   --fui-window-frame: #c7ccd1;
   --fui-window-header-bg: transparent;
@@ -555,7 +555,7 @@
 }
 
 /* Mono Red keeps Metro Red component colors after the shared icon rules. */
-.fui-accordion {
+:root .fui-accordion {
   --fui-accordion-border: #f6c1bc;
   --fui-accordion-bg: #fafafa;
   --fui-accordion-header-bg: #f0e1e3;
@@ -563,8 +563,8 @@
   --fui-accordion-selected-text: #404040;
 }
 
-.fui-datebox-panel,
-.fui-calendar {
+:root .fui-datebox-panel,
+:root .fui-calendar {
   --fui-control-border: #f6c1bc;
   --fui-control-trigger-bg: #f0e1e3;
   --fui-panel-bg: #fafafa;
@@ -584,7 +584,7 @@
   --fui-control-radius: 0;
 }
 
-.fui-layout {
+:root .fui-layout {
   --fui-layout-splitter: #fafafa;
   --fui-layout-splitter-active: #c75252;
   --fui-layout-expand-bg: #f0e1e3;
@@ -593,7 +593,7 @@
   --fui-layout-font-size: 14px;
 }
 
-.fui-panel {
+:root .fui-panel {
   --fui-panel-border: #f6c1bc;
   --fui-panel-header-bg: #f0e1e3;
   --fui-panel-header-text: #404040;
@@ -606,7 +606,7 @@
   --fui-panel-font-size: 14px;
 }
 
-.fui-switchbutton {
+:root .fui-switchbutton {
   --fui-switchbutton-border: #c75252;
   --fui-switchbutton-on-bg: #f09090;
   --fui-switchbutton-on-text: #404040;
@@ -618,7 +618,7 @@
   --fui-switchbutton-font-size: 14px;
 }
 
-.fui-tree {
+:root .fui-tree {
   --fui-tree-loading: url("mono/loading.svg");
   --fui-tree-hover-bg: #fff0e6;
   --fui-tree-hover-text: #404040;
@@ -627,7 +627,7 @@
   --fui-tree-editor-border: #f6c1bc;
 }
 
-.fui-window {
+:root .fui-window {
   --fui-window-border: #f6c1bc;
   --fui-window-frame: #f0e1e3;
   --fui-window-header-bg: transparent;
@@ -643,180 +643,180 @@
   --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
 }
 
-.pagination-first {
+:root .pagination-first {
   background-image: url("mono/pagination-first.svg");
 }
 
-.pagination-prev {
+:root .pagination-prev {
   background-image: url("mono/pagination-prev.svg");
 }
 
-.pagination-next {
+:root .pagination-next {
   background-image: url("mono/pagination-next.svg");
 }
 
-.pagination-last {
+:root .pagination-last {
   background-image: url("mono/pagination-last.svg");
 }
 
-.pagination-load {
+:root .pagination-load {
   background-image: url("mono/pagination-load.svg");
 }
 
-.pagination-loading,
-.fui-tabs-loading {
+:root .pagination-loading,
+:root .fui-tabs-loading {
   background-image: url("mono/loading.svg");
 }
 
-.icon-datebox {
+:root .icon-datebox {
   background-image: url("mono/datebox_arrow.svg");
 }
 
-.icon-refwin,
-.icon-window {
+:root .icon-refwin,
+:root .icon-window {
   background-image: url("mono/refwin.svg");
 }
 
-.icon-export {
+:root .icon-export {
   background-image: url("mono/export.svg");
 }
 
-.icon-import {
+:root .icon-import {
   background-image: url("mono/import.svg");
 }
 
-.icon-excel {
+:root .icon-excel {
   background-image: url("mono/excel.svg");
 }
 
-.icon-add {
+:root .icon-add {
   background-image: url("mono/edit_add.svg");
 }
 
-.icon-edit,
-.icon-pencil {
+:root .icon-edit,
+:root .icon-pencil {
   background-image: url("mono/pencil.svg");
 }
 
-.icon-remove {
+:root .icon-remove {
   background-image: url("mono/edit_remove.svg");
 }
 
-.icon-save {
+:root .icon-save {
   background-image: url("mono/filesave.svg");
 }
 
-.icon-cut {
+:root .icon-cut {
   background-image: url("mono/cut.svg");
 }
 
-.icon-ok {
+:root .icon-ok {
   background-image: url("mono/ok.svg");
 }
 
-.icon-cancel {
+:root .icon-cancel {
   background-image: url("mono/cancel.svg");
 }
 
-.icon-close {
+:root .icon-close {
   background-image: url("mono/close.svg");
 }
 
-.icon-clear,
-.fg-filter-menu-clear .fg-filter-menu-funnel {
+:root .icon-clear,
+:root .fg-filter-menu-clear .fg-filter-menu-funnel {
   background-image: url("mono/clear.svg");
 }
 
-.icon-check {
+:root .icon-check {
   background-image: url("mono/check.svg");
 }
 
-.icon-fullscreen {
+:root .icon-fullscreen {
   background-image: url("mono/fullscreen.svg");
 }
 
-.icon-projector-screen {
+:root .icon-projector-screen {
   background-image: url("mono/projector-screen.svg");
 }
 
-.icon-search {
+:root .icon-search {
   background-image: url("mono/search.svg");
 }
 
-.icon-print {
+:root .icon-print {
   background-image: url("mono/print.svg");
 }
 
-.icon-reload {
+:root .icon-reload {
   background-image: url("mono/reload.svg");
 }
 
-.icon-help {
+:root .icon-help {
   background-image: url("mono/help.svg");
 }
 
-.icon-back {
+:root .icon-back {
   background-image: url("mono/back.svg");
 }
 
-.icon-undo {
+:root .icon-undo {
   background-image: url("mono/undo.svg");
 }
 
-.icon-redo {
+:root .icon-redo {
   background-image: url("mono/redo.svg");
 }
 
-.icon-row-number {
+:root .icon-row-number {
   background-image: url("mono/row-number.svg");
 }
 
-.icon-filter {
+:root .icon-filter {
   background-image: url("mono/filter.svg");
 }
 
-.icon-lock {
+:root .icon-lock {
   background-image: url("mono/lock.svg");
 }
 
-.icon-man {
+:root .icon-man {
   background-image: url("mono/man.svg");
 }
 
-.icon-mini-add {
+:root .icon-mini-add {
   background-image: url("mono/mini_add.svg");
 }
 
-.icon-mini-edit {
+:root .icon-mini-edit {
   background-image: url("mono/mini_edit.svg");
 }
 
-.icon-mini-refresh {
+:root .icon-mini-refresh {
   background-image: url("mono/mini_refresh.svg");
 }
 
-.icon-more {
+:root .icon-more {
   background-image: url("mono/more.svg");
 }
 
-.icon-no {
+:root .icon-no {
   background-image: url("mono/no.svg");
 }
 
-.icon-sum {
+:root .icon-sum {
   background-image: url("mono/sum.svg");
 }
 
-.icon-tip {
+:root .icon-tip {
   background-image: url("mono/tip.svg");
 }
 
-.icon-blank {
+:root .icon-blank {
   background-image: url("mono/blank.svg");
 }
 
-.fg-root,
-.fui-tabs {
+:root .fg-root,
+:root .fui-tabs {
   --fg-border: #bbb;
   --fg-border-strong: #bbb;
   --fg-frozen-divider: #aaa;
@@ -839,99 +839,99 @@
   color: #404040;
 }
 
-.fg-root .fg-header,
-.fg-root .fg-header-frozen,
-.fg-root .fg-header-frozen-right,
-.fg-root .fg-footer,
-.fg-root .fg-footer-frozen,
-.fg-root .fg-footer-frozen-right {
+:root .fg-root .fg-header,
+:root .fg-root .fg-header-frozen,
+:root .fg-root .fg-header-frozen-right,
+:root .fg-root .fg-footer,
+:root .fg-root .fg-footer-frozen,
+:root .fg-root .fg-footer-frozen-right {
   background: #EBECED;
 }
 
-.fg-root .fg-row-header-top,
-.fg-root .fg-selection-top,
-.fg-root .fg-header-cell,
-.fg-root .fg-footer-row-header,
-.fg-root .fg-footer-selection,
-.fg-root .fg-footer-cell,
-.fg-root .fg-row-header-cell {
+:root .fg-root .fg-row-header-top,
+:root .fg-root .fg-selection-top,
+:root .fg-root .fg-header-cell,
+:root .fg-root .fg-footer-row-header,
+:root .fg-root .fg-footer-selection,
+:root .fg-root .fg-footer-cell,
+:root .fg-root .fg-row-header-cell {
   background-color: var(--fg-header-bg);
   color: gray;
 }
 
-.fg-root .fg-body,
-.fg-root .fg-frozen-pane,
-.fg-root .fg-frozen-pane-right,
-.fg-root .fg-selection-pane,
-.fg-root .fg-cell,
-.fg-root .fg-selection-cell {
+:root .fg-root .fg-body,
+:root .fg-root .fg-frozen-pane,
+:root .fg-root .fg-frozen-pane-right,
+:root .fg-root .fg-selection-pane,
+:root .fg-root .fg-cell,
+:root .fg-root .fg-selection-cell {
   background: #fafafa;
   color: #404040;
 }
 
-.fg-root .fg-cell.fg-row-even,
-.fg-root .fg-selection-cell.fg-row-even,
-.fg-root .fg-selection-cell.fg-row-alt,
-.fg-root .fg-cell.fg-row-alt {
+:root .fg-root .fg-cell.fg-row-even,
+:root .fg-root .fg-selection-cell.fg-row-even,
+:root .fg-root .fg-selection-cell.fg-row-alt,
+:root .fg-root .fg-cell.fg-row-alt {
   background-color: #f5f5f5;
   color: #404040;
 }
 
-.fg-root .fg-cell.fg-row-hovered,
-.fg-root .fg-selection-cell.fg-row-hovered,
-.fg-root .fg-cell:hover,
-.fg-root .fg-cell.fg-row-hovered:hover {
+:root .fg-root .fg-cell.fg-row-hovered,
+:root .fg-root .fg-selection-cell.fg-row-hovered,
+:root .fg-root .fg-cell:hover,
+:root .fg-root .fg-cell.fg-row-hovered:hover {
   background: #fff0e7;
   color: #404040;
 }
 
-.fg-root .fg-cell.fg-row-selected,
-.fg-root .fg-selection-cell.fg-row-selected,
-.fg-root .fg-cell.fg-row-selected:hover,
-.fg-root .fg-row-selected.fg-selected {
+:root .fg-root .fg-cell.fg-row-selected,
+:root .fg-root .fg-selection-cell.fg-row-selected,
+:root .fg-root .fg-cell.fg-row-selected:hover,
+:root .fg-root .fg-row-selected.fg-selected {
   background: #f09090;
   color: #404040;
 }
 
-.fg-root .fg-selected {
+:root .fg-root .fg-selected {
   background: #fff0e7;
   color: #404040;
   outline-color: rgb(109, 203, 66);
 }
 
-.fg-root .fg-cell.fg-row-selected.fg-selected {
+:root .fg-root .fg-cell.fg-row-selected.fg-selected {
   background: var(--fg-row-hover-bg);
   color: var(--fg-cell-text);
 }
 
-.fg-root .fg-sort-asc {
+:root .fg-root .fg-sort-asc {
   border-bottom-color: #333;
 }
 
-.fg-root .fg-sort-desc {
+:root .fg-root .fg-sort-desc {
   border-top-color: #333;
 }
 
-.fg-root .fg-editor {
+:root .fg-root .fg-editor {
   border-color: #a9cf97;
 }
 
-.fg-root .pagination-first {
+:root .fg-root .pagination-first {
   background: url("mono/pagination-first.svg") no-repeat center;
 }
 
-.fg-root .pagination-prev {
+:root .fg-root .pagination-prev {
   background: url("mono/pagination-prev.svg") no-repeat center;
 }
 
-.fg-root .pagination-next {
+:root .fg-root .pagination-next {
   background: url("mono/pagination-next.svg") no-repeat center;
 }
 
-.fg-root .pagination-last {
+:root .fg-root .pagination-last {
   background: url("mono/pagination-last.svg") no-repeat center;
 }
 
-.fg-root .pagination-load {
+:root .fg-root .pagination-load {
   background: url("mono/pagination-load.svg") no-repeat center;
 }

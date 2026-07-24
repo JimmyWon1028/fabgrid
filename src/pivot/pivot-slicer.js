@@ -113,6 +113,7 @@ export function createPivotSlicerFactory(
     this.selectAllLabel.className = 'fg-pivot-slicer-select-all';
     this.selectAllInput = document.createElement('input');
     this.selectAllInput.type = 'checkbox';
+    this.selectAllInput.className = 'fg-pivot-slicer-check';
     this.selectAllText = document.createElement('span');
     this.selectAllLabel.appendChild(this.selectAllInput);
     this.selectAllLabel.appendChild(this.selectAllText);
@@ -124,9 +125,11 @@ export function createPivotSlicerFactory(
     this.footerElement.className = 'fg-pivot-slicer-footer';
     this.applyButton = document.createElement('button');
     this.applyButton.type = 'button';
+    this.applyButton.className = 'fg-pivot-slicer-button';
     this.applyButton.setAttribute('data-action', 'apply');
     this.clearButton = document.createElement('button');
     this.clearButton.type = 'button';
+    this.clearButton.className = 'fg-pivot-slicer-button';
     this.clearButton.setAttribute('data-action', 'clear');
     this.footerElement.appendChild(this.clearButton);
     this.footerElement.appendChild(this.applyButton);
@@ -244,6 +247,7 @@ export function createPivotSlicerFactory(
       label.setAttribute('role', 'option');
       input = document.createElement('input');
       input.type = 'checkbox';
+      input.className = 'fg-pivot-slicer-check';
       input.checked = this._draftKeys[key] === true;
       input.setAttribute('data-value-key', key);
       label.setAttribute('aria-selected', input.checked ? 'true' : 'false');

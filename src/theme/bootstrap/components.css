@@ -1,4 +1,4 @@
-/* Values adapted from res/themes/bootstrap/{textbox,combo,combobox,calendar,datebox}.css. */
+:root /* Values adapted from res/themes/bootstrap/{textbox,:root combo,:root combobox,:root calendar,:root datebox}.css. */
 :root {
   --fui-control-border: #D4D4D4;
   --fui-control-focus: #bbbbbb;
@@ -28,7 +28,7 @@
 }
 
 /* Component theme overrides. */
-.fui-accordion {
+:root .fui-accordion {
   --fui-accordion-border: #d4d4d4;
   --fui-accordion-bg: #fff;
   --fui-accordion-header-bg: #f2f2f2;
@@ -36,15 +36,15 @@
   --fui-accordion-selected-text: #fff;
 }
 
-.fui-button {
+:root .fui-button {
   --fui-button-bg-end: #e6e6e6;
   --fui-button-bg-hover: #e6e6e6;
   --fui-button-border: #bbb;
   --fui-button-border-hover: #adadad;
 }
 
-.fui-datebox-panel,
-.fui-calendar {
+:root .fui-datebox-panel,
+:root .fui-calendar {
   --fui-control-border: #d4d4d4;
   --fui-control-trigger-bg: #f2f2f2;
   --fui-panel-bg: #fff;
@@ -63,24 +63,24 @@
   --fui-control-icon: #555;
 }
 
-.fui-accordion {
+:root .fui-accordion {
   --fui-accordion-arrows: url('./images/accordion_arrows.png');
 }
 
-.fui-accordion .fui-accordion-toggle {
+:root .fui-accordion .fui-accordion-toggle {
   background-image: url('./images/accordion_arrows.png');
 }
 
-.fui-panel,
-.fui-window {
+:root .fui-panel,
+:root .fui-window {
   --fui-panel-tools: url('./images/panel_tools.png');
 }
 
-.fui-layout {
+:root .fui-layout {
   --fui-layout-arrows: url('./images/layout_arrows.png');
 }
 
-.fui-layout {
+:root .fui-layout {
   --fui-layout-splitter: #eee;
   --fui-layout-splitter-active: #bbb;
   --fui-layout-expand-bg: #f2f2f2;
@@ -89,7 +89,7 @@
   --fui-layout-font-size: 12px;
 }
 
-.fui-menu {
+:root .fui-menu {
   --fui-menu-border: #cccccc;
   --fui-menu-divider: #e5e5e5;
   --fui-menu-hover-bg: #e6e6e6;
@@ -97,7 +97,7 @@
   --fui-menu-text: #333333;
 }
 
-.fui-panel {
+:root .fui-panel {
   --fui-panel-border: #d4d4d4;
   --fui-panel-header-bg: linear-gradient(to bottom, #fff 0, #f2f2f2 100%);
   --fui-panel-header-text: #777;
@@ -110,7 +110,7 @@
   --fui-panel-font-size: 12px;
 }
 
-.fui-switchbutton {
+:root .fui-switchbutton {
   --fui-switchbutton-border: #bbb;
   --fui-switchbutton-on-bg: #0081c2;
   --fui-switchbutton-on-text: #fff;
@@ -122,12 +122,12 @@
   --fui-switchbutton-font-size: 12px;
 }
 
-.fui-tooltip {
+:root .fui-tooltip {
   --fui-tooltip-border: #D4D4D4;
   --fui-tooltip-text: #333;
 }
 
-.fui-tree {
+:root .fui-tree {
   --fui-tree-icons: url('./images/tree_icons.png');
   --fui-tree-loading: url('./images/loading.gif');
   --fui-tree-font-size: 12px;
@@ -138,11 +138,11 @@
   --fui-tree-editor-border: #D4D4D4;
 }
 
-.fui-window-mask {
+:root .fui-window-mask {
   --fui-window-mask-bg: rgba(204, 204, 204, 0.4);
 }
 
-.fui-window {
+:root .fui-window {
   --fui-window-border: #d4d4d4;
   --fui-window-frame: linear-gradient(to bottom, #fff 0, #f2f2f2 20%);
   --fui-window-header-bg: transparent;
@@ -159,12 +159,12 @@
   --fui-window-font-size: 12px;
 }
 
-.fui-gantt {
+:root .fui-gantt {
   --fui-gantt-accent: #337ab7;
   --fui-gantt-accent-dark: #245580;
 }
 
-.fui-scheduler {
+:root .fui-scheduler {
   --fui-scheduler-border: #d4d4d4;
   --fui-scheduler-bg: #fff;
   --fui-scheduler-text: #333;

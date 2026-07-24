@@ -1,14 +1,14 @@
-.fui-datebox .fui-datebox-trigger {
+:root .fui-datebox .fui-datebox-trigger {
   background-color: var(--fui-control-trigger-bg, #e0ecff);
 }
 
-.fui-datebox .fui-datebox-trigger:hover,
-.fui-datebox .fui-datebox-trigger:focus-visible,
-.fui-datebox-open .fui-datebox-trigger {
+:root .fui-datebox .fui-datebox-trigger:hover,
+:root .fui-datebox .fui-datebox-trigger:focus-visible,
+:root .fui-datebox-open .fui-datebox-trigger {
   background-color: var(--fui-control-hover, #eaf2ff);
 }
 
-.fui-datebox-panel {
+:root .fui-datebox-panel {
   position: absolute;
   z-index: 11000;
   box-sizing: border-box;
@@ -20,18 +20,18 @@
   font: 14px Arial, sans-serif;
 }
 
-.fui-datebox-panel[hidden] {
+:root .fui-datebox-panel[hidden] {
   display: none;
 }
 
-.fui-datebox-shared-calendar {
+:root .fui-datebox-shared-calendar {
   box-sizing: border-box;
   width: 250px;
   border: 1px solid var(--fui-control-border, #95b8e7);
   background: var(--fui-panel-bg, #fff);
 }
 
-.fui-calendar {
+:root .fui-calendar {
   position: relative;
   box-sizing: border-box;
   min-height: 250px;
@@ -40,13 +40,13 @@
   background: var(--fui-panel-bg, #fff);
 }
 
-.fui-calendar-header {
+:root .fui-calendar-header {
   position: relative;
   height: 36px;
   background: var(--fui-control-trigger-bg, #e0ecff);
 }
 
-.fui-calendar-title {
+:root .fui-calendar-title {
   position: absolute;
   top: 4px;
   left: 50%;
@@ -62,14 +62,14 @@
   white-space: nowrap;
 }
 
-.fui-calendar-title:hover,
-.fui-calendar-nav:hover,
-.fui-calendar-menu-month:hover {
+:root .fui-calendar-title:hover,
+:root .fui-calendar-nav:hover,
+:root .fui-calendar-menu-month:hover {
   background: var(--fui-control-hover, #eaf2ff);
   color: var(--fui-control-hover-text, #000);
 }
 
-.fui-calendar-nav {
+:root .fui-calendar-nav {
   position: absolute;
   top: 10px;
   width: 16px;
@@ -81,8 +81,8 @@
   cursor: pointer;
 }
 
-.fui-calendar-nav::before,
-.fui-calendar-nav::after {
+:root .fui-calendar-nav::before,
+:root .fui-calendar-nav::after {
   content: '';
   position: absolute;
   top: 4px;
@@ -92,69 +92,83 @@
   border-left: 2px solid var(--fui-control-icon, #555);
 }
 
-.fui-calendar-prevyear { left: 10px; }
-.fui-calendar-prevmonth { left: 30px; }
-.fui-calendar-nextmonth { right: 30px; }
-.fui-calendar-nextyear { right: 10px; }
+:root .fui-calendar-prevyear { left: 10px; }
+:root .fui-calendar-prevmonth { left: 30px; }
+:root .fui-calendar-nextmonth { right: 30px; }
+:root .fui-calendar-nextyear { right: 10px; }
 
-.fui-calendar-prevyear::before,
-.fui-calendar-prevyear::after,
-.fui-calendar-prevmonth::before {
+:root .fui-calendar-prevyear::before,
+:root .fui-calendar-prevyear::after,
+:root .fui-calendar-prevmonth::before {
   transform: rotate(-45deg);
 }
 
-.fui-calendar-nextyear::before,
-.fui-calendar-nextyear::after,
-.fui-calendar-nextmonth::before {
+:root .fui-calendar-nextyear::before,
+:root .fui-calendar-nextyear::after,
+:root .fui-calendar-nextmonth::before {
   transform: rotate(135deg);
 }
 
-.fui-calendar-prevmonth::before,
-.fui-calendar-nextmonth::before { left: 5px; }
-.fui-calendar-prevmonth::after,
-.fui-calendar-nextmonth::after { display: none; }
-.fui-calendar-prevyear::before { left: 3px; }
-.fui-calendar-prevyear::after { left: 8px; }
-.fui-calendar-nextyear::before { left: 1px; }
-.fui-calendar-nextyear::after { left: 6px; }
+:root .fui-calendar-prevmonth::before,
+:root .fui-calendar-nextmonth::before { left: 5px; }
+:root .fui-calendar-prevmonth::after,
+:root .fui-calendar-nextmonth::after { display: none; }
+:root .fui-calendar-prevyear::before { left: 3px; }
+:root .fui-calendar-prevyear::after { left: 8px; }
+:root .fui-calendar-nextyear::before { left: 1px; }
+:root .fui-calendar-nextyear::after { left: 6px; }
 
-.fui-calendar-body {
+:root .fui-calendar-body {
   height: 212px;
   background: var(--fui-panel-bg, #fff);
 }
 
-.fui-calendar-show-lunar {
+:root .fui-calendar-show-lunar {
   min-height: 404px;
 }
 
-.fui-calendar-show-lunar .fui-calendar-body {
+:root .fui-calendar-show-lunar .fui-calendar-body {
   height: 366px;
 }
 
-.fui-calendar-body table {
+:root .fui-calendar-body table {
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   font-size: 14px;
 }
 
-.fui-calendar-body th {
+:root .fui-calendar-body th {
+  box-sizing: border-box;
   height: 28px;
   padding: 4px 0;
+  border: 0;
   background: var(--fui-calendar-week-bg, #f4f4f4);
   color: var(--fui-calendar-week-text, #4d4d4d);
   font-weight: normal;
   text-align: center;
 }
 
-.fui-calendar-body td {
+:root .fui-calendar-body td {
+  box-sizing: border-box;
   padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   text-align: center;
 }
 
-.fui-calendar-day {
+:root .fui-calendar-day {
   box-sizing: border-box;
   width: 100%;
   height: 100%;
@@ -168,7 +182,7 @@
   cursor: pointer;
 }
 
-.fui-calendar-show-lunar .fui-calendar-day {
+:root .fui-calendar-show-lunar .fui-calendar-day {
   display: flex;
   min-height: 52px;
   flex-direction: column;
@@ -177,44 +191,44 @@
   line-height: 1.2;
 }
 
-.fui-calendar-solar {
+:root .fui-calendar-solar {
   font-size: 14px;
   font-weight: bold;
 }
 
-.fui-calendar-lunar {
+:root .fui-calendar-lunar {
   min-height: 13px;
   margin-top: 2px;
   font-size: 11px;
   white-space: nowrap;
 }
 
-.fui-calendar-day:hover {
+:root .fui-calendar-day:hover {
   padding: 0;
   border: 1px solid var(--fui-control-hover-border, var(--fui-control-hover, #b7d2ff));
   background: var(--fui-control-hover, #eaf2ff);
   color: var(--fui-control-hover-text, #000);
 }
 
-.fui-calendar-other-month { opacity: 0.3; }
-.fui-calendar-sunday { color: #c22; }
-.fui-calendar-saturday { color: #00a000; }
-.fui-calendar-today { color: #00f; }
+:root .fui-calendar-other-month { opacity: 0.3; }
+:root .fui-calendar-sunday { color: #c22; }
+:root .fui-calendar-saturday { color: #00a000; }
+:root .fui-calendar-today { color: #00f; }
 
-.fui-calendar-show-lunar .fui-calendar-saturday {
+:root .fui-calendar-show-lunar .fui-calendar-saturday {
   color: #f0441e;
 }
 
-.fui-calendar-selected,
-.fui-calendar-selected:hover {
+:root .fui-calendar-selected,
+:root .fui-calendar-selected:hover {
   padding: 0;
   border: 1px solid var(--fui-control-selected-border, var(--fui-control-selected, #ffab3f));
   background: var(--fui-control-selected, #ffe48d);
   color: var(--fui-control-selected-text, #000);
 }
 
-.fui-calendar-disabled,
-.fui-calendar-disabled:hover {
+:root .fui-calendar-disabled,
+:root .fui-calendar-disabled:hover {
   padding: 1px;
   border: 0;
   background: transparent;
@@ -222,12 +236,12 @@
   cursor: default;
 }
 
-.fui-calendar-week-number {
+:root .fui-calendar-week-number {
   color: #999 !important;
   font-size: 12px;
 }
 
-.fui-calendar-menu {
+:root .fui-calendar-menu {
   position: absolute;
   top: 37px;
   right: 1px;
@@ -237,9 +251,9 @@
   background: var(--fui-panel-bg, #fff);
 }
 
-.fui-calendar-menu[hidden] { display: none; }
+:root .fui-calendar-menu[hidden] { display: none; }
 
-.fui-calendar-menu-year-row {
+:root .fui-calendar-menu-year-row {
   display: grid;
   grid-template-columns: 28px 80px 28px;
   align-items: center;
@@ -249,7 +263,7 @@
   padding: 0 0 8px;
 }
 
-.fui-calendar-menu-year {
+:root .fui-calendar-menu-year {
   box-sizing: border-box;
   width: 80px;
   height: 28px;
@@ -264,7 +278,7 @@
   text-align: center;
 }
 
-.fui-calendar-menu-year-nav {
+:root .fui-calendar-menu-year-nav {
   position: relative;
   box-sizing: border-box;
   width: 28px;
@@ -276,12 +290,12 @@
   cursor: pointer;
 }
 
-.fui-calendar-menu-year-nav:hover,
-.fui-calendar-menu-year-nav:focus-visible {
+:root .fui-calendar-menu-year-nav:hover,
+:root .fui-calendar-menu-year-nav:focus-visible {
   background: var(--fui-control-hover, #eaf2ff);
 }
 
-.fui-calendar-menu-year-nav::before {
+:root .fui-calendar-menu-year-nav::before {
   content: '';
   position: absolute;
   top: 9px;
@@ -291,17 +305,17 @@
   border-left: 2px solid var(--fui-control-icon, #555);
 }
 
-.fui-calendar-menu-prevyear::before {
+:root .fui-calendar-menu-prevyear::before {
   left: 11px;
   transform: rotate(-45deg);
 }
 
-.fui-calendar-menu-nextyear::before {
+:root .fui-calendar-menu-nextyear::before {
   right: 11px;
   transform: rotate(135deg);
 }
 
-.fui-calendar-menu-months {
+:root .fui-calendar-menu-months {
   display: grid;
   height: calc(100% - 44px);
   grid-template-columns: repeat(4, 1fr);
@@ -309,7 +323,7 @@
   gap: 4px;
 }
 
-.fui-calendar-menu-month {
+:root .fui-calendar-menu-month {
   min-height: 38px;
   padding: 0 2px;
   border: 0;
@@ -320,22 +334,22 @@
   cursor: pointer;
 }
 
-.fui-calendar-menu-month-selected,
-.fui-calendar-menu-month-selected:hover {
+:root .fui-calendar-menu-month-selected,
+:root .fui-calendar-menu-month-selected:hover {
   border: 1px solid var(--fui-control-selected-border, var(--fui-control-selected, #ffab3f));
   background: var(--fui-control-selected, #ffe48d);
   color: var(--fui-control-selected-text, #000);
 }
 
-.fui-calendar-menu-month-disabled,
-.fui-calendar-menu-month-disabled:hover {
+:root .fui-calendar-menu-month-disabled,
+:root .fui-calendar-menu-month-disabled:hover {
   border: 0;
   background: transparent;
   opacity: 0.35;
   cursor: default;
 }
 
-.fui-datebox-buttons {
+:root .fui-datebox-buttons {
   display: flex;
   padding: 4px 0;
   border-top: 1px solid var(--fui-control-border, #ddd);
@@ -343,11 +357,11 @@
   text-align: center;
 }
 
-.fui-datebox-buttons[hidden] {
+:root .fui-datebox-buttons[hidden] {
   display: none;
 }
 
-.fui-datebox-button {
+:root .fui-datebox-button {
   flex: 1 1 0;
   height: 22px;
   padding: 0 8px;
@@ -359,5 +373,5 @@
   opacity: 0.6;
 }
 
-.fui-datebox-button:hover,
-.fui-datebox-button:focus-visible { opacity: 1; }
+:root .fui-datebox-button:hover,
+:root .fui-datebox-button:focus-visible { opacity: 1; }
