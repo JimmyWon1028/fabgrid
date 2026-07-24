@@ -52,6 +52,61 @@ export function installFabGridFilterUi(FabGrid, context) {
     }
   };
 
+  FabGrid.prototype.bindFilterMenuViewportEvents = function() {
+    if (this.filterMenuViewportEventsBound || this.disposed) {
+      return;
+    }
+    this.filterMenuViewportEventsBound = true;
+    window.addEventListener('resize', this._boundFilterMenuViewportChange);
+    window.addEventListener('scroll', this._boundFilterMenuViewportChange, true);
+  };
+
+  FabGrid.prototype.unbindFilterMenuViewportEvents = function() {
+    if (!this.filterMenuViewportEventsBound) {
+      return;
+    }
+    this.filterMenuViewportEventsBound = false;
+    window.removeEventListener('resize', this._boundFilterMenuViewportChange);
+    window.removeEventListener('scroll', this._boundFilterMenuViewportChange, true);
+  };
+
+  FabGrid.prototype.handleFilterMenuViewportChange = function(event) {
+    if (!this.isFilterMenuOpen() || !hasClass(this.filterMenu, 'fg-excel-filter-menu')) {
+      return;
+    }
+    if (event && event.target && this.filterMenu.contains(event.target)) {
+      return;
+    }
+    this.positionFilterMenu(this.filterMenuAnchor);
+  };
+
+  FabGrid.prototype.getFilterMenuPortalTarget = function() {
+    var fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fullscreenElement && fullscreenElement.contains(this.root)) {
+      return fullscreenElement;
+    }
+    return document.body || this.root;
+  };
+
+  FabGrid.prototype.portalExcelFilterMenu = function() {
+    var target;
+    if (!this.filterMenu || !hasClass(this.filterMenu, 'fg-excel-filter-menu')) {
+      return;
+    }
+    target = this.getFilterMenuPortalTarget();
+    if (target && this.filterMenu.parentNode !== target) {
+      target.appendChild(this.filterMenu);
+    }
+    this.bindFilterMenuViewportEvents();
+  };
+
+  FabGrid.prototype.restoreFilterMenu = function() {
+    this.unbindFilterMenuViewportEvents();
+    if (this.filterMenu && this.root && this.filterMenu.parentNode !== this.root) {
+      this.root.appendChild(this.filterMenu);
+    }
+  };
+
   FabGrid.prototype.handleContextMenu = function(event) {
     var headerTitle = closest(event.target, 'fg-header-title');
     if (!headerTitle) {
@@ -356,6 +411,10 @@ export function installFabGridFilterUi(FabGrid, context) {
     if (this.isTopLeftMenuOpen()) {
       this.renderTopLeftMenu();
     }
+    if (this.isFilterMenuOpen() && hasClass(this.filterMenu, 'fg-excel-filter-menu')) {
+      this.portalExcelFilterMenu();
+      this.positionFilterMenu(this.filterMenuAnchor);
+    }
     this.invalidate();
   };
 
@@ -371,6 +430,11 @@ export function installFabGridFilterUi(FabGrid, context) {
     this.filterMenuColumn = column;
     this.filterMenuAnchor = anchor;
     this.renderFilterMenu(column);
+    if (hasClass(this.filterMenu, 'fg-excel-filter-menu')) {
+      this.portalExcelFilterMenu();
+    } else {
+      this.restoreFilterMenu();
+    }
     this.filterMenu.style.display = 'block';
     this.positionFilterMenu(anchor);
     if (anchor) {
@@ -384,6 +448,7 @@ export function installFabGridFilterUi(FabGrid, context) {
       this.renderExcelFilterMenu(column);
       return;
     }
+    this.restoreFilterMenu();
     this.filterMenu.className = 'fg-filter-menu';
     this.filterMenu.setAttribute('role', 'menu');
     this.filterMenu.setAttribute('aria-label', this.getText('filter.openMenu', { column: this.getHeaderCellText(column) }));
@@ -734,13 +799,20 @@ export function installFabGridFilterUi(FabGrid, context) {
     viewportHeight = Math.max(0, window.innerHeight || document.documentElement.clientHeight || rootRect.bottom);
     isExcelFilterMenu = hasClass(this.filterMenu, 'fg-excel-filter-menu');
     bottomShadowSpace = isExcelFilterMenu ? 12 : 0;
-    visibleLeft = Math.max(rootRect.left, 8);
-    visibleRight = Math.min(rootRect.right, viewportWidth - 8);
-    visibleTop = Math.max(rootRect.top, 8);
-    visibleBottom = Math.max(
-      visibleTop,
-      Math.min(rootRect.bottom - bottomShadowSpace, viewportHeight - 8 - bottomShadowSpace)
-    );
+    if (isExcelFilterMenu) {
+      visibleLeft = 8;
+      visibleRight = Math.max(visibleLeft, viewportWidth - 8);
+      visibleTop = 8;
+      visibleBottom = Math.max(visibleTop, viewportHeight - 8 - bottomShadowSpace);
+    } else {
+      visibleLeft = Math.max(rootRect.left, 8);
+      visibleRight = Math.min(rootRect.right, viewportWidth - 8);
+      visibleTop = Math.max(rootRect.top, 8);
+      visibleBottom = Math.max(
+        visibleTop,
+        Math.min(rootRect.bottom - bottomShadowSpace, viewportHeight - 8 - bottomShadowSpace)
+      );
+    }
     menuWidth = this.filterMenu.offsetWidth;
     menuHeight = this.filterMenu.offsetHeight;
     belowTop = Math.max(anchorRect.bottom + 2, visibleTop);
@@ -768,8 +840,12 @@ export function installFabGridFilterUi(FabGrid, context) {
       headerRect.left :
       anchorRect.left - menuWidth + anchorRect.width + 4;
     preferredTop = opensAbove ? aboveBottom - menuHeight : belowTop;
-    left = Math.max(visibleLeft, Math.min(preferredLeft, visibleRight - menuWidth)) - rootRect.left;
-    top = Math.max(visibleTop, Math.min(preferredTop, visibleBottom - menuHeight)) - rootRect.top;
+    left = Math.max(visibleLeft, Math.min(preferredLeft, visibleRight - menuWidth));
+    top = Math.max(visibleTop, Math.min(preferredTop, visibleBottom - menuHeight));
+    if (!isExcelFilterMenu) {
+      left -= rootRect.left;
+      top -= rootRect.top;
+    }
     this.filterMenu.style.left = left + 'px';
     this.filterMenu.style.top = top + 'px';
   };
@@ -782,6 +858,7 @@ export function installFabGridFilterUi(FabGrid, context) {
       this.filterMenu.style.display = 'none';
       this.filterMenu.innerHTML = '';
     }
+    this.restoreFilterMenu();
     this.filterMenuColumn = null;
     this.filterMenuAnchor = null;
     this.excelFilterDraft = null;

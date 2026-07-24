@@ -28,6 +28,50 @@ function setConfig(options) {
   return getConfig();
 }
 
+function copyWithTextarea(text) {
+  var textarea;
+  var copied = false;
+  if (typeof document === 'undefined' || !document.body ||
+      typeof document.createElement !== 'function' ||
+      typeof document.execCommand !== 'function') {
+    return false;
+  }
+  textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    copied = document.execCommand('copy') !== false;
+  } catch (error) {
+    copied = false;
+  }
+  document.body.removeChild(textarea);
+  return copied;
+}
+
+var Clipboard = Object.freeze({
+  copy: function(value) {
+    var text = value == null ? '' : String(value);
+    var clipboard = typeof navigator !== 'undefined' ? navigator.clipboard : null;
+    if (clipboard && typeof clipboard.writeText === 'function') {
+      try {
+        return Promise.resolve(clipboard.writeText(text)).then(function() {
+          return true;
+        }, function() {
+          return copyWithTextarea(text);
+        });
+      } catch (error) {
+        return Promise.resolve(copyWithTextarea(text));
+      }
+    }
+    return Promise.resolve(copyWithTextarea(text));
+  }
+});
+
 var controlRegistry = new WeakMap();
 
 function resolveControlElement(element) {
@@ -36855,6 +36899,8 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._boundKeyDown = bind(this, this.handleKeyDown);
     this._boundMouseMove = bind(this, this.handleMouseMove);
     this._boundMouseLeave = bind(this, this.handleMouseLeave);
+    this._boundFocusIn = bind(this, this.handleFocusIn);
+    this._boundFocusOut = bind(this, this.handleFocusOut);
     this._boundPointerDown = bind(this, this.handlePointerDown);
     this._boundPointerMove = bind(this, this.handlePointerMove);
     this._boundPointerUp = bind(this, this.handlePointerUp);
@@ -36970,6 +37016,10 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
 
   FabGrid.prototype = Object.create(Control.prototype);
   FabGrid.prototype.constructor = FabGrid;
+  Object.defineProperty(FabGrid, 'name', {
+    configurable: true,
+    value: 'FabGrid'
+  });
 
   function supportsScrollLinkedHorizontal() {
     return typeof CSS !== 'undefined' &&
@@ -37172,6 +37222,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       'filterChanged',
       'filterModeChanged',
       'formatItem',
+      'gotFocus',
       'groupCollapsedChanged',
       'groupCollapsedChanging',
       'itemsSourceChanged',
@@ -37180,6 +37231,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       'loadingRows',
       'loadError',
       'loadSuccess',
+      'lostFocus',
       'pasted',
       'pastedCell',
       'pasting',
@@ -37235,6 +37287,26 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       if (Object.prototype.hasOwnProperty.call(this.wijmoEvents, name)) {
         this.bindOptionEvent(name);
       }
+    }
+  };
+
+  FabGrid.prototype.handleFocusIn = function(event) {
+    var previousTarget = event.relatedTarget;
+    if (!previousTarget || !this.root.contains(previousTarget)) {
+      this.emit('gotFocus', {
+        originalEvent: event,
+        relatedTarget: previousTarget || null
+      });
+    }
+  };
+
+  FabGrid.prototype.handleFocusOut = function(event) {
+    var nextTarget = event.relatedTarget;
+    if (!nextTarget || !this.root.contains(nextTarget)) {
+      this.emit('lostFocus', {
+        originalEvent: event,
+        relatedTarget: nextTarget || null
+      });
     }
   };
 
@@ -37449,6 +37521,8 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.root.addEventListener('dblclick', this._boundDblClick);
     this.root.addEventListener('contextmenu', this._boundContextMenu);
     this.root.addEventListener('keydown', this._boundKeyDown);
+    this.root.addEventListener('focusin', this._boundFocusIn);
+    this.root.addEventListener('focusout', this._boundFocusOut);
     this.root.addEventListener('mousemove', this._boundMouseMove);
     this.root.addEventListener('mouseleave', this._boundMouseLeave);
     this.root.addEventListener('pointerdown', this._boundPointerDown);
@@ -38075,6 +38149,8 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.root.removeEventListener('dblclick', this._boundDblClick);
     this.root.removeEventListener('contextmenu', this._boundContextMenu);
     this.root.removeEventListener('keydown', this._boundKeyDown);
+    this.root.removeEventListener('focusin', this._boundFocusIn);
+    this.root.removeEventListener('focusout', this._boundFocusOut);
     this.root.removeEventListener('mousemove', this._boundMouseMove);
     this.root.removeEventListener('mouseleave', this._boundMouseLeave);
     this.root.removeEventListener('pointerdown', this._boundPointerDown);
@@ -39142,6 +39218,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       'filterChanged',
       'filterModeChanged',
       'formatItem',
+      'gotFocus',
       'groupCollapsedChanged',
       'groupCollapsedChanging',
       'itemsSourceChanged',
@@ -39150,6 +39227,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       'loadingRows',
       'loadError',
       'loadSuccess',
+      'lostFocus',
       'pasted',
       'pastedCell',
       'pasting',
@@ -40371,7 +40449,6 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   });
   defineWijmoCompatibility(FabGrid);
   FabGrid.SelectionMode = SELECTION_MODE;
-  FabGrid.CellType = CellType;
   FabGrid.Row = Row;
   FabGrid.GroupRow = GroupRow;
   installFabGridData(FabGrid, {
@@ -42382,7 +42459,7 @@ function createPivotChartFactory(Control, registerControl, unregisterControl, Pi
 
 
 
-function createPivotGridFactory(FabGrid, PivotEngine) {
+function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
   var baseApplyLocaleToDom = FabGrid.prototype.applyLocaleToDom;
   var baseCreateBodyCell = FabGrid.prototype.createBodyCell;
   var baseCreateDom = FabGrid.prototype.createDom;
@@ -43375,7 +43452,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
       return;
     }
     hit = this.hitTest(event);
-    if (!hit || (hit.cellType !== FabGrid.CellType.Cell && hit.cellType !== FabGrid.CellType.ColumnHeader)) {
+    if (!hit || (hit.cellType !== CellType.Cell && hit.cellType !== CellType.ColumnHeader)) {
       this.hideTopLeftMenu();
       return;
     }
@@ -43389,7 +43466,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
     var context = this._pivotContext;
     var column = context && context.column;
     var field = column && (column._pivotRowField || column._pivotDataColumn && column._pivotDataColumn.valueField);
-    var entry = context && context.cellType === FabGrid.CellType.Cell && this.view[context.row] ? this.view[context.row].__pivotMeta :
+    var entry = context && context.cellType === CellType.Cell && this.view[context.row] ? this.view[context.row].__pivotMeta :
       column && column._pivotDataColumn ? column._pivotDataColumn.entry : null;
     var fragment = document.createDocumentFragment();
     var aggregate;
@@ -43400,13 +43477,13 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
     var hasExpandedGroups;
     var i;
     this.topLeftMenu.innerHTML = '';
-    if (context && context.cellType === FabGrid.CellType.Cell && column && column._pivotDataColumn) {
+    if (context && context.cellType === CellType.Cell && column && column._pivotDataColumn) {
       fragment.appendChild(createMenuItem('pivot-detail', this.getText('pivot.showDetail'), 'icon-refwin'));
     }
     if (entry && entry.isSubtotal && !(column && column._pivotRowField)) {
       fragment.appendChild(createMenuItem(
-        context.cellType === FabGrid.CellType.Cell ? 'pivot-toggle-row' : 'pivot-toggle-column',
-        this.getText((context.cellType === FabGrid.CellType.Cell ? this._pivotRowCollapsed : this._pivotColumnCollapsed)[entry.key] ?
+        context.cellType === CellType.Cell ? 'pivot-toggle-row' : 'pivot-toggle-column',
+        this.getText((context.cellType === CellType.Cell ? this._pivotRowCollapsed : this._pivotColumnCollapsed)[entry.key] ?
           'pivot.expandGroup' : 'pivot.collapseGroup'),
         this._pivotRowCollapsed[entry.key] || this._pivotColumnCollapsed[entry.key] ? 'icon-expand' : 'icon-collapse'
       ));
@@ -43443,7 +43520,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
     }
     fragment.appendChild(createMenuItem('pivot-export-excel', this.getText('topLeftMenu.exportExcel'), 'icon-excel'));
     fragment.appendChild(createMenuItem('pivot-export-csv', this.getText('topLeftMenu.exportCsv'), 'icon-export'));
-    if (context && context.cellType === FabGrid.CellType.ColumnHeader) {
+    if (context && context.cellType === CellType.ColumnHeader) {
       fragment.appendChild(createMenuItem(
         'pivot-fullscreen',
         this.getText(this.isFullscreen() ? 'topLeftMenu.exitFullscreen' : 'topLeftMenu.fullscreen'),
@@ -43461,7 +43538,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
     var context = this._pivotContext;
     var column = context && context.column;
     var field = column && (column._pivotRowField || column._pivotDataColumn && column._pivotDataColumn.valueField);
-    var entry = context && context.cellType === FabGrid.CellType.Cell && this.view[context.row] ? this.view[context.row].__pivotMeta :
+    var entry = context && context.cellType === CellType.Cell && this.view[context.row] ? this.view[context.row].__pivotMeta :
       column && column._pivotDataColumn ? column._pivotDataColumn.entry : null;
     if (!item) {
       return;
@@ -46486,6 +46563,7 @@ global.fabui = global.fabui || {};
 global.fabui.version = "2026.7.24";
 global.fabui.setConfig = setConfig;
 global.fabui.getConfig = getConfig;
+global.fabui.Clipboard = Clipboard;
 global.fabui.editorDefinitions = createEditorDefinitions();
 global.fabui.Control = Control;
 global.fabui.Button = createButtonFactory(global.fabui.Control, registerControl, unregisterControl);
@@ -46512,18 +46590,18 @@ global.fabui.Tooltip = createTooltipFactory(global.fabui.Control, registerContro
 global.fabui.Layout = createLayoutFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Panel);
 global.fabui.Messager = createMessagerFactory(global.fabui.Window, global.fabui.Button);
 global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions, getConfig);
+global.fabui.CellType = CellType;
 global.fabui.pivot = {};
 global.fabui.pivot.PivotAggregate = PivotAggregate;
 global.fabui.pivot.PivotChart = createPivotChartFactory(global.fabui.Control, registerControl, unregisterControl, PivotEngine, global.fabui.Chart, global.fabui.FabGrid);
 global.fabui.pivot.PivotEngine = PivotEngine;
 global.fabui.pivot.PivotField = PivotField;
-global.fabui.pivot.PivotGrid = createPivotGridFactory(global.fabui.FabGrid, PivotEngine);
+global.fabui.pivot.PivotGrid = createPivotGridFactory(global.fabui.FabGrid, PivotEngine, global.fabui.CellType);
 global.fabui.pivot.PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.FabGrid);
 global.fabui.pivot.PivotSlicer = createPivotSlicerFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.FabGrid);
 global.fabui.pivot.PivotWorkspace = createPivotWorkspaceFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.pivot.PivotPanel, global.fabui.pivot.PivotGrid, global.fabui.pivot.PivotChart, global.fabui.FabGrid);
 global.fabui.pivot.PivotShowAs = PivotShowAs;
 global.fabui.pivot.PivotShowTotals = PivotShowTotals;
-global.fabui.CellType = CellType;
 global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
 }(typeof window !== "undefined" ? window : this));
 (function(root, factory) {

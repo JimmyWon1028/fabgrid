@@ -251,6 +251,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.columnChooserAnchor = null;
     this.topLeftMenuMode = null;
     this.popupDocumentEventsBound = false;
+    this.filterMenuViewportEventsBound = false;
     this.invalidItems = [];
     this._invalidItemMap = {};
     this._validationErrorSeq = 0;
@@ -299,6 +300,8 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._boundKeyDown = bind(this, this.handleKeyDown);
     this._boundMouseMove = bind(this, this.handleMouseMove);
     this._boundMouseLeave = bind(this, this.handleMouseLeave);
+    this._boundFocusIn = bind(this, this.handleFocusIn);
+    this._boundFocusOut = bind(this, this.handleFocusOut);
     this._boundPointerDown = bind(this, this.handlePointerDown);
     this._boundPointerMove = bind(this, this.handlePointerMove);
     this._boundPointerUp = bind(this, this.handlePointerUp);
@@ -321,6 +324,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._boundHeaderSearchCompositionEnd = bind(this, this.handleHeaderSearchCompositionEnd);
     this._boundEditorTriggerClick = bind(this, this.handleEditorTriggerClick);
     this._boundFilterMenuClick = bind(this, this.handleFilterMenuClick);
+    this._boundFilterMenuViewportChange = bind(this, this.handleFilterMenuViewportChange);
     this._boundExcelFilterMenuInput = bind(this, this.handleExcelFilterMenuInput);
     this._boundColumnChooserChange = bind(this, this.handleColumnChooserChange);
     this._boundTopLeftMenuClick = bind(this, this.handleTopLeftMenuClick);
@@ -414,6 +418,10 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
 
   FabGrid.prototype = Object.create(Control.prototype);
   FabGrid.prototype.constructor = FabGrid;
+  Object.defineProperty(FabGrid, 'name', {
+    configurable: true,
+    value: 'FabGrid'
+  });
 
   function supportsScrollLinkedHorizontal() {
     return typeof CSS !== 'undefined' &&
@@ -616,6 +624,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       'filterChanged',
       'filterModeChanged',
       'formatItem',
+      'gotFocus',
       'groupCollapsedChanged',
       'groupCollapsedChanging',
       'itemsSourceChanged',
@@ -624,6 +633,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       'loadingRows',
       'loadError',
       'loadSuccess',
+      'lostFocus',
       'pasted',
       'pastedCell',
       'pasting',
@@ -682,6 +692,26 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     }
   };
 
+  FabGrid.prototype.handleFocusIn = function(event) {
+    var previousTarget = event.relatedTarget;
+    if (!previousTarget || !this.root.contains(previousTarget)) {
+      this.emit('gotFocus', {
+        originalEvent: event,
+        relatedTarget: previousTarget || null
+      });
+    }
+  };
+
+  FabGrid.prototype.handleFocusOut = function(event) {
+    var nextTarget = event.relatedTarget;
+    if (!nextTarget || !this.root.contains(nextTarget)) {
+      this.emit('lostFocus', {
+        originalEvent: event,
+        relatedTarget: nextTarget || null
+      });
+    }
+  };
+
   FabGrid.prototype.setLocale = function(locale, messages, silent) {
     this.options.locale = normalizeLocaleName(locale || this.options.locale || getDefaultLocaleName());
     this.options.messages = messages || this.options.messages || null;
@@ -694,6 +724,10 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       }
     if (this.filterMenuColumn && this.isFilterMenuOpen()) {
       this.renderFilterMenu(this.filterMenuColumn);
+      if (getActiveFilterMode(this.options) === FILTER_MODE_EXCEL) {
+        this.portalExcelFilterMenu();
+      }
+      this.positionFilterMenu(this.filterMenuAnchor);
     }
     if (this.isColumnChooserOpen()) {
       this.renderColumnChooser();
@@ -893,6 +927,8 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.root.addEventListener('dblclick', this._boundDblClick);
     this.root.addEventListener('contextmenu', this._boundContextMenu);
     this.root.addEventListener('keydown', this._boundKeyDown);
+    this.root.addEventListener('focusin', this._boundFocusIn);
+    this.root.addEventListener('focusout', this._boundFocusOut);
     this.root.addEventListener('mousemove', this._boundMouseMove);
     this.root.addEventListener('mouseleave', this._boundMouseLeave);
     this.root.addEventListener('pointerdown', this._boundPointerDown);
@@ -912,6 +948,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.filterMenu.addEventListener('pointerdown', this._boundFilterMenuClick, true);
     this.filterMenu.addEventListener('mousedown', this._boundFilterMenuClick, true);
     this.filterMenu.addEventListener('click', this._boundFilterMenuClick);
+    this.filterMenu.addEventListener('keydown', this._boundKeyDown);
     this.filterMenu.addEventListener('input', this._boundExcelFilterMenuInput);
     this.filterMenu.addEventListener('change', this._boundExcelFilterMenuInput);
     this.columnChooser.addEventListener('change', this._boundColumnChooserChange);
@@ -1508,6 +1545,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.unbindHorizontalScrollbarDragEvents();
     this.unbindRowDragEvents();
     this.unbindPopupDocumentEvents();
+    this.restoreFilterMenu();
     this.removeEventListener();
     this.bodyScroll.removeEventListener('scroll', this._boundScroll);
     this.verticalScrollbar.removeEventListener('pointerdown', this._boundVerticalScrollbarPointerDown);
@@ -1519,6 +1557,8 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.root.removeEventListener('dblclick', this._boundDblClick);
     this.root.removeEventListener('contextmenu', this._boundContextMenu);
     this.root.removeEventListener('keydown', this._boundKeyDown);
+    this.root.removeEventListener('focusin', this._boundFocusIn);
+    this.root.removeEventListener('focusout', this._boundFocusOut);
     this.root.removeEventListener('mousemove', this._boundMouseMove);
     this.root.removeEventListener('mouseleave', this._boundMouseLeave);
     this.root.removeEventListener('pointerdown', this._boundPointerDown);
@@ -1538,6 +1578,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.filterMenu.removeEventListener('pointerdown', this._boundFilterMenuClick, true);
     this.filterMenu.removeEventListener('mousedown', this._boundFilterMenuClick, true);
     this.filterMenu.removeEventListener('click', this._boundFilterMenuClick);
+    this.filterMenu.removeEventListener('keydown', this._boundKeyDown);
     this.filterMenu.removeEventListener('input', this._boundExcelFilterMenuInput);
     this.filterMenu.removeEventListener('change', this._boundExcelFilterMenuInput);
     this.columnChooser.removeEventListener('change', this._boundColumnChooserChange);
@@ -2586,6 +2627,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       'filterChanged',
       'filterModeChanged',
       'formatItem',
+      'gotFocus',
       'groupCollapsedChanged',
       'groupCollapsedChanging',
       'itemsSourceChanged',
@@ -2594,6 +2636,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       'loadingRows',
       'loadError',
       'loadSuccess',
+      'lostFocus',
       'pasted',
       'pastedCell',
       'pasting',
@@ -3815,7 +3858,6 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   });
   defineWijmoCompatibility(FabGrid);
   FabGrid.SelectionMode = SELECTION_MODE;
-  FabGrid.CellType = CellType;
   FabGrid.Row = Row;
   FabGrid.GroupRow = GroupRow;
   installFabGridData(FabGrid, {

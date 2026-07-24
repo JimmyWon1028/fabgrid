@@ -3,7 +3,7 @@ import {
   pivotValuesEqual
 } from './pivot-utils.js?v=20260717-pivot-typed-values-v1';
 
-export function createPivotGridFactory(FabGrid, PivotEngine) {
+export function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
   var baseApplyLocaleToDom = FabGrid.prototype.applyLocaleToDom;
   var baseCreateBodyCell = FabGrid.prototype.createBodyCell;
   var baseCreateDom = FabGrid.prototype.createDom;
@@ -996,7 +996,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
       return;
     }
     hit = this.hitTest(event);
-    if (!hit || (hit.cellType !== FabGrid.CellType.Cell && hit.cellType !== FabGrid.CellType.ColumnHeader)) {
+    if (!hit || (hit.cellType !== CellType.Cell && hit.cellType !== CellType.ColumnHeader)) {
       this.hideTopLeftMenu();
       return;
     }
@@ -1010,7 +1010,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     var context = this._pivotContext;
     var column = context && context.column;
     var field = column && (column._pivotRowField || column._pivotDataColumn && column._pivotDataColumn.valueField);
-    var entry = context && context.cellType === FabGrid.CellType.Cell && this.view[context.row] ? this.view[context.row].__pivotMeta :
+    var entry = context && context.cellType === CellType.Cell && this.view[context.row] ? this.view[context.row].__pivotMeta :
       column && column._pivotDataColumn ? column._pivotDataColumn.entry : null;
     var fragment = document.createDocumentFragment();
     var aggregate;
@@ -1021,13 +1021,13 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     var hasExpandedGroups;
     var i;
     this.topLeftMenu.innerHTML = '';
-    if (context && context.cellType === FabGrid.CellType.Cell && column && column._pivotDataColumn) {
+    if (context && context.cellType === CellType.Cell && column && column._pivotDataColumn) {
       fragment.appendChild(createMenuItem('pivot-detail', this.getText('pivot.showDetail'), 'icon-refwin'));
     }
     if (entry && entry.isSubtotal && !(column && column._pivotRowField)) {
       fragment.appendChild(createMenuItem(
-        context.cellType === FabGrid.CellType.Cell ? 'pivot-toggle-row' : 'pivot-toggle-column',
-        this.getText((context.cellType === FabGrid.CellType.Cell ? this._pivotRowCollapsed : this._pivotColumnCollapsed)[entry.key] ?
+        context.cellType === CellType.Cell ? 'pivot-toggle-row' : 'pivot-toggle-column',
+        this.getText((context.cellType === CellType.Cell ? this._pivotRowCollapsed : this._pivotColumnCollapsed)[entry.key] ?
           'pivot.expandGroup' : 'pivot.collapseGroup'),
         this._pivotRowCollapsed[entry.key] || this._pivotColumnCollapsed[entry.key] ? 'icon-expand' : 'icon-collapse'
       ));
@@ -1064,7 +1064,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     }
     fragment.appendChild(createMenuItem('pivot-export-excel', this.getText('topLeftMenu.exportExcel'), 'icon-excel'));
     fragment.appendChild(createMenuItem('pivot-export-csv', this.getText('topLeftMenu.exportCsv'), 'icon-export'));
-    if (context && context.cellType === FabGrid.CellType.ColumnHeader) {
+    if (context && context.cellType === CellType.ColumnHeader) {
       fragment.appendChild(createMenuItem(
         'pivot-fullscreen',
         this.getText(this.isFullscreen() ? 'topLeftMenu.exitFullscreen' : 'topLeftMenu.fullscreen'),
@@ -1082,7 +1082,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     var context = this._pivotContext;
     var column = context && context.column;
     var field = column && (column._pivotRowField || column._pivotDataColumn && column._pivotDataColumn.valueField);
-    var entry = context && context.cellType === FabGrid.CellType.Cell && this.view[context.row] ? this.view[context.row].__pivotMeta :
+    var entry = context && context.cellType === CellType.Cell && this.view[context.row] ? this.view[context.row].__pivotMeta :
       column && column._pivotDataColumn ? column._pivotDataColumn.entry : null;
     if (!item) {
       return;

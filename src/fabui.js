@@ -17,9 +17,10 @@ import {
   registerControl,
   unregisterControl
 } from './core/control.js?v=20260721-mono-variants-v1';
+import { Clipboard } from './core/clipboard.js?v=20260724-clipboard-v1';
 import { getConfig, setConfig } from './core/config.js?v=20260723-global-config-v1';
 import { createFabGridFactory } from './grid/fabgrid.js?v=20260723-popup-listeners-v1';
-import { CellType } from './grid/fabgrid-types.js?v=20260721-mono-variants-v1';
+import { CellType } from './grid/fabgrid-types.js?v=20260716-row-types-v1';
 import { createLayoutFactory } from './layout/layout.js?v=20260721-mono-variants-v1';
 import { createMenuFactory } from './menu/menu.js?v=20260721-mono-variants-v1';
 import { createMenuButtonFactory } from './menubutton/menubutton.js?v=20260721-mono-variants-v1';
@@ -124,7 +125,7 @@ var Tooltip = createTooltipFactory(Control, registerControl, unregisterControl);
 var Layout = createLayoutFactory(Control, registerControl, unregisterControl, Panel);
 var Messager = createMessagerFactory(Window, Button);
 var PivotChart = createPivotChartFactory(Control, registerControl, unregisterControl, PivotEngine, Chart, FabGrid);
-var PivotGrid = createPivotGridFactory(FabGrid, PivotEngine);
+var PivotGrid = createPivotGridFactory(FabGrid, PivotEngine, CellType);
 var PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, FabGrid);
 var PivotSlicer = createPivotSlicerFactory(
   Control,
@@ -168,6 +169,8 @@ var fabui = {
   SwitchButton: SwitchButton,
   RadioButton: RadioButton,
   RadioGroup: RadioGroup,
+  Clipboard: Clipboard,
+  CellType: CellType,
   Control: Control,
   Chart: Chart,
   Diagram: Diagram,
@@ -187,7 +190,6 @@ var fabui = {
   Tooltip: Tooltip,
   Window: Window,
   pivot: pivotNamespace,
-  CellType: CellType,
   FabGridLocales: FabGrid.locales
 };
 

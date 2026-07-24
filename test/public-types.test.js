@@ -6,10 +6,12 @@ import {
   getExcelColumnName
 } from '../src/grid/fabgrid-export.js?v=20260717-pivot-excel-hidden-rows-v1';
 
-test('FabUI publishes Row and GroupRow through FabGrid only', function() {
+test('FabUI publishes CellType at the top level and Row types through FabGrid', function() {
+  assert.equal(fabui.CellType.Cell, 1);
   assert.equal(typeof fabui.FabGrid.Row, 'function');
   assert.equal(typeof fabui.FabGrid.GroupRow, 'function');
   assert.equal(Object.getPrototypeOf(fabui.FabGrid.GroupRow.prototype), fabui.FabGrid.Row.prototype);
+  assert.equal(fabui.FabGrid.CellType, undefined);
   assert.equal(fabui.grid, undefined);
 });
 

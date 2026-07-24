@@ -82,6 +82,39 @@ test('empty pagination render keeps using its internal DOM after pager alias is 
   assert.match(paginationElement.innerHTML, />0-0-0</);
 });
 
+test('Grid focus events fire only when focus enters or leaves the Grid', function() {
+  var FabGrid = createFabGridFactory({});
+  var eventGrid = { wijmoEvents: {} };
+  var inside = {};
+  var outside = {};
+  var raised = [];
+  var grid = {
+    root: {
+      contains: function(target) {
+        return target === inside;
+      }
+    },
+    emit: function(name, args) {
+      raised.push({ name: name, args: args });
+    }
+  };
+
+  FabGrid.prototype.createWijmoEvents.call(eventGrid);
+  assert.equal(typeof eventGrid.gotFocus.addHandler, 'function');
+  assert.equal(typeof eventGrid.lostFocus.addHandler, 'function');
+
+  FabGrid.prototype.handleFocusIn.call(grid, { relatedTarget: outside });
+  FabGrid.prototype.handleFocusIn.call(grid, { relatedTarget: inside });
+  FabGrid.prototype.handleFocusOut.call(grid, { relatedTarget: inside });
+  FabGrid.prototype.handleFocusOut.call(grid, { relatedTarget: outside });
+
+  assert.deepEqual(raised.map(function(item) {
+    return item.name;
+  }), ['gotFocus', 'lostFocus']);
+  assert.equal(raised[0].args.relatedTarget, outside);
+  assert.equal(raised[1].args.relatedTarget, outside);
+});
+
 test('host resize observer invalidates an empty grid after its layout becomes visible', function() {
   var FabGrid = createFabGridFactory({});
   var OriginalResizeObserver = globalThis.ResizeObserver;
@@ -853,7 +886,7 @@ test('format item exposes FabUI cell types, panels and row data items', function
   assert.equal(CellType.Cell, 1);
   assert.equal(CellType.ColumnHeader, 2);
   assert.equal(CellType.ColumnFooter, 5);
-  assert.equal(FabGrid.CellType, CellType);
+  assert.equal(FabGrid.CellType, undefined);
   assert.equal(grid.cells.getCellData(0, 0, false), 12);
   assert.equal(grid.columnHeaders.getCellData(0, 0, false), 'Amount');
   assert.equal(grid.columnFooters.getCellData(0, 0, false), 30);
@@ -2015,6 +2048,13 @@ test('cell range appearance uses row selection fill and activeCellBorder', funct
   });
 });
 
+test('Grid root follows a host shorter than the former default height', function() {
+  var css = readFileSync(new URL('../src/grid/fabgrid.css', import.meta.url), 'utf8');
+
+  assert.match(css, /:root \.fg-root\s*\{[^}]*min-height:\s*0;/s);
+  assert.doesNotMatch(css, /:root \.fg-root\s*\{[^}]*min-height:\s*260px;/s);
+});
+
 test('cell range pointer tracking recognizes a double click on the same cell', function() {
   var FabGrid = createFabGridFactory({});
   var grid = Object.create(FabGrid.prototype);
@@ -2706,6 +2746,174 @@ test('Grid document pointer listener exists only while a Grid popup is open', fu
   } finally {
     globalThis.document = originalDocument;
   }
+});
+
+test('Excel-like filter popup moves to the page layer and restores to the Grid on close', function() {
+  var FabGrid = createFabGridFactory({});
+  var originalDocument = globalThis.document;
+  var originalWindow = globalThis.window;
+  var added = [];
+  var removed = [];
+  var root;
+  var body;
+  var menu;
+  var grid;
+
+  function createParent() {
+    return {
+      appendChild: function(node) {
+        node.parentNode = this;
+      }
+    };
+  }
+
+  root = createParent();
+  root.contains = function(node) {
+    return node === root || node === menu;
+  };
+  body = createParent();
+  menu = {
+    parentNode: root,
+    className: 'fg-filter-menu fg-excel-filter-menu'
+  };
+  grid = {
+    disposed: false,
+    root: root,
+    filterMenu: menu,
+    filterMenuViewportEventsBound: false,
+    _boundFilterMenuViewportChange: function() {}
+  };
+  grid.bindFilterMenuViewportEvents = function() {
+    FabGrid.prototype.bindFilterMenuViewportEvents.call(grid);
+  };
+  grid.unbindFilterMenuViewportEvents = function() {
+    FabGrid.prototype.unbindFilterMenuViewportEvents.call(grid);
+  };
+  grid.getFilterMenuPortalTarget = function() {
+    return FabGrid.prototype.getFilterMenuPortalTarget.call(grid);
+  };
+
+  globalThis.document = {
+    body: body,
+    fullscreenElement: null,
+    webkitFullscreenElement: null
+  };
+  globalThis.window = {
+    addEventListener: function(name, handler, capture) {
+      added.push([name, handler, capture]);
+    },
+    removeEventListener: function(name, handler, capture) {
+      removed.push([name, handler, capture]);
+    }
+  };
+
+  try {
+    FabGrid.prototype.portalExcelFilterMenu.call(grid);
+    assert.equal(menu.parentNode, body);
+    assert.deepEqual(added.map(function(item) {
+      return [item[0], item[2]];
+    }), [
+      ['resize', undefined],
+      ['scroll', true]
+    ]);
+
+    FabGrid.prototype.restoreFilterMenu.call(grid);
+    assert.equal(menu.parentNode, root);
+    assert.deepEqual(removed.map(function(item) {
+      return [item[0], item[2]];
+    }), [
+      ['resize', undefined],
+      ['scroll', true]
+    ]);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
+test('Excel-like filter popup height is constrained by the viewport instead of the Grid', function() {
+  var FabGrid = createFabGridFactory({});
+  var originalDocument = globalThis.document;
+  var originalWindow = globalThis.window;
+  var header = createFakeElement('fg-header-cell', {}, {
+    left: 80,
+    top: 120,
+    right: 220,
+    bottom: 160,
+    width: 140,
+    height: 40
+  });
+  var anchor = createFakeElement('fg-filter-icon', {}, {
+    left: 190,
+    top: 130,
+    right: 218,
+    bottom: 158,
+    width: 28,
+    height: 28
+  });
+  var menu = {
+    style: { display: 'block' },
+    className: 'fg-filter-menu fg-excel-filter-menu',
+    offsetWidth: 322,
+    offsetHeight: 240,
+    querySelector: function(selector) {
+      if (selector === '.fg-excel-filter-value-list') {
+        return {
+          offsetHeight: 151,
+          scrollHeight: 500
+        };
+      }
+      return null;
+    }
+  };
+  var grid = {
+    root: {
+      getBoundingClientRect: function() {
+        return {
+          left: 0,
+          top: 100,
+          right: 700,
+          bottom: 300,
+          width: 700,
+          height: 200
+        };
+      }
+    },
+    filterMenu: menu
+  };
+  header.className = 'fg-header-cell';
+  anchor.className = 'fg-filter-icon';
+  anchor.parentNode = header;
+
+  globalThis.document = {
+    documentElement: {
+      clientWidth: 1000,
+      clientHeight: 800
+    }
+  };
+  globalThis.window = {
+    innerWidth: 1000,
+    innerHeight: 800
+  };
+
+  try {
+    FabGrid.prototype.positionFilterMenu.call(grid, anchor);
+    assert.equal(menu.style.left, '80px');
+    assert.equal(menu.style.top, '160px');
+    assert.equal(menu.style.height, '589px');
+    assert.ok(parseInt(menu.style.top, 10) + parseInt(menu.style.height, 10) > 300);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
+test('Excel-like filter popup CSS uses fixed viewport positioning', function() {
+  var css = readFileSync(new URL('../src/grid/fabgrid.css', import.meta.url), 'utf8');
+  var rule = css.match(/:root \.fg-excel-filter-menu\s*\{([^}]+)\}/);
+  assert.ok(rule);
+  assert.match(rule[1], /position:\s*fixed/);
+  assert.match(rule[1], /max-width:\s*calc\(100vw - 16px\)/);
 });
 
 test('document pointer leaves shared combo and color popup lifecycle to popup classes', function() {

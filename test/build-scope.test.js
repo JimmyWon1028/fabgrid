@@ -23,7 +23,9 @@ test('default build compiles FabUI core without wrapper bundles', function() {
     /rmSync\(path\.join\(distDir, 'theme'\), \{ recursive: true, force: true \}\)/
   );
   assert.match(buildSource, /'editbox\/time-editbox\.js'/);
+  assert.match(buildSource, /'core\/clipboard\.js'/);
   assert.match(buildSource, /'core\/config\.js'/);
+  assert.match(buildSource, /global\.fabui\.Clipboard = Clipboard/);
   assert.match(buildSource, /global\.fabui\.setConfig = setConfig/);
   assert.match(buildSource, /global\.fabui\.getConfig = getConfig/);
   assert.match(buildSource, /buildThemeOutput\(\{/);
@@ -65,9 +67,10 @@ test('all build commands omit ESM output files', function() {
   });
 });
 
-test('default build preserves descendant pseudo selectors in minified CSS', function() {
+test('default build preserves public constructor names and descendant pseudo selectors', function() {
   var tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fabui-core-build-'));
   var result;
+  var context;
   var minifiedCss;
 
   try {
@@ -82,6 +85,14 @@ test('default build preserves descendant pseudo selectors in minified CSS', func
     assert.match(minifiedCss, /:root :where\(/);
     assert.doesNotMatch(minifiedCss, /:root:is\(/);
     assert.doesNotMatch(minifiedCss, /:root:where\(/);
+    context = {};
+    context.window = context;
+    vm.createContext(context);
+    vm.runInContext(fs.readFileSync(path.join(tempDir, 'fabui.min.js'), 'utf8'), context);
+    assert.equal(context.fabui.FabGrid.name, 'FabGrid');
+    assert.equal(typeof context.fabui.Clipboard.copy, 'function');
+    assert.equal(context.fabui.CellType.Cell, 1);
+    assert.equal(context.fabui.FabGrid.CellType, undefined);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -169,6 +180,9 @@ test('Lite build supports min-only isolated output', function() {
     vm.createContext(context);
     vm.runInContext(fs.readFileSync(path.join(tempDir, 'fabui.lite.min.js'), 'utf8'), context);
     assert.equal(typeof context.fabui.FabGrid, 'function');
+    assert.equal(typeof context.fabui.Clipboard.copy, 'function');
+    assert.equal(context.fabui.CellType.Cell, 1);
+    assert.equal(context.fabui.FabGrid.CellType, undefined);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

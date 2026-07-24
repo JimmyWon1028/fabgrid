@@ -3,6 +3,7 @@
 ## 語言與風格
 
 - 回覆使用者時一律使用繁體中文。
+- 回答保持簡短，只回答使用者本次提出的問題，不延伸或重複先前問題。
 - 代碼註釋必須使用英文。
 - 代碼縮排一律使用兩個空白，不使用 tab。
 
@@ -86,6 +87,7 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 - `fabDom` 是位於 `src/fabdom/fabDom.js` 的零依賴 DOM helper 原始碼，只由 fabLoader build 組合發佈，不提供獨立 build 或 dist。若頁面沒有 `jQuery` 且 `$` 尚未定義，載入 fabLoader 時自動令 `$ === fabLoader.dom`，既有 jQuery 或其他 `$` 一律不得覆蓋。公開 jQuery-like 子集固定包含 collection `each()`／`get()`／`eq()`／`first()`／`last()`，內容與插入 `html()`／`text()`／`val()`／`append()`／`prepend()`／`before()`／`after()`／`load()`，attribute／property `attr()`／`removeAttr()`／`prop()`，CSS class `css()`／`addClass()`／`removeClass()`／`toggleClass()`／`hasClass()`，直接與 selector 委派事件 `on()`／`off()`，以及 `empty()`／`remove()`／`find()`／`closest()`／`parent()`／`children()`／`is()`。`append()`／`prepend()`／`before()`／`after()` 必須同時接受 HTML 字串、DOM Node、fabDom collection 與 NodeList；DOM Node 不得被字串化，多目標插入時前面的目標使用深層複本、最後一個目標使用原始節點。不得加入動畫、完整 Ajax、event namespace、trigger、custom event system、plugin 或完整 jQuery 相容層；`load()` 只橋接 fabLoader。HTML 字串不做 sanitization，只能直接使用固定或可信任內容。Demo2 只載入 fabLoader，本機 jQuery 4 slim 保留為選用測試；jQuery 不得成為 FabUI 或 fabLoader 依賴。修改 fabDom 後必須自動執行 `npm run build:loader`，只輸出 `dist/fabLoader.js` 與 `dist/fabLoader.min.js`。
 - `fabui` 是最上層 UI namespace，Browser global 發佈入口目前輸出 FabGrid、Chart 與其必要定義。
 - `fabui.setConfig(options)` 與 `fabui.getConfig()` 提供可擴充的全域設定入口；目前 `request.credentials` 預設為 `'same-origin'`，支援 `'include'` 與 `'omit'`。此設定套用於之後建立之 FabGrid 的內建 `url` 請求，單一 Grid 明確傳入的 `credentials` 優先；自訂 loader 不套用。`getConfig()` 必須回傳獨立副本，不得暴露可直接修改的內部設定物件。
+- `fabui.Clipboard.copy(str)` 將文字複製到系統剪貼簿並回傳 `Promise<boolean>`；優先使用 `navigator.clipboard.writeText()`，不可用或失敗時使用暫時 textarea 備援。
 - Browser global 以 `fabui.version` 公開 `YYYY.M.D` 格式的發佈日期版本，每次 build 依本機當天日期自動產生。
 - FabGrid 與 `fabui.EditBox` 共用的 editor 定義位於 `src/editbox/editbox-definitions.js`，由 core bundle 的 `fabui.editorDefinitions` 與 `fabui.EditBox.editorDefinitions` 公開；不可在 Grid 內維護多套數字／時間／日期清理、格式化或 editor class。`src/editor/editor-definitions.js` 只保留舊 import path 相容入口。
 - FabGrid 與 `fabui.EditBox` 的日期 popup 共用 `src/editbox/date-popup.js`；Calendar DOM、月份選單、鍵盤導覽、outside click、`Escape` lifecycle 與 `.fui-calendar-*` 樣式以 EditBox 視覺為唯一基準。Grid 只保留 cell／Search Row 的日期寫回邏輯，不得另建 `fg-datebox-*` renderer 或 CSS。
@@ -96,6 +98,7 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 - FabGrid 年月編輯統一使用 `date`；當 mask 為 `9999/99` 或 `9999-99` 時，popup 固定使用年份／月份選擇模式，不另外定義年月專用 editor。FabGrid 與 `fabui.EditBox` 的 DateBox `autoUnmask` 預設皆為 `true`，複製日期／年月內容時必須移除遮罩字面值；只有明確設定 `autoUnmask: false` 時才保留遮罩。
 - `fabui.EditBox` 與 FabGrid number cell editor 都以 `spinner` 控制數值增減箭頭：`true`／`'right'` 顯示於右側，`'left'` 顯示於左側，預設 `false`；Spinner 預設使用與 Date／Combo／Color trigger 相同的 28px 寬度、theme trigger 背景與 icon 色，每次依 `increment` 增減並沿用 `min`、`max`、`precision`、disabled、readonly 與 change／cell edit event 契約，公開 option 名稱統一為 `spinner`。FabGrid 啟用 Spinner 時，`ArrowUp`／`ArrowDown` 增減數值且不移動 cell；Search Row 不顯示 Spinner。
 - FabGrid 位於 `fabui.FabGrid`；`src/fabui.js` 是入口，`src/grid/fabgrid.js` 是 Grid 子模組。
+- FabGrid root 必須完整跟隨 host element 高度，不得強制固定最小高度；固定 px、百分比、Flex 與 Layout 容器縮放後都必須能正確顯示最後一列。
 - FabGrid 的 `activeCellBorder` 預設為 `1`，active cell 與 cell editor 必須共用此邊框寬度；設為 `0` 時隱藏邊框。
 - Chart 位於 `fabui.Chart`；使用 pure JavaScript SVG rendering，只支援直條圖、橫條圖、折線圖與圓餅圖，原始碼位於 `src/chart/` 並納入主 bundle。
 - PivotChart 位於 `fabui.pivot.PivotChart`；直接監聽共用 PivotEngine 的 `updatedView`，只負責將 Pivot view 轉成既有 `fabui.Chart` 的 categories／series，不得重新彙總原始資料或複製 Chart renderer。
@@ -185,6 +188,7 @@ fabgrid-jquery
 - 本機與 `remote: true` 資料模式，包含分頁、排序、全域搜尋與欄位篩選。
 - `filterChanged` 會在 predicate、全域搜尋、Search Row、Excel-like 欄位篩選、模式切換與清除 filter 完成套用後觸發；遠端模式的資料完成事件仍使用 `loadSuccess`。
 - 所有公開 FabGrid 事件都必須支援 constructor option callback，簽名為 `(grid, eventArgs)`，包含 `selectionChanged` 與 `updatedView`；constructor 建立 Wijmo-compatible event objects 後必須逐一綁定對應 option function。既有 event object 與 native emitter API 必須保持相容。
+- FabGrid `gotFocus` 與 `lostFocus` 必須支援 constructor option 與 Wijmo-compatible `addHandler()`；焦點從 Grid 外進入時觸發 `gotFocus`，從 Grid 內離開時觸發 `lostFocus`，Grid 內部焦點切換不得觸發。
 - 1 至 3 階列群組、aggregate、群組收合狀態與 Excel 群組匯出。
 - `childItemsPath` TreeGrid、節點收合／展開、同層排序、篩選祖先路徑、收合／篩選後維持原始列號與階層鍵盤導覽。樹欄所有資料 cell 右鍵都必須顯示單一「全部展開／全部疊合」狀態項目；仍有可視展開節點時顯示全部疊合，全部疊合後交換為全部展開，並由 TreeGrid class 共用既有 Grid popup 容器與關閉規則，不得只實作在 Demo。
 - `allowDragging: 'Rows'` 的本機資料列拖曳、跨 Grid move、TreeGrid `before`／`inside`／`after` 節點重排與上下階；循環階層必須被拒絕。欄位拖曳、資料列 `before`／`after`／`inside` 與 PivotPanel 欄位拖曳的插入指示線統一使用 55% 半透明，不得顯示不透明實線；Grid／TreeGrid 資料列插入指示線的右邊界不得超過實際欄位區域或延伸到垂直捲軸。
@@ -219,6 +223,7 @@ fabgrid-jquery
 - `remote: true` 的 Search Row UI 使用既有標準 operator，但 `getFilterRules()` 與 GET／POST request 必須一律送出相容符號：`starts` → `..%`、`contains` → `%..%`、`ends` → `%..`、`not-starts` → `!..%`、`not-contains` → `!%..%`、`not-ends` → `!%..`、`gte` → `>=`、`gt` → `>`、`lte` → `<=`、`lt` → `<`、`ne` → `<>`、`eq` → `=`。傳入相容符號時維持相同符號；沒有對應符號的自訂 `op` 仍原樣送出。`options.filterRules` 可保留輸入格式，但不得讓標準名稱出現在實際 request。
 - `remote: true` 送出不分大小寫的 `op: "in"` 時，Search Row 必須顯示 `IN`，`value` 必須是逗號分隔字串而不是 JSON 陣列；例如 `value: ["ZU001", "AV001"]` 必須在 `options.filterRules`、`getFilterRules()` 與 GET／POST request 中正規化為 `value: "ZU001,AV001"`，並保留輸入的 `op` 大小寫。Excel-like filter 的內部選取狀態仍保留陣列。
 - Excel-like 篩選 popup 開啟時按 `Escape` 必須只關閉 popup，不可套用或清除尚未提交的篩選草稿。
+- Excel-like 篩選 popup 必須以 fixed position 掛載到頁面 popup layer，允許超出 Grid 高度，並依瀏覽器 viewport 的上下可用空間決定高度與開啟方向；`excelFilterMaxValues` 只控制唯一候選值數量，不得拿來限制 popup 高度。Fullscreen 時必須掛到 fullscreen element，viewport resize／page scroll 時維持對齊；關閉或 dispose 時必須解除 viewport listener 並清理移出的 DOM。
 - `remote: true` 套用 Excel-like 值篩選後重新開啟同一欄位時，Popup 必須保留套用前的完整候選值集合，只以目前 filter values 決定勾選狀態；不得因遠端回傳已篩選資料而移除未勾選候選值。
 - 左上角欄位選擇器 popup 必須支援按 `Escape` 與點擊 popup 外部關閉；點擊 popup 內部或觸發按鈕不得誤關閉。
 - 一般 Grid popup 由欄位 Header Row 的右鍵操作開啟，不再由左上角列頭 cell 開啟；Search Row 與一般資料列不觸發此 popup。TreeGrid 樹欄資料 cell 例外，使用同一 popup 容器顯示 TreeGrid 全部展開／全部疊合項目。

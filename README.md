@@ -26,7 +26,7 @@ FabUI 也提供表單、導覽、視窗、HtmlEditor、Chart、Pivot、Diagram�
 ```html
 <link rel="stylesheet" href="./dist/fabui.css">
 
-<div id="grid"></div>
+<div id="grid" style="height:260px;"></div>
 
 <script src="./dist/fabui.js"></script>
 <script>
@@ -52,6 +52,8 @@ FabUI 也提供表單、導覽、視窗、HtmlEditor、Chart、Pivot、Diagram�
   var sameGrid = fabui.Control.getControl('#grid');
 </script>
 ```
+
+FabGrid 高度完全跟隨 host element，不會強制套用最小高度；請由 host、Flex 或 Layout 明確提供可用高度。
 
 ### 載入主題
 
@@ -102,6 +104,7 @@ Diagram、Gantt、Scheduler 與 HtmlEditor 不包含在 FabUI core。載入順�
 | 匯入與匯出 | 支援 JSON、CSV 與 XLSX；Excel 可保留格式、凍結窗格、篩選、群組、Footer 與隱藏欄位。 |
 | Popup | 右鍵選單、Filter、欄位選擇器與 editor popup 支援 `Escape` 及點擊外部關閉；`filterMode: false` 時不顯示「清除篩選」，「列號」與全螢幕項目分別由 `showRowHeaderMenu`、`showFullscreenMenu` 控制且預設隱藏。 |
 | 生命週期 | `fabui.Control.getControl()` 可取得 instance；`dispose()` 會解除受管理的 DOM listener。 |
+| 剪貼簿 | `fabui.Clipboard.copy(str)` 將文字複製到系統剪貼簿。 |
 
 ### 排序與篩選
 
@@ -120,7 +123,9 @@ var grid = new fabui.FabGrid('#grid', {
 | 遠端資料 | `remote: true` 會回到第 1 頁並自動重新 request。 |
 | Search Row debounce | `searchDelay` 預設為 `400ms`；設為 `0` 時立即套用。 |
 | Search Row 鍵盤 | `Enter`／`Tab` 移到下一欄，`Shift+Enter`／`Shift+Tab` 移到上一欄；方向鍵可在 Search Row 與 Grid 間移動。 |
-| Excel-like filter | 遠端模式重新開啟欄位時，保留完整候選值與目前勾選狀態。 |
+| Excel-like filter | Popup 可超出 Grid 高度並依瀏覽器視窗顯示更多項目；遠端模式重新開啟欄位時，保留完整候選值與目前勾選狀態。 |
+
+`excelFilterMaxValues` 控制 Excel-like filter 最多收集多少個唯一候選值，不控制 popup 高度。Popup 會依 Header 位置與瀏覽器 viewport 自動向下或向上開啟，候選值超出可用空間時由清單內部捲動。
 
 遠端 Search Row 會將常用 operator 轉為相容符號：
 

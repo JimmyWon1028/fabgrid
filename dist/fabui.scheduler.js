@@ -2086,5 +2086,5 @@ function createSchedulerFactory(fabui) {
 }
 
 global.fabui.Scheduler = createSchedulerFactory(global.fabui);
-global.fabui.Scheduler.version = "2026.7.23";
+global.fabui.Scheduler.version = "2026.7.24";
 }(typeof window !== "undefined" ? window : this));

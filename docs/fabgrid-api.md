@@ -8,7 +8,7 @@
 
 ```html
 <link rel="stylesheet" href="./dist/fabui.css">
-<div id="grid"></div>
+<div id="grid" style="height:260px;"></div>
 <script src="./dist/fabui.min.js"></script>
 <script>
   var grid = new fabui.FabGrid('#grid', {
@@ -26,6 +26,7 @@
 ```
 
 建構式第一個參數可傳 CSS selector 或 DOM element；找不到目標 element 時會拋出錯誤。
+FabGrid 高度跟隨 host element，不強制設定最小高度；可使用固定高度、百分比、Flex 或 Layout 控制。
 
 ### 載入主題
 
@@ -78,6 +79,7 @@ Default 配色已包含在 `fabui.css`。其他主題必須在所有 FabUI 與�
 | `fabui.FabGrid.SelectionMode` | `Cell`、`CellRange` 選取模式常數。 |
 | `fabui.FabGrid.Row` / `GroupRow` | 一般資料列與群組列類型。 |
 | `fabui.CellType` | Cell、ColumnHeader、RowHeader、TopLeft、ColumnFooter、BottomLeft 列舉。 |
+| `fabui.Clipboard.copy(str)` | 將文字複製到系統剪貼簿，回傳 `Promise<boolean>`。 |
 | `fabui.Control` | Control registry 與受管理的 DOM listener；詳見 [Control API](./control-api.md)。 |
 | `fabui.editorDefinitions` | FabGrid 與 `fabui.EditBox` 共用的 editor 定義。 |
 | `fabui.FabGridLocales` | 已載入的 FabGrid locale registry。 |
@@ -137,7 +139,7 @@ fabui.setConfig({
 | `allowDragging` | `'None' \| 'Columns' \| 'Rows' \| 'All'` | `'None'` | `'Columns'` 重排欄位；`'Rows'` 啟用同一 Grid 或跨 Grid 資料列拖曳；`'All'` 同時啟用兩者。Row drag 僅支援本機資料。 |
 | `filterMode` | `false \| Array<'excel' \| 'searchRow'>` | `['excel', 'searchRow']` | 可用篩選模式；第一項是目前模式。多於一項時，Header 右鍵功能表可切換模式。 |
 | `filterRules` | `Array<{field, op, value}> \| string` | `[]` | 初始化 Search Row 規則；本機與遠端細節見[篩選與搜尋](#篩選與搜尋)。 |
-| `excelFilterMaxValues` | `number` | `1000` | Excel-like「依值篩選」最多列出的唯一值數量；套用時仍保留未列出值原本的選取狀態。 |
+| `excelFilterMaxValues` | `number` | `1000` | Excel-like「依值篩選」最多收集的唯一候選值數量；不控制 popup 高度，套用時仍保留未列出值原本的選取狀態。 |
 | `updatedView` | `function(grid, eventArgs)` | `null` | View 完成更新時呼叫；等同註冊 `grid.updatedView.addHandler()`。 |
 | `searchDelay` | `number` | `400` | Search Row 輸入 debounce 時間；設為 `0` 時立即套用。 |
 | `searchRowHeight` | `number \| null` | `null` | 搜尋列高度；`null` 時沿用 `headerHeight`。 |
@@ -455,7 +457,9 @@ var grid = new fabui.FabGrid('#grid', {
 | `clearExcelFilter(column)` | 清除指定欄位 Excel-like filter。 |
 | `clearExcelFilters(source?)` | 清除全部 Excel-like filters。 |
 
-Excel-like 篩選 popup 開啟時可按 `Escape` 關閉；尚未按「套用」的選取變更不會寫入篩選條件。
+Excel-like 篩選 popup 會掛載到頁面 popup layer，以 fixed position 對齊 Header filter icon，因此可以超出 Grid 高度。它會比較 Header 上方與下方的 viewport 可用空間，自動決定開啟方向與高度；候選值超出空間時只捲動 popup 內的值清單，不會增加 Grid 高度。這項行為不需要額外 option。
+
+`excelFilterMaxValues` 只限制最多收集的唯一候選值數量，不是畫面可見筆數或 popup 高度設定。Popup 開啟時可按 `Escape` 或點擊外部關閉；尚未按「套用」的選取變更不會寫入篩選條件。Grid 進入 fullscreen 時，popup 會改掛到 fullscreen element；關閉或 `dispose()` 時會移回 Grid 並清除 viewport listener。
 
 所有 Grid popup（右鍵選單、Filter、欄位選擇器與 date／combo／color editor panel）都會在點擊外部時關閉；點擊 popup 內部或其 trigger 不會誤關閉。若同時存在多個 popup，點進其中一個會關閉其餘 popup。關閉 popup 不會自動套用、清除或提交尚未確認的內容。
 
@@ -635,6 +639,7 @@ grid.on('cellEditEnding', function(e) {
 | `viewportChanged` | 可視 row、column 範圍或 render cell 數變動。 |
 | `columnVisibilityChanged` | 欄位顯示狀態變更。 |
 | `filterChanged` | Filter 條件套用完成後觸發；`setFilter()`、全域搜尋、Search Row、Excel-like 篩選、模式切換與所有清除 filter 操作都會觸發。 |
+| `gotFocus` / `lostFocus` | 焦點從 Grid 外進入／從 Grid 內離開時觸發；Grid 內部切換焦點不觸發。 |
 | `formatItem` | Grid cell element 完成預設內容與格式後觸發；可使用 `formatItem.addHandler((g, e) => {})` 修改 Header、Footer、資料 cell 或列頭 DOM。 |
 | `searchCleared` | 呼叫 `clearSearchConditions()`。 |
 | `excelExporting` / `excelExported` / `excelExportFailed` | Excel 匯出流程。 |

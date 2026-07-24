@@ -12,6 +12,7 @@ const buildDate = new Date();
 const buildVersion = buildDate.getFullYear() + '.' + (buildDate.getMonth() + 1) + '.' + buildDate.getDate();
 const javascriptSources = [
   'core/config.js',
+  'core/clipboard.js',
   'core/control.js',
   'chart/chart.js',
   'grid/fabgrid-types.js',
@@ -189,22 +190,23 @@ function createBrowserJavascriptBundle() {
     'global.fabui.version = ' + JSON.stringify(buildVersion) + ';\n' +
     'global.fabui.setConfig = setConfig;\n' +
     'global.fabui.getConfig = getConfig;\n' +
+    'global.fabui.Clipboard = Clipboard;\n' +
     'global.fabui.editorDefinitions = createEditorDefinitions();\n' +
     'global.fabui.Control = Control;\n' +
     'global.fabui.Chart = createChartFactory();\n' +
     'global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions, getConfig);\n' +
+    'global.fabui.CellType = CellType;\n' +
     'global.fabui.pivot = {};\n' +
     'global.fabui.pivot.PivotAggregate = PivotAggregate;\n' +
     'global.fabui.pivot.PivotChart = createPivotChartFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.Chart, global.fabui.FabGrid);\n' +
     'global.fabui.pivot.PivotEngine = PivotEngine;\n' +
     'global.fabui.pivot.PivotField = PivotField;\n' +
-    'global.fabui.pivot.PivotGrid = createPivotGridFactory(global.fabui.FabGrid, PivotEngine);\n' +
+    'global.fabui.pivot.PivotGrid = createPivotGridFactory(global.fabui.FabGrid, PivotEngine, global.fabui.CellType);\n' +
     'global.fabui.pivot.PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.FabGrid);\n' +
     'global.fabui.pivot.PivotSlicer = createPivotSlicerFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.FabGrid);\n' +
     'global.fabui.pivot.PivotWorkspace = createPivotWorkspaceFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.pivot.PivotPanel, global.fabui.pivot.PivotGrid, global.fabui.pivot.PivotChart, global.fabui.FabGrid);\n' +
     'global.fabui.pivot.PivotShowAs = PivotShowAs;\n' +
     'global.fabui.pivot.PivotShowTotals = PivotShowTotals;\n' +
-    'global.fabui.CellType = CellType;\n' +
     'global.fabui.FabGridLocales = global.fabui.FabGrid.locales;\n' +
     '}(typeof window !== "undefined" ? window : this));\n' + locales;
 }
@@ -248,10 +250,17 @@ function verifyBuildOutput(javascript) {
       javascript.indexOf('global.fabui.pivot.PivotWorkspace = createPivotWorkspaceFactory') < 0) {
     throw new Error('FabUI Lite is missing FabGrid, Pivot or Chart.');
   }
+  if (javascript.indexOf('global.fabui.Clipboard = Clipboard') < 0) {
+    throw new Error('FabUI Lite is missing Clipboard.');
+  }
   if (javascript.indexOf('function installFabGridTree(') < 0 ||
       javascript.indexOf('FabGrid.prototype.isTreeGrid = function()') < 0 ||
       javascript.indexOf('FabGrid.prototype.expandAllTreeNodes = function()') < 0) {
     throw new Error('FabUI Lite is missing the FabGrid TreeGrid module.');
+  }
+  if (javascript.indexOf('global.fabui.CellType = CellType') < 0 ||
+      javascript.indexOf('FabGrid.CellType = CellType') >= 0) {
+    throw new Error('FabUI CellType must only be published at the top level.');
   }
   forbiddenFactories.forEach(function(factory) {
     if (javascript.indexOf(factory) >= 0) {

@@ -28,7 +28,7 @@
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 260px;
+  min-height: 0;
   overflow: hidden;
   border: 1px solid var(--fg-border-strong);
   background: #ffffff;
@@ -1549,9 +1549,10 @@
 }
 
 :root .fg-excel-filter-menu {
+  position: fixed;
   width: 322px;
   min-width: 280px;
-  max-width: calc(100% - 8px);
+  max-width: calc(100vw - 16px);
   overflow: hidden;
   border-radius: 3px;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.2);

@@ -1673,5 +1673,5 @@ function createHtmlEditorFactory(fabui) {
 }
 
 global.fabui.HtmlEditor = createHtmlEditorFactory(global.fabui);
-global.fabui.HtmlEditor.version = "2026.7.23";
+global.fabui.HtmlEditor.version = "2026.7.24";
 }(typeof window !== "undefined" ? window : this));
