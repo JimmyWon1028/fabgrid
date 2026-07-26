@@ -47,7 +47,7 @@
 - 所有支援 theme 的公開元件都必須公開相同的 17 組 `themes` metadata；第 17 組為 `mono`，使用 Metro Gray 的版面色調與 `src/theme/mono/images/` 的單色 SVG。Mono theme 的 PNG sprite 必須拆成相對應的獨立 SVG，CSS 不得引用 PNG／GIF。Build 必須另外輸出同名檔案到 `dist/theme/mono/` 並讓正式 Mono CSS 引用該資料夾。`fabui.css`、`fabui.min.css` 與 Lite CSS 只內建 Default 配色；其他 16 組 Theme CSS 必須使用相同固定 selector，載入於所有 FabUI／附加元件 CSS 之後直接覆蓋 Default，不得依賴 `fg-theme-*` class。Chart 與其他核心視覺不得硬編只適用淺色主題的文字、背景或線條顏色，應沿用共用 theme variables。
 - popup menu 樣式要維持一致：左側 icon 欄、icon 後分隔線、緊湊列高與清楚 hover/active 狀態；後續新增 popup menu 時沿用目前 filter menu 的視覺規則。
 - 所有既有與未來新增的 popup 都必須支援按 `Escape` 與點擊 popup 外部關閉；點擊 popup 內部或其 trigger 不得誤關閉。關閉只負責收起 popup，不得隱含套用、清除或提交尚未確認的內容；同時開啟多個 popup 時，點進其中一個也必須關閉其餘 popup。Popup 所需的 document／window listener 只在開啟期間綁定，關閉或 dispose 時必須立即解除。
-- 工作進度記錄放在 `worklogs/YYYY-MM-DD.md`，固定使用 `## 完成進度` 標題；功能契約改動時，同步更新 README 與本文件。
+- 工作進度記錄放在 `worklogs/YYYY-MM-DD.md`，固定使用 `## 完成進度` 標題，只記錄實際完成的功能、行為修正與問題處理結果。工作日誌不得記錄 README／AGENTS 更新、重新執行任何 `npm run build*`，或測試、benchmark、smoke、瀏覽器操作等驗證過程與結果；功能契約改動時仍須同步更新 README 與本文件，但此同步動作本身不寫入工作日誌。
 - Excel 預設匯出完整欄位集合，隱藏欄位必須保留資料並在工作表標記為 hidden；只有明確傳入 `visibleOnly === true` 時才只匯出可見欄位。
 - FabGrid 欄位顯示切換統一使用 `setColumnVisible(column, visible)`；`column` 只接受 `grid.columns` 的 index 或該 Grid 的 column object。依 `binding` 操作時必須先用 `getColumn(binding)` 取得 column object，不得直接把 binding 字串傳入 `setColumnVisible()`；也不得只修改 `grid.columns[index].visible` 而略過 layout、選取狀態與畫面更新。
 - FabGrid Column 的 `allowSorting` 預設為 `true`；設為 `false` 時，滑鼠與程式呼叫都不得改變該欄排序狀態、觸發 `sortingColumn`／`sortedColumn` 或送出遠端排序查詢。`sortingColumn` option 必須由排序流程直接呼叫，回傳 `false` 時仍須讓已註冊的 `sortingColumn` event handlers 收到 `e.cancel === true`，但必須取消該次排序與遠端查詢；event handler 回傳 `false` 也必須取消。兩種禁止方式都不受 `remote` 值影響。Grid 全域 `allowSorting` 仍控制所有欄位是否允許以 Header 操作排序。
