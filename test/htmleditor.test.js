@@ -15,7 +15,7 @@ var themes = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 test('FabUI core does not publish the optional HtmlEditor extension', function() {
@@ -71,7 +71,7 @@ test('HtmlEditor normalizes locale, theme and Summernote-style toolbar groups', 
   assert.equal(normalizeHtmlEditorLocale('zh-Hant'), 'zh-TW');
   assert.equal(normalizeHtmlEditorLocale('zh_CN'), 'zh-CN');
   assert.equal(normalizeHtmlEditorLocale('en-US'), 'en');
-  assert.equal(normalizeHtmlEditorTheme('mono-green'), 'mono-green');
+  assert.equal(normalizeHtmlEditorTheme('mono'), 'mono');
   assert.equal(normalizeHtmlEditorTheme('pepper'), 'pepper-grinder');
   assert.equal(normalizeHtmlEditorTheme('unknown'), 'default');
   assert.deepEqual(normalizeHtmlEditorToolbar([

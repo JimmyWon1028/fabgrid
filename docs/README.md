@@ -7,7 +7,7 @@
 | 文件 | 內容 |
 | --- | --- |
 | [Control](./control-api.md) | Control registry 與受管理的 DOM listener。 |
-| [Theme](./theme-api.md) | 19 組主題、CSS 載入順序與相容 API。 |
+| [Theme](./theme-api.md) | 17 組主題、CSS 載入順序與相容 API。 |
 
 ## 獨立工具
 
@@ -19,6 +19,7 @@
 
 | 文件 | 內容 |
 | --- | --- |
+| [CollectionView](./collection-view-api.md) | Grid 與 Chart 共用的篩選資料與目前項目。 |
 | [FabGrid](./fabgrid-api.md) | Grid、TreeGrid、遠端資料、編輯、篩選與匯出。 |
 | [Chart](./chart-api.md) | SVG Column、Bar、Line 與 Pie。 |
 | [Pivot](./pivotgrid-api.md) | PivotEngine、PivotPanel、PivotSlicer 與 PivotGrid。 |

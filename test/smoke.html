@@ -2032,7 +2032,7 @@
               var headerSearchAlignmentResult = asyncResults[3];
               var paginationResult = runPaginationCheck();
               var remotePaginationResult = asyncResults[2];
-              var chart = new window.fabui.Chart('#chartSmoke', {
+              var chart = new window.fabui.chart.Chart('#chartSmoke', {
                 chartType: 'Column', bindingX: 'name', itemsSource: [{ name: 'A', value: 10 }, { name: 'B', value: 20 }],
                 series: [{ name: 'Series', binding: 'value' }]
               });
@@ -2664,7 +2664,10 @@
               windowCoreBundleWorks = windowCoreBundleWorks &&
                 windowSmokeHost.getAttribute('title') === 'Original window title';
               finish({
-                hasChart: !!window.fabui && typeof window.fabui.Chart === 'function',
+                hasChart: !!window.fabui && !!window.fabui.chart &&
+                  typeof window.fabui.chart.Chart === 'function' &&
+                  typeof window.fabui.chart.Pie === 'function' &&
+                  typeof window.fabui.chart.animation.ChartAnimation === 'function',
                 chartRenderWorks: chartRenderWorks,
                 chartBindingWorks: chartBindingWorks,
                 chartPieWorks: chartPieWorks,

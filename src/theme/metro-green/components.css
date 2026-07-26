@@ -1,4 +1,4 @@
-:root /* Values adapted from res/themes/metro-green/{textbox,:root combo,:root combobox,:root calendar,:root datebox}.css. */
+/* Values adapted from res/themes/metro-green/{textbox, combo, combobox, calendar, datebox}.css. */
 :root {
   --fui-control-border: #b1c242;
   --fui-control-focus: #909e33;

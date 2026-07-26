@@ -1,8 +1,10 @@
+import { isCollectionView } from '../collections/collection-view.js?v=20260727-collection-view-sort-v1';
+
 var CHART_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 export function normalizeChartType(type) {
@@ -61,22 +63,23 @@ export function createChartFactory() {
 
   function Chart(element, options) {
     this.host = typeof element === 'string' ? document.querySelector(element) : element;
-    if (!this.host) throw new Error('fabui.Chart host element was not found.');
+    if (!this.host) throw new Error('fabui.chart.Chart host element was not found.');
     this._themeSource = this.host.parentElement || this.host;
     this.options = mergeOptions({
       chartType: null, type: 'column', header: '', footer: '', title: '', itemsSource: null,
       bindingX: '', bindingName: '', binding: '', categories: [], series: [], palette: null, colors: DEFAULT_COLORS,
       legend: true, tooltip: true, padding: 16, locale: 'en', theme: 'inherit', animation: true,
       observeData: true, dataRefreshInterval: 120,
-      axisX: {}, axisY: {}, selectionMode: 'None', selection: null, selectedIndex: -1, selectionSource: null,
+      axisX: {}, axisY: {}, selectionMode: 'None', selection: null, selectedIndex: -1,
       selectedItemOffset: .1, selectedItemPosition: 'Top', isAnimated: true,
       dataLabel: null, formatValue: null, formatTooltip: null, emptyText: null
     }, options || {});
     this.events = {};
     defineOptionProperties(this, ['chartType', 'itemsSource', 'bindingX', 'bindingName', 'binding', 'header', 'footer', 'series', 'axisX', 'axisY', 'legend', 'tooltip', 'palette', 'selectionMode', 'selection', 'selectedIndex', 'selectedItemOffset', 'selectedItemPosition', 'isAnimated', 'dataLabel', 'animation', 'observeData', 'dataRefreshInterval']);
     this.disposed = false;
-    this._selectionSource = null;
-    this._selectionSourceHandler = null;
+    this._collectionView = null;
+    this._collectionViewChangedHandler = null;
+    this._collectionViewCurrentHandler = null;
     this.raf = 0;
     this._boundPointerMove = this.handlePointerMove.bind(this);
     this._boundPointerLeave = this.hideTooltip.bind(this);
@@ -85,9 +88,9 @@ export function createChartFactory() {
     this.options.locale = resolveChartLocale(this.options.locale);
     this.setTheme(this.options.theme);
     this.bindEvents();
+    this.bindItemsSource(this.options.itemsSource, false);
     this.refresh();
     this.startDataObserver();
-    this.bindSelectionSource(this.options.selectionSource);
   }
 
   Chart.prototype.createDom = function() {
@@ -125,16 +128,56 @@ export function createChartFactory() {
   };
 
   Chart.prototype.setType = function(type) { this.options.chartType = type; this.options.type = type; this.refresh(); return this; };
-  Chart.prototype.setItemsSource = function(itemsSource) { this.options.itemsSource = Array.isArray(itemsSource) ? itemsSource : []; this.refresh(); return this; };
+  Chart.prototype.setItemsSource = function(itemsSource) {
+    this.bindItemsSource(itemsSource, false);
+    this.startDataObserver();
+    this.refresh();
+    return this;
+  };
+  Chart.prototype.bindItemsSource = function(itemsSource, shouldRefresh) {
+    var self = this;
+    this.unbindItemsSource();
+    this.options.itemsSource = isCollectionView(itemsSource) ? itemsSource :
+      (Array.isArray(itemsSource) ? itemsSource : []);
+    if (isCollectionView(this.options.itemsSource)) {
+      this._collectionView = this.options.itemsSource;
+      this._collectionViewChangedHandler = function() {
+        self.refresh();
+      };
+      this._collectionViewCurrentHandler = function(sender, args) {
+        self.selectPoint(args && args.position != null ? args.position : sender.currentPosition);
+      };
+      this._collectionView.collectionChanged.addHandler(this._collectionViewChangedHandler, this);
+      this._collectionView.currentChanged.addHandler(this._collectionViewCurrentHandler, this);
+      this.selectPoint(this._collectionView.currentPosition);
+    }
+    if (shouldRefresh !== false) {
+      this.refresh();
+    }
+    return this;
+  };
+  Chart.prototype.unbindItemsSource = function() {
+    if (this._collectionView && this._collectionViewChangedHandler) {
+      this._collectionView.collectionChanged.removeHandler(this._collectionViewChangedHandler, this);
+    }
+    if (this._collectionView && this._collectionViewCurrentHandler) {
+      this._collectionView.currentChanged.removeHandler(this._collectionViewCurrentHandler, this);
+    }
+    this._collectionView = null;
+    this._collectionViewChangedHandler = null;
+    this._collectionViewCurrentHandler = null;
+    return this;
+  };
   Chart.prototype.setOptions = function(options) {
     var observerChanged = options && (
       Object.prototype.hasOwnProperty.call(options, 'observeData') ||
       Object.prototype.hasOwnProperty.call(options, 'dataRefreshInterval')
     );
+    var itemsSourceChanged = Object.prototype.hasOwnProperty.call(options || {}, 'itemsSource');
     this.options = mergeOptions(this.options, options || {});
     this.options.locale = resolveChartLocale(this.options.locale);
-    if (Object.prototype.hasOwnProperty.call(options || {}, 'selectionSource')) {
-      this.bindSelectionSource(this.options.selectionSource);
+    if (itemsSourceChanged) {
+      this.bindItemsSource(options.itemsSource, false);
     }
     if (Object.prototype.hasOwnProperty.call(options || {}, 'theme')) {
       this.setTheme(this.options.theme);
@@ -175,23 +218,6 @@ export function createChartFactory() {
     this.refresh(); return this;
   };
   Chart.prototype.resize = function() { this.refresh(); return this; };
-  Chart.prototype.bindSelectionSource = function(source) {
-    var self = this;
-    this.unbindSelectionSource();
-    this.options.selectionSource = source || null;
-    if (!source || !source.selectionChanged || typeof source.selectionChanged.addHandler !== 'function') return this;
-    this._selectionSource = source;
-    this._selectionSourceHandler = function() { if (source.selection && source.selection.row != null) self.selectPoint(source.selection.row); };
-    source.selectionChanged.addHandler(this._selectionSourceHandler, this);
-    if (source.selection && source.selection.row != null) this.selectPoint(source.selection.row);
-    return this;
-  };
-  Chart.prototype.unbindSelectionSource = function() {
-    if (this._selectionSource && this._selectionSourceHandler && this._selectionSource.selectionChanged && typeof this._selectionSource.selectionChanged.removeHandler === 'function') this._selectionSource.selectionChanged.removeHandler(this._selectionSourceHandler, this);
-    this._selectionSource = null;
-    this._selectionSourceHandler = null;
-    return this;
-  };
   Chart.prototype.selectPoint = function(index, seriesIndex) {
     var nextSeriesIndex = seriesIndex == null ? null : Number(seriesIndex);
     var currentSelection = this.options.selection;
@@ -262,10 +288,17 @@ export function createChartFactory() {
   };
 
   Chart.prototype.playAnimation = function() {
+    var chartAnimation = this._chartAnimation;
     if (this.options.animation === false) return;
+    if (chartAnimation && typeof chartAnimation._prepare === 'function') {
+      chartAnimation._prepare();
+    }
     this.root.classList.remove('fui-chart-animate');
     void this.root.offsetWidth;
     this.root.classList.add('fui-chart-animate');
+    if (chartAnimation && typeof chartAnimation._handleAnimationStart === 'function') {
+      chartAnimation._handleAnimationStart();
+    }
   };
 
   Chart.prototype.renderFooter = function() {
@@ -354,6 +387,7 @@ export function createChartFactory() {
         this.svg.appendChild(circle);
       }
       path = svgElement('path', { d: linePath(points), fill: 'none', stroke: this.getColor(s), class: 'fui-chart-line' });
+      path.dataset.seriesIndex = s;
       this.svg.insertBefore(path, this.svg.firstChild);
     }
   };
@@ -411,7 +445,10 @@ export function createChartFactory() {
   };
 
   Chart.prototype.animatePieSelection = function(group, previousAngle, nextAngle) {
+    var chartAnimation = this._chartAnimation;
     var delta;
+    var duration = chartAnimation ? chartAnimation._getDuration() : 750;
+    var easing = chartAnimation ? chartAnimation._getCssEasing() : 'cubic-bezier(.22, .8, .3, 1)';
     var self = this;
     if (!group || previousAngle == null || this.options.isAnimated === false) return;
     delta = normalizeAngle(previousAngle - nextAngle) * 180 / Math.PI;
@@ -422,7 +459,7 @@ export function createChartFactory() {
     if (this.pieAnimationRaf) cancelAnimationFrame(this.pieAnimationRaf);
     this.pieAnimationRaf = requestAnimationFrame(function() {
       self.pieAnimationRaf = 0;
-      group.style.transition = 'transform .75s cubic-bezier(.22, .8, .3, 1)';
+      group.style.transition = 'transform ' + duration + 'ms ' + easing;
       group.style.transform = 'rotate(0deg)';
     });
   };
@@ -460,7 +497,9 @@ export function createChartFactory() {
     if (normalizeChartType(this.options.chartType || this.options.type) === 'pie') this.refresh();
     else this.applySelection();
     this.emit('selectionChanged', { chart: this, selection: this.options.selection });
-    if (this._selectionSource && typeof this._selectionSource.select === 'function') this._selectionSource.select(this.options.selectedIndex, this._selectionSource.selection && this._selectionSource.selection.col || 0);
+    if (this._collectionView) {
+      this._collectionView.moveCurrentToPosition(this.options.selectedIndex);
+    }
   };
 
   Chart.prototype.applySelection = function() {
@@ -496,8 +535,11 @@ export function createChartFactory() {
     if (this.raf) cancelAnimationFrame(this.raf);
     if (this.pieAnimationRaf) cancelAnimationFrame(this.pieAnimationRaf);
     this.stopDataObserver();
+    if (this._chartAnimation && typeof this._chartAnimation._detach === 'function') {
+      this._chartAnimation._detach();
+    }
     if (this.resizeObserver) this.resizeObserver.disconnect();
-    this.unbindSelectionSource();
+    this.unbindItemsSource();
     this.svg.removeEventListener('pointermove', this._boundPointerMove);
     this.svg.removeEventListener('pointerleave', this._boundPointerLeave);
     this.svg.removeEventListener('click', this._boundClick);
@@ -515,6 +557,10 @@ export function createChartFactory() {
           return chart.options[name];
         },
         set: function(value) {
+          if (name === 'itemsSource') {
+            chart.setItemsSource(value);
+            return;
+          }
           chart.options[name] = value;
           if (name === 'observeData' || name === 'dataRefreshInterval') {
             chart.startDataObserver();
@@ -555,7 +601,7 @@ export function createChartFactory() {
   function setDatum(element, series, category, value, percent, pointIndex, seriesIndex) { element.dataset.series = series; element.dataset.category = category; element.dataset.value = value; element.dataset.pointIndex = pointIndex == null ? 0 : pointIndex; element.dataset.seriesIndex = seriesIndex == null ? 0 : seriesIndex; if (percent != null) element.dataset.percent = percent; }
 
   function createDataModel(options, type) {
-    var items = Array.isArray(options.itemsSource) ? options.itemsSource : null;
+    var items = getItemsSourceItems(options.itemsSource);
     var series = options.series || [];
     var categories;
     if (!items) return { categories: options.categories || [], series: series, pieLegend: series };
@@ -598,10 +644,14 @@ export function createChartFactory() {
   function formatTemplate(template, data) { return template.replace(/\{(seriesName|series|x|category|y|value|name|percent)\}/g, function(_, key) { var map = { seriesName: 'series', x: 'category', y: 'value', name: 'category' }; var value = data[map[key] || key]; return value == null ? '' : value; }); }
   function formatDataLabel(template, data) { return String(template).replace(/\{(name|value|percent)\}/g, function(_, key) { return key === 'percent' ? String(Math.round(data.percent * 10) / 10) : String(data[key] == null ? '' : data[key]); }); }
   function getDataSignature(options) {
-    var items = Array.isArray(options.itemsSource) ? options.itemsSource : [];
+    var items = getItemsSourceItems(options.itemsSource) || [];
     var bindings = [options.bindingX, options.bindingName, options.binding].concat((options.series || []).map(function(item) { return item.binding; })).filter(Boolean);
     if (!bindings.length) return JSON.stringify([options.categories, options.series]);
     return JSON.stringify(items.map(function(item) { return bindings.map(function(binding) { return getBoundValue(item, binding); }); }));
+  }
+  function getItemsSourceItems(itemsSource) {
+    if (isCollectionView(itemsSource)) return itemsSource.items;
+    return Array.isArray(itemsSource) ? itemsSource : null;
   }
 
   Chart.locales = DEFAULT_MESSAGES;
@@ -618,4 +668,313 @@ export function createChartFactory() {
   Chart.Position = { None: 'None', Left: 'Left', Top: 'Top', Right: 'Right', Bottom: 'Bottom' };
   Chart.SelectionMode = { None: 'None', Point: 'Point', Series: 'Series' };
   return Chart;
+}
+
+export function createChartNamespace() {
+  var Chart = createChartFactory();
+  var ChartType = Chart.ChartType;
+  var Position = {
+    None: 'None',
+    Left: 'Left',
+    Top: 'Top',
+    Right: 'Right',
+    Bottom: 'Bottom',
+    Auto: 'Auto',
+    TopLeft: 'TopLeft',
+    TopRight: 'TopRight',
+    BottomLeft: 'BottomLeft',
+    BottomRight: 'BottomRight',
+    LeftTop: 'LeftTop',
+    LeftBottom: 'LeftBottom',
+    RightTop: 'RightTop',
+    RightBottom: 'RightBottom'
+  };
+  var SelectionMode = Chart.SelectionMode;
+  var AnimationMode = {
+    All: 'All',
+    Point: 'Point',
+    Series: 'Series'
+  };
+  var Easing = {
+    Linear: 'Linear',
+    Swing: 'Swing',
+    EaseInQuad: 'EaseInQuad',
+    EaseOutQuad: 'EaseOutQuad',
+    EaseInOutQuad: 'EaseInOutQuad',
+    EaseInCubic: 'EaseInCubic',
+    EaseOutCubic: 'EaseOutCubic',
+    EaseInOutCubic: 'EaseInOutCubic',
+    EaseInQuart: 'EaseInQuart',
+    EaseOutQuart: 'EaseOutQuart',
+    EaseInOutQuart: 'EaseInOutQuart',
+    EaseInQuint: 'EaseInQuint',
+    EaseOutQuint: 'EaseOutQuint',
+    EaseInOutQuint: 'EaseInOutQuint',
+    EaseInSine: 'EaseInSine',
+    EaseOutSine: 'EaseOutSine',
+    EaseInOutSine: 'EaseInOutSine',
+    EaseInExpo: 'EaseInExpo',
+    EaseOutExpo: 'EaseOutExpo',
+    EaseInOutExpo: 'EaseInOutExpo',
+    EaseInCirc: 'EaseInCirc',
+    EaseOutCirc: 'EaseOutCirc',
+    EaseInOutCirc: 'EaseInOutCirc',
+    EaseInBack: 'EaseInBack',
+    EaseOutBack: 'EaseOutBack',
+    EaseInOutBack: 'EaseInOutBack',
+    EaseInBounce: 'EaseInBounce',
+    EaseOutBounce: 'EaseOutBounce',
+    EaseInOutBounce: 'EaseInOutBounce',
+    EaseInElastic: 'EaseInElastic',
+    EaseOutElastic: 'EaseOutElastic',
+    EaseInOutElastic: 'EaseInOutElastic'
+  };
+  var CSS_EASING = {
+    Linear: 'linear',
+    Swing: 'ease-in-out',
+    EaseInQuad: 'cubic-bezier(.55, .085, .68, .53)',
+    EaseOutQuad: 'cubic-bezier(.25, .46, .45, .94)',
+    EaseInOutQuad: 'cubic-bezier(.455, .03, .515, .955)',
+    EaseInCubic: 'cubic-bezier(.55, .055, .675, .19)',
+    EaseOutCubic: 'cubic-bezier(.215, .61, .355, 1)',
+    EaseInOutCubic: 'cubic-bezier(.645, .045, .355, 1)',
+    EaseInQuart: 'cubic-bezier(.895, .03, .685, .22)',
+    EaseOutQuart: 'cubic-bezier(.165, .84, .44, 1)',
+    EaseInOutQuart: 'cubic-bezier(.77, 0, .175, 1)',
+    EaseInQuint: 'cubic-bezier(.755, .05, .855, .06)',
+    EaseOutQuint: 'cubic-bezier(.23, 1, .32, 1)',
+    EaseInOutQuint: 'cubic-bezier(.86, 0, .07, 1)',
+    EaseInSine: 'cubic-bezier(.47, 0, .745, .715)',
+    EaseOutSine: 'cubic-bezier(.39, .575, .565, 1)',
+    EaseInOutSine: 'cubic-bezier(.445, .05, .55, .95)',
+    EaseInExpo: 'cubic-bezier(.95, .05, .795, .035)',
+    EaseOutExpo: 'cubic-bezier(.19, 1, .22, 1)',
+    EaseInOutExpo: 'cubic-bezier(1, 0, 0, 1)',
+    EaseInCirc: 'cubic-bezier(.6, .04, .98, .335)',
+    EaseOutCirc: 'cubic-bezier(.075, .82, .165, 1)',
+    EaseInOutCirc: 'cubic-bezier(.785, .135, .15, .86)',
+    EaseInBack: 'cubic-bezier(.6, -.28, .735, .045)',
+    EaseOutBack: 'cubic-bezier(.175, .885, .32, 1.275)',
+    EaseInOutBack: 'cubic-bezier(.68, -.55, .265, 1.55)',
+    EaseInBounce: 'cubic-bezier(.6, 0, .8, .2)',
+    EaseOutBounce: 'cubic-bezier(.2, .8, .4, 1)',
+    EaseInOutBounce: 'cubic-bezier(.5, 0, .5, 1)',
+    EaseInElastic: 'cubic-bezier(.7, -.4, .8, .2)',
+    EaseOutElastic: 'cubic-bezier(.2, .8, .3, 1.4)',
+    EaseInOutElastic: 'cubic-bezier(.7, -.4, .3, 1.4)'
+  };
+
+  function ChartAnimationEvent(sender) {
+    this.sender = sender;
+    this.handlers = [];
+  }
+
+  ChartAnimationEvent.prototype.addHandler = function(handler, self) {
+    if (typeof handler === 'function') {
+      this.handlers.push({ handler: handler, self: self });
+    }
+    return this;
+  };
+
+  ChartAnimationEvent.prototype.removeHandler = function(handler, self) {
+    var hasSelf = arguments.length > 1;
+    this.handlers = this.handlers.filter(function(record) {
+      return record.handler !== handler || hasSelf && record.self !== self;
+    });
+    return this;
+  };
+
+  ChartAnimationEvent.prototype.raise = function(args) {
+    var sender = this.sender;
+    this.handlers.slice().forEach(function(record) {
+      record.handler.call(record.self || sender, sender, args || {});
+    });
+  };
+
+  function ChartAnimation(chart, options) {
+    options = options || {};
+    if (!(chart instanceof Chart)) {
+      throw new TypeError('ChartAnimation requires a fabui.chart.Chart or fabui.chart.Pie instance.');
+    }
+    this._chart = chart;
+    this.animationMode = normalizeAnimationMode(options.animationMode);
+    this.axisAnimation = options.axisAnimation === true;
+    this.duration = normalizeAnimationDuration(options.duration);
+    this.easing = normalizeAnimationEasing(options.easing);
+    this.ended = new ChartAnimationEvent(this);
+    this._endedTimer = 0;
+    if (chart._chartAnimation && chart._chartAnimation !== this) {
+      chart._chartAnimation._detach();
+    }
+    chart._chartAnimation = this;
+    this.animate();
+  }
+
+  Object.defineProperty(ChartAnimation.prototype, 'chart', {
+    enumerable: true,
+    get: function() {
+      return this._chart;
+    }
+  });
+
+  ChartAnimation.prototype.animate = function() {
+    if (!this._chart || this._chart.disposed) return;
+    this._chart.options.animation = true;
+    this._chart.playAnimation();
+  };
+
+  ChartAnimation.prototype._prepare = function() {
+    var chart = this._chart;
+    var root = chart && chart.root;
+    var elements;
+    var mode;
+    var duration;
+    var maxStep = 0;
+    if (!root) return;
+    mode = normalizeAnimationMode(this.animationMode);
+    duration = normalizeAnimationDuration(this.duration);
+    root.style.setProperty('--fui-chart-animation-duration', duration + 'ms');
+    root.style.setProperty('--fui-chart-animation-easing', this._getCssEasing());
+    root.setAttribute('data-animation-mode', mode.toLowerCase());
+    root.classList.toggle('fui-chart-axis-animate', this.axisAnimation === true);
+    elements = Array.prototype.slice.call(
+      root.querySelectorAll('.fui-chart-mark, .fui-chart-line')
+    );
+    elements.forEach(function(element, index) {
+      var step = 0;
+      if (mode === AnimationMode.Point) {
+        step = normalizeAnimationStep(element.dataset.pointIndex, index);
+      } else if (mode === AnimationMode.Series) {
+        step = normalizeAnimationStep(element.dataset.seriesIndex, 0);
+      }
+      maxStep = Math.max(maxStep, step);
+      element._fuiAnimationStep = step;
+    });
+    elements.forEach(function(element) {
+      var delay = maxStep > 0 ? duration * .55 * element._fuiAnimationStep / maxStep : 0;
+      element.style.setProperty('--fui-chart-animation-delay', delay + 'ms');
+      element.style.setProperty(
+        '--fui-chart-item-animation-duration',
+        Math.max(1, duration - delay) + 'ms'
+      );
+      delete element._fuiAnimationStep;
+    });
+  };
+
+  ChartAnimation.prototype._getDuration = function() {
+    return normalizeAnimationDuration(this.duration);
+  };
+
+  ChartAnimation.prototype._getCssEasing = function() {
+    return CSS_EASING[normalizeAnimationEasing(this.easing)] || CSS_EASING.Swing;
+  };
+
+  ChartAnimation.prototype._handleAnimationStart = function() {
+    var self = this;
+    if (this._endedTimer) clearTimeout(this._endedTimer);
+    this._endedTimer = setTimeout(function() {
+      self._endedTimer = 0;
+      if (self._chart && !self._chart.disposed) {
+        self.ended.raise({});
+      }
+    }, this._getDuration());
+  };
+
+  ChartAnimation.prototype._detach = function() {
+    var chart = this._chart;
+    var root = chart && chart.root;
+    if (this._endedTimer) clearTimeout(this._endedTimer);
+    this._endedTimer = 0;
+    if (root) {
+      root.style.removeProperty('--fui-chart-animation-duration');
+      root.style.removeProperty('--fui-chart-animation-easing');
+      root.removeAttribute('data-animation-mode');
+      root.classList.remove('fui-chart-axis-animate');
+      Array.prototype.forEach.call(
+        root.querySelectorAll('.fui-chart-mark, .fui-chart-line'),
+        function(element) {
+          element.style.removeProperty('--fui-chart-animation-delay');
+          element.style.removeProperty('--fui-chart-item-animation-duration');
+        }
+      );
+    }
+    if (chart && chart._chartAnimation === this) {
+      chart._chartAnimation = null;
+    }
+    this._chart = null;
+  };
+
+  function normalizeAnimationMode(value) {
+    value = String(value || AnimationMode.All).toLowerCase();
+    if (value === 'point') return AnimationMode.Point;
+    if (value === 'series') return AnimationMode.Series;
+    return AnimationMode.All;
+  }
+
+  function normalizeAnimationDuration(value) {
+    value = Number(value);
+    return isFinite(value) && value >= 0 ? value : 400;
+  }
+
+  function normalizeAnimationEasing(value) {
+    var name = String(value || Easing.Swing);
+    return Object.prototype.hasOwnProperty.call(Easing, name) ? Easing[name] : Easing.Swing;
+  }
+
+  function normalizeAnimationStep(value, fallback) {
+    value = Number(value);
+    return isFinite(value) && value >= 0 ? value : fallback;
+  }
+
+  function Pie(element, options) {
+    var pieOptions = {};
+    Object.keys(options || {}).forEach(function(key) {
+      pieOptions[key] = options[key];
+    });
+    pieOptions.chartType = ChartType.Pie;
+    pieOptions.type = 'pie';
+    Chart.call(this, element, pieOptions);
+    delete this.chartType;
+  }
+
+  Pie.prototype = Object.create(Chart.prototype);
+  Pie.prototype.constructor = Pie;
+  Pie.prototype.setType = function() {
+    return this;
+  };
+  Pie.prototype.setOptions = function(options) {
+    var pieOptions = {};
+    Object.keys(options || {}).forEach(function(key) {
+      pieOptions[key] = options[key];
+    });
+    pieOptions.chartType = ChartType.Pie;
+    pieOptions.type = 'pie';
+    Chart.prototype.setOptions.call(this, pieOptions);
+    return this;
+  };
+  Pie.locales = Chart.locales;
+  Pie.themes = Chart.themes;
+  Pie.addLocale = function(name, messages) {
+    Chart.addLocale(name, messages);
+    return Pie;
+  };
+  Pie.normalizeLocale = Chart.normalizeLocale;
+  Pie.normalizeTheme = Chart.normalizeTheme;
+  Pie.Position = Position;
+  Pie.SelectionMode = SelectionMode;
+
+  Chart.Position = Position;
+
+  return {
+    Chart: Chart,
+    Pie: Pie,
+    ChartType: ChartType,
+    Position: Position,
+    SelectionMode: SelectionMode,
+    animation: {
+      ChartAnimation: ChartAnimation,
+      AnimationMode: AnimationMode,
+      Easing: Easing
+    }
+  };
 }

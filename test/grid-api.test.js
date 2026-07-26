@@ -87,9 +87,11 @@ test('Grid focus events fire only when focus enters or leaves the Grid', functio
   var eventGrid = { wijmoEvents: {} };
   var inside = {};
   var outside = {};
+  var ownerDocument = { activeElement: outside };
   var raised = [];
   var grid = {
     root: {
+      ownerDocument: ownerDocument,
       contains: function(target) {
         return target === inside;
       }
@@ -102,6 +104,10 @@ test('Grid focus events fire only when focus enters or leaves the Grid', functio
   FabGrid.prototype.createWijmoEvents.call(eventGrid);
   assert.equal(typeof eventGrid.gotFocus.addHandler, 'function');
   assert.equal(typeof eventGrid.lostFocus.addHandler, 'function');
+  assert.equal(Object.getOwnPropertyDescriptor(FabGrid.prototype, 'hasFocus').get.call(grid), false);
+
+  ownerDocument.activeElement = inside;
+  assert.equal(Object.getOwnPropertyDescriptor(FabGrid.prototype, 'hasFocus').get.call(grid), true);
 
   FabGrid.prototype.handleFocusIn.call(grid, { relatedTarget: outside });
   FabGrid.prototype.handleFocusIn.call(grid, { relatedTarget: inside });
@@ -113,6 +119,65 @@ test('Grid focus events fire only when focus enters or leaves the Grid', functio
   }), ['gotFocus', 'lostFocus']);
   assert.equal(raised[0].args.relatedTarget, outside);
   assert.equal(raised[1].args.relatedTarget, outside);
+
+  ownerDocument.activeElement = outside;
+  assert.equal(Object.getOwnPropertyDescriptor(FabGrid.prototype, 'hasFocus').get.call(grid), false);
+});
+
+test('editing navigation scrolls after selection without top-aligning through select()', function() {
+  var FabGrid = createFabGridFactory({});
+  var calls = [];
+  var grid = {
+    editing: {
+      row: 5,
+      col: 1
+    },
+    options: {
+      multiSelectRows: false
+    },
+    findEditableCellInRow: function() {
+      return {
+        row: 6,
+        col: 1
+      };
+    },
+    finishEditing: function() {
+      return true;
+    },
+    select: function() {
+      throw new Error('editing navigation must not use select() top alignment');
+    },
+    applyCellSelection: function(anchorRow, anchorCol, row, col) {
+      calls.push(['selection', anchorRow, anchorCol, row, col]);
+    },
+    scrollIntoView: function(row, col, options) {
+      calls.push(['scroll', row, col, options && options.directionY]);
+    },
+    startEditing: function(row, col) {
+      calls.push(['editing', row, col]);
+    }
+  };
+
+  assert.equal(FabGrid.prototype.commitEditingAndMoveVertical.call(grid, 1), true);
+  assert.deepEqual(calls, [
+    ['selection', 6, 1, 6, 1],
+    ['scroll', 6, 1, 1],
+    ['editing', 6, 1]
+  ]);
+
+  calls = [];
+  grid.findNextEditableCell = function() {
+    return {
+      row: 7,
+      col: 1
+    };
+  };
+  assert.equal(FabGrid.prototype.commitEditingAndMoveRight.call(grid), true);
+  assert.deepEqual(calls, [
+    ['selection', 7, 1, 7, 1],
+    ['scroll', 7, 1, undefined],
+    ['editing', 7, 1]
+  ]);
 });
 
 test('host resize observer invalidates an empty grid after its layout becomes visible', function() {
@@ -168,6 +233,113 @@ test('Grid avoids a redundant window resize listener when ResizeObserver exists'
     source,
     /if \(typeof ResizeObserver !== 'function'\) \{\s*window\.addEventListener\('resize'/
   );
+});
+
+test('stopNavigation defaults to false and can be changed at runtime', function() {
+  var FabGrid = createFabGridFactory({});
+  var source = readFileSync(
+    new URL('../src/grid/fabgrid.js', import.meta.url),
+    'utf8'
+  );
+  var descriptor = Object.getOwnPropertyDescriptor(FabGrid.prototype, 'stopNavigation');
+  var classes = new Set();
+  var grid = {
+    options: { stopNavigation: false },
+    _stopNavigation: false,
+    root: {
+      classList: {
+        toggle: function(name, enabled) {
+          if (enabled) {
+            classes.add(name);
+          } else {
+            classes.delete(name);
+          }
+        },
+        remove: function(name) {
+          classes.delete(name);
+        }
+      }
+    },
+    fixedPaneTouchTap: null,
+    cellRangeDragState: null,
+    cellRangeAutoScrollRaf: 0,
+    verticalScrollbarDrag: null,
+    horizontalScrollbarDrag: null,
+    unbindVerticalScrollbarDragEvents: function() {},
+    unbindHorizontalScrollbarDragEvents: function() {},
+    applyStopNavigation: FabGrid.prototype.applyStopNavigation
+  };
+
+  assert.match(source, /stopNavigation:\s*false/);
+  assert.equal(descriptor.get.call(grid), false);
+
+  descriptor.set.call(grid, true);
+  assert.equal(descriptor.get.call(grid), true);
+  assert.equal(grid.options.stopNavigation, true);
+  assert.equal(classes.has('fg-navigation-stopped'), true);
+
+  grid.options.stopNavigation = false;
+  assert.equal(descriptor.get.call(grid), true);
+  grid.applyStopNavigation();
+  assert.equal(grid.options.stopNavigation, true);
+
+  descriptor.set.call(grid, false);
+  assert.equal(descriptor.get.call(grid), false);
+  assert.equal(grid.options.stopNavigation, false);
+  assert.equal(classes.has('fg-navigation-stopped'), false);
+});
+
+test('stopNavigation blocks user keyboard, cell click and wheel navigation', function() {
+  var FabGrid = createFabGridFactory({});
+  var ownerDocument = {};
+  var root = createFakeElement(['fg-root']);
+  var cell = createFakeElement(['fg-cell'], { 'data-row': 0, 'data-col': 0 });
+  var prevented = 0;
+  var stopped = 0;
+  var grid = {
+    options: { stopNavigation: true },
+    _stopNavigation: true,
+    root: root,
+    selection: { row: 0, col: 0 }
+  };
+  root.className = 'fg-root';
+  cell.className = 'fg-cell';
+  root.ownerDocument = ownerDocument;
+  cell.ownerDocument = ownerDocument;
+  cell.parentNode = root;
+  ownerDocument.activeElement = cell;
+
+  FabGrid.prototype.handleKeyDown.call(grid, {
+    key: 'ArrowDown',
+    target: cell,
+    preventDefault: function() {
+      prevented += 1;
+    },
+    stopPropagation: function() {
+      stopped += 1;
+    }
+  });
+  FabGrid.prototype.handleClick.call(grid, {
+    target: cell,
+    preventDefault: function() {
+      prevented += 1;
+    },
+    stopPropagation: function() {
+      stopped += 1;
+    }
+  });
+  FabGrid.prototype.handleFixedPaneWheel.call(grid, {
+    preventDefault: function() {
+      prevented += 1;
+    },
+    stopPropagation: function() {
+      stopped += 1;
+    }
+  });
+
+  assert.equal(prevented, 3);
+  assert.equal(stopped, 3);
+  assert.deepEqual(grid.selection, { row: 0, col: 0 });
 });
 
 test('search row debounce defaults to four hundred milliseconds', function() {
@@ -434,6 +606,194 @@ test('first-row up arrow focuses the same-column search input only while search 
   assert.deepEqual(focusedColumns, [1]);
 });
 
+test('a nested FabGrid keyboard event is handled only by its owning Grid', function() {
+  var FabGrid = createFabGridFactory({});
+  var ownerDocument = {};
+  var parentRoot = {
+    nodeType: 1,
+    className: 'fg-root',
+    parentNode: null,
+    ownerDocument: ownerDocument
+  };
+  var childRoot = {
+    nodeType: 1,
+    className: 'fg-root',
+    parentNode: parentRoot,
+    ownerDocument: ownerDocument
+  };
+  var childCell = {
+    nodeType: 1,
+    tagName: 'DIV',
+    className: 'fg-cell',
+    parentNode: childRoot,
+    ownerDocument: ownerDocument
+  };
+  ownerDocument.activeElement = childCell;
+  var moved = 0;
+  var prevented = 0;
+  var parentGrid = {
+    root: parentRoot,
+    selection: { row: 0, col: 0 },
+    moveVertical: function() {
+      moved += 1;
+    }
+  };
+
+  FabGrid.prototype.handleKeyDown.call(parentGrid, {
+    key: 'ArrowDown',
+    target: childCell,
+    preventDefault: function() {
+      prevented += 1;
+    }
+  });
+
+  assert.equal(moved, 0);
+  assert.equal(prevented, 0);
+});
+
+test('FabGrid keyboard ownership follows the actually focused Grid', function() {
+  var FabGrid = createFabGridFactory({});
+  var ownerDocument = {};
+  var firstRoot = {
+    nodeType: 1,
+    className: 'fg-root',
+    parentNode: null,
+    ownerDocument: ownerDocument
+  };
+  var secondRoot = {
+    nodeType: 1,
+    className: 'fg-root',
+    parentNode: null,
+    ownerDocument: ownerDocument
+  };
+  var firstCell = {
+    nodeType: 1,
+    className: 'fg-cell',
+    parentNode: firstRoot,
+    ownerDocument: ownerDocument
+  };
+  var forwardedTarget = {
+    nodeType: 1,
+    className: 'page',
+    parentNode: null,
+    ownerDocument: ownerDocument
+  };
+  var firstGrid = { root: firstRoot };
+  var secondGrid = { root: secondRoot };
+  var event = { target: forwardedTarget };
+
+  ownerDocument.activeElement = firstCell;
+
+  assert.equal(FabGrid.prototype.isKeyboardEventOwner.call(firstGrid, event), true);
+  assert.equal(FabGrid.prototype.isKeyboardEventOwner.call(secondGrid, event), false);
+});
+
+test('FabGrid keyboard ownership remembers the last active Grid when focus temporarily returns to the page', function() {
+  var FabGrid = createFabGridFactory({});
+  var ownerDocument = {};
+  var page = {
+    nodeType: 1,
+    className: 'page',
+    parentNode: null,
+    ownerDocument: ownerDocument
+  };
+  var firstRoot = {
+    nodeType: 1,
+    className: 'fg-root',
+    parentNode: page,
+    ownerDocument: ownerDocument
+  };
+  var secondRoot = {
+    nodeType: 1,
+    className: 'fg-root',
+    parentNode: page,
+    ownerDocument: ownerDocument
+  };
+  var secondCell = {
+    nodeType: 1,
+    className: 'fg-cell',
+    parentNode: secondRoot,
+    ownerDocument: ownerDocument
+  };
+  var firstGrid = { root: firstRoot };
+  var secondGrid = { root: secondRoot };
+  var forwardedEvent = { target: page };
+
+  ownerDocument.body = page;
+  ownerDocument.activeElement = page;
+  assert.equal(FabGrid.prototype.activateKeyboardEventOwner.call(secondGrid, {
+    target: secondCell
+  }), true);
+  assert.equal(FabGrid.prototype.isKeyboardEventOwner.call(firstGrid, forwardedEvent), false);
+  assert.equal(FabGrid.prototype.isKeyboardEventOwner.call(secondGrid, forwardedEvent), true);
+
+  FabGrid.prototype.deactivateKeyboardEventOwner.call(secondGrid);
+  assert.equal(FabGrid.prototype.isKeyboardEventOwner.call(secondGrid, forwardedEvent), false);
+});
+
+test('the same keyboard event can be claimed by only one FabGrid', function() {
+  var FabGrid = createFabGridFactory({});
+  var event = {};
+  var firstGrid = {};
+  var secondGrid = {};
+
+  assert.equal(FabGrid.prototype.claimKeyboardEvent.call(firstGrid, event), true);
+  assert.equal(FabGrid.prototype.claimKeyboardEvent.call(firstGrid, event), false);
+  assert.equal(FabGrid.prototype.claimKeyboardEvent.call(secondGrid, event), false);
+});
+
+test('handled FabGrid direction keys do not bubble to page keyboard handlers', function() {
+  var FabGrid = createFabGridFactory({});
+  var root = {
+    nodeType: 1,
+    tagName: 'DIV',
+    className: 'fg-root',
+    parentNode: null
+  };
+  var moved = 0;
+  var prevented = 0;
+  var stopped = 0;
+  var grid = {
+    root: root,
+    selection: { row: 0, col: 0 },
+    view: [{ id: 1 }, { id: 2 }],
+    options: {
+      allowEditing: false,
+      autoClipboard: false,
+      multiSelectRows: false
+    },
+    busy: false,
+    editing: null,
+    isFilterMenuOpen: function() { return false; },
+    isTopLeftMenuOpen: function() { return false; },
+    isColumnChooserOpen: function() { return false; },
+    isHeaderToggleKey: function() { return false; },
+    handleFirstRowSearchFocus: function() { return false; },
+    handleCellRangeKeyDown: function() { return false; },
+    getVerticalBoundaryHotKeyDirection: function() { return 0; },
+    getHorizontalBoundaryHotKeyDirection: function() { return 0; },
+    handleTreeKeyDown: function() { return false; },
+    moveVertical: function(row) {
+      moved = row;
+    }
+  };
+
+  FabGrid.prototype.handleKeyDown.call(grid, {
+    key: 'ArrowDown',
+    target: root,
+    preventDefault: function() {
+      prevented += 1;
+    },
+    stopPropagation: function() {
+      stopped += 1;
+    }
+  });
+
+  assert.equal(moved, 1);
+  assert.equal(prevented, 1);
+  assert.equal(stopped, 1);
+});
+
 test('frozen column counts are normalized before layout', function() {
   var FabGrid = createFabGridFactory({});
   var grid = {
@@ -448,8 +808,10 @@ test('frozen column counts are normalized before layout', function() {
       fastScrollOverscanRows: 64,
       overscanColumns: 3,
       frozenColumns: 1.8,
-      frozenRightColumns: 0.9
+      frozenRightColumns: 0.9,
+      stopNavigation: false
     },
+    _stopNavigation: true,
     emit: function() {}
   };
 
@@ -457,6 +819,7 @@ test('frozen column counts are normalized before layout', function() {
 
   assert.equal(grid.options.frozenColumns, 1);
   assert.equal(grid.options.frozenRightColumns, 0);
+  assert.equal(grid.options.stopNavigation, true);
   assert.equal(grid._frozenColumns, 1);
   assert.equal(grid._frozenRightColumns, 0);
   assert.equal(grid.frozenWidth, 100);
@@ -605,6 +968,9 @@ test('row collection exposes compatible Row and GroupRow instances', function() 
   grid.selection = { row: 1, col: 0 };
   grid.rowSelection = null;
   grid.selectedRowMap = {};
+  assert.equal(grid.selectedRow, rows[1]);
+  assert.equal(grid.selectedRow.index, 1);
+  assert.equal(grid.selectedRow.dataItem, dataItem);
   assert.deepEqual(grid.selectedRows, []);
   grid.rowSelection = 1;
   assert.equal(grid.selectedRows[0], rows[1]);
@@ -612,6 +978,9 @@ test('row collection exposes compatible Row and GroupRow instances', function() 
   grid.options.multiSelectRows = true;
   grid.selectedRowMap = { 0: true, 1: true };
   assert.deepEqual(grid.selectedRows, [rows[0], rows[1]]);
+
+  grid.selection.row = -1;
+  assert.equal(grid.selectedRow, null);
 });
 
 test('row range uses a positive normalized row height', function() {
@@ -1338,6 +1707,43 @@ test('allowMultiSorting defaults to preserving Shift multi-column sorting', func
   assert.equal(grid.sortStates[1].column, secondColumn);
 });
 
+test('local sorting synchronizes a shared CollectionView before rendering', function() {
+  var FabGrid = createFabGridFactory({});
+  var column = { binding: 'amount', allowSorting: true };
+  var calls = [];
+  var grid = {
+    options: {
+      remote: false
+    },
+    visibleColumns: [column],
+    sortStates: [],
+    sortState: null,
+    getSortStates: function() {
+      return this.sortStates;
+    },
+    getSortIndex: function(target) {
+      return this.sortStates.findIndex(function(state) {
+        return state.column === target;
+      });
+    },
+    emit: function() {
+      return true;
+    },
+    syncCollectionViewSort: function() {
+      calls.push('collectionView');
+    },
+    applyView: function() {
+      calls.push('grid');
+    },
+    resetScroll: function() {},
+    render: function() {}
+  };
+
+  FabGrid.prototype.toggleSort.call(grid, 0, false);
+
+  assert.deepEqual(calls, ['collectionView', 'grid']);
+});
+
 test('column allowSorting false blocks local and remote sorting before events and loading', function() {
   var FabGrid = createFabGridFactory({});
   [false, true].forEach(function(remote) {
@@ -1441,12 +1847,14 @@ test('sortingColumn option cancellation still raises registered event handlers o
   assert.equal(eventCalls, 1);
 });
 
-test('select defaults to the first visible column and aligns hidden rows at the viewport start', function() {
+test('selection API remains available while stopNavigation is enabled', function() {
   var FabGrid = createFabGridFactory({});
   var applied = [];
   var scrolled = [];
   var grid = {
-    options: { rowHeight: 32 },
+    options: { rowHeight: 32, stopNavigation: true },
+    view: new Array(10),
+    visibleColumns: new Array(3),
     selection: { row: 0, col: 0 },
     bodyScroll: { scrollTop: 0 },
     applyCellSelection: function(anchorRow, anchorCol, row, col) {
@@ -1472,11 +1880,31 @@ test('select defaults to the first visible column and aligns hidden rows at the 
   assert.deepEqual(scrolled, []);
 });
 
-test('scrollIntoView start alignment clamps at the final viewport', function() {
+test('select ignores row and column indexes outside the available range', function() {
+  var FabGrid = createFabGridFactory({});
+  var applyCalls = 0;
+  var grid = {
+    view: [{ id: 1 }, { id: 2 }],
+    visibleColumns: [{ binding: 'id' }, { binding: 'name' }],
+    applyCellSelection: function() {
+      applyCalls += 1;
+      return true;
+    }
+  };
+
+  assert.equal(FabGrid.prototype.select.call(grid, -1), false);
+  assert.equal(FabGrid.prototype.select.call(grid, 2), false);
+  assert.equal(FabGrid.prototype.select.call(grid, 0, -1), false);
+  assert.equal(FabGrid.prototype.select.call(grid, 0, 2), false);
+  assert.equal(FabGrid.prototype.select.call(grid, 0.5, 0), false);
+  assert.equal(applyCalls, 0);
+});
+
+test('scrollIntoView API remains available while stopNavigation is enabled', function() {
   var FabGrid = createFabGridFactory({});
   var renderCount = 0;
   var grid = {
-    options: { rowHeight: 32 },
+    options: { rowHeight: 32, stopNavigation: true },
     bodyScroll: {
       clientHeight: 96,
       clientWidth: 200,

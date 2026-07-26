@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabUI PivotWorkspace 開發版</title>
   <link rel="stylesheet" href="../src/fabui.css?v=20260722-filter-active-theme-v1">
-  <script src="./js/theme-loader.js?v=20260722-filter-active-theme-v1"></script>
+  <script src="./js/theme-loader.js?v=20260725-editbox-themes-v1"></script>
   <style>
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -46,7 +46,7 @@
           <option value="material">Material</option>
           <option value="cupertino">Cupertino</option>
           <option value="dark-hive">Dark Hive</option>
-          <option value="mono">Mono</option><option value="mono-red">Mono Red</option><option value="mono-green">Mono Green</option>
+          <option value="mono">Mono</option>
         </select>
       </label>
       <label>
@@ -82,7 +82,7 @@
   </main>
 
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260723-performance-audit-v1';
+    import fabui from '../src/fabui.js?v=20260725-remove-mono-variants-v1';
 
     window.fabui = fabui;
     await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260717-pivot-workspace-v3');
@@ -169,7 +169,7 @@
       }
     });
 
-    const themes = ['default', 'metro-blue', 'material', 'cupertino', 'dark-hive', 'mono', 'mono-red', 'mono-green'];
+    const themes = ['default', 'metro-blue', 'material', 'cupertino', 'dark-hive', 'mono'];
     const examples = {
       'quarter-region-product': {
         rowFields: ['quarter', 'region'],
@@ -209,9 +209,7 @@
           'material': 'Material',
           'cupertino': 'Cupertino',
           'dark-hive': 'Dark Hive',
-          'mono': 'Mono',
-          'mono-red': 'Mono Red',
-          'mono-green': 'Mono Green'
+          'mono': 'Mono'
         },
         layouts: {
           'Auto': '自動',
@@ -244,9 +242,7 @@
           'material': 'Material',
           'cupertino': 'Cupertino',
           'dark-hive': 'Dark Hive',
-          'mono': 'Mono',
-          'mono-red': 'Mono Red',
-          'mono-green': 'Mono Green'
+          'mono': 'Mono'
         },
         layouts: {
           'Auto': '自动',
@@ -279,9 +275,7 @@
           'material': 'Material',
           'cupertino': 'Cupertino',
           'dark-hive': 'Dark Hive',
-          'mono': 'Mono',
-          'mono-red': 'Mono Red',
-          'mono-green': 'Mono Green'
+          'mono': 'Mono'
         },
         layouts: {
           'Auto': 'Auto',

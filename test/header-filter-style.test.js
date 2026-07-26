@@ -76,7 +76,7 @@ test('light themes inherit the Default operator color and dark themes use white'
     return /^fabgrid\..+\.css$/.test(file);
   });
 
-  assert.equal(themeFiles.length, 19);
+  assert.equal(themeFiles.length, 17);
   themeFiles.forEach(function(file) {
     var source = readFileSync(new URL(file, themeDir), 'utf8');
     if (darkThemes.has(file)) {

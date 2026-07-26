@@ -189,4 +189,4 @@ fabui.Scheduler.normalizeLocale('zh_Hant_TW'); // 'zh-TW'
 fabui.Scheduler.normalizeLocale('zh-Hans');    // 'zh-CN'
 ```
 
-Scheduler 公開與其他 FabUI 元件相同的 19 組 theme metadata。實際配色由頁面最後載入的 Theme CSS 決定。
+Scheduler 公開與其他 FabUI 元件相同的 17 組 theme metadata。實際配色由頁面最後載入的 Theme CSS 決定。

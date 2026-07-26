@@ -96,8 +96,8 @@ function buildThemeOutput(options) {
     })
     .sort();
 
-  if (sourceFiles.length !== 18) {
-    throw new Error('Theme build requires exactly 18 non-default theme source files.');
+  if (sourceFiles.length !== 16) {
+    throw new Error('Theme build requires exactly 16 non-default theme source files.');
   }
 
   if (options.clean === true) {

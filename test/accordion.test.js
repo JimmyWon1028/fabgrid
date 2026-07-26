@@ -34,8 +34,6 @@ test('Accordion normalizes supported themes and header alignment', function() {
   assert.equal(normalizeAccordionTheme('pepper'), 'pepper-grinder');
   assert.equal(normalizeAccordionTheme(' BLACK '), 'black');
   assert.equal(normalizeAccordionTheme('mono'), 'mono');
-  assert.equal(normalizeAccordionTheme('mono-red'), 'mono-red');
-  assert.equal(normalizeAccordionTheme('mono-green'), 'mono-green');
   assert.equal(normalizeAccordionTheme('unknown'), 'default');
   assert.equal(normalizeAccordionHalign('left'), 'left');
   assert.equal(normalizeAccordionHalign('RIGHT'), 'right');
@@ -51,7 +49,7 @@ test('Accordion publishes matching locale and theme metadata', function() {
     'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
     'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
     'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-    'black', 'mono', 'mono-red', 'mono-green'
+    'black', 'mono'
   ]);
   assert.equal(
     fabui.Accordion.locales['zh-TW'].expand,

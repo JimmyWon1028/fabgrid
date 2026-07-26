@@ -19,8 +19,6 @@
     { value: 'dark-hive', text: 'Dark Hive' },
     { value: 'black', text: 'Black' },
     { value: 'mono', text: 'Mono' },
-    { value: 'mono-red', text: 'Mono Red' },
-    { value: 'mono-green', text: 'Mono Green' }
   ];
 
   var PROPERTY_DEFINITIONS = [{

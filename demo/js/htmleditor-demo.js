@@ -48,7 +48,7 @@
       editor.setValue(
         '<h2>FabUI HtmlEditor</h2>' +
         '<p>這是由 <strong>pure JavaScript</strong> 建立的獨立附加元件。</p>' +
-        '<ul><li>Summernote 風格工具列</li><li>三語系與 19 組主題</li></ul>'
+        '<ul><li>Summernote 風格工具列</li><li>三語系與 17 組主題</li></ul>'
       );
       setStatus('已載入範例 HTML');
     });

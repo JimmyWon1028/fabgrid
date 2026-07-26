@@ -319,11 +319,11 @@ test('The Grid demos enable both frozen column EditBox spinners', function() {
   );
   assert.match(
     devGridHtml,
-    /grid2-components\.js\?v=20260723-frozen-spinner-v1/
+    /grid2-components\.js\?v=20260725-remove-mono-variants-v1/
   );
   assert.match(
     buildGridHtml,
-    /grid2-components\.js\?v=20260723-frozen-spinner-v1/
+    /grid2-components\.js\?v=20260725-remove-mono-variants-v1/
   );
 });
 
@@ -381,8 +381,8 @@ test('The Grid demos expose the same range selection switch', function() {
     /grid-toolbar\.js\?v=20260723-selection-range-v1/,
     /grid-data\.js\?v=20260721-initial-filter-rules-v1/,
     /grid-locales\.js\?v=20260723-selection-range-v1/,
-    /grid2-components\.js\?v=20260723-frozen-spinner-v1/,
-    /grid\.js\?v=20260723-selection-range-v1/
+    /grid2-components\.js\?v=20260725-remove-mono-variants-v1/,
+    /grid\.js\?v=20260725-remove-mono-variants-v1/
   ].forEach(function(pattern) {
     assert.match(devGridHtml, pattern);
     assert.match(buildGridHtml, pattern);
@@ -447,7 +447,7 @@ test('The Windows 7 source Demo composes FabUI controls', function() {
   assert.match(win7Script, /new fabui\.Tree/);
   assert.match(win7Script, /new fabui\.Tabs/);
   assert.equal((win7Script.match(/new fabui\.FabGrid/g) || []).length, 2);
-  assert.match(win7Script, /new fabui\.Chart/);
+  assert.match(win7Script, /new fabui\.chart\.Chart/);
   assert.match(win7Script, /new fabui\.Button/);
   assert.match(win7Script, /new fabui\.Menu/);
   assert.match(win7Script, /var WIN7_THEMES = \[/);
@@ -725,7 +725,7 @@ test('Both EditBox Demos expose custom button examples', function() {
     assert.match(html, /id="edit-left-button"/);
     assert.match(html, /id="edit-spinner-true"/);
     assert.match(html, /id="edit-time-seconds"/);
-    assert.match(html, /editbox-demo\.js\?v=20260723-custom-buttons-v1/);
+    assert.match(html, /editbox-demo\.js\?v=20260725-editbox-themes-v1/);
   });
   assert.match(
     script,
@@ -735,6 +735,8 @@ test('Both EditBox Demos expose custom button examples', function() {
     script,
     /boxes\.leftButton = new fabui\.EditBox\('#edit-left-button',[\s\S]*?align:\s*'left'/
   );
+  assert.match(script, /fabuiDemoTheme\.current/);
+  assert.doesNotMatch(script, /fg-theme-/);
 });
 
 test('Source-mode Demo styles do not repaint FabUI button hosts', function() {

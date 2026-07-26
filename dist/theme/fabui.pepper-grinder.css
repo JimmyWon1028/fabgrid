@@ -27,7 +27,7 @@
   background-image: url("pepper-grinder/images/tabs_icons.png");
 }
 
-:root /* Values adapted from res/themes/pepper-grinder/{textbox,:root combo,:root combobox,:root calendar,:root datebox}.css. */
+/* Values adapted from res/themes/pepper-grinder/{textbox, combo, combobox, calendar, datebox}.css. */
 :root {
   --fui-control-border: #cbc7bd;
   --fui-control-focus: #b5afa0;

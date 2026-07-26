@@ -45,7 +45,7 @@ test('EditBox exposes one class with simplified editor type names', function() {
     'color'
   ]);
   assert.deepEqual(Object.keys(EditBox.locales), ['en', 'zh-TW', 'zh-CN']);
-  assert.equal(EditBox.themes.length, 19);
+  assert.equal(EditBox.themes.length, 17);
   assert.equal(typeof EditBox.prototype.setLocale, 'function');
 });
 

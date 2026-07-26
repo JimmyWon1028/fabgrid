@@ -184,7 +184,7 @@ fabui.HtmlEditor.locales;
 fabui.HtmlEditor.normalizeLocale('zh_Hant_TW'); // 'zh-TW'
 ```
 
-公開 `themes` 與其他 FabUI 元件相同，共 19 組。外部 Theme CSS 必須載入於 `fabui.htmleditor.css` 之後。
+公開 `themes` 與其他 FabUI 元件相同，共 17 組。外部 Theme CSS 必須載入於 `fabui.htmleditor.css` 之後。
 
 ## Build
 

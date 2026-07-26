@@ -2,13 +2,13 @@ import {
   DatePopup,
   findDatePopupTheme,
   normalizeDatePopupTheme
-} from '../editbox/date-popup.js?v=20260719-current-month-text-v1';
+} from '../editbox/date-popup.js?v=20260725-remove-mono-variants-v1';
 
 var CALENDAR_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 var CALENDAR_LOCALES = {

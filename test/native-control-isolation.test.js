@@ -203,14 +203,14 @@ test('FabUI core JavaScript assigns stable classes to native Pivot controls', fu
   assert.match(slicer, /input\.className = 'fg-pivot-slicer-check'/);
 });
 
-test('All 19 FabUI themes avoid raw native control selectors', function() {
+test('All 17 FabUI themes avoid raw native control selectors', function() {
   const themeDirectory = new URL('src/theme/', root);
   const themes = readdirSync(themeDirectory)
     .filter(function(name) {
       return /^fabgrid\.[a-z0-9-]+\.css$/.test(name);
     })
     .sort();
-  assert.equal(themes.length, 19);
+  assert.equal(themes.length, 17);
 
   themes.forEach(function(name) {
     const source = readFileSync(new URL(name, themeDirectory), 'utf8');
@@ -262,7 +262,7 @@ test('Built-in icons keep their images above generic native selectors', function
   assert.match(iconCss, /:root\s+\.fui-panel-tool-minimize/);
   assert.match(iconCss, /:root\s+\.fui-layout-button-up/);
 
-  ['mono', 'mono-red', 'mono-green'].forEach(function(themeName) {
+  ['mono'].forEach(function(themeName) {
     const source = readFileSync(
       new URL('src/theme/' + themeName + '/components.css', root),
       'utf8'

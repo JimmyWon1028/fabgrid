@@ -792,6 +792,16 @@
   -webkit-overflow-scrolling: touch;
 }
 
+:root .fg-root.fg-navigation-stopped .fg-body-scroll,
+:root .fg-root.fg-navigation-stopped .fg-frozen-pane,
+:root .fg-root.fg-navigation-stopped .fg-frozen-pane-right,
+:root .fg-root.fg-navigation-stopped .fg-row-header-pane,
+:root .fg-root.fg-navigation-stopped .fg-selection-pane,
+:root .fg-root.fg-navigation-stopped .fg-scrollbar-v,
+:root .fg-root.fg-navigation-stopped .fg-scrollbar-h {
+  pointer-events: none;
+}
+
 :root .fg-body-scroll::-webkit-scrollbar {
   width: var(--fg-scrollbar-size);
   height: var(--fg-scrollbar-size);

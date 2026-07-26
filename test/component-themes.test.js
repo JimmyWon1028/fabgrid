@@ -19,9 +19,7 @@ var themes = [
   'metro-red',
   'pepper-grinder',
   'sunny',
-  'mono',
-  'mono-red',
-  'mono-green'
+  'mono'
 ];
 
 test('Every FabGrid theme defines the CellRange palette variables', function() {
@@ -43,6 +41,8 @@ test('Every FabUI theme defines the new component palette variables', function()
       new URL('../src/theme/' + theme + '/components.css', import.meta.url),
       'utf8'
     );
+    assert.match(css, /(?:^|\n):root\s*\{[\s\S]*?--fui-control-border:/, theme);
+    assert.doesNotMatch(css, /^:root\s*\/\*/m, theme);
     assert.match(css, /--fui-checkbox-accent:\s*#[0-9a-f]{3,6}/i, theme);
     assert.match(css, /--fui-propertygrid-border:\s*#[0-9a-f]{3,6}/i, theme);
     assert.match(css, /--fui-propertygrid-group-bg:\s*#[0-9a-f]{3,6}/i, theme);
@@ -61,14 +61,8 @@ test('Mono theme keeps its icon assets SVG-only and maps every referenced file',
   var files = readdirSync(directory);
   var cssFiles = [
     '../src/theme/mono/components.css',
-    '../src/theme/mono-red/components.css',
-    '../src/theme/mono-green/components.css',
     '../src/theme/mono/tabs.css',
-    '../src/theme/mono-red/tabs.css',
-    '../src/theme/mono-green/tabs.css',
-    '../src/theme/fabgrid.mono.css',
-    '../src/theme/fabgrid.mono-red.css',
-    '../src/theme/fabgrid.mono-green.css'
+    '../src/theme/fabgrid.mono.css'
   ];
   var cssEntries = cssFiles.map(function(file) {
     var url = new URL(file, import.meta.url);
@@ -208,68 +202,6 @@ test('Base CSS contains Default only and external themes use fixed selectors', f
     );
     assert.doesNotMatch(rootCss + components + tabs, /\.fg-theme-/, theme);
     if (theme !== 'default') assert.match(rootCss, /\.fg-root/);
-  });
-});
-
-test('Mono Red and Mono Green reuse their matching Metro palettes and Mono icons', function() {
-  function variables(file) {
-    var css = readFileSync(new URL(file, import.meta.url), 'utf8');
-    return Object.fromEntries(Array.from(
-      css.matchAll(/(--[\w-]+):\s*([^;]+);/g),
-      function(match) {
-        return [match[1], match[2].trim().toLowerCase()];
-      }
-    ));
-  }
-
-  [
-    { mono: 'mono-red', metro: 'metro-red' },
-    { mono: 'mono-green', metro: 'metro-green' }
-  ].forEach(function(pair) {
-    var grid = variables('../src/theme/fabgrid.' + pair.mono + '.css');
-    var metroGrid = variables('../src/theme/fabgrid.' + pair.metro + '.css');
-    var metroComponentSource = readFileSync(
-      new URL('../src/theme/' + pair.metro + '/components.css', import.meta.url),
-      'utf8'
-    );
-    var metroComponents = variables('../src/theme/' + pair.metro + '/components.css');
-    var components = Object.assign(
-      {},
-      Object.fromEntries(Array.from(
-        metroComponentSource.matchAll(/(--[\w-]+):\s*([^;]+);/g),
-        function(match) {
-          return [match[1], match[2].trim().toLowerCase()];
-        }
-      )),
-      variables('../src/theme/' + pair.mono + '/components.css')
-    );
-    var tabs = variables('../src/theme/' + pair.mono + '/tabs.css');
-    var metroTabs = variables('../src/theme/' + pair.metro + '/tabs.css');
-    var rootCss = readFileSync(
-      new URL('../src/theme/fabgrid.' + pair.mono + '.css', import.meta.url),
-      'utf8'
-    );
-    var tabsCss = readFileSync(
-      new URL('../src/theme/' + pair.mono + '/tabs.css', import.meta.url),
-      'utf8'
-    );
-
-    assert.deepEqual(grid, metroGrid, pair.mono + ' grid palette');
-    Object.keys(metroComponents).forEach(function(name) {
-      if (/^url\(/.test(metroComponents[name])) return;
-      assert.equal(
-        components[name],
-        metroComponents[name],
-        pair.mono + ' component palette ' + name
-      );
-    });
-    Object.keys(metroTabs).forEach(function(name) {
-      if (/^url\(/.test(metroTabs[name])) return;
-      assert.equal(tabs[name], metroTabs[name], pair.mono + ' tabs palette ' + name);
-    });
-    assert.match(rootCss, /mono\/images\/pagination-first\.svg/);
-    assert.match(tabsCss, /\.\.\/mono\/images\/tabs-close\.svg/);
-    assert.doesNotMatch(rootCss + tabsCss, /\.(?:png|gif)\b/i);
   });
 });
 

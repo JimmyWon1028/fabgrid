@@ -2,7 +2,7 @@ var DIAGRAM_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 var DIAGRAM_SVG_NS = 'http://www.w3.org/2000/svg';
 var nextDiagramItemId = 1;

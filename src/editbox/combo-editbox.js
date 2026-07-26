@@ -1,4 +1,4 @@
-import { ComboPopup } from './combo-popup.js?v=20260719-i18n-theme-audit-v1';
+import { ComboPopup } from './combo-popup.js?v=20260725-remove-mono-variants-v1';
 import { normalizeEditorIconDescriptors } from './editor-icons.js?v=20260718-editor-icons-v1';
 
 export function createComboBoxFactory(TextBox, editorDefinitions) {

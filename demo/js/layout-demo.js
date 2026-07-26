@@ -5,7 +5,7 @@
     'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
     'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
     'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-    'black', 'mono', 'mono-red', 'mono-green'
+    'black', 'mono'
   ];
 
   function mountLayoutDemo(fabui) {
@@ -31,6 +31,12 @@
       else layout.collapse(region);
     }
 
+    function toggleRegionVisibility(region) {
+      if (!layout.panel(region)) return;
+      if (layout.isVisible(region)) layout.hide(region);
+      else layout.show(region);
+    }
+
     if (!fabui || typeof fabui.Layout !== 'function') {
       throw new Error('fabui.Layout class is unavailable.');
     }
@@ -52,6 +58,12 @@
       onExpand: function(sender, args) {
         log('已展開：' + args.region);
       },
+      onHide: function(sender, args) {
+        log('已隱藏：' + args.region);
+      },
+      onShow: function(sender, args) {
+        log('已顯示：' + args.region);
+      },
       onRegionResize: function(sender, args) {
         log('調整尺寸：' + args.region + ' ' + args.width + ' × ' + args.height);
       }
@@ -72,6 +84,18 @@
     });
     document.getElementById('toggle-east').addEventListener('click', function() {
       toggleRegion('east');
+    });
+    document.getElementById('visibility-north').addEventListener('click', function() {
+      toggleRegionVisibility('north');
+    });
+    document.getElementById('visibility-south').addEventListener('click', function() {
+      toggleRegionVisibility('south');
+    });
+    document.getElementById('visibility-west').addEventListener('click', function() {
+      toggleRegionVisibility('west');
+    });
+    document.getElementById('visibility-east').addEventListener('click', function() {
+      toggleRegionVisibility('east');
     });
     document.getElementById('remove-east').addEventListener('click', function() {
       if (layout.panel('east')) {

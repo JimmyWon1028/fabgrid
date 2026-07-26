@@ -2,7 +2,7 @@
 
 本資料夾提供與 `src/theme/images/` 現有圖檔對應的單色 SVG，原有 PNG／GIF 不會被覆蓋；整組 sprite 會拆成用途明確的獨立 SVG。
 
-`mono`、`mono-red`、`mono-green` 是 FabUI 第 17 至 19 組公開主題，分別沿用 Metro Gray、Metro Red、Metro Green 的版面色調，並共用本資料夾的單色 SVG icon。
+`mono` 是 FabUI 第 17 組公開主題，沿用 Metro Gray 的版面色調，並使用本資料夾的單色 SVG icon。
 
 Build 時會將這組 SVG 另外輸出到 `dist/theme/mono/`；輸出檔名保持不變，正式版 Mono CSS 只引用這個資料夾，其他主題的共用圖片路徑不變。
 

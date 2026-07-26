@@ -1,4 +1,4 @@
-:root /* Values adapted from res/themes/cupertino/{textbox,:root combo,:root combobox,:root calendar,:root datebox}.css. */
+/* Values adapted from res/themes/cupertino/{textbox, combo, combobox, calendar, datebox}.css. */
 :root {
   --fui-control-border: #AED0EA;
   --fui-control-focus: #86b9e0;

@@ -103,7 +103,7 @@ SwitchButton 開啟時，`new FormData(form)` 會包含 `notifications=enabled`�
 - `fabui.SwitchButton.normalizeLocale(locale)`
 - `fabui.SwitchButton.normalizeTheme(theme)`
 
-19 組主題為：`default`、`bootstrap`、`cupertino`、`material`、`material-blue`、`material-teal`、`metro`、`metro-blue`、`metro-gray`、`metro-green`、`metro-orange`、`metro-red`、`sunny`、`pepper-grinder`、`dark-hive`、`black`、`mono`、`mono-red`、`mono-green`。
+17 組主題為：`default`、`bootstrap`、`cupertino`、`material`、`material-blue`、`material-teal`、`metro`、`metro-blue`、`metro-gray`、`metro-green`、`metro-orange`、`metro-red`、`sunny`、`pepper-grinder`、`dark-hive`、`black`、`mono`。
 
 ## Demo
 

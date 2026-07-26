@@ -1,6 +1,6 @@
 # fabui.Layout API
 
-`fabui.Layout` 是以 `fabui.Panel` 組成的五區 pure JavaScript 版面容器。支援 north、south、east、west、center、拖曳 Splitter、收合區域、動態加入／移除與巢狀 Layout，不依賴 jQuery 或 EasyUI runtime。
+`fabui.Layout` 是以 `fabui.Panel` 組成的五區 pure JavaScript 版面容器。支援 north、south、east、west、center、拖曳 Splitter、收合區域、隱藏區域、動態加入／移除與巢狀 Layout，不依賴 jQuery 或 EasyUI runtime。
 
 Layout 的 Splitter、拖曳 active 色、collapsed bar、border、文字與箭頭 sprite 會分別對應既有 16 組 EasyUI `layout.css`／`layout_arrows.png` 視覺；`mono` 沿用 Default 結構並套用單色 SVG icon。收合與展開 icon 不顯示滑鼠 hover 效果，鍵盤 `focus-visible` 提示只在未 hover 時顯示。正式 source 與 build 使用 `src/theme/<theme>/images/`，不依賴本機參考用的 `res/`。
 
@@ -53,6 +53,7 @@ Region options 會傳給共用的 `fabui.Panel`，並增加以下 Layout 設定�
 | `split` | `false` | 顯示可拖曳與鍵盤操作的 Splitter。 |
 | `collapsible` | `true` | Edge region 是否可收合。 |
 | `collapsed` | `false` | 初始化是否收合。 |
+| `hidden` | `false` | 初始化是否完全隱藏 edge region；隱藏時不保留 collapsed bar 或版面空間。 |
 | `minWidth` / `minHeight` | `10` | Splitter 最小尺寸。 |
 | `maxWidth` / `maxHeight` | `10000` | Splitter 最大尺寸。 |
 | `expandMode` | `'float'` | 收合 bar 點擊行為：`float`、`dock` 或 `null`。 |
@@ -70,6 +71,8 @@ Region options 會傳給共用的 `fabui.Panel`，並增加以下 Layout 設定�
 | `resize({ width?, height? })` | 更新 Layout 尺寸與五區幾何。 |
 | `panel(region)` | 取得指定 `fabui.Panel`，不存在時回傳 `null`。 |
 | `collapse(region)` / `expand(region)` | 收合或 dock 展開 edge region。 |
+| `hide(region)` / `show(region)` | 完全隱藏或顯示 edge region，不改變原本的 collapsed 狀態。 |
+| `isVisible(region)` | 區域存在且未隱藏時回傳 `true`。 |
 | `add(options)` | 動態加入 region，回傳該 Panel。 |
 | `remove(region)` | 移除 edge region。 |
 | `split(region)` / `unsplit(region)` | 開啟或關閉 Splitter。 |
@@ -80,6 +83,8 @@ Region options 會傳給共用的 `fabui.Panel`，並增加以下 Layout 設定�
 
 Splitter 支援 pointer drag；拖曳期間只移動 active Splitter 預覽，Panel 與內容保持原尺寸，pointer up 後才一次提交 region 尺寸並發出 `RegionResize`，pointer cancel 不套用變更。Focus Splitter 後可用方向鍵每次立即調整 10px。Document pointer listeners 只在拖曳期間綁定，結束、取消或 dispose 時立即解除。
 
+隱藏與收合是不同狀態。`hide(region)` 會同時移除 Panel、Splitter、collapsed bar 及該區域占用的版面空間；`show(region)` 會依隱藏前保留的尺寸與 collapsed 狀態恢復。`center` 是必要區域，因此 `hide('center')` 與 `show('center')` 不做任何變更。
+
 收起／展開會同步動畫 edge region、center、Splitter 與 collapsed bar。當作業系統啟用「減少動態效果」時，Layout 會自動停用動畫並立即完成狀態切換。
 
 ## Events
@@ -87,9 +92,10 @@ Splitter 支援 pointer drag；拖曳期間只移動 active Splitter 預覽，Pa
 Constructor callbacks 使用 `(layout, eventArgs)`：
 
 - `onCollapse` / `onExpand`
+- `onHide` / `onShow`
 - `onAdd` / `onRemove`
 - `onResize`
 - `onRegionResize`
 - `onDestroy`
 
-對應的 native event names 為 `collapse`、`expand`、`add`、`remove`、`resize`、`regionresize`、`destroy`。
+對應的 native event names 為 `collapse`、`expand`、`hide`、`show`、`add`、`remove`、`resize`、`regionresize`、`destroy`。

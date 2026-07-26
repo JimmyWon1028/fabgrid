@@ -291,7 +291,7 @@ test('Diagram publishes complete locales and all themes', function() {
   assert.equal(fabui.Diagram.locales['zh-TW'].snapSize, '吸附間距');
   assert.equal(fabui.Diagram.locales['zh-CN'].snapSize, '吸附间距');
   assert.equal(fabui.Diagram.locales['zh-CN'].properties, '属性');
-  assert.equal(fabui.Diagram.themes.length, 19);
+  assert.equal(fabui.Diagram.themes.length, 17);
   assert.equal(normalizeDiagramTheme('pepper'), 'pepper-grinder');
   assert.equal(normalizeDiagramTheme(' BLACK '), 'black');
   assert.equal(normalizeDiagramLocale('zh_Hant_TW'), 'zh-TW');

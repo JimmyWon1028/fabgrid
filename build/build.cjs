@@ -14,6 +14,7 @@ const javascriptSources = [
   'core/config.js',
   'core/clipboard.js',
   'core/control.js',
+  'collections/collection-view.js',
   'button/button.js',
   'accordion/accordion.js',
   'calendar/calendar.js',
@@ -158,6 +159,7 @@ function createJavascriptBundle() {
     'global.fabui.Clipboard = Clipboard;\n' +
     'global.fabui.editorDefinitions = createEditorDefinitions();\n' +
     'global.fabui.Control = Control;\n' +
+    'global.fabui.collections = { CollectionView: CollectionView };\n' +
     'global.fabui.Button = createButtonFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.Calendar = createCalendarFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.CheckBox = createCheckBoxFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
@@ -165,7 +167,7 @@ function createJavascriptBundle() {
     'global.fabui.SwitchButton = createSwitchButtonFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.RadioButton = createRadioButtonFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.RadioGroup = createRadioGroupFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.RadioButton);\n' +
-    'global.fabui.Chart = createChartFactory();\n' +
+    'global.fabui.chart = createChartNamespace();\n' +
     'global.fabui.EditBox = createEditBoxFactory(global.fabui.editorDefinitions);\n' +
   'global.fabui.Window = createWindowFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
   'global.fabui.Menu = createMenuFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
@@ -185,7 +187,7 @@ function createJavascriptBundle() {
     'global.fabui.CellType = CellType;\n' +
     'global.fabui.pivot = {};\n' +
     'global.fabui.pivot.PivotAggregate = PivotAggregate;\n' +
-    'global.fabui.pivot.PivotChart = createPivotChartFactory(global.fabui.Control, registerControl, unregisterControl, PivotEngine, global.fabui.Chart, global.fabui.FabGrid);\n' +
+    'global.fabui.pivot.PivotChart = createPivotChartFactory(global.fabui.Control, registerControl, unregisterControl, PivotEngine, global.fabui.chart.Chart, global.fabui.FabGrid);\n' +
     'global.fabui.pivot.PivotEngine = PivotEngine;\n' +
     'global.fabui.pivot.PivotField = PivotField;\n' +
     'global.fabui.pivot.PivotGrid = createPivotGridFactory(global.fabui.FabGrid, PivotEngine, global.fabui.CellType);\n' +
@@ -230,8 +232,9 @@ function verifyBuildOutput() {
   if (javascript.indexOf('global.fabui.version = ' + JSON.stringify(buildVersion)) < 0) {
     throw new Error('FabUI build version does not match the build date.');
   }
-  if (javascript.indexOf('global.fabui.Chart = createChartFactory()') < 0) {
-    throw new Error('FabUI Chart is missing from the JavaScript bundle.');
+  if (javascript.indexOf('global.fabui.chart = createChartNamespace()') < 0 ||
+      javascript.indexOf('global.fabui.Chart =') >= 0) {
+    throw new Error('FabUI chart namespace is missing or Chart leaked to the top level.');
   }
   if (/createDiagramFactory|global\.fabui\.Diagram/.test(javascript)) {
     throw new Error('FabUI Diagram must remain outside the core JavaScript bundle.');

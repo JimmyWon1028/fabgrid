@@ -58,8 +58,6 @@
     { value: "dark-hive", label: "Dark Hive" },
     { value: "black", label: "Black" },
     { value: "mono", label: "Mono" },
-    { value: "mono-red", label: "Mono Red" },
-    { value: "mono-green", label: "Mono Green" },
   ];
   var DEMO_WORKFLOW_VALUES = window.FabGridDemoData.workflowValues;
   var DEMO_STATUS_STYLES = {

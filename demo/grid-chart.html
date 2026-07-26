@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabGrid + Chart Build Demo</title>
   <link rel="stylesheet" href="../dist/fabui.css?v=20260722-theme-css-split-v1">
-  <script src="./js/theme-loader.js?v=20260722-theme-reload-v1"></script>
+  <script src="./js/theme-loader.js?v=20260725-editbox-themes-v1"></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; color: #1f2937; background: #f3f4f6; font-family: helvetica, tahoma, verdana, sans-serif; }
@@ -28,7 +28,7 @@
     <header class="header">
       <div>
         <h1>FabGrid + Chart</h1>
-        <p>共用同一個 itemsSource；資料變動自動重繪，Grid 與 Chart 選取會互相連動。</p>
+        <p>共用同一個 CollectionView；排序、篩選、資料與目前選取項目會自動連動。</p>
       </div>
       <label class="field">
         <span>圖表類型</span>
@@ -46,7 +46,7 @@
       <article class="card"><h2 class="card-title">營收與成本趨勢</h2><div id="lineChart"></div></article>
       <article class="card"><h2 class="card-title">每月訂單占比</h2><div id="pieChart"></div></article>
     </section>
-    <p class="note">Grid 與 Chart 接收到的是同一個陣列參照，不會複製或維護第二份資料。</p>
+    <p class="note">Grid 與 Chart 接收到同一個 CollectionView，不需要額外同步排序、篩選或選取。</p>
   </main>
 
   <script src="../dist/fabui.min.js?v=20260721-mono-theme-v2"></script>
@@ -61,9 +61,10 @@
       { month: '7月', revenue: 190, cost: 135, orders: 57 },
       { month: '8月', revenue: 520, cost: 230, orders: 168 }
     ];
+    var collections = new fabui.collections.CollectionView(itemsSource);
     var series = [{ name: '營收', binding: 'revenue' }, { name: '成本', binding: 'cost' }];
     var grid = new fabui.FabGrid('#grid', {
-      itemsSource: itemsSource,
+      itemsSource: collections,
       columns: [
         { binding: 'month', header: '月份', width: 100, align: 'center', isReadOnly: true },
         { binding: 'revenue', header: '營收', width: 130, dataType: 'number', format: 'n0' },
@@ -75,22 +76,27 @@
       frozenColumns: 1,
       alternatingRowStep: 1
     });
-    var chart = new fabui.Chart('#chart', {
-      chartType: 'Column', itemsSource: itemsSource, bindingX: 'month', series: series,
+    var chart = new fabui.chart.Chart('#chart', {
+      chartType: 'Column', itemsSource: collections, bindingX: 'month', series: series,
       axisY: { min: 0 }, legend: { position: 'Bottom' }, tooltip: { content: '{seriesName} · {x}: {y}' },
-      selectionMode: 'Point', selectionSource: grid, locale: 'zh-TW'
+      selectionMode: 'Point', locale: 'zh-TW'
     });
-    var lineChart = new fabui.Chart('#lineChart', {
-      chartType: 'Line', itemsSource: itemsSource, bindingX: 'month', series: series,
+    var lineChart = new fabui.chart.Chart('#lineChart', {
+      chartType: 'Line', itemsSource: collections, bindingX: 'month', series: series,
       axisY: { min: 0 }, legend: { position: 'Bottom' }, tooltip: { content: '{seriesName} · {x}: {y}' },
-      selectionMode: 'Point', selectionSource: grid, locale: 'zh-TW'
+      selectionMode: 'Point', locale: 'zh-TW'
     });
-    var pieChart = new fabui.Chart('#pieChart', {
-      chartType: 'Pie', itemsSource: itemsSource, bindingName: 'month', binding: 'orders',
+    var pieChart = new fabui.chart.Pie('#pieChart', {
+      itemsSource: collections, bindingName: 'month', binding: 'orders',
       legend: { position: 'Bottom' }, tooltip: { content: '{name}: {value} ({percent}%)' },
       selectionMode: 'Point', selectedItemPosition: 'Top', selectedItemOffset: .12, isAnimated: true,
-      dataLabel: { content: '{percent}%', position: 'Inside' }, selectionSource: grid, locale: 'zh-TW'
+      dataLabel: { content: '{percent}%', position: 'Inside' }, locale: 'zh-TW'
     });
+    if (fabui.chart.animation && typeof fabui.chart.animation.ChartAnimation === 'function') {
+      chart.ani = new fabui.chart.animation.ChartAnimation(chart);
+      lineChart.ani = new fabui.chart.animation.ChartAnimation(lineChart);
+      pieChart.ani = new fabui.chart.animation.ChartAnimation(pieChart);
+    }
     document.getElementById('chartType').addEventListener('change', function(event) {
       chart.chartType = event.target.value;
     });

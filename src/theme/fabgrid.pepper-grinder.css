@@ -1,6 +1,6 @@
 /*! FabGrid theme pepper-grinder | performance-first data grid */
 @import './pepper-grinder/tabs.css?v=20260724-native-elements-v2';
-@import './pepper-grinder/components.css?v=20260724-native-elements-v2';
+@import './pepper-grinder/components.css?v=20260725-editbox-themes-v1';
 :root .fg-root,
 :root .fui-tabs {
   --fg-border: #ccc;

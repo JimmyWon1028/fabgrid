@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabUI PivotGrid 開發版</title>
   <link rel="stylesheet" href="../src/fabui.css?v=20260722-filter-active-theme-v1">
-  <script src="./js/theme-loader.js?v=20260722-filter-active-theme-v1"></script>
+  <script src="./js/theme-loader.js?v=20260725-editbox-themes-v1"></script>
   <style>
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -70,7 +70,7 @@
           <option value="material">Material</option>
           <option value="cupertino">Cupertino</option>
           <option value="dark-hive">Dark Hive</option>
-          <option value="mono">Mono</option><option value="mono-red">Mono Red</option><option value="mono-green">Mono Green</option>
+          <option value="mono">Mono</option>
         </select>
       </label>
       <label>View
@@ -148,7 +148,7 @@
   </main>
 
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260723-performance-audit-v1';
+    import fabui from '../src/fabui.js?v=20260725-remove-mono-variants-v1';
     import { getPivotDemoLocale } from './js/pivot-locales.js?v=20260721-initial-filter-rules-v1';
 
     window.fabui = fabui;
@@ -252,7 +252,7 @@
       animation: true
     });
 
-    const themes = ['default', 'metro-blue', 'material', 'cupertino', 'dark-hive', 'mono', 'mono-red', 'mono-green'];
+    const themes = ['default', 'metro-blue', 'material', 'cupertino', 'dark-hive', 'mono'];
     const stats = document.getElementById('stats');
 
     function updateStats() {

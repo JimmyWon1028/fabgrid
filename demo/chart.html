@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabUI Chart Demo</title>
   <link rel="stylesheet" href="../dist/fabui.css?v=20260722-theme-css-split-v1">
-  <script src="./js/theme-loader.js?v=20260722-theme-reload-v1"></script>
+  <script src="./js/theme-loader.js?v=20260725-editbox-themes-v1"></script>
   <style>
     body { margin: 0; padding: 24px; background: #f3f4f6; font-family: helvetica, tahoma, verdana, sans-serif; }
     h1 { margin: 0 0 20px; font-size: 22px; }
@@ -28,11 +28,11 @@
       { month: '5月', sales: 175, expenses: 126 }
     ];
     const series = [{ name: '營收', binding: 'sales' }, { name: '費用', binding: 'expenses' }];
-    new fabui.Chart('#columnChart', { chartType: 'Column', header: '直條圖', itemsSource, bindingX: 'month', series, locale: 'zh-TW' });
-    new fabui.Chart('#barChart', { chartType: 'Bar', header: '橫條圖', itemsSource, bindingX: 'month', series, locale: 'zh-TW' });
-    new fabui.Chart('#lineChart', { chartType: 'Line', header: '折線圖', itemsSource, bindingX: 'month', series, tooltip: { content: '{seriesName} · {x}: {y}' }, locale: 'zh-TW' });
-    new fabui.Chart('#pieChart', {
-      chartType: 'Pie', header: '圓餅圖', bindingName: 'product', binding: 'value', locale: 'zh-TW',
+    new fabui.chart.Chart('#columnChart', { chartType: 'Column', header: '直條圖', itemsSource, bindingX: 'month', series, locale: 'zh-TW' });
+    new fabui.chart.Chart('#barChart', { chartType: 'Bar', header: '橫條圖', itemsSource, bindingX: 'month', series, locale: 'zh-TW' });
+    new fabui.chart.Chart('#lineChart', { chartType: 'Line', header: '折線圖', itemsSource, bindingX: 'month', series, tooltip: { content: '{seriesName} · {x}: {y}' }, locale: 'zh-TW' });
+    new fabui.chart.Pie('#pieChart', {
+      header: '圓餅圖', bindingName: 'product', binding: 'value', locale: 'zh-TW',
       itemsSource: [{ product: 'A', value: 42 }, { product: 'B', value: 35 }, { product: 'C', value: 23 }]
     });
   </script>

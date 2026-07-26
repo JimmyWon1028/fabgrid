@@ -9,8 +9,14 @@ var themes = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
+
+test('Chart API is published only through the fabui.chart namespace', function() {
+  assert.equal(fabui.Chart, undefined);
+  assert.equal(typeof fabui.chart.Chart, 'function');
+  assert.equal(typeof fabui.chart.Pie, 'function');
+});
 
 function assertLocalePack(componentName, component) {
   var packs = component.locales;
@@ -37,19 +43,22 @@ function assertLocalePack(componentName, component) {
 
 test('Every localized public component publishes complete en, zh-TW and zh-CN packs', function() {
   [
-    'Calendar', 'Chart', 'CheckBox', 'CheckGroup', 'Diagram', 'EditBox', 'FileBox',
+    'Calendar', 'CheckBox', 'CheckGroup', 'Diagram', 'EditBox', 'FileBox',
     'Form', 'Layout', 'Menu', 'Panel', 'PropertyGrid', 'RadioButton',
     'RadioGroup', 'SwitchButton', 'Tabs', 'Tree', 'Window'
   ].forEach(function(name) {
     assertLocalePack(name, fabui[name]);
   });
+  assertLocalePack('Chart', fabui.chart.Chart);
+  assertLocalePack('Pie', fabui.chart.Pie);
   assertLocalePack('Messager', fabui.Messager);
 });
 
 test('Localized public components normalize Traditional and Simplified Chinese aliases', function() {
   [
     fabui.Calendar,
-    fabui.Chart,
+    fabui.chart.Chart,
+    fabui.chart.Pie,
     fabui.CheckBox,
     fabui.CheckGroup,
     fabui.Diagram,
@@ -76,15 +85,17 @@ test('Localized public components normalize Traditional and Simplified Chinese a
   });
 });
 
-test('Every theme-aware public component publishes the same 19-theme contract', function() {
+test('Every theme-aware public component publishes the same 17-theme contract', function() {
   [
-    'Button', 'Calendar', 'Chart', 'CheckBox', 'CheckGroup', 'Diagram', 'EditBox',
+    'Button', 'Calendar', 'CheckBox', 'CheckGroup', 'Diagram', 'EditBox',
     'FabGrid', 'FileBox', 'Form', 'Layout', 'Menu', 'MenuButton', 'Panel',
     'PropertyGrid', 'RadioButton', 'RadioGroup', 'SplitButton', 'Tabs',
     'SwitchButton', 'Tree', 'Tooltip', 'Window'
   ].forEach(function(name) {
     assert.deepEqual(fabui[name].themes, themes, name);
   });
+  assert.deepEqual(fabui.chart.Chart.themes, themes, 'Chart');
+  assert.deepEqual(fabui.chart.Pie.themes, themes, 'Pie');
   assert.deepEqual(fabui.Messager.themes, themes, 'Messager');
   [
     'PivotChart', 'PivotGrid', 'PivotPanel', 'PivotSlicer', 'PivotWorkspace'

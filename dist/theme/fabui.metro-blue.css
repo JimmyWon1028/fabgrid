@@ -28,7 +28,7 @@
   background-image: url("metro-blue/images/tabs_icons.png");
 }
 
-:root /* Values adapted from res/themes/metro-blue/{textbox,:root combo,:root combobox,:root calendar,:root datebox}.css. */
+/* Values adapted from res/themes/metro-blue/{textbox, combo, combobox, calendar, datebox}.css. */
 :root {
   --fui-control-border: #c3d9e0;
   --fui-control-focus: #a1c4cf;

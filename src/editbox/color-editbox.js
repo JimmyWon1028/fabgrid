@@ -1,4 +1,4 @@
-import { ColorPopup } from './color-popup.js?v=20260719-i18n-theme-audit-v1';
+import { ColorPopup } from './color-popup.js?v=20260725-remove-mono-variants-v1';
 import { normalizeEditorIconDescriptors } from './editor-icons.js?v=20260718-editor-icons-v1';
 
 export function createColorEditBoxFactory(TextBox, editorDefinitions) {

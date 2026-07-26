@@ -1,6 +1,6 @@
 /*! FabGrid theme sunny | performance-first data grid */
 @import './sunny/tabs.css?v=20260724-native-elements-v2';
-@import './sunny/components.css?v=20260724-native-elements-v2';
+@import './sunny/components.css?v=20260725-editbox-themes-v1';
 :root .fg-root,
 :root .fui-tabs {
   --fg-border: #fece2f;

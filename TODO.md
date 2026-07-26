@@ -105,7 +105,7 @@ Server-side Pivot／OLAP／SSAS 不列入目前產品範圍。
 
 ## FabUI Chart
 
-- [x] 主 bundle 公開 `fabui.Chart`。
+- [x] 主 bundle 只透過 `fabui.chart` 公開 `Chart`、`Pie` 與相關列舉。
 - [x] 支援直條圖、橫條圖、折線圖與圓餅圖。
 - [x] SVG rendering、tooltip、legend、ResizeObserver、資料更新與 dispose。
 - [x] 英文、繁中、簡中基本文字。

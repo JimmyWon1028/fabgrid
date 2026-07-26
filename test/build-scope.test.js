@@ -93,6 +93,8 @@ test('default build preserves public constructor names and descendant pseudo sel
     assert.equal(typeof context.fabui.Clipboard.copy, 'function');
     assert.equal(context.fabui.CellType.Cell, 1);
     assert.equal(context.fabui.FabGrid.CellType, undefined);
+    assert.equal(typeof context.fabui.chart.animation.ChartAnimation, 'function');
+    assert.equal(typeof context.fabui.collections.CollectionView, 'function');
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -117,10 +119,10 @@ test('theme build supports regular and min-only isolated output', function() {
     themeFiles = fs.readdirSync(path.join(tempDir, 'theme'));
     assert.equal(themeFiles.filter(function(file) {
       return /^fabui\..+\.css$/i.test(file) && !/\.min\.css$/i.test(file);
-    }).length, 18);
+    }).length, 16);
     assert.equal(themeFiles.filter(function(file) {
       return /^fabui\..+\.min\.css$/i.test(file);
-    }).length, 18);
+    }).length, 16);
     assert.equal(themeFiles.includes('fabui.default.css'), false);
 
     result = spawnSync(process.execPath, ['build/build-theme.cjs', 'min'], {
@@ -132,7 +134,7 @@ test('theme build supports regular and min-only isolated output', function() {
     themeFiles = fs.readdirSync(path.join(tempDir, 'theme'));
     assert.equal(themeFiles.filter(function(file) {
       return /^fabui\..+\.min\.css$/i.test(file);
-    }).length, 18);
+    }).length, 16);
     assert.equal(themeFiles.filter(function(file) {
       return /^fabui\..+\.css$/i.test(file) && !/\.min\.css$/i.test(file);
     }).length, 0);
@@ -143,7 +145,7 @@ test('theme build supports regular and min-only isolated output', function() {
   }
 });
 
-test('Lite build keeps Mono family assets in the shared flat directory', function() {
+test('Lite build keeps Mono assets in the shared flat directory', function() {
   var buildSource = fs.readFileSync('build/build-lite.cjs', 'utf8');
 
   assert.match(buildSource, /replace\('theme\/mono\/images\/', 'theme\/mono\/'\)/);
@@ -183,6 +185,8 @@ test('Lite build supports min-only isolated output', function() {
     assert.equal(typeof context.fabui.Clipboard.copy, 'function');
     assert.equal(context.fabui.CellType.Cell, 1);
     assert.equal(context.fabui.FabGrid.CellType, undefined);
+    assert.equal(typeof context.fabui.chart.animation.ChartAnimation, 'function');
+    assert.equal(typeof context.fabui.collections.CollectionView, 'function');
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

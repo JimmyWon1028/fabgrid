@@ -8,7 +8,7 @@ var SCHEDULER_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 var SCHEDULER_VIEW_TYPES = [
@@ -2086,5 +2086,5 @@ function createSchedulerFactory(fabui) {
 }
 
 global.fabui.Scheduler = createSchedulerFactory(global.fabui);
-global.fabui.Scheduler.version = "2026.7.24";
+global.fabui.Scheduler.version = "2026.7.27";
 }(typeof window !== "undefined" ? window : this));

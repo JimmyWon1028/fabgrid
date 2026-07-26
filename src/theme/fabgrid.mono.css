@@ -1,7 +1,7 @@
 /*! FabGrid theme mono | Metro Gray palette with monochrome SVG icons */
-@import './metro-gray/components.css?v=20260724-native-elements-v2';
+@import './metro-gray/components.css?v=20260725-editbox-themes-v1';
 @import './mono/tabs.css?v=20260724-native-elements-v2';
-@import './mono/components.css?v=20260724-native-elements-v2';
+@import './mono/components.css?v=20260725-editbox-themes-v1';
 :root .fg-root,
 :root .fui-tabs {
   --fg-border: #dedede;

@@ -1,11 +1,11 @@
 # FabUI Chart API
 
-`fabui.Chart` 是主 bundle 內建的 pure JavaScript SVG 圖表元件。API 採用 Wijmo FlexChart／FlexPie 常見的資料綁定模型，範圍限定為 `Column`、`Bar`、`Line`、`Pie`。
+`fabui.chart` 是主 bundle 內建的 pure JavaScript SVG 圖表 namespace。`fabui.chart.Chart` 提供 Cartesian Chart，`fabui.chart.Pie` 提供圓餅圖；API 採用 Wijmo FlexChart／FlexPie 常見的資料綁定模型，範圍限定為 `Column`、`Bar`、`Line`、`Pie`。
 
 Pivot view 請使用 [`fabui.pivot.PivotChart`](./pivotchart-api.md)；它會把 PivotEngine view 轉成此 Chart 的 categories 與 series，不會重新彙總原始資料。
 
 ```js
-const chart = new fabui.Chart('#chart', {
+const chart = new fabui.chart.Chart('#chart', {
   chartType: 'Column',
   header: '每月營收',
   itemsSource: [
@@ -20,28 +20,79 @@ const chart = new fabui.Chart('#chart', {
 圓餅圖使用 `bindingName` 與 `binding`：
 
 ```js
-new fabui.Chart('#pie', {
-  chartType: 'Pie',
+new fabui.chart.Pie('#pie', {
   itemsSource: [{ name: 'A', value: 42 }, { name: 'B', value: 58 }],
   bindingName: 'name',
   binding: 'value'
 });
 ```
 
+Grid 與 Chart 排序、篩選及選取連動時，兩者使用同一個 `CollectionView`：
+
+```js
+const collections = new fabui.collections.CollectionView(rowsData);
+
+const grid = new fabui.FabGrid('#grid', {
+  itemsSource: collections
+});
+
+const chart = new fabui.chart.Chart('#chart', {
+  itemsSource: collections,
+  bindingX: 'month',
+  series: [{ name: '營收', binding: 'revenue' }],
+  selectionMode: fabui.chart.SelectionMode.Point
+});
+```
+
+不需要另外監聽 Grid 排序或 `filterChanged`，也不提供 `selectionSource`。
+
 ## 靜態 API
 
 | API | 說明 |
 | --- | --- |
-| `fabui.Chart.ChartType` | `Column`、`Bar`、`Line`、`Pie` 圖形類型常數。 |
-| `fabui.Chart.SelectionMode` | `None`、`Point`、`Series` 選取模式常數。 |
-| `fabui.Chart.locales` | Chart 內建 locale registry。 |
+| `fabui.chart.Chart` | Cartesian Chart 類別。 |
+| `fabui.chart.Pie` | Pie Chart 類別；建立時自動固定為 `Pie`。 |
+| `fabui.chart.ChartType` | `Column`、`Bar`、`Line`、`Pie` 圖形類型常數。 |
+| `fabui.chart.Position` | `None`、`Left`、`Top`、`Right`、`Bottom`、`Auto` 與 legend corner position 常數。 |
+| `fabui.chart.SelectionMode` | `None`、`Point`、`Series` 選取模式常數。 |
+| `fabui.chart.animation` | Chart animation namespace，公開 `ChartAnimation`、`AnimationMode` 與 `Easing`。 |
+| `fabui.chart.Chart.locales` | Chart 內建 locale registry；`Pie` 共用同一份 registry。 |
+
+## ChartAnimation
+
+`ChartAnimation` 可附加到既有的 `Chart` 或 `Pie`。建立後會立即播放一次，之後 Chart 每次 `refresh()` 也會沿用相同設定。
+
+```js
+const animation = new fabui.chart.animation.ChartAnimation(chart, {
+  animationMode: fabui.chart.animation.AnimationMode.All,
+  axisAnimation: false,
+  duration: 400,
+  easing: fabui.chart.animation.Easing.Swing
+});
+
+animation.ended.addHandler(function(sender, e) {
+  console.log('animation ended');
+});
+
+animation.animate();
+```
+
+| 名稱 | 預設值 | 說明 |
+| --- | --- | --- |
+| `chart` | 建構時傳入 | 唯讀的 `fabui.chart.Chart` 或 `fabui.chart.Pie` instance。 |
+| `animationMode` | `All` | `All`、`Point` 或 `Series`。 |
+| `axisAnimation` | `false` | 是否一併播放座標軸動畫；Pie 不使用座標軸。 |
+| `duration` | `400` | 動畫時間，單位為毫秒。 |
+| `easing` | `Swing` | 動畫 easing，使用 `fabui.chart.animation.Easing`。 |
+| `ended` | Event | 動畫結束事件，支援 `addHandler()`／`removeHandler()`。 |
+| `animate()` | — | 立即重新播放動畫。 |
 
 ## 屬性與選項
 
 | 名稱 | 型別 | 預設值 | 說明 |
 | --- | --- | --- | --- |
-| `chartType` | `string` | `Column` | 圖表類型：`Column`、`Bar`、`Line`、`Pie`。 |
-| `itemsSource` | `Array` | `null` | Chart 資料來源，可與 FabGrid 共用同一個陣列參照。 |
+| `chartType` | `string` | `Column` | `Chart` 圖表類型：`Column`、`Bar`、`Line`、`Pie`；`Pie` 類別固定使用 `Pie`。 |
+| `itemsSource` | `Array\|CollectionView` | `null` | Chart 資料來源；與 FabGrid 共用 CollectionView 時同步篩選及目前項目。 |
 | `bindingX` | `string` | `''` | Cartesian Chart 的 X 軸／分類欄位 binding。 |
 | `bindingName` | `string` | `''` | Pie slice 名稱欄位 binding。 |
 | `binding` | `string` | `''` | Pie slice 數值欄位 binding。 |
@@ -57,7 +108,6 @@ new fabui.Chart('#pie', {
 | `selectionMode` | `string` | `None` | 選取模式：`None`、`Point`、`Series`。 |
 | `selection` | `object\|null` | `null` | 目前 selection，包含 `pointIndex` 與 `seriesIndex`。 |
 | `selectedIndex` | `number` | `-1` | 目前選取的資料 point index。 |
-| `selectionSource` | `FabGrid\|null` | `null` | 可選的 Grid selection 來源；設定後自動雙向同步選取。 |
 | `selectedItemPosition` | `string` | `Top` | Pie selected slice 位置：`Top`、`Right`、`Bottom`、`Left`、`None`。 |
 | `selectedItemOffset` | `number` | `.1` | Pie selected slice 離開圓心的距離，以半徑比例表示。 |
 | `isAnimated` | `boolean` | `true` | 是否播放 Pie selection 旋轉動畫。 |
@@ -74,9 +124,9 @@ new fabui.Chart('#pie', {
 
 | 方法 | 參數 | 回傳值 | 說明 |
 | --- | --- | --- | --- |
-| `setItemsSource(itemsSource)` | `Array` | `Chart` | 更換資料來源並 refresh。 |
+| `setItemsSource(itemsSource)` | `Array\|CollectionView` | `Chart` | 更換資料來源並 refresh。 |
 | `setType(type)` | `string` | `Chart` | 切換 `Column`、`Bar`、`Line` 或 `Pie`。 |
-| `setOptions(options)` | `object` | `Chart` | 合併 Chart 選項並 refresh；可用來更換 `selectionSource`。 |
+| `setOptions(options)` | `object` | `Chart` | 合併 Chart 選項並 refresh。 |
 | `setSeries(series)` | `Array` | `Chart` | 更換 series 定義並 refresh。 |
 | `setData(data)` | `object` | `Chart` | 更新相容格式的 `categories` 與 `series`。 |
 | `selectPoint(index, seriesIndex)` | `number, number?` | `Chart` | 選取指定資料 point；Pie 會依設定旋轉並位移。 |
@@ -85,8 +135,6 @@ new fabui.Chart('#pie', {
 | `refresh()` | 無 | `Chart` | 立即重新繪製 Chart。 |
 | `on(name, handler)` | `string, function` | `Chart` | 訂閱 Chart 事件。 |
 | `off(name, handler)` | `string, function` | `Chart` | 移除 Chart 事件 handler。 |
-| `bindSelectionSource(source)` | `FabGrid\|null` | `Chart` | 綁定可選的 Grid selection 來源。 |
-| `unbindSelectionSource()` | 無 | `Chart` | 解除目前 selection source listener。 |
 | `dispose()` | 無 | 無 | 移除 observer、listener、排程與 Chart DOM。 |
 
 ## 事件
@@ -107,4 +155,4 @@ Pie 可用 `selectedItemPosition` 指定選取 slice 旋轉至 `Top`、`Right`�
 
 Pie `dataLabel` 支援 `{name}`、`{value}`、`{percent}` 模板或 `content(data)` function，`position` 可設為 `Inside` 或 `Outside`。未設定時不顯示資料文字。
 
-`selectionSource` 預設為 `null`。傳入 FabGrid instance 後，Chart 會自動同步 Grid row selection，並在點擊 Chart point 時反向選取 Grid；更換來源或 `dispose()` 時會解除 listener。
+Chart 綁定 CollectionView 時會監聽 `collectionChanged` 與 `currentChanged`；更換 `itemsSource` 或 `dispose()` 時會解除 listener。

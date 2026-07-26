@@ -1,4 +1,4 @@
-:root /* Values adapted from res/themes/metro-orange/{textbox,:root combo,:root combobox,:root calendar,:root datebox}.css. */
+/* Values adapted from res/themes/metro-orange/{textbox, combo, combobox, calendar, datebox}.css. */
 :root {
   --fui-control-border: #d4a375;
   --fui-control-focus: #c8894e;

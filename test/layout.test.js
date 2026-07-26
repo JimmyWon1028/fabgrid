@@ -55,6 +55,25 @@ test('Layout reserves collapsed edge size without a splitter', function() {
   assert.deepEqual(rects.center, { left: 28, top: 0, width: 472, height: 300 });
 });
 
+test('Layout hidden edge regions do not reserve layout space', function() {
+  var rects = calculateLayoutRects(
+    { width: 500, height: 300 },
+    {
+      west: {
+        exists: false,
+        collapsed: true,
+        collapsedSize: 28,
+        split: true,
+        splitSize: 5
+      },
+      center: { exists: true }
+    }
+  );
+  assert.equal(rects.west, undefined);
+  assert.equal(rects.westSplitter, undefined);
+  assert.deepEqual(rects.center, { left: 0, top: 0, width: 500, height: 300 });
+});
+
 test('Layout exposes EasyUI-compatible region defaults', function() {
   assert.equal(coreFabui.Layout.defaults.fit, false);
   assert.equal(coreFabui.Layout.regionDefaults.split, false);
@@ -63,6 +82,62 @@ test('Layout exposes EasyUI-compatible region defaults', function() {
   assert.equal(coreFabui.Layout.regionDefaults.collapsedSize, 28);
   assert.equal(coreFabui.Layout.defaults.animate, true);
   assert.equal(coreFabui.Layout.defaults.animationDuration, 180);
+  assert.equal(coreFabui.Layout.regionDefaults.hidden, false);
+});
+
+test('Layout hide and show preserve the collapsed state and Panel instance', function() {
+  var panelElement = {
+    classList: {
+      remove: function() {}
+    }
+  };
+  var panel = {
+    panel: function() {
+      return panelElement;
+    }
+  };
+  var record = {
+    panel: panel,
+    collapsed: true,
+    hidden: false,
+    floating: true
+  };
+  var layout = Object.create(coreFabui.Layout.prototype);
+  var layoutCount = 0;
+  var events = [];
+  layout.regions = {
+    west: record,
+    center: {
+      panel: {},
+      collapsed: false,
+      hidden: false
+    }
+  };
+  layout._cancelRegionAnimation = function() {};
+  layout.stopCollapsing = function() {};
+  layout._layoutRegions = function() {
+    layoutCount += 1;
+  };
+  layout._fire = function(name, args) {
+    events.push([name, args]);
+  };
+
+  assert.equal(layout.isVisible('west'), true);
+  assert.equal(layout.hide('west'), layout);
+  assert.equal(record.hidden, true);
+  assert.equal(record.collapsed, true);
+  assert.equal(record.floating, false);
+  assert.equal(layout.isVisible('west'), false);
+  assert.equal(layout.show('west'), layout);
+  assert.equal(record.hidden, false);
+  assert.equal(record.collapsed, true);
+  assert.equal(layout.isVisible('west'), true);
+  assert.equal(layoutCount, 2);
+  assert.deepEqual(events.map(function(entry) {
+    return entry[0];
+  }), ['Hide', 'Show']);
+  assert.equal(layout.hide('center'), layout);
+  assert.equal(layout.regions.center.hidden, false);
 });
 
 test('Layout theme styles match every EasyUI layout reference palette', function() {
@@ -269,6 +344,14 @@ test('Layout demos expose controls for all four collapsible edge regions', funct
   ['north', 'south', 'west', 'east'].forEach(function(region) {
     var controlPattern = new RegExp('id="toggle-' + region + '"');
     var handlerPattern = new RegExp("toggleRegion\\('" + region + "'\\)");
+
+    assert.match(demoSource, controlPattern);
+    assert.match(devDemoSource, controlPattern);
+    assert.match(scriptSource, handlerPattern);
+  });
+  ['north', 'south', 'west', 'east'].forEach(function(region) {
+    var controlPattern = new RegExp('id="visibility-' + region + '"');
+    var handlerPattern = new RegExp("toggleRegionVisibility\\('" + region + "'\\)");
 
     assert.match(demoSource, controlPattern);
     assert.match(devDemoSource, controlPattern);

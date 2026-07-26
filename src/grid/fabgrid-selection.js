@@ -17,6 +17,38 @@ export function installFabGridSelection(FabGrid, context) {
   var parseValue = context.parseValue;
   var setByBinding = context.setByBinding;
   var toNumber = context.toNumber;
+  var handledKeyboardEvents = typeof WeakSet === 'function' ? new WeakSet() : null;
+  var activeKeyboardGridKey = typeof Symbol === 'function' && typeof Symbol.for === 'function' ?
+    Symbol.for('fabui.FabGrid.activeKeyboardGrid') :
+    '__fabuiFabGridActiveKeyboardGrid__';
+
+  function containsNode(container, node) {
+    var current = node;
+    if (!container || !node) {
+      return false;
+    }
+    if (typeof container.contains === 'function') {
+      return container.contains(node);
+    }
+    while (current) {
+      if (current === container) {
+        return true;
+      }
+      current = current.parentNode;
+    }
+    return false;
+  }
+
+  function isNavigationKey(event) {
+    var key = event && event.key;
+    return key === 'ArrowDown' || key === 'ArrowUp' ||
+      key === 'ArrowLeft' || key === 'ArrowRight' ||
+      key === 'PageDown' || key === 'PageUp' ||
+      key === 'Home' || key === 'End' ||
+      key === 'Enter' || key === 'Tab' ||
+      key === ' ' || key === 'Spacebar' ||
+      (event && event.code === 'Space');
+  }
 
   function getColumnMinWidth(grid, column) {
     return toNumber(column.minWidth, toNumber(grid.options.columnMinWidth, DEFAULT_OPTIONS.columnMinWidth));
@@ -149,6 +181,16 @@ export function installFabGridSelection(FabGrid, context) {
     var cell = closest(event.target, 'fg-cell');
     var colIndex;
     var rowIndex;
+
+    FabGrid.prototype.activateKeyboardEventOwner.call(this, event);
+
+    if (this._stopNavigation === true &&
+        (cell || rowHeader || selectionCell || selectionCheck || selectAll ||
+          groupExpander || treeExpander)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
 
     if (this.busy) {
       event.preventDefault();
@@ -669,6 +711,19 @@ export function installFabGridSelection(FabGrid, context) {
     var rowHeader = closest(event.target, 'fg-row-header-cell');
     var cell = closest(event.target, 'fg-cell');
     var colIndex;
+    FabGrid.prototype.activateKeyboardEventOwner.call(this, event);
+    if (this._stopNavigation === true &&
+        (cell || rowHeader || closest(event.target, 'fg-body-scroll') ||
+          closest(event.target, 'fg-frozen-pane') ||
+          closest(event.target, 'fg-frozen-pane-right') ||
+          closest(event.target, 'fg-row-header-pane') ||
+          closest(event.target, 'fg-selection-pane') ||
+          closest(event.target, 'fg-scrollbar-v') ||
+          closest(event.target, 'fg-scrollbar-h'))) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (this.busy) {
       event.preventDefault();
       event.stopPropagation();
@@ -1043,6 +1098,11 @@ export function installFabGridSelection(FabGrid, context) {
     var cell = closest(event.target, 'fg-cell');
     var rowHeader = closest(event.target, 'fg-row-header-cell');
     var rowIndex;
+    if (this._stopNavigation === true && (cell || rowHeader)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (this.busy) {
       event.preventDefault();
       event.stopPropagation();
@@ -1240,6 +1300,79 @@ export function installFabGridSelection(FabGrid, context) {
     return 0;
   };
 
+  FabGrid.prototype.isKeyboardEventOwner = function(event) {
+    var target = event && event.target;
+    var ownerRoot = closest(target, 'fg-root');
+    var ownerDocument = (this.root && this.root.ownerDocument) ||
+      (target && target.ownerDocument) ||
+      (typeof document !== 'undefined' ? document : null);
+    var activeElement = ownerDocument && ownerDocument.activeElement;
+    var activeRoot;
+    var ownedPopups;
+    var i;
+
+    if (ownerRoot && ownerRoot !== this.root) {
+      return false;
+    }
+    if (!ownerDocument || !activeElement) {
+      return !ownerRoot || ownerRoot === this.root;
+    }
+    activeRoot = closest(activeElement, 'fg-root');
+    if (activeRoot) {
+      return activeRoot === this.root;
+    }
+    ownedPopups = [
+      this.filterMenu,
+      this.topLeftMenu,
+      this.columnChooser,
+      this.dateboxPanel,
+      this.comboboxPanel,
+      this.colorPanel
+    ];
+    for (i = 0; i < ownedPopups.length; i += 1) {
+      if (containsNode(ownedPopups[i], activeElement)) {
+        return true;
+      }
+    }
+    if (ownerDocument[activeKeyboardGridKey] &&
+        (activeElement === ownerDocument.body || activeElement === ownerDocument.documentElement)) {
+      return ownerDocument[activeKeyboardGridKey] === this;
+    }
+    return false;
+  };
+
+  FabGrid.prototype.activateKeyboardEventOwner = function(event) {
+    var target = event && event.target;
+    var ownerRoot = closest(target, 'fg-root');
+    var ownerDocument = (this.root && this.root.ownerDocument) ||
+      (target && target.ownerDocument) ||
+      (typeof document !== 'undefined' ? document : null);
+    if (!ownerDocument || (ownerRoot && ownerRoot !== this.root)) {
+      return false;
+    }
+    ownerDocument[activeKeyboardGridKey] = this;
+    return true;
+  };
+
+  FabGrid.prototype.deactivateKeyboardEventOwner = function() {
+    var ownerDocument = (this.root && this.root.ownerDocument) ||
+      (typeof document !== 'undefined' ? document : null);
+    if (ownerDocument && ownerDocument[activeKeyboardGridKey] === this) {
+      ownerDocument[activeKeyboardGridKey] = null;
+    }
+  };
+
+  FabGrid.prototype.claimKeyboardEvent = function(event) {
+    if (!handledKeyboardEvents || !event || (typeof event !== 'object' && typeof event !== 'function')) {
+      return true;
+    }
+    if (handledKeyboardEvents.has(event)) {
+      return false;
+    }
+    handledKeyboardEvents.add(event);
+    return true;
+  };
+
   FabGrid.prototype.handleKeyDown = function(event) {
     var row = this.selection.row;
     var col = this.selection.col;
@@ -1247,6 +1380,17 @@ export function installFabGridSelection(FabGrid, context) {
     var horizontalBoundaryDirection;
     var targetName = event.target && event.target.tagName ? event.target.tagName.toUpperCase() : '';
     var searchInput = closest(event.target, 'fg-header-search-input');
+
+    if (!FabGrid.prototype.isKeyboardEventOwner.call(this, event) ||
+        !FabGrid.prototype.claimKeyboardEvent.call(this, event)) {
+      return;
+    }
+
+    if (this._stopNavigation === true && isNavigationKey(event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
 
     if (this.busy) {
       event.preventDefault();
@@ -1276,6 +1420,7 @@ export function installFabGridSelection(FabGrid, context) {
     }
 
     if (searchInput && this.handleHeaderSearchKeyDown(event, searchInput)) {
+      event.stopPropagation();
       return;
     }
 
@@ -1287,6 +1432,12 @@ export function installFabGridSelection(FabGrid, context) {
     }
 
     if (this.editing) {
+      if (event.key === 'Enter' || event.key === 'Tab' ||
+          event.key === 'ArrowDown' || event.key === 'ArrowUp' ||
+          event.key === 'ArrowLeft' || event.key === 'ArrowRight' ||
+          event.key === 'Escape') {
+        event.stopPropagation();
+      }
       if (event.target === this.editor && this.handleNumberSpinnerKeyDown(event)) {
         return;
       }
@@ -1336,17 +1487,26 @@ export function installFabGridSelection(FabGrid, context) {
 
     if (this.options.autoClipboard !== false && (event.ctrlKey || event.metaKey) && !event.altKey && String(event.key).toLowerCase() === 'c') {
       event.preventDefault();
+      event.stopPropagation();
       this.copySelection();
       return;
     }
 
     if (event.key === ' ' || event.key === 'Spacebar' || event.code === 'Space') {
       event.preventDefault();
+      event.stopPropagation();
       if (this.options.multiSelectRows === true && this.view.length) {
         this.toggleRowSelection(row, col);
         this.scrollIntoView(row, col);
       }
       return;
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' ||
+        event.key === 'ArrowLeft' || event.key === 'ArrowRight' ||
+        event.key === 'PageDown' || event.key === 'PageUp' ||
+        event.key === 'Home' || event.key === 'End') {
+      event.stopPropagation();
     }
 
     if (this.handleCellRangeKeyDown(event)) {
@@ -1562,7 +1722,13 @@ export function installFabGridSelection(FabGrid, context) {
     var rowBottom;
     var currentTop;
     var currentBottom;
+    row = Number(row);
     col = col == null ? 0 : col;
+    col = Number(col);
+    if (!isFinite(row) || Math.floor(row) !== row || row < 0 || row >= this.view.length ||
+        !isFinite(col) || Math.floor(col) !== col || col < 0 || col >= this.visibleColumns.length) {
+      return false;
+    }
     selected = this.applyCellSelection(row, col, row, col);
     if (selected !== true || !this.bodyScroll || typeof this.getScrollableContentHeight !== 'function') {
       return selected;
@@ -2274,8 +2440,10 @@ export function installFabGridSelection(FabGrid, context) {
     } finally {
       this._suppressObservedItemChange -= 1;
     }
-    this.applyView();
-    this.render();
+    if (!this.refreshCollectionView()) {
+      this.applyView();
+      this.render();
+    }
     return true;
   };
 

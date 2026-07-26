@@ -4,7 +4,7 @@ var LAYOUT_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function assignLayoutOptions(target) {
@@ -310,6 +310,7 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
     var result = assignLayoutOptions({}, defaults, elementOptions, options);
     var horizontal = region === 'east' || region === 'west';
     result.region = region;
+    result.hidden = region === 'center' ? false : result.hidden === true;
     result.split = region === 'center' ? false : result.split === true;
     result.collapsible = region === 'center' ? false : result.collapsible !== false;
     result.width = horizontal ?
@@ -385,6 +386,7 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
       panel: panel,
       options: regionOptions,
       collapsed: regionOptions.collapsed === true,
+      hidden: regionOptions.hidden === true,
       floating: false
     };
     if (region !== 'center') {
@@ -486,7 +488,7 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
       var record = self.regions[region];
       if (!record) return;
       geometry[region] = {
-        exists: true,
+        exists: !record.hidden,
         collapsed: record.collapsed,
         size: region === 'north' || region === 'south' ?
           record.options.height :
@@ -696,7 +698,14 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
       var rect = rects[region];
       var splitter = self._splitters[region];
       var expandBar = self._expandBars[region];
-      if (!record || !rect) return;
+      if (!record) return;
+      if (record.hidden) {
+        record.panel.panel().hidden = true;
+        if (splitter) splitter.hidden = true;
+        if (expandBar) expandBar.hidden = true;
+        return;
+      }
+      if (!rect) return;
       if (record.collapsed) {
         record.panel.options.collapsed = true;
         if (record.panel.isOpen()) record.panel.close(true);
@@ -707,6 +716,7 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
       } else {
         if (expandBar) expandBar.hidden = true;
         record.panel.options.collapsed = false;
+        record.panel.panel().hidden = false;
         record.panel.hostElement.hidden = false;
         if (!record.panel.isOpen()) record.panel.open(true);
         record.panel.resize({
@@ -732,6 +742,7 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
     if (
       event.button !== 0 ||
       !record ||
+      record.hidden ||
       !record.options.split ||
       record.collapsed
     ) return;
@@ -872,7 +883,7 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
     var record = this.regions[region];
     var rect;
     var center = this._rects && this._rects.center;
-    if (!record || !record.collapsed || !center) return this;
+    if (!record || record.hidden || !record.collapsed || !center) return this;
     rect = assignLayoutOptions({}, center);
     if (region === 'west') rect.width = record.options.width;
     if (region === 'east') {
@@ -897,7 +908,13 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
     var normalized = normalizeLayoutRegion(region);
     var record = this.regions[normalized];
     var self = this;
-    if (!record || normalized === 'center' || record.collapsed || record.options.collapsible === false) return this;
+    if (
+      !record ||
+      normalized === 'center' ||
+      record.hidden ||
+      record.collapsed ||
+      record.options.collapsible === false
+    ) return this;
     if (record.panel._fireBefore && !record.panel._fireBefore('Collapse')) return this;
     record.panel.panel().classList.remove('fui-layout-region-floating');
     this._animateRegionState(normalized, true, function() {
@@ -911,7 +928,7 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
     var normalized = normalizeLayoutRegion(region);
     var record = this.regions[normalized];
     var self = this;
-    if (!record || normalized === 'center' || !record.collapsed) return this;
+    if (!record || normalized === 'center' || record.hidden || !record.collapsed) return this;
     if (record.panel._fireBefore && !record.panel._fireBefore('Expand')) return this;
     record.panel.panel().classList.remove('fui-layout-region-floating');
     this._animateRegionState(normalized, false, function() {
@@ -919,6 +936,37 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
       self._fire('Expand', { region: normalized, panel: record.panel });
     });
     return this;
+  };
+
+  FabLayout.prototype.hide = function(region) {
+    var normalized = normalizeLayoutRegion(region);
+    var record = this.regions[normalized];
+    if (!record || normalized === 'center' || record.hidden) return this;
+    this._cancelRegionAnimation(true);
+    this.stopCollapsing();
+    record.floating = false;
+    record.panel.panel().classList.remove('fui-layout-region-floating');
+    record.hidden = true;
+    this._layoutRegions();
+    this._fire('Hide', { region: normalized, panel: record.panel });
+    return this;
+  };
+
+  FabLayout.prototype.show = function(region) {
+    var normalized = normalizeLayoutRegion(region);
+    var record = this.regions[normalized];
+    if (!record || normalized === 'center' || !record.hidden) return this;
+    this._cancelRegionAnimation(true);
+    record.hidden = false;
+    this._layoutRegions();
+    this._fire('Show', { region: normalized, panel: record.panel });
+    return this;
+  };
+
+  FabLayout.prototype.isVisible = function(region) {
+    var normalized = normalizeLayoutRegion(region);
+    var record = this.regions[normalized];
+    return Boolean(record && !record.hidden);
   };
 
   FabLayout.prototype.remove = function(region) {
@@ -1161,7 +1209,8 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
     width: null,
     height: null,
     tools: null,
-    collapsed: false
+    collapsed: false,
+    hidden: false
   };
   FabLayout.locales = localePacks;
   FabLayout.themes = LAYOUT_THEMES.slice();

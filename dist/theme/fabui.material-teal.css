@@ -28,7 +28,7 @@
   background-image: url("material-teal/images/tabs_icons.png");
 }
 
-:root /* Values adapted from res/themes/material-teal/{textbox,:root combo,:root combobox,:root calendar,:root datebox,:root linkbutton}.css. */
+/* Values adapted from res/themes/material-teal/{textbox, combo, combobox, calendar, datebox, linkbutton}.css. */
 :root {
   --fui-control-border: #dfdfdf;
   --fui-control-focus: #c6c6c6;

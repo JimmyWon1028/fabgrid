@@ -9,7 +9,7 @@ import {
   normalizeRemoteData,
   normalizeRemoteCredentials,
   setByBinding
-} from './fabgrid-data.js?v=20260723-grid-performance-v1';
+} from './fabgrid-data.js?v=20260727-collection-view-sort-v1';
 import { installFabGridExport } from './fabgrid-export.js?v=20260717-pivot-excel-hidden-rows-v1';
 import { installFabGridDrag } from './fabgrid-drag.js?v=20260718-row-drop-width-v1';
 import { installFabGridTree } from './fabgrid-tree.js?v=20260723-grid-performance-v1';
@@ -26,15 +26,15 @@ import {
   isMaskValueIncludingLiterals
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
-import { installFabGridView } from './fabgrid-view.js?v=20260723-grid-performance-v1';
+import { installFabGridView } from './fabgrid-view.js?v=20260725-stop-navigation-v1';
 import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260723-popup-listeners-v1';
-import { installFabGridSelection } from './fabgrid-selection.js?v=20260723-cell-range-video-v1';
-import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260721-grid-time-editor-v1';
+import { installFabGridSelection } from './fabgrid-selection.js?v=20260726-collection-view-v1';
+import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260726-collection-view-v1';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
-import { DatePopup } from '../editbox/date-popup.js?v=20260719-current-month-text-v1';
-import { ColorPopup } from '../editbox/color-popup.js?v=20260719-i18n-theme-audit-v1';
-import { ComboPopup } from '../editbox/combo-popup.js?v=20260719-i18n-theme-audit-v1';
+import { DatePopup } from '../editbox/date-popup.js?v=20260725-remove-mono-variants-v1';
+import { ColorPopup } from '../editbox/color-popup.js?v=20260725-remove-mono-variants-v1';
+import { ComboPopup } from '../editbox/combo-popup.js?v=20260725-remove-mono-variants-v1';
 import { normalizeEditorIconDescriptors } from '../editbox/editor-icons.js?v=20260718-editor-icons-v1';
 
 export function resolveFabGridRequestCredentials(credentials, getGlobalConfig) {
@@ -59,7 +59,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
     'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
     'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-    'black', 'mono', 'mono-red', 'mono-green'
+    'black', 'mono'
   ];
   var FILTER_MODE_EXCEL = 'excel';
   var FILTER_MODE_SEARCH_ROW = 'searchRow';
@@ -112,6 +112,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     selectionMode: SELECTION_MODE.Cell,
     highlightActiveRow: true,
     activeCellBorder: 1,
+    stopNavigation: false,
     childItemsPath: null,
     treeColumn: null,
     treeIndent: 20,
@@ -160,6 +161,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       getGlobalConfig
     );
     normalizeGridOptions(this.options, suppliedOptions);
+    this._stopNavigation = this.options.stopNavigation === true;
     this.applyPagerOptions();
     this.options.showRowHeaders = normalizeRowHeaderMode(this.options.showRowHeaders);
     this.setLocale(this.options.locale, this.options.messages, true);
@@ -286,6 +288,12 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._suppressObservedItemChange = 0;
     this._handlingObservedItemChange = false;
     this._observedItemsChangeQueued = false;
+    this._itemsSource = [];
+    this._collectionView = null;
+    this._collectionViewChangedHandler = null;
+    this._collectionViewCurrentHandler = null;
+    this._suppressCollectionViewChange = false;
+    this._suppressCollectionViewCurrentChange = false;
     this.cells = createGridPanel(this, CellType.Cell);
     this.columnHeaders = createGridPanel(this, CellType.ColumnHeader);
     this.rowHeaders = createGridPanel(this, CellType.RowHeader);
@@ -342,6 +350,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.createWijmoEvents();
     this.bindOptionEvents();
     this.createDom();
+    this.applyStopNavigation();
     this.datePopup = new DatePopup({
       className: 'fui-grid-date-popup',
       theme: 'inherit',
@@ -407,6 +416,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.bindRowDragEvents();
     this.refresh();
     registerControl(this.host, this);
+    this.syncSelectionFromCollectionView();
     if (this.options.remote === true) {
       this.load().then(function() {
         self.focusInitialHeaderSearchInput();
@@ -594,6 +604,9 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (wijmoEvent && wijmoEvent.raise(this, detail) === false) {
       detail.cancel = true;
     }
+    if (name === 'selectionChanged' && typeof this.syncCollectionViewCurrentFromSelection === 'function') {
+      this.syncCollectionViewCurrentFromSelection();
+    }
     return detail.cancel !== true;
   };
 
@@ -694,6 +707,9 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
 
   FabGrid.prototype.handleFocusIn = function(event) {
     var previousTarget = event.relatedTarget;
+    if (typeof this.activateKeyboardEventOwner === 'function') {
+      this.activateKeyboardEventOwner(event);
+    }
     if (!previousTarget || !this.root.contains(previousTarget)) {
       this.emit('gotFocus', {
         originalEvent: event,
@@ -914,6 +930,30 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (this.root) {
       this.root.style.setProperty('--fg-active-cell-border', Math.max(0, toNumber(this.options.activeCellBorder, 1)) + 'px');
     }
+  };
+
+  FabGrid.prototype.applyStopNavigation = function() {
+    var stopped = this._stopNavigation === true;
+    this.options.stopNavigation = stopped;
+    if (!this.root) {
+      return;
+    }
+    this.root.classList.toggle('fg-navigation-stopped', stopped);
+    if (!stopped) {
+      return;
+    }
+    this.fixedPaneTouchTap = null;
+    this.cellRangeDragState = null;
+    if (this.cellRangeAutoScrollRaf) {
+      cancelAnimationFrame(this.cellRangeAutoScrollRaf);
+      this.cellRangeAutoScrollRaf = 0;
+    }
+    this.verticalScrollbarDrag = null;
+    this.horizontalScrollbarDrag = null;
+    this.root.classList.remove('fg-scrollbar-v-dragging');
+    this.root.classList.remove('fg-scrollbar-h-dragging');
+    this.unbindVerticalScrollbarDragEvents();
+    this.unbindHorizontalScrollbarDragEvents();
   };
 
   FabGrid.prototype.bindDomEvents = function() {
@@ -1515,6 +1555,9 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       return;
     }
     this.disposed = true;
+    if (typeof this.deactivateKeyboardEventOwner === 'function') {
+      this.deactivateKeyboardEventOwner();
+    }
     this._remoteLoadSeq += 1;
     this.cancelRemoteLoad();
     unregisterControl(this.host, this);
@@ -1545,6 +1588,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.unbindHorizontalScrollbarDragEvents();
     this.unbindRowDragEvents();
     this.unbindPopupDocumentEvents();
+    this.unbindCollectionView();
     this.restoreFilterMenu();
     this.removeEventListener();
     this.bodyScroll.removeEventListener('scroll', this._boundScroll);
@@ -1624,7 +1668,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.blockBusyEvent = function(event) {
-    if (!this.busy) {
+    if (!this.busy && this._stopNavigation !== true) {
       return;
     }
     event.preventDefault();
@@ -1635,7 +1679,8 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     var touch;
     var target;
     this.fixedPaneTouchTap = null;
-    if (this.busy || !this.bodyScroll || event.touches.length !== 1) {
+    if (this.busy || this._stopNavigation === true ||
+        !this.bodyScroll || event.touches.length !== 1) {
       return;
     }
     touch = event.touches[0];
@@ -1657,7 +1702,8 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     var touch;
     var dx;
     var dy;
-    if (!state || this.busy || event.type === 'touchcancel') {
+    if (!state || this.busy || this._stopNavigation === true ||
+        event.type === 'touchcancel') {
       this.fixedPaneTouchTap = null;
       return;
     }
@@ -1675,7 +1721,8 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.selectFixedPaneTouchRow = function(rowIndex, colIndex, area) {
-    if (rowIndex < 0 || rowIndex >= this.view.length) {
+    if (this._stopNavigation === true ||
+        rowIndex < 0 || rowIndex >= this.view.length) {
       return;
     }
     if (this.editing && (this.editing.row !== rowIndex || this.editing.col !== colIndex)) {
@@ -1768,6 +1815,11 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     var deltaY;
     var nextTop;
     var nextLeft;
+    if (this._stopNavigation === true) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (this.busy || !this.bodyScroll || event.ctrlKey) {
       return;
     }
@@ -2675,9 +2727,16 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
           return this.host;
         }
       },
+      hasFocus: {
+        get: function() {
+          var ownerDocument = this.root && this.root.ownerDocument;
+          return !!(ownerDocument && ownerDocument.activeElement &&
+            this.root.contains(ownerDocument.activeElement));
+        }
+      },
       itemsSource: {
         get: function() {
-          return this.source;
+          return this._itemsSource;
         },
         set: function(value) {
           this.setItemsSource(value || []);
@@ -2685,7 +2744,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       },
       collectionView: {
         get: function() {
-          return this.view;
+          return this._collectionView || this.view;
         }
       },
       rows: {
@@ -2739,6 +2798,13 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
         },
         set: function(value) {
           this.setMultiSelectRows(value);
+        }
+      },
+      selectedRow: {
+        get: function() {
+          var row = this.selection && this.selection.row;
+          var rows = this.rows;
+          return row != null && row >= 0 && row < rows.length ? rows[row] : null;
         }
       },
       selectedItems: {
@@ -2930,6 +2996,15 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
         set: function(value) {
           this.options.activeCellBorder = Math.max(0, toNumber(value, 1));
           this.applyThemeOptions();
+        }
+      },
+      stopNavigation: {
+        get: function() {
+          return this._stopNavigation === true;
+        },
+        set: function(value) {
+          this._stopNavigation = value === true;
+          this.applyStopNavigation();
         }
       },
       copyHeaders: {

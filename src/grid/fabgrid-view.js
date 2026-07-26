@@ -224,6 +224,7 @@ export function installFabGridView(FabGrid, context) {
     var frozenRightCount;
 
     normalizeGridOptions(this.options);
+    this.options.stopNavigation = this._stopNavigation === true;
     this.emit('updatingLayout', {});
     for (i = 0; i < this.columns.length; i += 1) {
       if (this.columns[i].visible !== false) {
@@ -494,6 +495,11 @@ export function installFabGridView(FabGrid, context) {
   FabGrid.prototype.handleVerticalScrollbarPointerDown = function(event) {
     var info;
     var thumbTop;
+    if (this._stopNavigation === true) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (this.busy || !this.bodyScroll) {
       return;
     }
@@ -575,6 +581,11 @@ export function installFabGridView(FabGrid, context) {
   FabGrid.prototype.handleVerticalScrollbarWheel = function(event) {
     var maxScrollTop;
     var nextTop;
+    if (this._stopNavigation === true) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (!this.bodyScroll) {
       return;
     }
@@ -615,6 +626,11 @@ export function installFabGridView(FabGrid, context) {
   FabGrid.prototype.handleHorizontalScrollbarPointerDown = function(event) {
     var info;
     var thumbLeft;
+    if (this._stopNavigation === true) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (this.busy || !this.bodyScroll) {
       return;
     }

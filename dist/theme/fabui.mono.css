@@ -1,5 +1,5 @@
 /*! FabGrid theme mono | Metro Gray palette with monochrome SVG icons */
-:root /* Values adapted from res/themes/metro-gray/{textbox,:root combo,:root combobox,:root calendar,:root datebox}.css. */
+/* Values adapted from res/themes/metro-gray/{textbox, combo, combobox, calendar, datebox}.css. */
 :root {
   --fui-control-border: #abafb8;
   --fui-control-focus: #8f95a1;

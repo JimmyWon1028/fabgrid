@@ -42,13 +42,13 @@ test('Every explicit demo theme selector selects default', function() {
       );
       assert.match(
         match[1],
-        /<option\b(?=[^>]*\bvalue=["']mono-red["'])[^>]*>\s*Mono Red\s*<\/option>/i,
-        file + ' theme selector must contain Mono Red'
+        /<option\b(?=[^>]*\bvalue=["']mono["'])[^>]*>\s*Mono\s*<\/option>/i,
+        file + ' theme selector must contain Mono'
       );
-      assert.match(
+      assert.doesNotMatch(
         match[1],
-        /<option\b(?=[^>]*\bvalue=["']mono-green["'])[^>]*>\s*Mono Green\s*<\/option>/i,
-        file + ' theme selector must contain Mono Green'
+        /\bmono-(?:red|green)\b/i,
+        file + ' theme selector must not contain removed Mono variants'
       );
     }
   });

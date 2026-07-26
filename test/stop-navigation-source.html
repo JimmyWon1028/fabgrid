@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FabGrid stopNavigation source test</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260725-stop-navigation-v1">
+  <style>
+    body {
+      margin: 16px;
+      font-family: sans-serif;
+    }
+
+    #grid {
+      width: 520px;
+      height: 220px;
+      margin-top: 12px;
+    }
+
+    #status {
+      margin-top: 12px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <button id="api-move" type="button">API move</button>
+  <button id="unlock" type="button">Unlock</button>
+  <div id="grid"></div>
+  <output id="status"></output>
+
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260725-stop-navigation-runtime-v2';
+
+    var rows = Array.from({ length: 40 }, function(_, index) {
+      return {
+        id: index + 1,
+        name: 'Row ' + (index + 1)
+      };
+    });
+    var grid = new fabui.FabGrid('#grid', {
+      itemsSource: rows,
+      columns: [
+        { binding: 'id', header: 'ID', width: 100 },
+        { binding: 'name', header: 'Name', width: 260 }
+      ],
+      allowEditing: false,
+      filterMode: false,
+      stopNavigation: true
+    });
+    var status = document.querySelector('#status');
+
+    function updateStatus() {
+      status.textContent = JSON.stringify({
+        row: grid.selection.row,
+        col: grid.selection.col,
+        top: grid.scrollPosition.y,
+        stopNavigation: grid.stopNavigation,
+        hasFocus: grid.hasFocus
+      });
+    }
+
+    grid.selectionChanged.addHandler(updateStatus);
+    grid.scrollPositionChanged.addHandler(updateStatus);
+
+    document.querySelector('#api-move').addEventListener('click', function() {
+      grid.select(20, 1);
+      grid.scrollPosition = { x: 0, y: 320 };
+      updateStatus();
+    });
+
+    document.querySelector('#unlock').addEventListener('click', function() {
+      grid.stopNavigation = false;
+      grid.hostElement.querySelector('.fg-root').focus();
+      updateStatus();
+    });
+
+    grid.hostElement.querySelector('.fg-root').focus();
+    updateStatus();
+  </script>
+</body>
+</html>

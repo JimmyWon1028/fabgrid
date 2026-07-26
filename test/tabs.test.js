@@ -190,7 +190,7 @@ test('Every Tabs theme defines a complementary drag indicator color', function()
     'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
     'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
     'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-    'black', 'mono', 'mono-red', 'mono-green'
+    'black', 'mono'
   ];
   themes.forEach(function(theme) {
     var css = readFileSync(

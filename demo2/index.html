@@ -84,8 +84,6 @@
     (function() {
       'use strict';
 
-      var $;
-
       function setStatus(name, message) {
         var $item = $('[data-status="' + name + '"]');
         if (!$item.length) return;
@@ -163,7 +161,6 @@
         // Uncomment the next line to let jQuery own the `$` alias.
         // .script('./vendor/jquery-4.0.0.slim.min.js')
         .run(function() {
-          $ = fabLoader.useDom();
           setStatus('script', 'Script／DOM helper：完成');
         })
         .style([

@@ -27,7 +27,7 @@
   background-image: url("sunny/images/tabs_icons.png");
 }
 
-:root /* Values adapted from res/themes/sunny/{textbox,:root combo,:root combobox,:root calendar,:root datebox}.css. */
+/* Values adapted from res/themes/sunny/{textbox, combo, combobox, calendar, datebox}.css. */
 :root {
   --fui-control-border: #494437;
   --fui-control-focus: #2c2921;

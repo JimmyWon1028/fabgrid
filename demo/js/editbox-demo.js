@@ -11,18 +11,13 @@
     var themeSelect = document.getElementById('calendar-theme');
     var render;
 
-    function applyTheme(theme) {
-      Array.prototype.forEach.call(themeSelect.options, function(option) {
-        document.body.classList.remove('fg-theme-' + option.value);
-      });
-      document.body.classList.add('fg-theme-' + theme);
-    }
-
     if (!fabui || typeof fabui.EditBox !== 'function') {
       throw new Error('fabui.EditBox class is unavailable.');
     }
 
-    applyTheme(themeSelect.value);
+    if (global.fabuiDemoTheme && global.fabuiDemoTheme.current) {
+      themeSelect.value = global.fabuiDemoTheme.current;
+    }
 
     boxes.name = new fabui.EditBox('#edit-name', {
       editor: 'text',
@@ -206,7 +201,6 @@
     });
 
     themeSelect.addEventListener('change', function() {
-      applyTheme(themeSelect.value);
       render();
     });
 

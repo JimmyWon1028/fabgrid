@@ -73,7 +73,7 @@ Default 配色已包含在 `fabui.css`。其他主題必須在所有 FabUI 與�
 | `fabui.Accordion` | 直接組合 Panel 的摺疊集合，支援單一／多重展開、動態 Panel 與三方向排列；詳見 [Accordion API](./accordion-api.md)。 |
 | `fabui.Window` | 可拖曳、縮放、收合、最小化、最大化與 Modal 的視窗控件；詳見 [Window API](./window-api.md)。 |
 | `fabui.Layout` | 以 Panel 組成的 north／south／east／west／center 五區版面；詳見 [Layout API](./layout-api.md)。 |
-| `fabui.Chart` | SVG Column、Bar、Line 與 Pie；詳見 [Chart API](./chart-api.md)。 |
+| `fabui.chart.Chart`／`fabui.chart.Pie` | SVG Column、Bar、Line 與 Pie；詳見 [Chart API](./chart-api.md)。 |
 | `fabui.pivot` | PivotEngine、PivotPanel、PivotGrid、PivotChart、PivotSlicer 與 PivotWorkspace；詳見 [Pivot API](./pivotgrid-api.md)。 |
 | `fabui.Diagram`／`Gantt`／`Scheduler` | 載入對應獨立 bundle 後附加；詳見 [文件索引](./README.md)。 |
 | `fabui.FabGrid.SelectionMode` | `Cell`、`CellRange` 選取模式常數。 |
@@ -130,6 +130,7 @@ fabui.setConfig({
 | `selectionMode` | `'Cell' \| 'CellRange'` | `'Cell'` | `Cell` 選取單一 active cell；`CellRange` 可用滑鼠拖曳、列號整列拖曳、`Shift + Click` 或 `Shift + 方向鍵`選取連續矩形範圍。可由 `fabui.FabGrid.SelectionMode` 取得常數。 |
 | `highlightActiveRow` | `boolean` | `true` | 顯示 active cell 所在列的背景；設為 `false` 時只保留 active cell／range，不影響多選列。 |
 | `activeCellBorder` | `number` | `1` | Active cell 與 cell editor 邊框寬度，單位為 px；設為 `0` 可隱藏邊框。 |
+| `stopNavigation` | `boolean` | `false` | 暫停使用者的鍵盤導覽、cell／row 點選、滑鼠滾輪、觸控與捲軸操作；不限制選取、捲動與資料更新 API。可於 runtime 直接指定。 |
 | `allowSorting` | `boolean` | `true` | 是否允許點擊標題排序。 |
 | `allowMultiSorting` | `boolean` | `true` | 是否允許以 `Shift + 點擊` 或 `toggleSort(colIndex, true)` 建立多欄排序；設為 `false` 時只保留目前操作的單一排序欄。 |
 | `allowFiltering` | `boolean` | `true` | 舊版相容入口。`false` 等同 `filterMode: false`；`true` 等同 `filterMode: ['excel', 'searchRow']`。新程式請直接使用 `filterMode`。 |
@@ -417,6 +418,19 @@ grid.setHeaderCellStyle('orderNo', null);
 | `getHeaderDisplayMode()` | 取得目前標題顯示模式。 |
 | `setLocale(locale, messages)` | 切換 locale 或覆寫顯示文字。 |
 
+需要等待其他區塊處理資料時，可暫停使用者導覽而不封鎖程式控制：
+
+```js
+grid.stopNavigation = true;
+
+grid.selectRow(3);
+grid.scrollIntoView(3, 0);
+
+grid.stopNavigation = false;
+```
+
+`stopNavigation` 不會清除目前 selected row，也不會阻止 `select()`、`selectRow()`、`scrollIntoView()`、`scrollPosition` 或資料更新 API。
+
 ### 篩選與搜尋
 
 初始化時可直接傳入與遠端協定相同的 `filterRules`。不必另外呼叫 `setColumnSearchOperator()` 或 `setColumnSearch()`：
@@ -471,6 +485,8 @@ Search input 聚焦時按 `↓`，焦點會移到目前 selected row 的同欄 a
 
 第一列 active cell 按 `↑` 會回到同欄 Search input。Popup 開啟時，方向鍵優先由 popup 處理。
 
+頁面同時存在多個 FabGrid，或一個 FabGrid 位於另一個 FabGrid 內時，方向鍵只由最後取得 pointer／焦點且為事件來源最近 `.fg-root` 的 Grid 處理；Grid 消化方向鍵、Page、Home 或 End 導覽後會停止事件冒泡，避免頁面層或另一套鍵盤 handler 再次移動 Grid。即使頁面轉送事件或焦點暫時回到頁面層，同一個動作仍只處理一次，其他 Grid 的 selection 不會跟著移動。
+
 ### 分頁、遠端載入與選取
 
 | 方法 | 說明 |
@@ -481,7 +497,7 @@ Search input 聚焦時按 `↓`，焦點會移到目前 selected row 的同欄 a
 | `setPageSize(pageSize)` | 改變 page size 並回到第一頁。 |
 | `selectPage(pageNumber, pageSize)` | 同時設定頁碼與 page size。 |
 | `getPager()` | 取得 `.fg-pager` 外層 DOM element。 |
-| `select(row, col?)` | 設定 active cell；省略 `col` 時使用第一個可見欄。若目標列未完整顯示，會自動捲動並盡量將該列對齊 Grid 可視區第一列。 |
+| `select(row, col?)` | 設定 active cell；省略 `col` 時使用第一個可見欄。Row 或 Column index 不在目前可用範圍時回傳 `false` 且不做任何動作，不會自動 clamp 到第 0 列或最後一列。若目標列未完整顯示，會自動捲動並盡量將該列對齊 Grid 可視區第一列。 |
 | `selectRange(row, col, row2, col2)` | 在 `CellRange` 模式設定連續矩形範圍；前兩個座標為 anchor，後兩個座標為 active cell。 |
 | `selectRow(row, col?)` | 選取一列。 |
 | `unselectRow(row?)` | 取消指定 selected row；單選模式可省略 `row` 以取消目前 selected row，成功後 `selectedRows`／`selectedItems` 為空，排序、篩選或 refresh 後仍保持未選取。多選模式則取消指定或最後操作列的勾選。Active cell 不屬於此方法的行為契約。 |
@@ -496,6 +512,8 @@ Search input 聚焦時按 `↓`，焦點會移到目前 selected row 的同欄 a
 ### 由 element 或 id 取得 Grid
 
 `fabui.Control.getControl(elementOrSelector)` 可由 FabGrid 的 host element 或 CSS selector 取得既有 instance；沒有對應 Grid 時回傳 `null`。`grid.hostElement` 會回傳建立 Grid 時使用的 host element。
+
+`grid.hasFocus` 是唯讀 boolean；目前 `document.activeElement` 位於該 Grid 內時為 `true`，否則為 `false`。頁面有多個 Grid 時，同一時間最多只有一個 Grid 的 `hasFocus` 為 `true`。
 
 ### DOM event 與 hitTest
 
@@ -788,11 +806,13 @@ var grid = new fabui.FabGrid('#grid', {
 
 | 屬性 | 說明 |
 | --- | --- |
-| `itemsSource` | 原始資料集合。 |
-| `collectionView` / `view` | 排序、篩選、群組與分頁後的目前 view。 |
+| `itemsSource` | 可接受 Array 或 `fabui.collections.CollectionView`；getter 回傳目前指定的資料來源。 |
+| `collectionView` | 傳入 CollectionView 時回傳同一 instance；Array 模式維持回傳目前 view Array。 |
+| `view` | Grid 排序、篩選、群組與分頁後的目前 Array。 |
 | `columns` / `visibleColumns` | 全部欄位與目前可見欄位。 |
 | `frozenColumns` / `frozenRightColumns` | 目前左右凍結欄數。 |
-| `selectedItems` / `selectedRows` | 已選取資料與列索引。 |
+| `selectedRow` | 目前 active cell 所在列的唯讀 Row instance；沒有可用列時為 `null`。列索引與資料分別由 `selectedRow.index`、`selectedRow.dataItem` 取得。 |
+| `selectedItems` / `selectedRows` | 已選取的資料項目與 Row instance 陣列。 |
 | `selectedRanges` | 目前 cell selection range；`Cell` 模式為單一 cell，`CellRange` 為正規化後的矩形範圍。 |
 | `activeCell` | 目前 active cell。 |
 | `activeEditor` | 目前 editor；未編輯時為空。 |
@@ -863,7 +883,7 @@ var columns = [
 - `combo`：可編輯下拉選項；可配合 `editable: false` 停用文字輸入，或用 `limitToList` 限制為清單項目。
 - `color`：色票與 HSV 顏色面板；支援 `#RGB`、`#RGBA`、`#RRGGBB`、`#RRGGBBAA` 與標準 CSS 顏色名稱。名稱不分大小寫，可直接預覽並保留原輸入文字，例如 `red` 提交後仍為 `red`；hex 短格式仍會正規化，例如 `#f00` 成為 `#ff0000`。`palette` 可自訂色票，`showAlpha: false` 可隱藏透明度控制。
 
-雙擊 cell、按 `Enter` 或 `F2` 可開始編輯；`Enter` / `Tab` 提交並移至下一個可編輯欄，`Escape` 取消。
+雙擊 cell、按 `Enter` 或 `F2` 可開始編輯；`Enter` / `Tab` 提交並移至下一個可編輯欄，`Escape` 取消。連續編輯移出可視區時只捲動所需列數，active editor 會保持在可視區頂部或底部邊界，不會跳到第一列。
 
 FabGrid 與 `fabui.EditBox` 共用 editor definitions 與主要 options。Icon descriptor 統一為 `{ iconCls, title, ariaLabel, text, width, align, keepFocus, onClick }`；舊欄位名稱只保留相容。
 

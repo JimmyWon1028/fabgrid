@@ -1263,10 +1263,14 @@
 :root .fui-chart-mark { transition: opacity .15s ease; }
 :root .fui-chart-mark:hover { opacity: .78; }
 :root .fui-chart-selected { opacity: 1; filter: saturate(1.15) brightness(.92); stroke: var(--fui-panel-text, rgba(31, 41, 55, .78)); stroke-width: 1; stroke-dasharray: 4 3; stroke-linecap: butt; }
-:root .fui-chart-animate .fui-chart-bar { transform-box: fill-box; transform-origin: center bottom; animation: fui-chart-bar-in .42s ease-out both; }
+:root .fui-chart-animate .fui-chart-bar { transform-box: fill-box; transform-origin: center bottom; animation: fui-chart-bar-in var(--fui-chart-item-animation-duration, .42s) var(--fui-chart-animation-easing, ease-out) var(--fui-chart-animation-delay, 0ms) both; }
 :root .fui-chart[data-chart-type="bar"].fui-chart-animate .fui-chart-bar { transform-origin: left center; animation-name: fui-chart-bar-horizontal-in; }
-:root .fui-chart-animate .fui-chart-line { stroke-dasharray: 1200; stroke-dashoffset: 1200; animation: fui-chart-line-in .6s ease-out forwards; }
-:root .fui-chart-animate .fui-chart-point { animation: fui-chart-point-in .35s ease-out both; }
+:root .fui-chart-animate .fui-chart-line { stroke-dasharray: 1200; stroke-dashoffset: 1200; animation: fui-chart-line-in var(--fui-chart-item-animation-duration, .6s) var(--fui-chart-animation-easing, ease-out) var(--fui-chart-animation-delay, 0ms) forwards; }
+:root .fui-chart-animate .fui-chart-point { animation: fui-chart-point-in var(--fui-chart-item-animation-duration, .35s) var(--fui-chart-animation-easing, ease-out) var(--fui-chart-animation-delay, 0ms) both; }
+:root .fui-chart-animate .fui-chart-slice { transform-box: fill-box; transform-origin: center; animation: fui-chart-pie-in var(--fui-chart-item-animation-duration, .4s) var(--fui-chart-animation-easing, ease-out) var(--fui-chart-animation-delay, 0ms) both; }
+:root .fui-chart-axis-animate.fui-chart-animate .fui-chart-grid-line,
+:root .fui-chart-axis-animate.fui-chart-animate .fui-chart-axis-label,
+:root .fui-chart-axis-animate.fui-chart-animate .fui-chart-category-label { animation: fui-chart-axis-in var(--fui-chart-animation-duration, .4s) var(--fui-chart-animation-easing, ease-out) both; }
 :root .fui-chart-pie-group { transform-box: fill-box; transform-origin: center; }
 :root .fui-chart-point { stroke: var(--fui-panel-bg, #fff); stroke-width: 1.5; }
 :root .fui-chart-point.fui-chart-selected { stroke: var(--fui-panel-text, rgba(31, 41, 55, .78)); stroke-width: 1; stroke-dasharray: none; stroke-linecap: round; }
@@ -1300,7 +1304,9 @@
 @keyframes fui-chart-bar-horizontal-in { from { transform: scaleX(0); opacity: .25; } to { transform: scaleX(1); opacity: 1; } }
 @keyframes fui-chart-line-in { to { stroke-dashoffset: 0; } }
 @keyframes fui-chart-point-in { from { opacity: 0; transform: scale(.2); } to { opacity: 1; transform: scale(1); } }
-@media (prefers-reduced-motion: reduce) { :root .fui-chart-animate .fui-chart-mark, :root .fui-chart-animate .fui-chart-line { animation: none; } :root .fui-chart-pie-group { transition: none !important; } }
+@keyframes fui-chart-pie-in { from { opacity: 0; transform: scale(.72); } to { opacity: 1; transform: scale(1); } }
+@keyframes fui-chart-axis-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { :root .fui-chart-animate .fui-chart-mark, :root .fui-chart-animate .fui-chart-line, :root .fui-chart-axis-animate .fui-chart-grid-line, :root .fui-chart-axis-animate .fui-chart-axis-label, :root .fui-chart-axis-animate .fui-chart-category-label { animation: none; } :root .fui-chart-pie-group { transition: none !important; } }
 
 
 :root .fg-root {
@@ -2097,6 +2103,16 @@
   -webkit-overflow-scrolling: touch;
 }
 
+:root .fg-root.fg-navigation-stopped .fg-body-scroll,
+:root .fg-root.fg-navigation-stopped .fg-frozen-pane,
+:root .fg-root.fg-navigation-stopped .fg-frozen-pane-right,
+:root .fg-root.fg-navigation-stopped .fg-row-header-pane,
+:root .fg-root.fg-navigation-stopped .fg-selection-pane,
+:root .fg-root.fg-navigation-stopped .fg-scrollbar-v,
+:root .fg-root.fg-navigation-stopped .fg-scrollbar-h {
+  pointer-events: none;
+}
+
 :root .fg-body-scroll::-webkit-scrollbar {
   width: var(--fg-scrollbar-size);
   height: var(--fg-scrollbar-size);
@@ -2854,9 +2870,10 @@
 }
 
 :root .fg-excel-filter-menu {
+  position: fixed;
   width: 322px;
   min-width: 280px;
-  max-width: calc(100% - 8px);
+  max-width: calc(100vw - 16px);
   overflow: hidden;
   border-radius: 3px;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.2);
@@ -8156,7 +8173,7 @@
   background-image: url("theme/default/images/tabs_icons.png");
 }
 
-:root /* Values adapted from res/themes/default/{textbox,:root combo,:root combobox,:root calendar,:root datebox}.css. */
+/* Values adapted from res/themes/default/{textbox, combo, combobox, calendar, datebox}.css. */
 :root {
   --fui-control-border: #95B8E7;
   --fui-control-focus: #6b9cde;

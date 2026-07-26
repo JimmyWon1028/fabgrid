@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabUI PivotGrid Build Demo</title>
   <link rel="stylesheet" href="../dist/fabui.css?v=20260722-theme-css-split-v1">
-  <script src="./js/theme-loader.js?v=20260722-theme-reload-v1"></script>
+  <script src="./js/theme-loader.js?v=20260725-editbox-themes-v1"></script>
   <style>
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -68,7 +68,7 @@
           <option value="material">Material</option>
           <option value="cupertino">Cupertino</option>
           <option value="dark-hive">Dark Hive</option>
-          <option value="mono">Mono</option><option value="mono-red">Mono Red</option><option value="mono-green">Mono Green</option>
+          <option value="mono">Mono</option>
         </select>
       </label>
       <label>View
@@ -243,7 +243,7 @@
       selectionSource: pivot,
       animation: true
     });
-    var themes = ['default', 'metro-blue', 'material', 'cupertino', 'dark-hive', 'mono', 'mono-red', 'mono-green'];
+    var themes = ['default', 'metro-blue', 'material', 'cupertino', 'dark-hive', 'mono'];
 
     function updateStats() {
       document.getElementById('stats').textContent =

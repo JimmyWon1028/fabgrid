@@ -164,11 +164,310 @@ function unregisterControl(element, control) {
 Control._registerControl = registerControl;
 Control._unregisterControl = unregisterControl;
 
+function CollectionViewEvent(sender) {
+  this.sender = sender;
+  this.handlers = [];
+}
+
+CollectionViewEvent.prototype.addHandler = function(handler, self) {
+  if (typeof handler === 'function') {
+    this.handlers.push({ handler: handler, self: self || null });
+  }
+  return this;
+};
+
+CollectionViewEvent.prototype.removeHandler = function(handler, self) {
+  var hasSelf = arguments.length > 1;
+  this.handlers = this.handlers.filter(function(record) {
+    return record.handler !== handler || hasSelf && record.self !== self;
+  });
+  return this;
+};
+
+CollectionViewEvent.prototype.raise = function(sender, args) {
+  var cancelled = false;
+  this.handlers.slice().forEach(function(record) {
+    if (record.handler.call(record.self || sender, sender, args || {}) === false) {
+      cancelled = true;
+    }
+  });
+  return !cancelled;
+};
+
+CollectionViewEvent.prototype.clearHandlers = function() {
+  this.handlers.length = 0;
+};
+
+function isCollectionView(value) {
+  return Boolean(
+    value &&
+    value.__fabuiCollectionView === true &&
+    Array.isArray(value.sourceCollection) &&
+    Array.isArray(value.items) &&
+    value.collectionChanged &&
+    typeof value.collectionChanged.addHandler === 'function'
+  );
+}
+
+function CollectionView(sourceCollection, options) {
+  options = options || {};
+  this.__fabuiCollectionView = true;
+  this._sourceCollection = Array.isArray(sourceCollection) ? sourceCollection : [];
+  this._filter = typeof options.filter === 'function' ? options.filter : null;
+  this._consumerFilters = [];
+  this._consumerSorters = [];
+  this._updating = 0;
+  this._pendingRefresh = false;
+  this._initialized = false;
+  this.items = [];
+  this.currentItem = null;
+  this.currentPosition = -1;
+  this.collectionChanged = new CollectionViewEvent(this);
+  this.currentChanging = new CollectionViewEvent(this);
+  this.currentChanged = new CollectionViewEvent(this);
+  this.refresh();
+  if (options.currentPosition != null) {
+    this.moveCurrentToPosition(options.currentPosition);
+  }
+}
+
+Object.defineProperties(CollectionView.prototype, {
+  sourceCollection: {
+    enumerable: true,
+    get: function() {
+      return this._sourceCollection;
+    },
+    set: function(value) {
+      this._sourceCollection = Array.isArray(value) ? value : [];
+      this.refresh();
+    }
+  },
+  filter: {
+    enumerable: true,
+    get: function() {
+      return this._filter;
+    },
+    set: function(value) {
+      this._filter = typeof value === 'function' ? value : null;
+      this.refresh();
+    }
+  },
+  itemCount: {
+    enumerable: true,
+    get: function() {
+      return this.items.length;
+    }
+  },
+  isEmpty: {
+    enumerable: true,
+    get: function() {
+      return this.items.length === 0;
+    }
+  },
+  isUpdating: {
+    enumerable: true,
+    get: function() {
+      return this._updating > 0;
+    }
+  }
+});
+
+CollectionView.prototype.refresh = function() {
+  var previousItem = this.currentItem;
+  var previousPosition = this.currentPosition;
+  var filters = this._consumerFilters.map(function(record) {
+    return record.filter;
+  });
+  var publicFilter = this._filter;
+  var nextPosition;
+  if (this._updating > 0) {
+    this._pendingRefresh = true;
+    return this;
+  }
+  this.items = this._sourceCollection.filter(function(item, index) {
+    var i;
+    if (publicFilter && publicFilter(item, index) !== true) {
+      return false;
+    }
+    for (i = 0; i < filters.length; i += 1) {
+      if (filters[i](item, index) !== true) {
+        return false;
+      }
+    }
+    return true;
+  });
+  this._consumerSorters.forEach(function(record) {
+    var sortedItems = record.sorter(this.items.slice());
+    if (Array.isArray(sortedItems)) {
+      this.items = sortedItems;
+    }
+  }, this);
+  nextPosition = previousItem == null ? -1 : this.items.indexOf(previousItem);
+  if (!this._initialized && nextPosition < 0 && this.items.length) {
+    nextPosition = 0;
+  }
+  if (nextPosition < 0 && this.items.length) {
+    nextPosition = 0;
+  }
+  this.currentPosition = nextPosition;
+  this.currentItem = nextPosition < 0 ? null : this.items[nextPosition];
+  this._initialized = true;
+  this.collectionChanged.raise(this, {
+    action: 'reset',
+    items: this.items,
+    sourceCollection: this._sourceCollection
+  });
+  if (this.currentItem !== previousItem || this.currentPosition !== previousPosition) {
+    this.currentChanged.raise(this, {
+      item: this.currentItem,
+      position: this.currentPosition,
+      previousItem: previousItem,
+      previousPosition: previousPosition
+    });
+  }
+  return this;
+};
+
+CollectionView.prototype.beginUpdate = function() {
+  this._updating += 1;
+};
+
+CollectionView.prototype.endUpdate = function(force) {
+  if (this._updating > 0) {
+    this._updating -= 1;
+  }
+  if (this._updating === 0 && (this._pendingRefresh || force === true)) {
+    this._pendingRefresh = false;
+    this.refresh();
+  }
+};
+
+CollectionView.prototype.deferUpdate = function(callback, force) {
+  this.beginUpdate();
+  try {
+    if (typeof callback === 'function') {
+      callback();
+    }
+  } finally {
+    this.endUpdate(force);
+  }
+};
+
+CollectionView.prototype.contains = function(item) {
+  return this.items.indexOf(item) >= 0;
+};
+
+CollectionView.prototype.moveCurrentToPosition = function(position) {
+  var args;
+  var previousItem = this.currentItem;
+  var previousPosition = this.currentPosition;
+  position = Number(position);
+  if (!isFinite(position) || Math.floor(position) !== position || position < -1 || position >= this.items.length) {
+    return false;
+  }
+  if (position === previousPosition) {
+    return true;
+  }
+  args = {
+    item: position < 0 ? null : this.items[position],
+    position: position,
+    previousItem: previousItem,
+    previousPosition: previousPosition,
+    cancel: false
+  };
+  if (this.currentChanging.raise(this, args) === false || args.cancel === true) {
+    return false;
+  }
+  this.currentPosition = position;
+  this.currentItem = args.item;
+  this.currentChanged.raise(this, args);
+  return true;
+};
+
+CollectionView.prototype.moveCurrentTo = function(item) {
+  var position = this.items.indexOf(item);
+  return position < 0 ? false : this.moveCurrentToPosition(position);
+};
+
+CollectionView.prototype.moveCurrentToFirst = function() {
+  return this.moveCurrentToPosition(this.items.length ? 0 : -1);
+};
+
+CollectionView.prototype.moveCurrentToLast = function() {
+  return this.moveCurrentToPosition(this.items.length ? this.items.length - 1 : -1);
+};
+
+CollectionView.prototype.moveCurrentToNext = function() {
+  if (this.currentPosition >= this.items.length - 1) {
+    return false;
+  }
+  return this.moveCurrentToPosition(this.currentPosition + 1);
+};
+
+CollectionView.prototype.moveCurrentToPrevious = function() {
+  if (this.currentPosition <= 0) {
+    return false;
+  }
+  return this.moveCurrentToPosition(this.currentPosition - 1);
+};
+
+CollectionView.prototype._setConsumerFilter = function(owner, filter) {
+  var index = -1;
+  var i;
+  for (i = 0; i < this._consumerFilters.length; i += 1) {
+    if (this._consumerFilters[i].owner === owner) {
+      index = i;
+      break;
+    }
+  }
+  if (typeof filter === 'function') {
+    if (index < 0) {
+      this._consumerFilters.push({ owner: owner, filter: filter });
+    } else {
+      this._consumerFilters[index].filter = filter;
+    }
+  } else if (index >= 0) {
+    this._consumerFilters.splice(index, 1);
+  }
+  this.refresh();
+  return this;
+};
+
+CollectionView.prototype._setConsumerSort = function(owner, sorter) {
+  var index = -1;
+  var i;
+  for (i = 0; i < this._consumerSorters.length; i += 1) {
+    if (this._consumerSorters[i].owner === owner) {
+      index = i;
+      break;
+    }
+  }
+  if (typeof sorter === 'function') {
+    if (index < 0) {
+      this._consumerSorters.push({ owner: owner, sorter: sorter });
+    } else {
+      this._consumerSorters[index].sorter = sorter;
+    }
+  } else if (index >= 0) {
+    this._consumerSorters.splice(index, 1);
+  }
+  this.refresh();
+  return this;
+};
+
+CollectionView.prototype.dispose = function() {
+  this._consumerFilters.length = 0;
+  this._consumerSorters.length = 0;
+  this.collectionChanged.clearHandlers();
+  this.currentChanging.clearHandlers();
+  this.currentChanged.clearHandlers();
+};
+
 var BUTTON_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function assignButtonOptions(target) {
@@ -602,7 +901,7 @@ var ACCORDION_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function assignAccordionOptions(target) {
@@ -1583,7 +1882,7 @@ var CALENDAR_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 var CALENDAR_LOCALES = {
@@ -2052,7 +2351,7 @@ var CHECKBOX_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 var checkBoxSequence = 0;
 
@@ -2531,7 +2830,7 @@ var CHECKGROUP_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function checkGroupAssign(target) {
@@ -3131,7 +3430,7 @@ var SWITCHBUTTON_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 var switchButtonSequence = 0;
 
@@ -3752,7 +4051,7 @@ var RADIOBUTTON_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 var radioButtonSequence = 0;
 
@@ -4266,7 +4565,7 @@ var RADIOGROUP_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function radioGroupAssign(target) {
@@ -4829,11 +5128,13 @@ function createRadioGroupFactory(
   return RadioGroup;
 }
 
+
+
 var CHART_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function normalizeChartType(type) {
@@ -4892,22 +5193,23 @@ function createChartFactory() {
 
   function Chart(element, options) {
     this.host = typeof element === 'string' ? document.querySelector(element) : element;
-    if (!this.host) throw new Error('fabui.Chart host element was not found.');
+    if (!this.host) throw new Error('fabui.chart.Chart host element was not found.');
     this._themeSource = this.host.parentElement || this.host;
     this.options = mergeOptions({
       chartType: null, type: 'column', header: '', footer: '', title: '', itemsSource: null,
       bindingX: '', bindingName: '', binding: '', categories: [], series: [], palette: null, colors: DEFAULT_COLORS,
       legend: true, tooltip: true, padding: 16, locale: 'en', theme: 'inherit', animation: true,
       observeData: true, dataRefreshInterval: 120,
-      axisX: {}, axisY: {}, selectionMode: 'None', selection: null, selectedIndex: -1, selectionSource: null,
+      axisX: {}, axisY: {}, selectionMode: 'None', selection: null, selectedIndex: -1,
       selectedItemOffset: .1, selectedItemPosition: 'Top', isAnimated: true,
       dataLabel: null, formatValue: null, formatTooltip: null, emptyText: null
     }, options || {});
     this.events = {};
     defineOptionProperties(this, ['chartType', 'itemsSource', 'bindingX', 'bindingName', 'binding', 'header', 'footer', 'series', 'axisX', 'axisY', 'legend', 'tooltip', 'palette', 'selectionMode', 'selection', 'selectedIndex', 'selectedItemOffset', 'selectedItemPosition', 'isAnimated', 'dataLabel', 'animation', 'observeData', 'dataRefreshInterval']);
     this.disposed = false;
-    this._selectionSource = null;
-    this._selectionSourceHandler = null;
+    this._collectionView = null;
+    this._collectionViewChangedHandler = null;
+    this._collectionViewCurrentHandler = null;
     this.raf = 0;
     this._boundPointerMove = this.handlePointerMove.bind(this);
     this._boundPointerLeave = this.hideTooltip.bind(this);
@@ -4916,9 +5218,9 @@ function createChartFactory() {
     this.options.locale = resolveChartLocale(this.options.locale);
     this.setTheme(this.options.theme);
     this.bindEvents();
+    this.bindItemsSource(this.options.itemsSource, false);
     this.refresh();
     this.startDataObserver();
-    this.bindSelectionSource(this.options.selectionSource);
   }
 
   Chart.prototype.createDom = function() {
@@ -4956,16 +5258,56 @@ function createChartFactory() {
   };
 
   Chart.prototype.setType = function(type) { this.options.chartType = type; this.options.type = type; this.refresh(); return this; };
-  Chart.prototype.setItemsSource = function(itemsSource) { this.options.itemsSource = Array.isArray(itemsSource) ? itemsSource : []; this.refresh(); return this; };
+  Chart.prototype.setItemsSource = function(itemsSource) {
+    this.bindItemsSource(itemsSource, false);
+    this.startDataObserver();
+    this.refresh();
+    return this;
+  };
+  Chart.prototype.bindItemsSource = function(itemsSource, shouldRefresh) {
+    var self = this;
+    this.unbindItemsSource();
+    this.options.itemsSource = isCollectionView(itemsSource) ? itemsSource :
+      (Array.isArray(itemsSource) ? itemsSource : []);
+    if (isCollectionView(this.options.itemsSource)) {
+      this._collectionView = this.options.itemsSource;
+      this._collectionViewChangedHandler = function() {
+        self.refresh();
+      };
+      this._collectionViewCurrentHandler = function(sender, args) {
+        self.selectPoint(args && args.position != null ? args.position : sender.currentPosition);
+      };
+      this._collectionView.collectionChanged.addHandler(this._collectionViewChangedHandler, this);
+      this._collectionView.currentChanged.addHandler(this._collectionViewCurrentHandler, this);
+      this.selectPoint(this._collectionView.currentPosition);
+    }
+    if (shouldRefresh !== false) {
+      this.refresh();
+    }
+    return this;
+  };
+  Chart.prototype.unbindItemsSource = function() {
+    if (this._collectionView && this._collectionViewChangedHandler) {
+      this._collectionView.collectionChanged.removeHandler(this._collectionViewChangedHandler, this);
+    }
+    if (this._collectionView && this._collectionViewCurrentHandler) {
+      this._collectionView.currentChanged.removeHandler(this._collectionViewCurrentHandler, this);
+    }
+    this._collectionView = null;
+    this._collectionViewChangedHandler = null;
+    this._collectionViewCurrentHandler = null;
+    return this;
+  };
   Chart.prototype.setOptions = function(options) {
     var observerChanged = options && (
       Object.prototype.hasOwnProperty.call(options, 'observeData') ||
       Object.prototype.hasOwnProperty.call(options, 'dataRefreshInterval')
     );
+    var itemsSourceChanged = Object.prototype.hasOwnProperty.call(options || {}, 'itemsSource');
     this.options = mergeOptions(this.options, options || {});
     this.options.locale = resolveChartLocale(this.options.locale);
-    if (Object.prototype.hasOwnProperty.call(options || {}, 'selectionSource')) {
-      this.bindSelectionSource(this.options.selectionSource);
+    if (itemsSourceChanged) {
+      this.bindItemsSource(options.itemsSource, false);
     }
     if (Object.prototype.hasOwnProperty.call(options || {}, 'theme')) {
       this.setTheme(this.options.theme);
@@ -5006,23 +5348,6 @@ function createChartFactory() {
     this.refresh(); return this;
   };
   Chart.prototype.resize = function() { this.refresh(); return this; };
-  Chart.prototype.bindSelectionSource = function(source) {
-    var self = this;
-    this.unbindSelectionSource();
-    this.options.selectionSource = source || null;
-    if (!source || !source.selectionChanged || typeof source.selectionChanged.addHandler !== 'function') return this;
-    this._selectionSource = source;
-    this._selectionSourceHandler = function() { if (source.selection && source.selection.row != null) self.selectPoint(source.selection.row); };
-    source.selectionChanged.addHandler(this._selectionSourceHandler, this);
-    if (source.selection && source.selection.row != null) this.selectPoint(source.selection.row);
-    return this;
-  };
-  Chart.prototype.unbindSelectionSource = function() {
-    if (this._selectionSource && this._selectionSourceHandler && this._selectionSource.selectionChanged && typeof this._selectionSource.selectionChanged.removeHandler === 'function') this._selectionSource.selectionChanged.removeHandler(this._selectionSourceHandler, this);
-    this._selectionSource = null;
-    this._selectionSourceHandler = null;
-    return this;
-  };
   Chart.prototype.selectPoint = function(index, seriesIndex) {
     var nextSeriesIndex = seriesIndex == null ? null : Number(seriesIndex);
     var currentSelection = this.options.selection;
@@ -5093,10 +5418,17 @@ function createChartFactory() {
   };
 
   Chart.prototype.playAnimation = function() {
+    var chartAnimation = this._chartAnimation;
     if (this.options.animation === false) return;
+    if (chartAnimation && typeof chartAnimation._prepare === 'function') {
+      chartAnimation._prepare();
+    }
     this.root.classList.remove('fui-chart-animate');
     void this.root.offsetWidth;
     this.root.classList.add('fui-chart-animate');
+    if (chartAnimation && typeof chartAnimation._handleAnimationStart === 'function') {
+      chartAnimation._handleAnimationStart();
+    }
   };
 
   Chart.prototype.renderFooter = function() {
@@ -5185,6 +5517,7 @@ function createChartFactory() {
         this.svg.appendChild(circle);
       }
       path = svgElement('path', { d: linePath(points), fill: 'none', stroke: this.getColor(s), class: 'fui-chart-line' });
+      path.dataset.seriesIndex = s;
       this.svg.insertBefore(path, this.svg.firstChild);
     }
   };
@@ -5242,7 +5575,10 @@ function createChartFactory() {
   };
 
   Chart.prototype.animatePieSelection = function(group, previousAngle, nextAngle) {
+    var chartAnimation = this._chartAnimation;
     var delta;
+    var duration = chartAnimation ? chartAnimation._getDuration() : 750;
+    var easing = chartAnimation ? chartAnimation._getCssEasing() : 'cubic-bezier(.22, .8, .3, 1)';
     var self = this;
     if (!group || previousAngle == null || this.options.isAnimated === false) return;
     delta = normalizeAngle(previousAngle - nextAngle) * 180 / Math.PI;
@@ -5253,7 +5589,7 @@ function createChartFactory() {
     if (this.pieAnimationRaf) cancelAnimationFrame(this.pieAnimationRaf);
     this.pieAnimationRaf = requestAnimationFrame(function() {
       self.pieAnimationRaf = 0;
-      group.style.transition = 'transform .75s cubic-bezier(.22, .8, .3, 1)';
+      group.style.transition = 'transform ' + duration + 'ms ' + easing;
       group.style.transform = 'rotate(0deg)';
     });
   };
@@ -5291,7 +5627,9 @@ function createChartFactory() {
     if (normalizeChartType(this.options.chartType || this.options.type) === 'pie') this.refresh();
     else this.applySelection();
     this.emit('selectionChanged', { chart: this, selection: this.options.selection });
-    if (this._selectionSource && typeof this._selectionSource.select === 'function') this._selectionSource.select(this.options.selectedIndex, this._selectionSource.selection && this._selectionSource.selection.col || 0);
+    if (this._collectionView) {
+      this._collectionView.moveCurrentToPosition(this.options.selectedIndex);
+    }
   };
 
   Chart.prototype.applySelection = function() {
@@ -5327,8 +5665,11 @@ function createChartFactory() {
     if (this.raf) cancelAnimationFrame(this.raf);
     if (this.pieAnimationRaf) cancelAnimationFrame(this.pieAnimationRaf);
     this.stopDataObserver();
+    if (this._chartAnimation && typeof this._chartAnimation._detach === 'function') {
+      this._chartAnimation._detach();
+    }
     if (this.resizeObserver) this.resizeObserver.disconnect();
-    this.unbindSelectionSource();
+    this.unbindItemsSource();
     this.svg.removeEventListener('pointermove', this._boundPointerMove);
     this.svg.removeEventListener('pointerleave', this._boundPointerLeave);
     this.svg.removeEventListener('click', this._boundClick);
@@ -5346,6 +5687,10 @@ function createChartFactory() {
           return chart.options[name];
         },
         set: function(value) {
+          if (name === 'itemsSource') {
+            chart.setItemsSource(value);
+            return;
+          }
           chart.options[name] = value;
           if (name === 'observeData' || name === 'dataRefreshInterval') {
             chart.startDataObserver();
@@ -5386,7 +5731,7 @@ function createChartFactory() {
   function setDatum(element, series, category, value, percent, pointIndex, seriesIndex) { element.dataset.series = series; element.dataset.category = category; element.dataset.value = value; element.dataset.pointIndex = pointIndex == null ? 0 : pointIndex; element.dataset.seriesIndex = seriesIndex == null ? 0 : seriesIndex; if (percent != null) element.dataset.percent = percent; }
 
   function createDataModel(options, type) {
-    var items = Array.isArray(options.itemsSource) ? options.itemsSource : null;
+    var items = getItemsSourceItems(options.itemsSource);
     var series = options.series || [];
     var categories;
     if (!items) return { categories: options.categories || [], series: series, pieLegend: series };
@@ -5429,10 +5774,14 @@ function createChartFactory() {
   function formatTemplate(template, data) { return template.replace(/\{(seriesName|series|x|category|y|value|name|percent)\}/g, function(_, key) { var map = { seriesName: 'series', x: 'category', y: 'value', name: 'category' }; var value = data[map[key] || key]; return value == null ? '' : value; }); }
   function formatDataLabel(template, data) { return String(template).replace(/\{(name|value|percent)\}/g, function(_, key) { return key === 'percent' ? String(Math.round(data.percent * 10) / 10) : String(data[key] == null ? '' : data[key]); }); }
   function getDataSignature(options) {
-    var items = Array.isArray(options.itemsSource) ? options.itemsSource : [];
+    var items = getItemsSourceItems(options.itemsSource) || [];
     var bindings = [options.bindingX, options.bindingName, options.binding].concat((options.series || []).map(function(item) { return item.binding; })).filter(Boolean);
     if (!bindings.length) return JSON.stringify([options.categories, options.series]);
     return JSON.stringify(items.map(function(item) { return bindings.map(function(binding) { return getBoundValue(item, binding); }); }));
+  }
+  function getItemsSourceItems(itemsSource) {
+    if (isCollectionView(itemsSource)) return itemsSource.items;
+    return Array.isArray(itemsSource) ? itemsSource : null;
   }
 
   Chart.locales = DEFAULT_MESSAGES;
@@ -5449,6 +5798,315 @@ function createChartFactory() {
   Chart.Position = { None: 'None', Left: 'Left', Top: 'Top', Right: 'Right', Bottom: 'Bottom' };
   Chart.SelectionMode = { None: 'None', Point: 'Point', Series: 'Series' };
   return Chart;
+}
+
+function createChartNamespace() {
+  var Chart = createChartFactory();
+  var ChartType = Chart.ChartType;
+  var Position = {
+    None: 'None',
+    Left: 'Left',
+    Top: 'Top',
+    Right: 'Right',
+    Bottom: 'Bottom',
+    Auto: 'Auto',
+    TopLeft: 'TopLeft',
+    TopRight: 'TopRight',
+    BottomLeft: 'BottomLeft',
+    BottomRight: 'BottomRight',
+    LeftTop: 'LeftTop',
+    LeftBottom: 'LeftBottom',
+    RightTop: 'RightTop',
+    RightBottom: 'RightBottom'
+  };
+  var SelectionMode = Chart.SelectionMode;
+  var AnimationMode = {
+    All: 'All',
+    Point: 'Point',
+    Series: 'Series'
+  };
+  var Easing = {
+    Linear: 'Linear',
+    Swing: 'Swing',
+    EaseInQuad: 'EaseInQuad',
+    EaseOutQuad: 'EaseOutQuad',
+    EaseInOutQuad: 'EaseInOutQuad',
+    EaseInCubic: 'EaseInCubic',
+    EaseOutCubic: 'EaseOutCubic',
+    EaseInOutCubic: 'EaseInOutCubic',
+    EaseInQuart: 'EaseInQuart',
+    EaseOutQuart: 'EaseOutQuart',
+    EaseInOutQuart: 'EaseInOutQuart',
+    EaseInQuint: 'EaseInQuint',
+    EaseOutQuint: 'EaseOutQuint',
+    EaseInOutQuint: 'EaseInOutQuint',
+    EaseInSine: 'EaseInSine',
+    EaseOutSine: 'EaseOutSine',
+    EaseInOutSine: 'EaseInOutSine',
+    EaseInExpo: 'EaseInExpo',
+    EaseOutExpo: 'EaseOutExpo',
+    EaseInOutExpo: 'EaseInOutExpo',
+    EaseInCirc: 'EaseInCirc',
+    EaseOutCirc: 'EaseOutCirc',
+    EaseInOutCirc: 'EaseInOutCirc',
+    EaseInBack: 'EaseInBack',
+    EaseOutBack: 'EaseOutBack',
+    EaseInOutBack: 'EaseInOutBack',
+    EaseInBounce: 'EaseInBounce',
+    EaseOutBounce: 'EaseOutBounce',
+    EaseInOutBounce: 'EaseInOutBounce',
+    EaseInElastic: 'EaseInElastic',
+    EaseOutElastic: 'EaseOutElastic',
+    EaseInOutElastic: 'EaseInOutElastic'
+  };
+  var CSS_EASING = {
+    Linear: 'linear',
+    Swing: 'ease-in-out',
+    EaseInQuad: 'cubic-bezier(.55, .085, .68, .53)',
+    EaseOutQuad: 'cubic-bezier(.25, .46, .45, .94)',
+    EaseInOutQuad: 'cubic-bezier(.455, .03, .515, .955)',
+    EaseInCubic: 'cubic-bezier(.55, .055, .675, .19)',
+    EaseOutCubic: 'cubic-bezier(.215, .61, .355, 1)',
+    EaseInOutCubic: 'cubic-bezier(.645, .045, .355, 1)',
+    EaseInQuart: 'cubic-bezier(.895, .03, .685, .22)',
+    EaseOutQuart: 'cubic-bezier(.165, .84, .44, 1)',
+    EaseInOutQuart: 'cubic-bezier(.77, 0, .175, 1)',
+    EaseInQuint: 'cubic-bezier(.755, .05, .855, .06)',
+    EaseOutQuint: 'cubic-bezier(.23, 1, .32, 1)',
+    EaseInOutQuint: 'cubic-bezier(.86, 0, .07, 1)',
+    EaseInSine: 'cubic-bezier(.47, 0, .745, .715)',
+    EaseOutSine: 'cubic-bezier(.39, .575, .565, 1)',
+    EaseInOutSine: 'cubic-bezier(.445, .05, .55, .95)',
+    EaseInExpo: 'cubic-bezier(.95, .05, .795, .035)',
+    EaseOutExpo: 'cubic-bezier(.19, 1, .22, 1)',
+    EaseInOutExpo: 'cubic-bezier(1, 0, 0, 1)',
+    EaseInCirc: 'cubic-bezier(.6, .04, .98, .335)',
+    EaseOutCirc: 'cubic-bezier(.075, .82, .165, 1)',
+    EaseInOutCirc: 'cubic-bezier(.785, .135, .15, .86)',
+    EaseInBack: 'cubic-bezier(.6, -.28, .735, .045)',
+    EaseOutBack: 'cubic-bezier(.175, .885, .32, 1.275)',
+    EaseInOutBack: 'cubic-bezier(.68, -.55, .265, 1.55)',
+    EaseInBounce: 'cubic-bezier(.6, 0, .8, .2)',
+    EaseOutBounce: 'cubic-bezier(.2, .8, .4, 1)',
+    EaseInOutBounce: 'cubic-bezier(.5, 0, .5, 1)',
+    EaseInElastic: 'cubic-bezier(.7, -.4, .8, .2)',
+    EaseOutElastic: 'cubic-bezier(.2, .8, .3, 1.4)',
+    EaseInOutElastic: 'cubic-bezier(.7, -.4, .3, 1.4)'
+  };
+
+  function ChartAnimationEvent(sender) {
+    this.sender = sender;
+    this.handlers = [];
+  }
+
+  ChartAnimationEvent.prototype.addHandler = function(handler, self) {
+    if (typeof handler === 'function') {
+      this.handlers.push({ handler: handler, self: self });
+    }
+    return this;
+  };
+
+  ChartAnimationEvent.prototype.removeHandler = function(handler, self) {
+    var hasSelf = arguments.length > 1;
+    this.handlers = this.handlers.filter(function(record) {
+      return record.handler !== handler || hasSelf && record.self !== self;
+    });
+    return this;
+  };
+
+  ChartAnimationEvent.prototype.raise = function(args) {
+    var sender = this.sender;
+    this.handlers.slice().forEach(function(record) {
+      record.handler.call(record.self || sender, sender, args || {});
+    });
+  };
+
+  function ChartAnimation(chart, options) {
+    options = options || {};
+    if (!(chart instanceof Chart)) {
+      throw new TypeError('ChartAnimation requires a fabui.chart.Chart or fabui.chart.Pie instance.');
+    }
+    this._chart = chart;
+    this.animationMode = normalizeAnimationMode(options.animationMode);
+    this.axisAnimation = options.axisAnimation === true;
+    this.duration = normalizeAnimationDuration(options.duration);
+    this.easing = normalizeAnimationEasing(options.easing);
+    this.ended = new ChartAnimationEvent(this);
+    this._endedTimer = 0;
+    if (chart._chartAnimation && chart._chartAnimation !== this) {
+      chart._chartAnimation._detach();
+    }
+    chart._chartAnimation = this;
+    this.animate();
+  }
+
+  Object.defineProperty(ChartAnimation.prototype, 'chart', {
+    enumerable: true,
+    get: function() {
+      return this._chart;
+    }
+  });
+
+  ChartAnimation.prototype.animate = function() {
+    if (!this._chart || this._chart.disposed) return;
+    this._chart.options.animation = true;
+    this._chart.playAnimation();
+  };
+
+  ChartAnimation.prototype._prepare = function() {
+    var chart = this._chart;
+    var root = chart && chart.root;
+    var elements;
+    var mode;
+    var duration;
+    var maxStep = 0;
+    if (!root) return;
+    mode = normalizeAnimationMode(this.animationMode);
+    duration = normalizeAnimationDuration(this.duration);
+    root.style.setProperty('--fui-chart-animation-duration', duration + 'ms');
+    root.style.setProperty('--fui-chart-animation-easing', this._getCssEasing());
+    root.setAttribute('data-animation-mode', mode.toLowerCase());
+    root.classList.toggle('fui-chart-axis-animate', this.axisAnimation === true);
+    elements = Array.prototype.slice.call(
+      root.querySelectorAll('.fui-chart-mark, .fui-chart-line')
+    );
+    elements.forEach(function(element, index) {
+      var step = 0;
+      if (mode === AnimationMode.Point) {
+        step = normalizeAnimationStep(element.dataset.pointIndex, index);
+      } else if (mode === AnimationMode.Series) {
+        step = normalizeAnimationStep(element.dataset.seriesIndex, 0);
+      }
+      maxStep = Math.max(maxStep, step);
+      element._fuiAnimationStep = step;
+    });
+    elements.forEach(function(element) {
+      var delay = maxStep > 0 ? duration * .55 * element._fuiAnimationStep / maxStep : 0;
+      element.style.setProperty('--fui-chart-animation-delay', delay + 'ms');
+      element.style.setProperty(
+        '--fui-chart-item-animation-duration',
+        Math.max(1, duration - delay) + 'ms'
+      );
+      delete element._fuiAnimationStep;
+    });
+  };
+
+  ChartAnimation.prototype._getDuration = function() {
+    return normalizeAnimationDuration(this.duration);
+  };
+
+  ChartAnimation.prototype._getCssEasing = function() {
+    return CSS_EASING[normalizeAnimationEasing(this.easing)] || CSS_EASING.Swing;
+  };
+
+  ChartAnimation.prototype._handleAnimationStart = function() {
+    var self = this;
+    if (this._endedTimer) clearTimeout(this._endedTimer);
+    this._endedTimer = setTimeout(function() {
+      self._endedTimer = 0;
+      if (self._chart && !self._chart.disposed) {
+        self.ended.raise({});
+      }
+    }, this._getDuration());
+  };
+
+  ChartAnimation.prototype._detach = function() {
+    var chart = this._chart;
+    var root = chart && chart.root;
+    if (this._endedTimer) clearTimeout(this._endedTimer);
+    this._endedTimer = 0;
+    if (root) {
+      root.style.removeProperty('--fui-chart-animation-duration');
+      root.style.removeProperty('--fui-chart-animation-easing');
+      root.removeAttribute('data-animation-mode');
+      root.classList.remove('fui-chart-axis-animate');
+      Array.prototype.forEach.call(
+        root.querySelectorAll('.fui-chart-mark, .fui-chart-line'),
+        function(element) {
+          element.style.removeProperty('--fui-chart-animation-delay');
+          element.style.removeProperty('--fui-chart-item-animation-duration');
+        }
+      );
+    }
+    if (chart && chart._chartAnimation === this) {
+      chart._chartAnimation = null;
+    }
+    this._chart = null;
+  };
+
+  function normalizeAnimationMode(value) {
+    value = String(value || AnimationMode.All).toLowerCase();
+    if (value === 'point') return AnimationMode.Point;
+    if (value === 'series') return AnimationMode.Series;
+    return AnimationMode.All;
+  }
+
+  function normalizeAnimationDuration(value) {
+    value = Number(value);
+    return isFinite(value) && value >= 0 ? value : 400;
+  }
+
+  function normalizeAnimationEasing(value) {
+    var name = String(value || Easing.Swing);
+    return Object.prototype.hasOwnProperty.call(Easing, name) ? Easing[name] : Easing.Swing;
+  }
+
+  function normalizeAnimationStep(value, fallback) {
+    value = Number(value);
+    return isFinite(value) && value >= 0 ? value : fallback;
+  }
+
+  function Pie(element, options) {
+    var pieOptions = {};
+    Object.keys(options || {}).forEach(function(key) {
+      pieOptions[key] = options[key];
+    });
+    pieOptions.chartType = ChartType.Pie;
+    pieOptions.type = 'pie';
+    Chart.call(this, element, pieOptions);
+    delete this.chartType;
+  }
+
+  Pie.prototype = Object.create(Chart.prototype);
+  Pie.prototype.constructor = Pie;
+  Pie.prototype.setType = function() {
+    return this;
+  };
+  Pie.prototype.setOptions = function(options) {
+    var pieOptions = {};
+    Object.keys(options || {}).forEach(function(key) {
+      pieOptions[key] = options[key];
+    });
+    pieOptions.chartType = ChartType.Pie;
+    pieOptions.type = 'pie';
+    Chart.prototype.setOptions.call(this, pieOptions);
+    return this;
+  };
+  Pie.locales = Chart.locales;
+  Pie.themes = Chart.themes;
+  Pie.addLocale = function(name, messages) {
+    Chart.addLocale(name, messages);
+    return Pie;
+  };
+  Pie.normalizeLocale = Chart.normalizeLocale;
+  Pie.normalizeTheme = Chart.normalizeTheme;
+  Pie.Position = Position;
+  Pie.SelectionMode = SelectionMode;
+
+  Chart.Position = Position;
+
+  return {
+    Chart: Chart,
+    Pie: Pie,
+    ChartType: ChartType,
+    Position: Position,
+    SelectionMode: SelectionMode,
+    animation: {
+      ChartAnimation: ChartAnimation,
+      AnimationMode: AnimationMode,
+      Easing: Easing
+    }
+  };
 }
 
 var CellType = Object.freeze({
@@ -5537,6 +6195,8 @@ function createGridPanel(grid, cellType) {
 
   return panel;
 }
+
+
 
 function createDictionary() {
   return Object.create(null);
@@ -5878,6 +6538,82 @@ function installFabGridData(FabGrid, context) {
   var rowMatchesColumnSearch = context.rowMatchesColumnSearch;
   var rowMatchesSearch = context.rowMatchesSearch;
 
+  function createCollectionViewFilter(grid) {
+    var filterPredicate = grid.filterPredicate;
+    var searchText = grid.searchText;
+    var columnSearchValues = getActiveFilterMode(grid.options) === 'searchRow' && grid.hasColumnSearch ?
+      grid.columnSearchValues : null;
+    var columnSearchOperators = getActiveFilterMode(grid.options) === 'searchRow' && grid.hasColumnSearch ?
+      grid.columnSearchOperators : null;
+    var excelFilters = getActiveFilterMode(grid.options) === 'excel' && hasExcelFilters(grid.excelFilters) ?
+      grid.excelFilters : null;
+    var columns = grid.columns;
+    if (!filterPredicate && !searchText && !columnSearchValues && !excelFilters) {
+      return null;
+    }
+    return function(item, index) {
+      if (filterPredicate && !filterPredicate(item, index)) {
+        return false;
+      }
+      if (!searchText) {
+        return (!columnSearchValues || rowMatchesColumnSearch(
+          item,
+          columns,
+          columnSearchValues,
+          columnSearchOperators
+        )) && (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
+      }
+      return rowMatchesSearch(item, columns, searchText) &&
+        (!columnSearchValues || rowMatchesColumnSearch(
+          item,
+          columns,
+          columnSearchValues,
+          columnSearchOperators
+        )) && (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
+    };
+  }
+
+  function createCollectionViewSorter(grid) {
+    var sortStates;
+    if (grid.options.remote === true ||
+        typeof grid.isTreeGrid === 'function' && grid.isTreeGrid()) {
+      return null;
+    }
+    sortStates = grid.getSortStates().map(function(sortState) {
+      return {
+        column: sortState.column,
+        direction: sortState.direction
+      };
+    });
+    if (!sortStates.length) {
+      return null;
+    }
+    return function(items) {
+      return items.map(function(item, index) {
+        return {
+          item: item,
+          index: index,
+          sortValues: createPreparedSortValues(item, sortStates)
+        };
+      }).sort(function(a, b) {
+        var comparison;
+        var i;
+        for (i = 0; i < sortStates.length; i += 1) {
+          comparison = comparePreparedValues(
+            a.sortValues[i],
+            b.sortValues[i]
+          ) * sortStates[i].direction;
+          if (comparison) {
+            return comparison;
+          }
+        }
+        return a.index - b.index;
+      }).map(function(entry) {
+        return entry.item;
+      });
+    };
+  }
+
   function normalizeRemotePatternOperator(operator) {
     operator = String(operator || '').trim();
     if (operator === '%..%') {
@@ -6197,6 +6933,7 @@ function installFabGridData(FabGrid, context) {
 
   FabGrid.prototype.setItemsSource = function(rows, silent) {
     var previousSelectedRow = this.captureSelectedRowChangeState();
+    var collectionView = isCollectionView(rows) ? rows : null;
     if (!silent && this.emit('itemsSourceChanging', { rows: rows || [] }) === false) {
       return;
     }
@@ -6206,14 +6943,153 @@ function installFabGridData(FabGrid, context) {
     if (typeof this.resetTreeState === 'function') {
       this.resetTreeState();
     }
-    this.source = this.createObservedItemsSource(rows || []);
+    this.unbindCollectionView();
+    this._itemsSource = collectionView || (Array.isArray(rows) ? rows : []);
+    if (collectionView) {
+      this._collectionView = collectionView;
+      this.source = collectionView.sourceCollection;
+      this.bindCollectionView();
+      this.syncCollectionViewFilter();
+    } else {
+      this.source = this.createObservedItemsSource(this._itemsSource);
+    }
     this.applyView();
+    this.syncSelectionFromCollectionView();
     if (!silent) {
       this.emit('itemsSourceChanged', { rows: this.source });
       this.raiseSelectedRowChanged('itemsSource', previousSelectedRow, true);
       this.emit('loadedRows', { rows: this.view });
       this.refresh();
     }
+  };
+
+  FabGrid.prototype.bindCollectionView = function() {
+    var grid = this;
+    if (!this._collectionView) {
+      return;
+    }
+    this._collectionViewChangedHandler = function() {
+      var previousSelectedRow;
+      if (grid.disposed || grid._suppressCollectionViewChange) {
+        return;
+      }
+      previousSelectedRow = grid.captureSelectedRowChangeState();
+      grid.source = grid._collectionView.sourceCollection;
+      grid.applyView();
+      grid.raiseSelectedRowChanged('itemsSource', previousSelectedRow, true);
+      grid.refresh();
+      grid.syncSelectionFromCollectionView();
+    };
+    this._collectionViewCurrentHandler = function() {
+      if (!grid.disposed && !grid._suppressCollectionViewCurrentChange) {
+        grid.syncSelectionFromCollectionView();
+      }
+    };
+    this._collectionView.collectionChanged.addHandler(this._collectionViewChangedHandler, this);
+    this._collectionView.currentChanged.addHandler(this._collectionViewCurrentHandler, this);
+  };
+
+  FabGrid.prototype.unbindCollectionView = function() {
+    var collectionView = this._collectionView;
+    if (!collectionView) {
+      return;
+    }
+    if (this._collectionViewChangedHandler) {
+      collectionView.collectionChanged.removeHandler(this._collectionViewChangedHandler, this);
+    }
+    if (this._collectionViewCurrentHandler) {
+      collectionView.currentChanged.removeHandler(this._collectionViewCurrentHandler, this);
+    }
+    this._suppressCollectionViewChange = true;
+    try {
+      collectionView.beginUpdate();
+      try {
+        collectionView._setConsumerFilter(this, null);
+        collectionView._setConsumerSort(this, null);
+      } finally {
+        collectionView.endUpdate();
+      }
+    } finally {
+      this._suppressCollectionViewChange = false;
+    }
+    this._collectionView = null;
+    this._collectionViewChangedHandler = null;
+    this._collectionViewCurrentHandler = null;
+  };
+
+  FabGrid.prototype.syncCollectionViewFilter = function() {
+    var previousSuppressChange;
+    var previousSuppressCurrent;
+    if (!this._collectionView) {
+      return false;
+    }
+    previousSuppressChange = this._suppressCollectionViewChange;
+    previousSuppressCurrent = this._suppressCollectionViewCurrentChange;
+    this._suppressCollectionViewChange = true;
+    this._suppressCollectionViewCurrentChange = true;
+    try {
+      this._collectionView.beginUpdate();
+      try {
+        this._collectionView._setConsumerFilter(this, createCollectionViewFilter(this));
+        this._collectionView._setConsumerSort(this, createCollectionViewSorter(this));
+      } finally {
+        this._collectionView.endUpdate();
+      }
+      this.source = this._collectionView.sourceCollection;
+    } finally {
+      this._suppressCollectionViewChange = previousSuppressChange;
+      this._suppressCollectionViewCurrentChange = previousSuppressCurrent;
+    }
+    return true;
+  };
+
+  FabGrid.prototype.syncCollectionViewSort = function() {
+    return this.syncCollectionViewFilter();
+  };
+
+  FabGrid.prototype.syncCollectionViewCurrentFromSelection = function() {
+    var item;
+    if (!this._collectionView || this._suppressCollectionViewCurrentChange) {
+      return false;
+    }
+    item = this.selection && this.selection.row >= 0 ? this.view[this.selection.row] : null;
+    if (!item || this.isRowGroup(item) || this.isRowGroupFooter(item)) {
+      return false;
+    }
+    this._suppressCollectionViewCurrentChange = true;
+    try {
+      return this._collectionView.moveCurrentTo(item);
+    } finally {
+      this._suppressCollectionViewCurrentChange = false;
+    }
+  };
+
+  FabGrid.prototype.syncSelectionFromCollectionView = function() {
+    var row;
+    var col;
+    if (!this._collectionView || !this._collectionView.currentItem || !this.view ||
+        !this.visibleColumns || !this.visibleColumns.length) {
+      return false;
+    }
+    row = this.view.indexOf(this._collectionView.currentItem);
+    if (row < 0 || this.selection && this.selection.row === row) {
+      return row >= 0;
+    }
+    col = this.selection && this.selection.col >= 0 ? this.selection.col : 0;
+    this._suppressCollectionViewCurrentChange = true;
+    try {
+      return this.select(row, Math.min(col, this.visibleColumns.length - 1));
+    } finally {
+      this._suppressCollectionViewCurrentChange = false;
+    }
+  };
+
+  FabGrid.prototype.refreshCollectionView = function() {
+    if (!this._collectionView) {
+      return false;
+    }
+    this._collectionView.refresh();
+    return true;
   };
 
   FabGrid.prototype.load = function(params) {
@@ -6828,7 +7704,9 @@ function installFabGridData(FabGrid, context) {
         this.options.pager.pageNumber = 1;
       }
     }
+    this.syncCollectionViewFilter();
     this.applyView();
+    this.syncSelectionFromCollectionView();
     if (resetHorizontalScroll === true) {
       this.resetScroll();
     } else {
@@ -6864,7 +7742,8 @@ function installFabGridData(FabGrid, context) {
   };
 
   FabGrid.prototype.applyView = function() {
-    var rows = this.source.slice();
+    var baseRows = this._collectionView ? this._collectionView.items.slice() : this.source.slice();
+    var rows = baseRows.slice();
     var filterPredicate = this.filterPredicate;
     var searchText = this.searchText;
     var columnSearchValues = getActiveFilterMode(this.options) === 'searchRow' && this.hasColumnSearch ? this.columnSearchValues : null;
@@ -6880,7 +7759,8 @@ function installFabGridData(FabGrid, context) {
 
     if (typeof this.isTreeGrid === 'function' && this.isTreeGrid()) {
       treeSortValueCache = sortStates.length && typeof WeakMap === 'function' ? new WeakMap() : null;
-      filtering = this.options.remote !== true && Boolean(filterPredicate || searchText || columnSearchValues || excelFilters);
+      filtering = !this._collectionView && this.options.remote !== true &&
+        Boolean(filterPredicate || searchText || columnSearchValues || excelFilters);
       treeOptions = {
         filtering: filtering,
         pagination: false,
@@ -6941,12 +7821,13 @@ function installFabGridData(FabGrid, context) {
         treeOptions.pagination = true;
         treeOptions.pageNumber = this.options.pageNumber;
         treeOptions.pageSize = this.options.pageSize;
-        rows = this.createTreeView(this.source.slice(), treeOptions);
+        rows = this.createTreeView(baseRows.slice(), treeOptions);
       }
       this.dataView = rows;
       this.view = rows;
     } else {
-      if (this.options.remote !== true && (filterPredicate || searchText || columnSearchValues || excelFilters)) {
+      if (!this._collectionView && this.options.remote !== true &&
+          (filterPredicate || searchText || columnSearchValues || excelFilters)) {
         rows = rows.filter(function(item, index) {
           if (filterPredicate && !filterPredicate(item, index)) {
             return false;
@@ -6961,7 +7842,7 @@ function installFabGridData(FabGrid, context) {
         });
       }
 
-      if (sortStates.length && this.options.remote !== true) {
+      if (sortStates.length && this.options.remote !== true && !this._collectionView) {
         indexedRows = rows.map(function(item, index) {
           return {
             item: item,
@@ -7075,6 +7956,9 @@ function installFabGridData(FabGrid, context) {
       if (this.options.pager) {
         this.options.pager.pageNumber = 1;
       }
+    }
+    if (typeof this.syncCollectionViewSort === 'function') {
+      this.syncCollectionViewSort();
     }
     this.applyView();
     this.resetScroll();
@@ -9884,6 +10768,7 @@ function installFabGridView(FabGrid, context) {
     var frozenRightCount;
 
     normalizeGridOptions(this.options);
+    this.options.stopNavigation = this._stopNavigation === true;
     this.emit('updatingLayout', {});
     for (i = 0; i < this.columns.length; i += 1) {
       if (this.columns[i].visible !== false) {
@@ -10154,6 +11039,11 @@ function installFabGridView(FabGrid, context) {
   FabGrid.prototype.handleVerticalScrollbarPointerDown = function(event) {
     var info;
     var thumbTop;
+    if (this._stopNavigation === true) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (this.busy || !this.bodyScroll) {
       return;
     }
@@ -10235,6 +11125,11 @@ function installFabGridView(FabGrid, context) {
   FabGrid.prototype.handleVerticalScrollbarWheel = function(event) {
     var maxScrollTop;
     var nextTop;
+    if (this._stopNavigation === true) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (!this.bodyScroll) {
       return;
     }
@@ -10275,6 +11170,11 @@ function installFabGridView(FabGrid, context) {
   FabGrid.prototype.handleHorizontalScrollbarPointerDown = function(event) {
     var info;
     var thumbLeft;
+    if (this._stopNavigation === true) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (this.busy || !this.bodyScroll) {
       return;
     }
@@ -11859,6 +12759,61 @@ function installFabGridFilterUi(FabGrid, context) {
     }
   };
 
+  FabGrid.prototype.bindFilterMenuViewportEvents = function() {
+    if (this.filterMenuViewportEventsBound || this.disposed) {
+      return;
+    }
+    this.filterMenuViewportEventsBound = true;
+    window.addEventListener('resize', this._boundFilterMenuViewportChange);
+    window.addEventListener('scroll', this._boundFilterMenuViewportChange, true);
+  };
+
+  FabGrid.prototype.unbindFilterMenuViewportEvents = function() {
+    if (!this.filterMenuViewportEventsBound) {
+      return;
+    }
+    this.filterMenuViewportEventsBound = false;
+    window.removeEventListener('resize', this._boundFilterMenuViewportChange);
+    window.removeEventListener('scroll', this._boundFilterMenuViewportChange, true);
+  };
+
+  FabGrid.prototype.handleFilterMenuViewportChange = function(event) {
+    if (!this.isFilterMenuOpen() || !hasClass(this.filterMenu, 'fg-excel-filter-menu')) {
+      return;
+    }
+    if (event && event.target && this.filterMenu.contains(event.target)) {
+      return;
+    }
+    this.positionFilterMenu(this.filterMenuAnchor);
+  };
+
+  FabGrid.prototype.getFilterMenuPortalTarget = function() {
+    var fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fullscreenElement && fullscreenElement.contains(this.root)) {
+      return fullscreenElement;
+    }
+    return document.body || this.root;
+  };
+
+  FabGrid.prototype.portalExcelFilterMenu = function() {
+    var target;
+    if (!this.filterMenu || !hasClass(this.filterMenu, 'fg-excel-filter-menu')) {
+      return;
+    }
+    target = this.getFilterMenuPortalTarget();
+    if (target && this.filterMenu.parentNode !== target) {
+      target.appendChild(this.filterMenu);
+    }
+    this.bindFilterMenuViewportEvents();
+  };
+
+  FabGrid.prototype.restoreFilterMenu = function() {
+    this.unbindFilterMenuViewportEvents();
+    if (this.filterMenu && this.root && this.filterMenu.parentNode !== this.root) {
+      this.root.appendChild(this.filterMenu);
+    }
+  };
+
   FabGrid.prototype.handleContextMenu = function(event) {
     var headerTitle = closest(event.target, 'fg-header-title');
     if (!headerTitle) {
@@ -12163,6 +13118,10 @@ function installFabGridFilterUi(FabGrid, context) {
     if (this.isTopLeftMenuOpen()) {
       this.renderTopLeftMenu();
     }
+    if (this.isFilterMenuOpen() && hasClass(this.filterMenu, 'fg-excel-filter-menu')) {
+      this.portalExcelFilterMenu();
+      this.positionFilterMenu(this.filterMenuAnchor);
+    }
     this.invalidate();
   };
 
@@ -12178,6 +13137,11 @@ function installFabGridFilterUi(FabGrid, context) {
     this.filterMenuColumn = column;
     this.filterMenuAnchor = anchor;
     this.renderFilterMenu(column);
+    if (hasClass(this.filterMenu, 'fg-excel-filter-menu')) {
+      this.portalExcelFilterMenu();
+    } else {
+      this.restoreFilterMenu();
+    }
     this.filterMenu.style.display = 'block';
     this.positionFilterMenu(anchor);
     if (anchor) {
@@ -12191,6 +13155,7 @@ function installFabGridFilterUi(FabGrid, context) {
       this.renderExcelFilterMenu(column);
       return;
     }
+    this.restoreFilterMenu();
     this.filterMenu.className = 'fg-filter-menu';
     this.filterMenu.setAttribute('role', 'menu');
     this.filterMenu.setAttribute('aria-label', this.getText('filter.openMenu', { column: this.getHeaderCellText(column) }));
@@ -12541,13 +13506,20 @@ function installFabGridFilterUi(FabGrid, context) {
     viewportHeight = Math.max(0, window.innerHeight || document.documentElement.clientHeight || rootRect.bottom);
     isExcelFilterMenu = hasClass(this.filterMenu, 'fg-excel-filter-menu');
     bottomShadowSpace = isExcelFilterMenu ? 12 : 0;
-    visibleLeft = Math.max(rootRect.left, 8);
-    visibleRight = Math.min(rootRect.right, viewportWidth - 8);
-    visibleTop = Math.max(rootRect.top, 8);
-    visibleBottom = Math.max(
-      visibleTop,
-      Math.min(rootRect.bottom - bottomShadowSpace, viewportHeight - 8 - bottomShadowSpace)
-    );
+    if (isExcelFilterMenu) {
+      visibleLeft = 8;
+      visibleRight = Math.max(visibleLeft, viewportWidth - 8);
+      visibleTop = 8;
+      visibleBottom = Math.max(visibleTop, viewportHeight - 8 - bottomShadowSpace);
+    } else {
+      visibleLeft = Math.max(rootRect.left, 8);
+      visibleRight = Math.min(rootRect.right, viewportWidth - 8);
+      visibleTop = Math.max(rootRect.top, 8);
+      visibleBottom = Math.max(
+        visibleTop,
+        Math.min(rootRect.bottom - bottomShadowSpace, viewportHeight - 8 - bottomShadowSpace)
+      );
+    }
     menuWidth = this.filterMenu.offsetWidth;
     menuHeight = this.filterMenu.offsetHeight;
     belowTop = Math.max(anchorRect.bottom + 2, visibleTop);
@@ -12575,8 +13547,12 @@ function installFabGridFilterUi(FabGrid, context) {
       headerRect.left :
       anchorRect.left - menuWidth + anchorRect.width + 4;
     preferredTop = opensAbove ? aboveBottom - menuHeight : belowTop;
-    left = Math.max(visibleLeft, Math.min(preferredLeft, visibleRight - menuWidth)) - rootRect.left;
-    top = Math.max(visibleTop, Math.min(preferredTop, visibleBottom - menuHeight)) - rootRect.top;
+    left = Math.max(visibleLeft, Math.min(preferredLeft, visibleRight - menuWidth));
+    top = Math.max(visibleTop, Math.min(preferredTop, visibleBottom - menuHeight));
+    if (!isExcelFilterMenu) {
+      left -= rootRect.left;
+      top -= rootRect.top;
+    }
     this.filterMenu.style.left = left + 'px';
     this.filterMenu.style.top = top + 'px';
   };
@@ -12589,6 +13565,7 @@ function installFabGridFilterUi(FabGrid, context) {
       this.filterMenu.style.display = 'none';
       this.filterMenu.innerHTML = '';
     }
+    this.restoreFilterMenu();
     this.filterMenuColumn = null;
     this.filterMenuAnchor = null;
     this.excelFilterDraft = null;
@@ -13426,6 +14403,38 @@ function installFabGridSelection(FabGrid, context) {
   var parseValue = context.parseValue;
   var setByBinding = context.setByBinding;
   var toNumber = context.toNumber;
+  var handledKeyboardEvents = typeof WeakSet === 'function' ? new WeakSet() : null;
+  var activeKeyboardGridKey = typeof Symbol === 'function' && typeof Symbol.for === 'function' ?
+    Symbol.for('fabui.FabGrid.activeKeyboardGrid') :
+    '__fabuiFabGridActiveKeyboardGrid__';
+
+  function containsNode(container, node) {
+    var current = node;
+    if (!container || !node) {
+      return false;
+    }
+    if (typeof container.contains === 'function') {
+      return container.contains(node);
+    }
+    while (current) {
+      if (current === container) {
+        return true;
+      }
+      current = current.parentNode;
+    }
+    return false;
+  }
+
+  function isNavigationKey(event) {
+    var key = event && event.key;
+    return key === 'ArrowDown' || key === 'ArrowUp' ||
+      key === 'ArrowLeft' || key === 'ArrowRight' ||
+      key === 'PageDown' || key === 'PageUp' ||
+      key === 'Home' || key === 'End' ||
+      key === 'Enter' || key === 'Tab' ||
+      key === ' ' || key === 'Spacebar' ||
+      (event && event.code === 'Space');
+  }
 
   function getColumnMinWidth(grid, column) {
     return toNumber(column.minWidth, toNumber(grid.options.columnMinWidth, DEFAULT_OPTIONS.columnMinWidth));
@@ -13558,6 +14567,16 @@ function installFabGridSelection(FabGrid, context) {
     var cell = closest(event.target, 'fg-cell');
     var colIndex;
     var rowIndex;
+
+    FabGrid.prototype.activateKeyboardEventOwner.call(this, event);
+
+    if (this._stopNavigation === true &&
+        (cell || rowHeader || selectionCell || selectionCheck || selectAll ||
+          groupExpander || treeExpander)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
 
     if (this.busy) {
       event.preventDefault();
@@ -14078,6 +15097,19 @@ function installFabGridSelection(FabGrid, context) {
     var rowHeader = closest(event.target, 'fg-row-header-cell');
     var cell = closest(event.target, 'fg-cell');
     var colIndex;
+    FabGrid.prototype.activateKeyboardEventOwner.call(this, event);
+    if (this._stopNavigation === true &&
+        (cell || rowHeader || closest(event.target, 'fg-body-scroll') ||
+          closest(event.target, 'fg-frozen-pane') ||
+          closest(event.target, 'fg-frozen-pane-right') ||
+          closest(event.target, 'fg-row-header-pane') ||
+          closest(event.target, 'fg-selection-pane') ||
+          closest(event.target, 'fg-scrollbar-v') ||
+          closest(event.target, 'fg-scrollbar-h'))) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (this.busy) {
       event.preventDefault();
       event.stopPropagation();
@@ -14452,6 +15484,11 @@ function installFabGridSelection(FabGrid, context) {
     var cell = closest(event.target, 'fg-cell');
     var rowHeader = closest(event.target, 'fg-row-header-cell');
     var rowIndex;
+    if (this._stopNavigation === true && (cell || rowHeader)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (this.busy) {
       event.preventDefault();
       event.stopPropagation();
@@ -14649,6 +15686,79 @@ function installFabGridSelection(FabGrid, context) {
     return 0;
   };
 
+  FabGrid.prototype.isKeyboardEventOwner = function(event) {
+    var target = event && event.target;
+    var ownerRoot = closest(target, 'fg-root');
+    var ownerDocument = (this.root && this.root.ownerDocument) ||
+      (target && target.ownerDocument) ||
+      (typeof document !== 'undefined' ? document : null);
+    var activeElement = ownerDocument && ownerDocument.activeElement;
+    var activeRoot;
+    var ownedPopups;
+    var i;
+
+    if (ownerRoot && ownerRoot !== this.root) {
+      return false;
+    }
+    if (!ownerDocument || !activeElement) {
+      return !ownerRoot || ownerRoot === this.root;
+    }
+    activeRoot = closest(activeElement, 'fg-root');
+    if (activeRoot) {
+      return activeRoot === this.root;
+    }
+    ownedPopups = [
+      this.filterMenu,
+      this.topLeftMenu,
+      this.columnChooser,
+      this.dateboxPanel,
+      this.comboboxPanel,
+      this.colorPanel
+    ];
+    for (i = 0; i < ownedPopups.length; i += 1) {
+      if (containsNode(ownedPopups[i], activeElement)) {
+        return true;
+      }
+    }
+    if (ownerDocument[activeKeyboardGridKey] &&
+        (activeElement === ownerDocument.body || activeElement === ownerDocument.documentElement)) {
+      return ownerDocument[activeKeyboardGridKey] === this;
+    }
+    return false;
+  };
+
+  FabGrid.prototype.activateKeyboardEventOwner = function(event) {
+    var target = event && event.target;
+    var ownerRoot = closest(target, 'fg-root');
+    var ownerDocument = (this.root && this.root.ownerDocument) ||
+      (target && target.ownerDocument) ||
+      (typeof document !== 'undefined' ? document : null);
+    if (!ownerDocument || (ownerRoot && ownerRoot !== this.root)) {
+      return false;
+    }
+    ownerDocument[activeKeyboardGridKey] = this;
+    return true;
+  };
+
+  FabGrid.prototype.deactivateKeyboardEventOwner = function() {
+    var ownerDocument = (this.root && this.root.ownerDocument) ||
+      (typeof document !== 'undefined' ? document : null);
+    if (ownerDocument && ownerDocument[activeKeyboardGridKey] === this) {
+      ownerDocument[activeKeyboardGridKey] = null;
+    }
+  };
+
+  FabGrid.prototype.claimKeyboardEvent = function(event) {
+    if (!handledKeyboardEvents || !event || (typeof event !== 'object' && typeof event !== 'function')) {
+      return true;
+    }
+    if (handledKeyboardEvents.has(event)) {
+      return false;
+    }
+    handledKeyboardEvents.add(event);
+    return true;
+  };
+
   FabGrid.prototype.handleKeyDown = function(event) {
     var row = this.selection.row;
     var col = this.selection.col;
@@ -14656,6 +15766,17 @@ function installFabGridSelection(FabGrid, context) {
     var horizontalBoundaryDirection;
     var targetName = event.target && event.target.tagName ? event.target.tagName.toUpperCase() : '';
     var searchInput = closest(event.target, 'fg-header-search-input');
+
+    if (!FabGrid.prototype.isKeyboardEventOwner.call(this, event) ||
+        !FabGrid.prototype.claimKeyboardEvent.call(this, event)) {
+      return;
+    }
+
+    if (this._stopNavigation === true && isNavigationKey(event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
 
     if (this.busy) {
       event.preventDefault();
@@ -14685,6 +15806,7 @@ function installFabGridSelection(FabGrid, context) {
     }
 
     if (searchInput && this.handleHeaderSearchKeyDown(event, searchInput)) {
+      event.stopPropagation();
       return;
     }
 
@@ -14696,6 +15818,12 @@ function installFabGridSelection(FabGrid, context) {
     }
 
     if (this.editing) {
+      if (event.key === 'Enter' || event.key === 'Tab' ||
+          event.key === 'ArrowDown' || event.key === 'ArrowUp' ||
+          event.key === 'ArrowLeft' || event.key === 'ArrowRight' ||
+          event.key === 'Escape') {
+        event.stopPropagation();
+      }
       if (event.target === this.editor && this.handleNumberSpinnerKeyDown(event)) {
         return;
       }
@@ -14745,17 +15873,26 @@ function installFabGridSelection(FabGrid, context) {
 
     if (this.options.autoClipboard !== false && (event.ctrlKey || event.metaKey) && !event.altKey && String(event.key).toLowerCase() === 'c') {
       event.preventDefault();
+      event.stopPropagation();
       this.copySelection();
       return;
     }
 
     if (event.key === ' ' || event.key === 'Spacebar' || event.code === 'Space') {
       event.preventDefault();
+      event.stopPropagation();
       if (this.options.multiSelectRows === true && this.view.length) {
         this.toggleRowSelection(row, col);
         this.scrollIntoView(row, col);
       }
       return;
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' ||
+        event.key === 'ArrowLeft' || event.key === 'ArrowRight' ||
+        event.key === 'PageDown' || event.key === 'PageUp' ||
+        event.key === 'Home' || event.key === 'End') {
+      event.stopPropagation();
     }
 
     if (this.handleCellRangeKeyDown(event)) {
@@ -14971,7 +16108,13 @@ function installFabGridSelection(FabGrid, context) {
     var rowBottom;
     var currentTop;
     var currentBottom;
+    row = Number(row);
     col = col == null ? 0 : col;
+    col = Number(col);
+    if (!isFinite(row) || Math.floor(row) !== row || row < 0 || row >= this.view.length ||
+        !isFinite(col) || Math.floor(col) !== col || col < 0 || col >= this.visibleColumns.length) {
+      return false;
+    }
     selected = this.applyCellSelection(row, col, row, col);
     if (selected !== true || !this.bodyScroll || typeof this.getScrollableContentHeight !== 'function') {
       return selected;
@@ -15683,8 +16826,10 @@ function installFabGridSelection(FabGrid, context) {
     } finally {
       this._suppressObservedItemChange -= 1;
     }
-    this.applyView();
-    this.render();
+    if (!this.refreshCollectionView()) {
+      this.applyView();
+      this.render();
+    }
     return true;
   };
 
@@ -16559,7 +17704,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
       return false;
     }
     if (next) {
-      this.select(next.row, next.col);
+      this.applyCellSelection(next.row, next.col, next.row, next.col);
       this.scrollIntoView(next.row, next.col);
       this.startEditing(next.row, next.col, { selectRow: this.options.multiSelectRows !== true });
     }
@@ -16577,7 +17722,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
       return false;
     }
     if (next) {
-      this.select(next.row, next.col);
+      this.applyCellSelection(next.row, next.col, next.row, next.col);
       this.scrollIntoView(next.row, next.col);
       this.startEditing(next.row, next.col, { selectRow: this.options.multiSelectRows !== true });
     }
@@ -16595,7 +17740,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
       return false;
     }
     if (next) {
-      this.select(next.row, next.col);
+      this.applyCellSelection(next.row, next.col, next.row, next.col);
       this.scrollIntoView(next.row, next.col, { directionY: direction });
       this.startEditing(next.row, next.col, { selectRow: this.options.multiSelectRows !== true });
     }
@@ -17282,8 +18427,10 @@ function installFabGridEditorRuntime(FabGrid, context) {
       this.emit('cellEditEnded', args);
     }
     this.clearEditingState();
-    this.applyView();
-    this.render();
+    if (!this.refreshCollectionView()) {
+      this.applyView();
+      this.render();
+    }
     this.root.focus();
     return true;
   };
@@ -20177,7 +21324,7 @@ var DATE_POPUP_THEMES = [
   'pepper-grinder',
   'dark-hive',
   'black',
-  'mono', 'mono-red', 'mono-green'
+  'mono'
 ];
 var DATE_POPUP_LUNAR_DAYS = [
   '',
@@ -21826,7 +22973,7 @@ var COMBO_POPUP_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function assignComboPopupOptions(target) {
@@ -23214,7 +24361,7 @@ var COLOR_POPUP_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function assignColorPopupOptions(target) {
@@ -24197,7 +25344,7 @@ var EDITBOX_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function assignEditBoxOptions(target) {
@@ -24590,7 +25737,7 @@ var FILEBOX_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 var fileBoxSequence = 0;
 
@@ -25263,7 +26410,7 @@ var FORM_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function formAssign(target) {
@@ -26535,7 +27682,7 @@ var MENU_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 var activeMenu = null;
 var menuZIndex = 110000;
@@ -28373,7 +29520,7 @@ var PANEL_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function assignPanelOptions(target) {
@@ -29240,7 +30387,7 @@ var PROPERTYGRID_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function propertyGridAssign(target) {
@@ -30341,7 +31488,7 @@ var TABS_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function normalizeTabsTheme(value) {
@@ -31553,7 +32700,7 @@ var TREE_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function treeAssign(target) {
@@ -33060,7 +34207,7 @@ var TOOLTIP_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function assignTooltipOptions(target) {
@@ -33660,7 +34807,7 @@ var LAYOUT_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function assignLayoutOptions(target) {
@@ -33966,6 +35113,7 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
     var result = assignLayoutOptions({}, defaults, elementOptions, options);
     var horizontal = region === 'east' || region === 'west';
     result.region = region;
+    result.hidden = region === 'center' ? false : result.hidden === true;
     result.split = region === 'center' ? false : result.split === true;
     result.collapsible = region === 'center' ? false : result.collapsible !== false;
     result.width = horizontal ?
@@ -34041,6 +35189,7 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
       panel: panel,
       options: regionOptions,
       collapsed: regionOptions.collapsed === true,
+      hidden: regionOptions.hidden === true,
       floating: false
     };
     if (region !== 'center') {
@@ -34142,7 +35291,7 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
       var record = self.regions[region];
       if (!record) return;
       geometry[region] = {
-        exists: true,
+        exists: !record.hidden,
         collapsed: record.collapsed,
         size: region === 'north' || region === 'south' ?
           record.options.height :
@@ -34352,7 +35501,14 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
       var rect = rects[region];
       var splitter = self._splitters[region];
       var expandBar = self._expandBars[region];
-      if (!record || !rect) return;
+      if (!record) return;
+      if (record.hidden) {
+        record.panel.panel().hidden = true;
+        if (splitter) splitter.hidden = true;
+        if (expandBar) expandBar.hidden = true;
+        return;
+      }
+      if (!rect) return;
       if (record.collapsed) {
         record.panel.options.collapsed = true;
         if (record.panel.isOpen()) record.panel.close(true);
@@ -34363,6 +35519,7 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
       } else {
         if (expandBar) expandBar.hidden = true;
         record.panel.options.collapsed = false;
+        record.panel.panel().hidden = false;
         record.panel.hostElement.hidden = false;
         if (!record.panel.isOpen()) record.panel.open(true);
         record.panel.resize({
@@ -34388,6 +35545,7 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
     if (
       event.button !== 0 ||
       !record ||
+      record.hidden ||
       !record.options.split ||
       record.collapsed
     ) return;
@@ -34528,7 +35686,7 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
     var record = this.regions[region];
     var rect;
     var center = this._rects && this._rects.center;
-    if (!record || !record.collapsed || !center) return this;
+    if (!record || record.hidden || !record.collapsed || !center) return this;
     rect = assignLayoutOptions({}, center);
     if (region === 'west') rect.width = record.options.width;
     if (region === 'east') {
@@ -34553,7 +35711,13 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
     var normalized = normalizeLayoutRegion(region);
     var record = this.regions[normalized];
     var self = this;
-    if (!record || normalized === 'center' || record.collapsed || record.options.collapsible === false) return this;
+    if (
+      !record ||
+      normalized === 'center' ||
+      record.hidden ||
+      record.collapsed ||
+      record.options.collapsible === false
+    ) return this;
     if (record.panel._fireBefore && !record.panel._fireBefore('Collapse')) return this;
     record.panel.panel().classList.remove('fui-layout-region-floating');
     this._animateRegionState(normalized, true, function() {
@@ -34567,7 +35731,7 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
     var normalized = normalizeLayoutRegion(region);
     var record = this.regions[normalized];
     var self = this;
-    if (!record || normalized === 'center' || !record.collapsed) return this;
+    if (!record || normalized === 'center' || record.hidden || !record.collapsed) return this;
     if (record.panel._fireBefore && !record.panel._fireBefore('Expand')) return this;
     record.panel.panel().classList.remove('fui-layout-region-floating');
     this._animateRegionState(normalized, false, function() {
@@ -34575,6 +35739,37 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
       self._fire('Expand', { region: normalized, panel: record.panel });
     });
     return this;
+  };
+
+  FabLayout.prototype.hide = function(region) {
+    var normalized = normalizeLayoutRegion(region);
+    var record = this.regions[normalized];
+    if (!record || normalized === 'center' || record.hidden) return this;
+    this._cancelRegionAnimation(true);
+    this.stopCollapsing();
+    record.floating = false;
+    record.panel.panel().classList.remove('fui-layout-region-floating');
+    record.hidden = true;
+    this._layoutRegions();
+    this._fire('Hide', { region: normalized, panel: record.panel });
+    return this;
+  };
+
+  FabLayout.prototype.show = function(region) {
+    var normalized = normalizeLayoutRegion(region);
+    var record = this.regions[normalized];
+    if (!record || normalized === 'center' || !record.hidden) return this;
+    this._cancelRegionAnimation(true);
+    record.hidden = false;
+    this._layoutRegions();
+    this._fire('Show', { region: normalized, panel: record.panel });
+    return this;
+  };
+
+  FabLayout.prototype.isVisible = function(region) {
+    var normalized = normalizeLayoutRegion(region);
+    var record = this.regions[normalized];
+    return Boolean(record && !record.hidden);
   };
 
   FabLayout.prototype.remove = function(region) {
@@ -34817,7 +36012,8 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
     width: null,
     height: null,
     tools: null,
-    collapsed: false
+    collapsed: false,
+    hidden: false
   };
   FabLayout.locales = localePacks;
   FabLayout.themes = LAYOUT_THEMES.slice();
@@ -34833,7 +36029,7 @@ var WINDOW_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 var nextWindowZIndex = 9000;
 
@@ -35926,7 +37122,7 @@ var MESSAGER_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function assignMessagerOptions(target) {
@@ -36659,7 +37855,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
     'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
     'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-    'black', 'mono', 'mono-red', 'mono-green'
+    'black', 'mono'
   ];
   var FILTER_MODE_EXCEL = 'excel';
   var FILTER_MODE_SEARCH_ROW = 'searchRow';
@@ -36712,6 +37908,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     selectionMode: SELECTION_MODE.Cell,
     highlightActiveRow: true,
     activeCellBorder: 1,
+    stopNavigation: false,
     childItemsPath: null,
     treeColumn: null,
     treeIndent: 20,
@@ -36760,6 +37957,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       getGlobalConfig
     );
     normalizeGridOptions(this.options, suppliedOptions);
+    this._stopNavigation = this.options.stopNavigation === true;
     this.applyPagerOptions();
     this.options.showRowHeaders = normalizeRowHeaderMode(this.options.showRowHeaders);
     this.setLocale(this.options.locale, this.options.messages, true);
@@ -36851,6 +38049,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.columnChooserAnchor = null;
     this.topLeftMenuMode = null;
     this.popupDocumentEventsBound = false;
+    this.filterMenuViewportEventsBound = false;
     this.invalidItems = [];
     this._invalidItemMap = {};
     this._validationErrorSeq = 0;
@@ -36885,6 +38084,12 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._suppressObservedItemChange = 0;
     this._handlingObservedItemChange = false;
     this._observedItemsChangeQueued = false;
+    this._itemsSource = [];
+    this._collectionView = null;
+    this._collectionViewChangedHandler = null;
+    this._collectionViewCurrentHandler = null;
+    this._suppressCollectionViewChange = false;
+    this._suppressCollectionViewCurrentChange = false;
     this.cells = createGridPanel(this, CellType.Cell);
     this.columnHeaders = createGridPanel(this, CellType.ColumnHeader);
     this.rowHeaders = createGridPanel(this, CellType.RowHeader);
@@ -36923,6 +38128,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._boundHeaderSearchCompositionEnd = bind(this, this.handleHeaderSearchCompositionEnd);
     this._boundEditorTriggerClick = bind(this, this.handleEditorTriggerClick);
     this._boundFilterMenuClick = bind(this, this.handleFilterMenuClick);
+    this._boundFilterMenuViewportChange = bind(this, this.handleFilterMenuViewportChange);
     this._boundExcelFilterMenuInput = bind(this, this.handleExcelFilterMenuInput);
     this._boundColumnChooserChange = bind(this, this.handleColumnChooserChange);
     this._boundTopLeftMenuClick = bind(this, this.handleTopLeftMenuClick);
@@ -36940,6 +38146,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.createWijmoEvents();
     this.bindOptionEvents();
     this.createDom();
+    this.applyStopNavigation();
     this.datePopup = new DatePopup({
       className: 'fui-grid-date-popup',
       theme: 'inherit',
@@ -37005,6 +38212,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.bindRowDragEvents();
     this.refresh();
     registerControl(this.host, this);
+    this.syncSelectionFromCollectionView();
     if (this.options.remote === true) {
       this.load().then(function() {
         self.focusInitialHeaderSearchInput();
@@ -37192,6 +38400,9 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (wijmoEvent && wijmoEvent.raise(this, detail) === false) {
       detail.cancel = true;
     }
+    if (name === 'selectionChanged' && typeof this.syncCollectionViewCurrentFromSelection === 'function') {
+      this.syncCollectionViewCurrentFromSelection();
+    }
     return detail.cancel !== true;
   };
 
@@ -37292,6 +38503,9 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
 
   FabGrid.prototype.handleFocusIn = function(event) {
     var previousTarget = event.relatedTarget;
+    if (typeof this.activateKeyboardEventOwner === 'function') {
+      this.activateKeyboardEventOwner(event);
+    }
     if (!previousTarget || !this.root.contains(previousTarget)) {
       this.emit('gotFocus', {
         originalEvent: event,
@@ -37322,6 +38536,10 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       }
     if (this.filterMenuColumn && this.isFilterMenuOpen()) {
       this.renderFilterMenu(this.filterMenuColumn);
+      if (getActiveFilterMode(this.options) === FILTER_MODE_EXCEL) {
+        this.portalExcelFilterMenu();
+      }
+      this.positionFilterMenu(this.filterMenuAnchor);
     }
     if (this.isColumnChooserOpen()) {
       this.renderColumnChooser();
@@ -37510,6 +38728,30 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     }
   };
 
+  FabGrid.prototype.applyStopNavigation = function() {
+    var stopped = this._stopNavigation === true;
+    this.options.stopNavigation = stopped;
+    if (!this.root) {
+      return;
+    }
+    this.root.classList.toggle('fg-navigation-stopped', stopped);
+    if (!stopped) {
+      return;
+    }
+    this.fixedPaneTouchTap = null;
+    this.cellRangeDragState = null;
+    if (this.cellRangeAutoScrollRaf) {
+      cancelAnimationFrame(this.cellRangeAutoScrollRaf);
+      this.cellRangeAutoScrollRaf = 0;
+    }
+    this.verticalScrollbarDrag = null;
+    this.horizontalScrollbarDrag = null;
+    this.root.classList.remove('fg-scrollbar-v-dragging');
+    this.root.classList.remove('fg-scrollbar-h-dragging');
+    this.unbindVerticalScrollbarDragEvents();
+    this.unbindHorizontalScrollbarDragEvents();
+  };
+
   FabGrid.prototype.bindDomEvents = function() {
     this.bodyScroll.addEventListener('scroll', this._boundScroll);
     this.verticalScrollbar.addEventListener('pointerdown', this._boundVerticalScrollbarPointerDown);
@@ -37542,6 +38784,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.filterMenu.addEventListener('pointerdown', this._boundFilterMenuClick, true);
     this.filterMenu.addEventListener('mousedown', this._boundFilterMenuClick, true);
     this.filterMenu.addEventListener('click', this._boundFilterMenuClick);
+    this.filterMenu.addEventListener('keydown', this._boundKeyDown);
     this.filterMenu.addEventListener('input', this._boundExcelFilterMenuInput);
     this.filterMenu.addEventListener('change', this._boundExcelFilterMenuInput);
     this.columnChooser.addEventListener('change', this._boundColumnChooserChange);
@@ -38108,6 +39351,9 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       return;
     }
     this.disposed = true;
+    if (typeof this.deactivateKeyboardEventOwner === 'function') {
+      this.deactivateKeyboardEventOwner();
+    }
     this._remoteLoadSeq += 1;
     this.cancelRemoteLoad();
     unregisterControl(this.host, this);
@@ -38138,6 +39384,8 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.unbindHorizontalScrollbarDragEvents();
     this.unbindRowDragEvents();
     this.unbindPopupDocumentEvents();
+    this.unbindCollectionView();
+    this.restoreFilterMenu();
     this.removeEventListener();
     this.bodyScroll.removeEventListener('scroll', this._boundScroll);
     this.verticalScrollbar.removeEventListener('pointerdown', this._boundVerticalScrollbarPointerDown);
@@ -38170,6 +39418,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.filterMenu.removeEventListener('pointerdown', this._boundFilterMenuClick, true);
     this.filterMenu.removeEventListener('mousedown', this._boundFilterMenuClick, true);
     this.filterMenu.removeEventListener('click', this._boundFilterMenuClick);
+    this.filterMenu.removeEventListener('keydown', this._boundKeyDown);
     this.filterMenu.removeEventListener('input', this._boundExcelFilterMenuInput);
     this.filterMenu.removeEventListener('change', this._boundExcelFilterMenuInput);
     this.columnChooser.removeEventListener('change', this._boundColumnChooserChange);
@@ -38215,7 +39464,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.blockBusyEvent = function(event) {
-    if (!this.busy) {
+    if (!this.busy && this._stopNavigation !== true) {
       return;
     }
     event.preventDefault();
@@ -38226,7 +39475,8 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     var touch;
     var target;
     this.fixedPaneTouchTap = null;
-    if (this.busy || !this.bodyScroll || event.touches.length !== 1) {
+    if (this.busy || this._stopNavigation === true ||
+        !this.bodyScroll || event.touches.length !== 1) {
       return;
     }
     touch = event.touches[0];
@@ -38248,7 +39498,8 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     var touch;
     var dx;
     var dy;
-    if (!state || this.busy || event.type === 'touchcancel') {
+    if (!state || this.busy || this._stopNavigation === true ||
+        event.type === 'touchcancel') {
       this.fixedPaneTouchTap = null;
       return;
     }
@@ -38266,7 +39517,8 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.selectFixedPaneTouchRow = function(rowIndex, colIndex, area) {
-    if (rowIndex < 0 || rowIndex >= this.view.length) {
+    if (this._stopNavigation === true ||
+        rowIndex < 0 || rowIndex >= this.view.length) {
       return;
     }
     if (this.editing && (this.editing.row !== rowIndex || this.editing.col !== colIndex)) {
@@ -38359,6 +39611,11 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     var deltaY;
     var nextTop;
     var nextLeft;
+    if (this._stopNavigation === true) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (this.busy || !this.bodyScroll || event.ctrlKey) {
       return;
     }
@@ -39266,9 +40523,16 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
           return this.host;
         }
       },
+      hasFocus: {
+        get: function() {
+          var ownerDocument = this.root && this.root.ownerDocument;
+          return !!(ownerDocument && ownerDocument.activeElement &&
+            this.root.contains(ownerDocument.activeElement));
+        }
+      },
       itemsSource: {
         get: function() {
-          return this.source;
+          return this._itemsSource;
         },
         set: function(value) {
           this.setItemsSource(value || []);
@@ -39276,7 +40540,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       },
       collectionView: {
         get: function() {
-          return this.view;
+          return this._collectionView || this.view;
         }
       },
       rows: {
@@ -39330,6 +40594,13 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
         },
         set: function(value) {
           this.setMultiSelectRows(value);
+        }
+      },
+      selectedRow: {
+        get: function() {
+          var row = this.selection && this.selection.row;
+          var rows = this.rows;
+          return row != null && row >= 0 && row < rows.length ? rows[row] : null;
         }
       },
       selectedItems: {
@@ -39521,6 +40792,15 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
         set: function(value) {
           this.options.activeCellBorder = Math.max(0, toNumber(value, 1));
           this.applyThemeOptions();
+        }
+      },
+      stopNavigation: {
+        get: function() {
+          return this._stopNavigation === true;
+        },
+        set: function(value) {
+          this._stopNavigation = value === true;
+          this.applyStopNavigation();
         }
       },
       copyHeaders: {
@@ -45352,7 +46632,7 @@ var PIVOT_WORKSPACE_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black', 'mono', 'mono-red', 'mono-green'
+  'black', 'mono'
 ];
 
 function resolvePivotWorkspaceHostElement(element) {
@@ -46560,12 +47840,13 @@ function createPivotWorkspaceFactory(
 }
 
 global.fabui = global.fabui || {};
-global.fabui.version = "2026.7.24";
+global.fabui.version = "2026.7.27";
 global.fabui.setConfig = setConfig;
 global.fabui.getConfig = getConfig;
 global.fabui.Clipboard = Clipboard;
 global.fabui.editorDefinitions = createEditorDefinitions();
 global.fabui.Control = Control;
+global.fabui.collections = { CollectionView: CollectionView };
 global.fabui.Button = createButtonFactory(global.fabui.Control, registerControl, unregisterControl);
 global.fabui.Calendar = createCalendarFactory(global.fabui.Control, registerControl, unregisterControl);
 global.fabui.CheckBox = createCheckBoxFactory(global.fabui.Control, registerControl, unregisterControl);
@@ -46573,7 +47854,7 @@ global.fabui.CheckGroup = createCheckGroupFactory(global.fabui.Control, register
 global.fabui.SwitchButton = createSwitchButtonFactory(global.fabui.Control, registerControl, unregisterControl);
 global.fabui.RadioButton = createRadioButtonFactory(global.fabui.Control, registerControl, unregisterControl);
 global.fabui.RadioGroup = createRadioGroupFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.RadioButton);
-global.fabui.Chart = createChartFactory();
+global.fabui.chart = createChartNamespace();
 global.fabui.EditBox = createEditBoxFactory(global.fabui.editorDefinitions);
 global.fabui.Window = createWindowFactory(global.fabui.Control, registerControl, unregisterControl);
 global.fabui.Menu = createMenuFactory(global.fabui.Control, registerControl, unregisterControl);
@@ -46593,7 +47874,7 @@ global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions, getC
 global.fabui.CellType = CellType;
 global.fabui.pivot = {};
 global.fabui.pivot.PivotAggregate = PivotAggregate;
-global.fabui.pivot.PivotChart = createPivotChartFactory(global.fabui.Control, registerControl, unregisterControl, PivotEngine, global.fabui.Chart, global.fabui.FabGrid);
+global.fabui.pivot.PivotChart = createPivotChartFactory(global.fabui.Control, registerControl, unregisterControl, PivotEngine, global.fabui.chart.Chart, global.fabui.FabGrid);
 global.fabui.pivot.PivotEngine = PivotEngine;
 global.fabui.pivot.PivotField = PivotField;
 global.fabui.pivot.PivotGrid = createPivotGridFactory(global.fabui.FabGrid, PivotEngine, global.fabui.CellType);

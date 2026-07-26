@@ -837,7 +837,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       return false;
     }
     if (next) {
-      this.select(next.row, next.col);
+      this.applyCellSelection(next.row, next.col, next.row, next.col);
       this.scrollIntoView(next.row, next.col);
       this.startEditing(next.row, next.col, { selectRow: this.options.multiSelectRows !== true });
     }
@@ -855,7 +855,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       return false;
     }
     if (next) {
-      this.select(next.row, next.col);
+      this.applyCellSelection(next.row, next.col, next.row, next.col);
       this.scrollIntoView(next.row, next.col);
       this.startEditing(next.row, next.col, { selectRow: this.options.multiSelectRows !== true });
     }
@@ -873,7 +873,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       return false;
     }
     if (next) {
-      this.select(next.row, next.col);
+      this.applyCellSelection(next.row, next.col, next.row, next.col);
       this.scrollIntoView(next.row, next.col, { directionY: direction });
       this.startEditing(next.row, next.col, { selectRow: this.options.multiSelectRows !== true });
     }
@@ -1560,8 +1560,10 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       this.emit('cellEditEnded', args);
     }
     this.clearEditingState();
-    this.applyView();
-    this.render();
+    if (!this.refreshCollectionView()) {
+      this.applyView();
+      this.render();
+    }
     this.root.focus();
     return true;
   };

@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>FabGrid Dev Grid Demo</title>
-    <link rel="stylesheet" href="../src/fabui.css?v=20260723-cell-range-themes-v3" />
-    <script src="./js/theme-loader.js?v=20260722-filter-active-theme-v1"></script>
+    <link rel="stylesheet" href="../src/fabui.css?v=20260725-stop-navigation-v1" />
+    <script src="./js/theme-loader.js?v=20260725-editbox-themes-v1"></script>
     <link
       rel="stylesheet"
       href="./style/my.icon.css?v=20260713-demo-style-folder-v1"
@@ -75,8 +75,8 @@
     <script src="./js/grid-locales.js?v=20260723-selection-range-v1"></script>
     <script src="./js/grid-query.js?v=20260722-remote-op-symbol-v1"></script>
     <script type="module">
-      import fabui from "../src/fabui.js?v=20260723-performance-audit-v1";
-      import { createGrid2FabuiDemo } from "./js/grid2-components.js?v=20260723-frozen-spinner-v1";
+      import fabui from "../src/fabui.js?v=20260726-editor-navigation-scroll-v1";
+      import { createGrid2FabuiDemo } from "./js/grid2-components.js?v=20260725-remove-mono-variants-v1";
 
       window.fabui = fabui;
       const grid2Components = createGrid2FabuiDemo(fabui);
@@ -90,7 +90,7 @@
         "../src/locales/fabgrid-locale.en.js?v=20260719-current-month-text-v1"
       );
 
-      await import("./js/grid.js?v=20260723-selection-range-v1");
+      await import("./js/grid.js?v=20260725-remove-mono-variants-v1");
       grid2Components.complete();
     </script>
     <script type="module" src="./js/dev-controls.js?v=20260721-initial-filter-rules-v1"></script>

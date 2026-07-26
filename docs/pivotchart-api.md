@@ -1,6 +1,6 @@
 # FabUI PivotChart API
 
-`fabui.pivot.PivotChart` 將 `PivotEngine.pivotView` 轉成既有 `fabui.Chart` 的分類與系列。PivotPanel、PivotGrid、PivotChart 應共用同一個 PivotEngine；Rows、Columns、Values、Filters、排序或 aggregate 改變後，PivotChart 會監聽 Engine `updatedView`；PivotGrid 疊合／展開時則監聽 Grid `refreshed`，並在下一個 animation frame 依目前可見彙總重新繪製，不會再次彙總原始資料。
+`fabui.pivot.PivotChart` 將 `PivotEngine.pivotView` 轉成既有 `fabui.chart.Chart` 的分類與系列。PivotPanel、PivotGrid、PivotChart 應共用同一個 PivotEngine；Rows、Columns、Values、Filters、排序或 aggregate 改變後，PivotChart 會監聽 Engine `updatedView`；PivotGrid 疊合／展開時則監聽 Grid `refreshed`，並在下一個 animation frame 依目前可見彙總重新繪製，不會再次彙總原始資料。
 
 ## 建立 PivotChart
 
@@ -40,7 +40,7 @@ var chart = new fabui.pivot.PivotChart('#pivotChart', {
 - 未設定 `selectionSource` 時，預設使用完整 PivotEngine view 的 leaf aggregates。
 - 設定 `selectionSource` 為共用同一個 PivotEngine 的 PivotGrid 後，展開群組顯示 leaf aggregates；疊合群組改用目前可見 subtotal，並排除該群組已隱藏的明細。
 - Pie 使用 `selectedSeries` 指定單一 series，該 series 的 row categories 會轉成 slices。
-- Pie 預設可點擊選取；選取後沿用 `fabui.Chart` 的旋轉與扇形位移動畫。
+- Pie 預設可點擊選取；選取後沿用 `fabui.chart.Chart` 的旋轉與扇形位移動畫。
 - Pie 預設在扇形內顯示百分比，可用 `dataLabel: null` 關閉。
 - 設定 `selectionSource` 為共用同一個 PivotEngine 的 PivotGrid 後，點擊圖形會選取並捲動到對應的彙總 cell；點擊 PivotGrid 彙總 cell 也會反向標記圖形。Pie 會同步切換到對應的 `selectedSeries`。
 - `maxPoints` 與 `maxSeries` 只限制圖表繪製量，不修改 PivotEngine view。
@@ -62,7 +62,7 @@ var chart = new fabui.pivot.PivotChart('#pivotChart', {
 | `locale` | `en` | `en`、`zh-TW`、`zh-CN`。 |
 | `messages` | `null` | 覆寫 locale 文字。 |
 | `footer` | 空字串 | Chart footer；超過上限時會附加截斷訊息。 |
-| `tooltip` | `true` | 沿用 `fabui.Chart` tooltip 設定。 |
+| `tooltip` | `true` | 沿用 `fabui.chart.Chart` tooltip 設定。 |
 | `palette` | `null` | 自訂顏色陣列。 |
 | `animation` | `true` | 是否播放 Chart refresh 動畫。 |
 | `dataLabel` | `{ content: '{percent}%', position: 'Inside' }` | Pie data label 設定；設為 `null` 可關閉。 |
@@ -76,9 +76,9 @@ var chart = new fabui.pivot.PivotChart('#pivotChart', {
 | `formatTooltip` | `null` | Tooltip 格式化 function。 |
 | `emptyText` | `null` | 沒有可繪製資料時顯示的文字；未設定時使用 locale。 |
 
-唯讀 `chart` property 是內部的 `fabui.Chart` instance；可用於進階 Chart 設定，但 Pivot view 的資料更新仍應由 PivotChart 管理。
+唯讀 `chart` property 是內部的 `fabui.chart.Chart` instance；可用於進階 Chart 設定，但 Pivot view 的資料更新仍應由 PivotChart 管理。
 
-`fabui.pivot.PivotChart.ChartType` 直接沿用 `fabui.Chart.ChartType`，提供 `Column`、`Bar`、`Line`、`Pie` 常數。
+`fabui.pivot.PivotChart.ChartType` 直接沿用 `fabui.chart.ChartType`，提供 `Column`、`Bar`、`Line`、`Pie` 常數。
 
 ## Methods
 

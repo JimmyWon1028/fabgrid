@@ -1,6 +1,6 @@
 # FabUI Theme API
 
-FabUI 公開元件提供相同的 19 組 theme metadata。Default 配色已包含在 FabUI core 與 Lite CSS；其他主題由外部 Theme CSS 覆蓋。
+FabUI 公開元件提供相同的 17 組 theme metadata。Default 配色已包含在 FabUI core 與 Lite CSS；其他主題由外部 Theme CSS 覆蓋。
 
 ## 載入方式
 
@@ -22,7 +22,7 @@ FabUI 公開元件提供相同的 19 組 theme metadata。Default 配色已包�
 | 基礎 | `black`、`bootstrap`、`cupertino`、`dark-hive`、`pepper-grinder`、`sunny` |
 | Material | `material`、`material-blue`、`material-teal` |
 | Metro | `metro`、`metro-blue`、`metro-gray`、`metro-green`、`metro-orange`、`metro-red` |
-| Mono | `mono`、`mono-red`、`mono-green` |
+| Mono | `mono` |
 
 Mono 系列共用 `dist/theme/mono/` 的單色 SVG，不使用 PNG／GIF sprite。
 

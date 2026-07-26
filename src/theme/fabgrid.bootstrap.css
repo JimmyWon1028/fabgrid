@@ -1,6 +1,6 @@
 /*! FabGrid theme bootstrap | performance-first data grid */
 @import './bootstrap/tabs.css?v=20260724-native-elements-v2';
-@import './bootstrap/components.css?v=20260724-native-elements-v2';
+@import './bootstrap/components.css?v=20260725-editbox-themes-v1';
 :root .fg-root,
 :root .fui-tabs {
   --fg-border: #ccc;

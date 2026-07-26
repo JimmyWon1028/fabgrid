@@ -1,4 +1,4 @@
-import { DatePopup, normalizeDatePopupTheme } from './date-popup.js?v=20260719-current-month-text-v1';
+import { DatePopup, normalizeDatePopupTheme } from './date-popup.js?v=20260725-remove-mono-variants-v1';
 import { normalizeEditorIconDescriptors } from './editor-icons.js?v=20260718-editor-icons-v1';
 
 export function createDateBoxFactory(TextBox, editorDefinitions) {

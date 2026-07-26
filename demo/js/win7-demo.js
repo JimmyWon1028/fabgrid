@@ -16,8 +16,6 @@ var WIN7_THEMES = [
   { value: 'dark-hive', text: 'Dark Hive' },
   { value: 'black', text: 'Black' },
   { value: 'mono', text: 'Mono' },
-  { value: 'mono-red', text: 'Mono Red' },
-  { value: 'mono-green', text: 'Mono Green' }
 ];
 var WIN7_THEME_STORAGE_KEY = 'fabui.win7.theme';
 
@@ -61,7 +59,6 @@ function writeWin7Theme(storage, value) {
 function requireFabUI(fabui) {
   [
     'Button',
-    'Chart',
     'FabGrid',
     'Layout',
     'Menu',
@@ -73,6 +70,9 @@ function requireFabUI(fabui) {
       throw new Error('fabui.' + name + ' class is unavailable.');
     }
   });
+  if (!fabui.chart || typeof fabui.chart.Chart !== 'function') {
+    throw new Error('fabui.chart.Chart class is unavailable.');
+  }
 }
 
 function createRows() {
@@ -506,7 +506,7 @@ function mountWin7Demo(fabui) {
     selectionMode: 'Cell'
   });
 
-  monitorChart = new fabui.Chart('#win7-monitor-chart', {
+  monitorChart = new fabui.chart.Chart('#win7-monitor-chart', {
     chartType: 'Line',
     itemsSource: createMonitorRows(),
     bindingX: 'time',

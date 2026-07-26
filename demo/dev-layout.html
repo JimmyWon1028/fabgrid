@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>fabui.Layout 開發版 Demo</title>
   <link rel="stylesheet" href="../src/fabui.css?v=20260722-filter-icon-clear-v1">
-  <script src="./js/theme-loader.js?v=20260722-theme-reload-v1"></script>
+  <script src="./js/theme-loader.js?v=20260725-editbox-themes-v1"></script>
   <style>
     html,
     body {
@@ -82,12 +82,16 @@
       <option value="pepper-grinder">Pepper Grinder</option>
       <option value="dark-hive">Dark Hive</option>
       <option value="black">Black</option>
-      <option value="mono">Mono</option><option value="mono-red">Mono Red</option><option value="mono-green">Mono Green</option>
+      <option value="mono">Mono</option>
     </select>
     <a data-fabui-button href="javascript:void(0)" id="toggle-north">切換 North</a>
     <a data-fabui-button href="javascript:void(0)" id="toggle-south">切換 South</a>
     <a data-fabui-button href="javascript:void(0)" id="toggle-west">切換 West</a>
     <a data-fabui-button href="javascript:void(0)" id="toggle-east">切換 East</a>
+    <a data-fabui-button href="javascript:void(0)" id="visibility-north">隱藏／顯示 North</a>
+    <a data-fabui-button href="javascript:void(0)" id="visibility-south">隱藏／顯示 South</a>
+    <a data-fabui-button href="javascript:void(0)" id="visibility-west">隱藏／顯示 West</a>
+    <a data-fabui-button href="javascript:void(0)" id="visibility-east">隱藏／顯示 East</a>
     <a data-fabui-button href="javascript:void(0)" id="remove-east">移除／加入 East</a>
   </div>
   <div id="layout-status" aria-live="polite"></div>
@@ -115,9 +119,9 @@
     </div>
   </div>
 
-  <script src="./js/layout-demo.js?v=20260721-initial-filter-rules-v1"></script>
+  <script src="./js/layout-demo.js?v=20260725-layout-region-visibility-v1"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260721-initial-filter-rules-v1';
+    import fabui from '../src/fabui.js?v=20260725-layout-region-visibility-v1';
 
     window.mountFabUILayoutDemo(fabui);
   </script>

@@ -45,7 +45,14 @@ test('FabUI Lite browser bundle publishes FabGrid with TreeGrid, Pivot, Chart an
   vm.runInContext(source, context);
 
   assert.equal(typeof context.fabui.FabGrid, 'function');
-  assert.equal(typeof context.fabui.Chart, 'function');
+  assert.equal(typeof context.fabui.chart, 'object');
+  assert.equal(typeof context.fabui.chart.Chart, 'function');
+  assert.equal(typeof context.fabui.chart.Pie, 'function');
+  assert.equal(context.fabui.chart.Position.Top, 'Top');
+  assert.equal(typeof context.fabui.chart.animation, 'object');
+  assert.equal(typeof context.fabui.collections.CollectionView, 'function');
+  assert.equal(context.fabui.chart.Chart.prototype.bindSelectionSource, undefined);
+  assert.equal(context.fabui.Chart, undefined);
   assert.equal(typeof context.fabui.Control, 'function');
   assert.equal(typeof context.fabui.setConfig, 'function');
   assert.equal(typeof context.fabui.getConfig, 'function');

@@ -98,12 +98,12 @@ Diagram、Gantt、Scheduler 與 HtmlEditor 不包含在 FabUI core。載入順�
 | 排序與篩選 | 支援單欄／Shift 多欄排序、`allowMultiSorting: false`、Column `allowSorting: false`、可取消的 `sortingColumn`、Quick Search、Search Row、Excel-like 值篩選及 runtime Filter Rules。 |
 | 群組與 TreeGrid | 支援 1 至 3 階群組、小計、收合，以及 `childItemsPath` TreeGrid。 |
 | 資料列拖曳 | 支援 Grid 內重排、跨 Grid 移動，以及 TreeGrid 的 `before`、`inside`、`after` 階層調整。 |
-| 選取與剪貼簿 | 支援 Cell、CellRange、單選列 `unselectRow()`、`selectedRowChanged`、列多選、滑鼠拖曳、列號整列範圍選取、Shift 延伸、鍵盤導覽與 TSV 複製；CellRange 外框沿用 `activeCellBorder`。 |
-| 編輯與驗證 | 內建 `text`、`number`、`time`、`date`、`combo`、`color` editor，支援遮罩與同步／非同步驗證。 |
+| 選取與剪貼簿 | 支援 Cell、CellRange、唯讀 `selectedRow` active row、單選列 `unselectRow()`、越界 `select()` 不動作、`selectedRowChanged`、列多選、滑鼠拖曳、列號整列範圍選取、Shift 延伸、鍵盤導覽與 TSV 複製；CellRange 外框沿用 `activeCellBorder`。`stopNavigation` 可暫停使用者選取與捲動，程式 API 仍可操作。 |
+| 編輯與驗證 | 內建 `text`、`number`、`time`、`date`、`combo`、`color` editor，支援遮罩與同步／非同步驗證；連續編輯移出可視區時逐列捲動，active editor 保持在頂部或底部邊界。 |
 | 顯示自訂 | 提供 formatter、`formatItem`、`cellTemplate`、Header style、Row／GroupRow 與事件 API。 |
 | 匯入與匯出 | 支援 JSON、CSV 與 XLSX；Excel 可保留格式、凍結窗格、篩選、群組、Footer 與隱藏欄位。 |
 | Popup | 右鍵選單、Filter、欄位選擇器與 editor popup 支援 `Escape` 及點擊外部關閉；`filterMode: false` 時不顯示「清除篩選」，「列號」與全螢幕項目分別由 `showRowHeaderMenu`、`showFullscreenMenu` 控制且預設隱藏。 |
-| 生命週期 | `fabui.Control.getControl()` 可取得 instance；`dispose()` 會解除受管理的 DOM listener。 |
+| 生命週期 | `fabui.Control.getControl()` 可取得 instance；`hasFocus` 可直接判斷 Grid 是否取得焦點；`dispose()` 會解除受管理的 DOM listener。 |
 | 剪貼簿 | `fabui.Clipboard.copy(str)` 將文字複製到系統剪貼簿。 |
 
 ### 排序與篩選
@@ -122,7 +122,7 @@ var grid = new fabui.FabGrid('#grid', {
 | 本機資料 | 套用規則後立即重新篩選，不需要呼叫 `reload()`。 |
 | 遠端資料 | `remote: true` 會回到第 1 頁並自動重新 request。 |
 | Search Row debounce | `searchDelay` 預設為 `400ms`；設為 `0` 時立即套用。 |
-| Search Row 鍵盤 | `Enter`／`Tab` 移到下一欄，`Shift+Enter`／`Shift+Tab` 移到上一欄；方向鍵可在 Search Row 與 Grid 間移動。 |
+| Search Row 鍵盤 | `Enter`／`Tab` 移到下一欄，`Shift+Enter`／`Shift+Tab` 移到上一欄；方向鍵可在 Search Row 與 Grid 間移動，頁面有多個或巢狀 Grid 時只操作最後取得 pointer／焦點的 Grid；Grid 消化導覽鍵後會停止冒泡，同一個動作只處理一次。 |
 | Excel-like filter | Popup 可超出 Grid 高度並依瀏覽器視窗顯示更多項目；遠端模式重新開啟欄位時，保留完整候選值與目前勾選狀態。 |
 
 `excelFilterMaxValues` 控制 Excel-like filter 最多收集多少個唯一候選值，不控制 popup 高度。Popup 會依 Header 位置與瀏覽器 viewport 自動向下或向上開啟，候選值超出可用空間時由清單內部捲動。
@@ -200,13 +200,30 @@ FabUI core 直接提供下列 pure JavaScript 元件：
 | `Tree` | 階層資料、checkbox、拖放、編輯、搜尋、鍵盤與 lazy loading。 |
 | `PropertyGrid` | 兩欄屬性表、群組、排序、共用 EditBox editor 與變更追蹤。 |
 | `Panel`／`Accordion` | 內容容器、狀態動畫，以及單一／多重展開。 |
-| `Window`／`Layout` | 浮動視窗、Modal、拖曳縮放，以及五區 dock layout。 |
+| `Window`／`Layout` | 浮動視窗、Modal、拖曳縮放，以及支援收合與完全隱藏區域的五區 dock layout。 |
 | `Tooltip` | 四方向、HTML、滑鼠追蹤、延遲與 viewport 定位。 |
 | `Menu`／`MenuButton`／`SplitButton` | Context menu、巢狀 submenu 與按鈕整合。 |
 | `Messager` | Alert、Confirm、Prompt、Toast 與 Progress。 |
-| `Chart` | SVG Column、Bar、Line、Pie，可獨立使用或與 Grid／Pivot 連動。 |
+| `fabui.collections.CollectionView` | Grid 與 Chart 共用的排序、篩選資料及目前項目。 |
+| `fabui.chart.Chart`／`fabui.chart.Pie` | SVG Column、Bar、Line、Pie，可獨立使用或與 Grid／Pivot 連動，並支援 `fabui.chart.animation.ChartAnimation`。 |
 
 Gantt、Scheduler、Diagram 與 HtmlEditor 是獨立附加元件，不會併入 FabUI core。
+
+Grid 與 Chart 要連動時，將同一個 CollectionView 指定給兩者即可；一般本機 FabGrid 的排序、篩選及目前選取項目會自動同步到 Chart，不需要另外監聽 Grid 事件：
+
+```js
+const collections = new fabui.collections.CollectionView(rowsData);
+
+const grid = new fabui.FabGrid('#grid', {
+  itemsSource: collections
+});
+
+const chart = new fabui.chart.Chart('#chart', {
+  itemsSource: collections,
+  bindingX: 'month',
+  series: [{ name: '營收', binding: 'revenue' }]
+});
+```
 
 ## fabui.Diagram
 
@@ -235,10 +252,10 @@ Diagram Demo 內建無外部依賴的生產製造流程範例。完整行為與 
 
 | 項目 | 說明 |
 | --- | --- |
-| 主題數量 | 公開元件統一提供 19 組 theme metadata。 |
+| 主題數量 | 公開元件統一提供 17 組 theme metadata。 |
 | Default | 內建於 FabUI core 與 Lite CSS。 |
-| 其他主題 | 18 組外部 Theme CSS 必須最後載入，並直接覆蓋 Default selector。 |
-| Mono | `mono`、`mono-red`、`mono-green` 共用 `dist/theme/mono/` 的單色 SVG。 |
+| 其他主題 | 16 組外部 Theme CSS 必須最後載入，並直接覆蓋 Default selector。 |
+| Mono | `mono` 使用 `dist/theme/mono/` 的單色 SVG。 |
 | 樣式隔離 | FabUI core 原生控制節點使用固定 component class 與隔離基底，避免一般 `button`、`input`、`label`、`select`、`textarea`、`a` selector 改變元件外觀。 |
 | 多語系 | 內建 `en`、`zh-TW`、`zh-CN`，並正規化常用繁簡中文別名。 |
 
@@ -265,7 +282,7 @@ Source mode 直接引用 `src/`，適合開發測試；Build mode 引用 `dist/`
 
 ### API 文件
 
-- 資料與分析：[FabGrid](./docs/fabgrid-api.md)、[Chart](./docs/chart-api.md)、[Pivot](./docs/pivotgrid-api.md)、[PivotChart](./docs/pivotchart-api.md)、[PivotWorkspace](./docs/pivotworkspace-api.md)
+- 資料與分析：[FabGrid](./docs/fabgrid-api.md)、[CollectionView](./docs/collection-view-api.md)、[Chart](./docs/chart-api.md)、[Pivot](./docs/pivotgrid-api.md)、[PivotChart](./docs/pivotchart-api.md)、[PivotWorkspace](./docs/pivotworkspace-api.md)
 - 編輯與表單：[EditBox](./docs/editbox-api.md)、[HtmlEditor](./docs/htmleditor-api.md)、[FileBox](./docs/filebox-api.md)、[Form](./docs/form-api.md)、[CheckBox](./docs/checkbox-api.md)、[RadioButton](./docs/radiobutton-api.md)
 - 導覽與容器：[Tabs](./docs/tabs-api.md)、[Tree](./docs/tree-api.md)、[PropertyGrid](./docs/propertygrid-api.md)、[Panel](./docs/panel-api.md)、[Accordion](./docs/accordion-api.md)、[Window](./docs/window-api.md)、[Layout](./docs/layout-api.md)
 - 命令與提示：[Button](./docs/button-api.md)、[Menu](./docs/menu-api.md)、[MenuButton](./docs/menubutton-api.md)、[SplitButton](./docs/splitbutton-api.md)、[Messager](./docs/messager-api.md)、[Tooltip](./docs/tooltip-api.md)
@@ -283,7 +300,7 @@ Source mode 直接引用 `src/`，適合開發測試；Build mode 引用 `dist/`
 | Scheduler | `dist/fabui.scheduler.{js,min.js,css,min.css}` | 獨立附加 `fabui.Scheduler`。 |
 | HtmlEditor | `dist/fabui.htmleditor.{js,min.js,css,min.css}` | 獨立附加 `fabui.HtmlEditor`。 |
 | fabLoader | `dist/fabLoader.{js,min.js}` | 實驗性的獨立動態資源 Loader，內建 DOM helper，不附加到 `fabui`。 |
-| Theme | `dist/theme/fabui.<theme>.{css,min.css}` | Default 以外 18 組主題與必要圖片。 |
+| Theme | `dist/theme/fabui.<theme>.{css,min.css}` | Default 以外 16 組主題與必要圖片。 |
 
 `fabui.EditBox` 已納入 core，不再產生獨立 bundle。實驗性的 fabLoader 不納入 `build:all`。fabDom 只保留供 fabLoader 組合使用的原始碼，不再產生獨立 dist。Vue 2 與 FabGrid jQuery wrapper 目前暫緩，不納入預設 build；既有原始碼與文件仍保留。
 
@@ -291,7 +308,9 @@ Browser global 使用以下 namespace：
 
 | Namespace | 內容 |
 | --- | --- |
-| `fabui` | FabGrid、Chart、一般 UI 元件、Control、editor definitions 與 locale。 |
+| `fabui` | FabGrid、一般 UI 元件、Control、editor definitions 與 locale。 |
+| `fabui.collections` | CollectionView 共用資料 view，提供 Grid／Chart 排序、篩選與目前項目同步。 |
+| `fabui.chart` | Chart、Pie、ChartType、Position、SelectionMode，以及包含 ChartAnimation、AnimationMode、Easing 的 animation namespace。 |
 | `fabui.pivot` | PivotEngine、PivotField、PivotPanel、PivotGrid、PivotChart、PivotSlicer 與 PivotWorkspace。 |
 | `fabui.FabGrid` | Row、GroupRow 等 Grid 專用類型。 |
 | `fabui.Diagram`／`Gantt`／`Scheduler`／`HtmlEditor` | 載入對應獨立 bundle 後附加。 |
@@ -558,7 +577,7 @@ npm run serve
 
 | 指令 | 範圍 |
 | --- | --- |
-| `npm run build` | FabUI core、Default CSS、18 組外部 theme 與圖片。 |
+| `npm run build` | FabUI core、Default CSS、16 組外部 theme 與圖片。 |
 | `npm run build:lite` | 只重建 `fabui.lite.*`。 |
 | `npm run build:diagram` | 只重建 `fabui.diagram.*`。 |
 | `npm run build:gantt` | 只重建 `fabui.gantt.*`。 |

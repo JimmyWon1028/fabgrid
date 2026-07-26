@@ -14,6 +14,7 @@ const javascriptSources = [
   'core/config.js',
   'core/clipboard.js',
   'core/control.js',
+  'collections/collection-view.js',
   'chart/chart.js',
   'grid/fabgrid-types.js',
   'grid/fabgrid-data.js',
@@ -193,12 +194,13 @@ function createBrowserJavascriptBundle() {
     'global.fabui.Clipboard = Clipboard;\n' +
     'global.fabui.editorDefinitions = createEditorDefinitions();\n' +
     'global.fabui.Control = Control;\n' +
-    'global.fabui.Chart = createChartFactory();\n' +
+    'global.fabui.collections = { CollectionView: CollectionView };\n' +
+    'global.fabui.chart = createChartNamespace();\n' +
     'global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions, getConfig);\n' +
     'global.fabui.CellType = CellType;\n' +
     'global.fabui.pivot = {};\n' +
     'global.fabui.pivot.PivotAggregate = PivotAggregate;\n' +
-    'global.fabui.pivot.PivotChart = createPivotChartFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.Chart, global.fabui.FabGrid);\n' +
+    'global.fabui.pivot.PivotChart = createPivotChartFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.chart.Chart, global.fabui.FabGrid);\n' +
     'global.fabui.pivot.PivotEngine = PivotEngine;\n' +
     'global.fabui.pivot.PivotField = PivotField;\n' +
     'global.fabui.pivot.PivotGrid = createPivotGridFactory(global.fabui.FabGrid, PivotEngine, global.fabui.CellType);\n' +
@@ -246,9 +248,12 @@ function verifyBuildOutput(javascript) {
     'createWindowFactory'
   ];
   if (javascript.indexOf('global.fabui.FabGrid = createFabGridFactory') < 0 ||
-      javascript.indexOf('global.fabui.Chart = createChartFactory()') < 0 ||
+      javascript.indexOf('global.fabui.chart = createChartNamespace()') < 0 ||
       javascript.indexOf('global.fabui.pivot.PivotWorkspace = createPivotWorkspaceFactory') < 0) {
     throw new Error('FabUI Lite is missing FabGrid, Pivot or Chart.');
+  }
+  if (javascript.indexOf('global.fabui.Chart =') >= 0) {
+    throw new Error('FabUI Lite must publish Chart only through fabui.chart.');
   }
   if (javascript.indexOf('global.fabui.Clipboard = Clipboard') < 0) {
     throw new Error('FabUI Lite is missing Clipboard.');

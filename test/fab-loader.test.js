@@ -1178,8 +1178,12 @@ test('demo2 keeps optional Vue and React runtimes local and loads them through f
   assert.match(html, /\.style\(\[[\s\S]*?'\.\/styles\/demo\.css'/);
   assert.match(html, /'\.\.\/dist\/fabui\.min\.css'/);
   assert.match(html, /\.module\('\.\/assets\/demo-module\.js'\)/);
-  assert.match(html, /var \$;/);
-  assert.match(html, /\$ = fabLoader\.useDom\(\)/);
+  assert.doesNotMatch(html, /var \$;/);
+  assert.doesNotMatch(html, /\$ = fabLoader\.useDom\(\)/);
+  assert.match(
+    html,
+    /\.run\(function\(\) \{\s*setStatus\('script', 'Script／DOM helper：完成'\)/
+  );
   assert.doesNotMatch(html, /window\.\$ === window\.(?:jQuery|fabLoader\.dom)/);
   assert.match(html, /\.script\('\.\.\/dist\/fabui\.min\.js'\)/);
   assert.match(html, /new fabui\.EditBox\('#fabui-editbox'/);
