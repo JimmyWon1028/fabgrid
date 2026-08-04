@@ -438,7 +438,6 @@ export function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
         minWidth: 72,
         align: field.align || 'left',
         dataType: field.dataType,
-        readOnly: true,
         isReadOnly: true,
         _pivotRowField: field,
         _pivotRowFieldIndex: i,
@@ -457,7 +456,6 @@ export function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
         dataType: field.dataType || 'number',
         format: field.format,
         visible: !isHiddenByCollapsedEntry(dataColumn.entry, this._pivotColumnCollapsed),
-        readOnly: true,
         isReadOnly: true,
         _pivotDataColumn: dataColumn,
         formatter: function(value, item, column) {
@@ -1209,7 +1207,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
         dataType: field.dataType,
         format: field.format,
         align: field.align,
-        readOnly: true
+        isReadOnly: true
       };
     });
     this.hideDetail();

@@ -171,6 +171,10 @@
   box-shadow: 0 0 3px 0 var(--fui-control-border, #95b8e7);
 }
 
+:root .fui-textbox-focused .fui-textbox-text {
+  background-color: var(--fui-control-focus-bg, transparent);
+}
+
 :root .fui-textbox-disabled,
 :root .fui-textbox-label-disabled {
   opacity: 0.6;

@@ -4,7 +4,7 @@ import fabui from '../src/fabui.js';
 import {
   createXlsxFiles,
   getExcelColumnName
-} from '../src/grid/fabgrid-export.js?v=20260717-pivot-excel-hidden-rows-v1';
+} from '../src/grid/fabgrid-export.js?v=20260804-grid-public-api-v1';
 
 test('FabUI publishes CellType at the top level and Row types through FabGrid', function() {
   assert.equal(fabui.CellType.Cell, 1);

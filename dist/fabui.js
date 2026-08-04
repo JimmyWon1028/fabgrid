@@ -28,6 +28,211 @@ function setConfig(options) {
   return getConfig();
 }
 
+function normalizeLocaleName(value) {
+  var name = String(value || 'en').trim().replace(/_/g, '-');
+  var lower = name.toLowerCase();
+  if (lower === 'zh' || lower === 'zh-tw' || lower === 'zh-hant' ||
+      lower === 'zh-hant-tw' || lower === 'tw') {
+    return 'zh-TW';
+  }
+  if (lower === 'zh-cn' || lower === 'zh-hans' ||
+      lower === 'zh-hans-cn' || lower === 'cn') {
+    return 'zh-CN';
+  }
+  if (lower === 'en' || lower.indexOf('en-') === 0) {
+    return 'en';
+  }
+  return name || 'en';
+}
+
+function mergeLocale(target, source) {
+  var index;
+  var key;
+  target = target || {};
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        target[key] = source[key];
+      }
+    }
+  }
+  return target;
+}
+
+function installLocale(target, locale, messages) {
+  if (!target || !messages) return;
+  if (typeof target.addLocale === 'function') {
+    target.addLocale(locale, messages);
+    return;
+  }
+  if (typeof target.extendLocale === 'function') {
+    target.extendLocale(locale, messages);
+    return;
+  }
+  if (target.locales) {
+    target.locales[locale] = mergeLocale({}, target.locales.en, messages);
+  }
+}
+
+function createLocaleManager() {
+  var currentLocale = 'en';
+  var localePacks = { en: {} };
+  var targets = [];
+  var instances = new Set();
+
+  function updateTargetLocale(target, locale) {
+    if (!target) return;
+    if (target.defaults && Object.prototype.hasOwnProperty.call(target.defaults, 'locale')) {
+      target.defaults.locale = locale;
+    }
+    if (typeof target.setDefaultLocale === 'function') {
+      target.setDefaultLocale(locale);
+    }
+    if (typeof target !== 'function' && typeof target.setLocale === 'function') {
+      target.setLocale(locale);
+    }
+  }
+
+  function unregisterInstance(instance) {
+    instances.delete(instance);
+  }
+
+  function trackInstance(instance) {
+    var destroy;
+    var dispose;
+    if (!instance || typeof instance.setLocale !== 'function' || instances.has(instance)) {
+      return instance;
+    }
+    instances.add(instance);
+    destroy = typeof instance.destroy === 'function' ? instance.destroy : null;
+    dispose = typeof instance.dispose === 'function' ? instance.dispose : null;
+    if (destroy) {
+      instance.destroy = function() {
+        var result = destroy.apply(this, arguments);
+        unregisterInstance(this);
+        return result;
+      };
+    }
+    if (dispose && dispose !== destroy) {
+      instance.dispose = function() {
+        var result = dispose.apply(this, arguments);
+        unregisterInstance(this);
+        return result;
+      };
+    }
+    return instance;
+  }
+
+  function prepareArguments(args) {
+    var next = Array.prototype.slice.call(args || []);
+    var options = next[1];
+    if (!options || typeof options !== 'object' || Array.isArray(options)) {
+      options = {};
+    } else {
+      options = mergeLocale({}, options);
+    }
+    if (!Object.prototype.hasOwnProperty.call(options, 'locale')) {
+      options.locale = currentLocale;
+    }
+    next[1] = options;
+    return next;
+  }
+
+  function trackType(target) {
+    var proxy;
+    if (typeof target !== 'function' || typeof Proxy !== 'function') {
+      return target;
+    }
+    proxy = new Proxy(target, {
+      apply: function(original, thisArg, args) {
+        return trackInstance(Reflect.construct(original, prepareArguments(args), original));
+      },
+      construct: function(original, args, newTarget) {
+        return trackInstance(Reflect.construct(
+          original,
+          prepareArguments(args),
+          newTarget === proxy ? original : newTarget
+        ));
+      }
+    });
+    return proxy;
+  }
+
+  function registerTarget(name, target, packName) {
+    var record;
+    var locale;
+    var tracked;
+    if (!name || !target) return target;
+    tracked = trackType(target);
+    record = {
+      name: String(name),
+      packName: String(packName || name),
+      target: tracked
+    };
+    targets.push(record);
+    for (locale in localePacks) {
+      if (Object.prototype.hasOwnProperty.call(localePacks, locale) &&
+          localePacks[locale][record.packName]) {
+        installLocale(tracked, locale, localePacks[locale][record.packName]);
+      }
+    }
+    updateTargetLocale(tracked, currentLocale);
+    return tracked;
+  }
+
+  function addLocale(locale, pack) {
+    var name = normalizeLocaleName(locale);
+    var index;
+    localePacks[name] = mergeLocale(localePacks[name] || {}, pack || {});
+    for (index = 0; index < targets.length; index += 1) {
+      if (localePacks[name][targets[index].packName]) {
+        installLocale(
+          targets[index].target,
+          name,
+          localePacks[name][targets[index].packName]
+        );
+      }
+    }
+    setLocale(name);
+    return name;
+  }
+
+  function setLocale(locale) {
+    var name = normalizeLocaleName(locale);
+    var activeInstances;
+    var index;
+    if (!Object.prototype.hasOwnProperty.call(localePacks, name)) {
+      name = 'en';
+    }
+    currentLocale = name;
+    for (index = 0; index < targets.length; index += 1) {
+      updateTargetLocale(targets[index].target, name);
+    }
+    activeInstances = Array.from(instances);
+    for (index = 0; index < activeInstances.length; index += 1) {
+      if (typeof activeInstances[index].setLocale === 'function') {
+        activeInstances[index].setLocale(name);
+      }
+    }
+    return currentLocale;
+  }
+
+  return {
+    addLocale: addLocale,
+    getLocale: function() {
+      return currentLocale;
+    },
+    getLocales: function() {
+      return Object.keys(localePacks);
+    },
+    normalizeLocale: normalizeLocaleName,
+    registerTarget: registerTarget,
+    setLocale: setLocale,
+    trackInstance: trackInstance
+  };
+}
+
 function copyWithTextarea(text) {
   var textarea;
   var copied = false;
@@ -1009,24 +1214,18 @@ function createAccordionFactory(
       untitled: 'Untitled',
       expand: 'Expand {title}',
       collapse: 'Collapse {title}'
-    },
-    'zh-TW': {
-      untitled: '未命名',
-      expand: '展開「{title}」',
-      collapse: '收合「{title}」'
-    },
-    'zh-CN': {
-      untitled: '未命名',
-      expand: '展开“{title}”',
-      collapse: '收合“{title}”'
     }
   };
 
   function normalizeLocale(value) {
     value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 
@@ -1895,26 +2094,6 @@ var CALENDAR_LOCALES = {
     nextYearText: 'Next year',
     weeks: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
     months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  },
-  'zh-TW': {
-    ariaLabel: '日曆',
-    yearText: '年份',
-    previousYearText: '上一年',
-    previousMonthText: '上個月',
-    nextMonthText: '下個月',
-    nextYearText: '下一年',
-    weeks: ['日', '一', '二', '三', '四', '五', '六'],
-    months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
-  },
-  'zh-CN': {
-    ariaLabel: '日历',
-    yearText: '年份',
-    previousYearText: '上一年',
-    previousMonthText: '上个月',
-    nextMonthText: '下个月',
-    nextYearText: '下一年',
-    weeks: ['日', '一', '二', '三', '四', '五', '六'],
-    months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
   }
 };
 
@@ -1953,9 +2132,12 @@ function calendarDateOnly(date) {
 function normalizeCalendarLocale(locale) {
   var value = String(locale || '').trim().replace(/_/g, '-');
   if (CALENDAR_LOCALES[value]) return value;
-  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
-  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value)) return 'zh-CN';
-  if (/^zh/i.test(value)) return 'zh-CN';
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) {
+    return CALENDAR_LOCALES['zh-TW'] ? 'zh-TW' : 'en';
+  }
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh/i.test(value)) {
+    return CALENDAR_LOCALES['zh-CN'] ? 'zh-CN' : 'en';
+  }
   return 'en';
 }
 
@@ -2458,12 +2640,6 @@ function createCheckBoxFactory(Control, registerControl, unregisterControl) {
   var localePacks = {
     en: {
       checkbox: 'Checkbox'
-    },
-    'zh-TW': {
-      checkbox: '核取方塊'
-    },
-    'zh-CN': {
-      checkbox: '复选框'
     }
   };
 
@@ -2984,12 +3160,6 @@ function createCheckGroupFactory(Control, registerControl, unregisterControl, Ch
   var localePacks = {
     en: {
       group: 'Checkbox group'
-    },
-    'zh-TW': {
-      group: '核取方塊群組'
-    },
-    'zh-CN': {
-      group: '复选框组'
     }
   };
 
@@ -3543,12 +3713,6 @@ function createSwitchButtonFactory(Control, registerControl, unregisterControl) 
   var localePacks = {
     en: {
       switchbutton: 'Switch button'
-    },
-    'zh-TW': {
-      switchbutton: '切換按鈕'
-    },
-    'zh-CN': {
-      switchbutton: '切换按钮'
     }
   };
 
@@ -4158,12 +4322,6 @@ function createRadioButtonFactory(Control, registerControl, unregisterControl) {
   var localePacks = {
     en: {
       radiobutton: 'Radio button'
-    },
-    'zh-TW': {
-      radiobutton: '選項按鈕'
-    },
-    'zh-CN': {
-      radiobutton: '单选按钮'
     }
   };
 
@@ -4714,12 +4872,6 @@ function createRadioGroupFactory(
   var localePacks = {
     en: {
       group: 'Radio group'
-    },
-    'zh-TW': {
-      group: '單選群組'
-    },
-    'zh-CN': {
-      group: '单选组'
     }
   };
 
@@ -5186,9 +5338,7 @@ function createChartFactory() {
     'rgba(250, 220, 140, .72)'
   ];
   var DEFAULT_MESSAGES = {
-    en: { emptyText: 'No data', value: 'Value', percent: 'Percent' },
-    'zh-TW': { emptyText: '沒有資料', value: '數值', percent: '百分比' },
-    'zh-CN': { emptyText: '没有数据', value: '数值', percent: '百分比' }
+    en: { emptyText: 'No data', value: 'Value', percent: 'Percent' }
   };
 
   function Chart(element, options) {
@@ -5744,8 +5894,10 @@ function createChartFactory() {
     return { categories: categories, series: series, pieLegend: [] };
   }
   function resolveChartLocale(value) {
+    var normalized;
     value = String(value || 'en').trim().replace(/_/g, '-');
-    return DEFAULT_MESSAGES[value] ? value : normalizeChartLocale(value);
+    normalized = DEFAULT_MESSAGES[value] ? value : normalizeChartLocale(value);
+    return DEFAULT_MESSAGES[normalized] ? normalized : 'en';
   }
   function getBoundValue(item, binding) {
     var key;
@@ -6282,6 +6434,9 @@ function prepareSortValue(value, type) {
     return null;
   }
   if (type === 'number') {
+    if (typeof value === 'string') {
+      value = value.replace(/,/g, '').replace(/\s/g, '');
+    }
     return Number(value);
   }
   if (type === 'date') {
@@ -6548,7 +6703,8 @@ function installFabGridData(FabGrid, context) {
     var excelFilters = getActiveFilterMode(grid.options) === 'excel' && hasExcelFilters(grid.excelFilters) ?
       grid.excelFilters : null;
     var columns = grid.columns;
-    if (!filterPredicate && !searchText && !columnSearchValues && !excelFilters) {
+    if (grid.options.remote === true ||
+        !filterPredicate && !searchText && !columnSearchValues && !excelFilters) {
       return null;
     }
     return function(item, index) {
@@ -7290,6 +7446,29 @@ function installFabGridData(FabGrid, context) {
     return serialized ? JSON.parse(serialized) : [];
   };
 
+  FabGrid.prototype.getFilterState = function() {
+    var columnSearchValues = mergeOptions({}, this.columnSearchValues || {});
+    var columnSearchOperators = mergeOptions({}, this.columnSearchOperators || {});
+    var excelFilters = cloneExcelFilters(this.excelFilters || {});
+    var activeMode = getActiveFilterMode(this.options);
+    var columnSearchActive = activeMode === 'searchRow' && Object.keys(columnSearchValues).some(function(key) {
+      return String(columnSearchValues[key] == null ? '' : columnSearchValues[key]).trim() !== '';
+    });
+    var excelFilterActive = activeMode === 'excel' && hasExcelFilters(excelFilters);
+    var filterPredicateActive = typeof this.filterPredicate === 'function';
+    var searchText = this.searchText || '';
+    return {
+      active: Boolean(filterPredicateActive || searchText || columnSearchActive || excelFilterActive),
+      filterMode: activeMode || null,
+      filterPredicateActive: filterPredicateActive,
+      searchText: searchText,
+      filterRules: this.getFilterRules(),
+      columnSearchValues: columnSearchValues,
+      columnSearchOperators: columnSearchOperators,
+      excelFilters: excelFilters
+    };
+  };
+
   FabGrid.prototype.reload = function() {
     return this.load();
   };
@@ -7309,10 +7488,27 @@ function installFabGridData(FabGrid, context) {
   FabGrid.prototype.loadRemoteData = function(data) {
     var normalized = normalizeRemoteData(data);
     var previousSelectedRow = this.captureSelectedRowChangeState();
+    var previousSuppressChange;
+    var previousSuppressCurrent;
     if (typeof this.resetTreeState === 'function') {
       this.resetTreeState();
     }
-    this.source = this.createObservedItemsSource(normalized.rows);
+    if (this._collectionView) {
+      previousSuppressChange = this._suppressCollectionViewChange;
+      previousSuppressCurrent = this._suppressCollectionViewCurrentChange;
+      this._suppressCollectionViewChange = true;
+      this._suppressCollectionViewCurrentChange = true;
+      try {
+        this._collectionView.sourceCollection = normalized.rows;
+      } finally {
+        this._suppressCollectionViewChange = previousSuppressChange;
+        this._suppressCollectionViewCurrentChange = previousSuppressCurrent;
+      }
+      this.source = this._collectionView.sourceCollection;
+    } else {
+      this._itemsSource = normalized.rows;
+      this.source = this.createObservedItemsSource(this._itemsSource);
+    }
     this.paginationTotal = normalized.total;
     this.applyView();
     this.emit('itemsSourceChanged', { rows: this.source, remote: true });
@@ -7961,7 +8157,7 @@ function installFabGridData(FabGrid, context) {
       this.syncCollectionViewSort();
     }
     this.applyView();
-    this.resetScroll();
+    this.resetVerticalScroll();
     this.render();
     this.emit('sortedColumn', {
       column: column,
@@ -7973,6 +8169,30 @@ function installFabGridData(FabGrid, context) {
     if (this.options.remote === true) {
       this.load();
     }
+  };
+
+  FabGrid.prototype.clearSort = function() {
+    if (!this.getSortStates().length) {
+      return false;
+    }
+    this.sortStates = [];
+    this.sortState = null;
+    if (this.options.remote === true) {
+      this.options.pageNumber = 1;
+      if (this.options.pager) {
+        this.options.pager.pageNumber = 1;
+      }
+    }
+    if (typeof this.syncCollectionViewSort === 'function') {
+      this.syncCollectionViewSort();
+    }
+    this.applyView();
+    this.resetVerticalScroll();
+    this.render();
+    if (this.options.remote === true) {
+      this.load();
+    }
+    return true;
   };
 
   FabGrid.prototype.getSortGlyph = function(column) {
@@ -8005,6 +8225,27 @@ function installFabGridData(FabGrid, context) {
       return this.sortStates;
     }
     return this.sortState && this.sortState.direction ? [this.sortState] : [];
+  };
+
+  FabGrid.prototype.getSortState = function() {
+    var columns = this.columns || [];
+    var visibleColumns = this.visibleColumns || [];
+    var sortStates = this.getSortStates().map(function(state, index) {
+      var column = state.column || null;
+      var direction = state.direction === -1 ? -1 : 1;
+      return {
+        columnIndex: columns.indexOf(column),
+        visibleColumnIndex: visibleColumns.indexOf(column),
+        binding: column && typeof column.binding === 'string' ? column.binding : null,
+        direction: direction,
+        order: direction === -1 ? 'desc' : 'asc',
+        sortIndex: index
+      };
+    });
+    return {
+      active: sortStates.length > 0,
+      sortStates: sortStates
+    };
   };
 }
 
@@ -10762,25 +11003,41 @@ function installFabGridView(FabGrid, context) {
 
   FabGrid.prototype.updateLayout = function() {
     var i;
+    var j;
     var left = 0;
     var visibleColumns = [];
+    var groups = this._columnHeaderGroups || [];
+    var group;
+    var leaf;
     var frozenCount;
     var frozenRightCount;
+    var frozenSourceEnd;
+    var frozenRightSourceStart;
 
     normalizeGridOptions(this.options);
     this.options.stopNavigation = this._stopNavigation === true;
     this.emit('updatingLayout', {});
+    frozenSourceEnd = Math.min(
+      normalizeNonNegativeInteger(this.options.frozenColumns, 0),
+      this.columns.length
+    );
+    frozenRightSourceStart = Math.max(
+      frozenSourceEnd,
+      this.columns.length - normalizeNonNegativeInteger(this.options.frozenRightColumns, 0)
+    );
+    frozenCount = 0;
+    frozenRightCount = 0;
     for (i = 0; i < this.columns.length; i += 1) {
       if (this.columns[i].visible !== false) {
         visibleColumns.push(this.columns[i]);
+        if (i < frozenSourceEnd) {
+          frozenCount += 1;
+        } else if (i >= frozenRightSourceStart) {
+          frozenRightCount += 1;
+        }
       }
     }
     this.visibleColumns = visibleColumns;
-    frozenCount = Math.min(normalizeNonNegativeInteger(this.options.frozenColumns, 0), visibleColumns.length);
-    frozenRightCount = Math.min(
-      normalizeNonNegativeInteger(this.options.frozenRightColumns, 0),
-      Math.max(0, visibleColumns.length - frozenCount)
-    );
     this._frozenColumns = frozenCount;
     this._frozenRightColumns = frozenRightCount;
     this.columnOffsets = [];
@@ -10790,6 +11047,31 @@ function installFabGridView(FabGrid, context) {
       visibleColumns[i]._left = left;
       this.columnOffsets.push(left);
       left += visibleColumns[i]._width;
+    }
+
+    this._visibleColumnHeaderDepth = 1;
+    for (i = 0; i < visibleColumns.length; i += 1) {
+      this._visibleColumnHeaderDepth = Math.max(
+        this._visibleColumnHeaderDepth,
+        toNumber(visibleColumns[i]._headerDepth, 0) + 1
+      );
+    }
+    for (i = 0; i < groups.length; i += 1) {
+      group = groups[i];
+      group._visibleViewStart = -1;
+      group._visibleViewEnd = -1;
+      for (j = 0; j < group._leaves.length; j += 1) {
+        leaf = group._leaves[j];
+        if (leaf.visible === false || leaf._viewIndex == null) {
+          continue;
+        }
+        if (group._visibleViewStart < 0 || leaf._viewIndex < group._visibleViewStart) {
+          group._visibleViewStart = leaf._viewIndex;
+        }
+        if (leaf._viewIndex > group._visibleViewEnd) {
+          group._visibleViewEnd = leaf._viewIndex;
+        }
+      }
     }
 
     this.totalWidth = left;
@@ -10817,6 +11099,10 @@ function installFabGridView(FabGrid, context) {
 
   FabGrid.prototype.scheduleRender = function() {
     var self = this;
+    if (this.isUpdating) {
+      this._updatePendingInvalidate = true;
+      return;
+    }
     if (this.raf || this.disposed) {
       return;
     }
@@ -11304,6 +11590,13 @@ function installFabGridView(FabGrid, context) {
     if (this.disposed) {
       return;
     }
+    if (this.isUpdating) {
+      this._updatePendingRender = true;
+      if (skipLayout !== true) {
+        this._updatePendingSkipLayout = false;
+      }
+      return;
+    }
 
     this.captureActiveHeaderSearchFocus();
     if (this.emit('updatingView', {}) === false) {
@@ -11774,6 +12067,22 @@ function installFabGridView(FabGrid, context) {
     this.headerFrozenRight.innerHTML = '';
     this.headerCanvas.innerHTML = '';
 
+    this.renderHeaderGroups(frozenFragment, 0, this.frozenColumns, 0, 'left');
+    this.renderHeaderGroups(
+      scrollFragment,
+      this.frozenColumns,
+      this.scrollableColumnEnd,
+      this.frozenWidth,
+      'scroll'
+    );
+    this.renderHeaderGroups(
+      frozenRightFragment,
+      this.scrollableColumnEnd,
+      this.visibleColumns.length,
+      this.frozenRightStartLeft,
+      'right'
+    );
+
     for (i = 0; i < this.frozenColumns; i += 1) {
       col = this.visibleColumns[i];
       frozenFragment.appendChild(this.createHeaderCell(col, col._left, 'left', textMeasureContext));
@@ -11797,6 +12106,72 @@ function installFabGridView(FabGrid, context) {
     this.headerFrozen.appendChild(frozenFragment);
     this.headerFrozenRight.appendChild(frozenRightFragment);
     this.headerCanvas.appendChild(scrollFragment);
+  };
+
+  FabGrid.prototype.renderHeaderGroups = function(fragment, paneStart, paneEnd, paneOffset, pane) {
+    var groups = this._columnHeaderGroups || [];
+    var group;
+    var start;
+    var end;
+    var first;
+    var last;
+    var i;
+    if (paneStart >= paneEnd) {
+      return;
+    }
+    for (i = 0; i < groups.length; i += 1) {
+      group = groups[i];
+      start = Math.max(paneStart, group._visibleViewStart);
+      end = Math.min(paneEnd - 1, group._visibleViewEnd);
+      if (start < 0 || end < start) {
+        continue;
+      }
+      first = this.visibleColumns[start];
+      last = this.visibleColumns[end];
+      fragment.appendChild(this.createHeaderGroupCell(
+        group,
+        first._left - paneOffset,
+        last._left + last._width - first._left,
+        pane,
+        start,
+        end
+      ));
+    }
+  };
+
+  FabGrid.prototype.createHeaderGroupCell = function(group, left, width, pane, viewStart, viewEnd) {
+    var cell = document.createElement('div');
+    var title = document.createElement('span');
+    var label = document.createElement('span');
+    var firstColumn = this.visibleColumns[viewStart];
+    var lastColumn = this.visibleColumns[viewEnd];
+    var headerText = group.header == null ? '' : String(group.header);
+    cell.className = 'fg-header-cell fg-header-group-cell';
+    this.decorateFrozenDividerCell(
+      cell,
+      pane === 'right' ? viewStart : viewEnd,
+      pane
+    );
+    if (group.align) {
+      cell.className += ' fg-header-align-' + group.align;
+    }
+    cell.style.left = left + 'px';
+    cell.style.top = toNumber(group._headerDepth, 0) * this.getHeaderRowHeight() + 'px';
+    cell.style.width = width + 'px';
+    cell.style.height = this.getHeaderRowHeight() + 'px';
+    cell.setAttribute('data-header-row', toNumber(group._headerDepth, 0));
+    cell.setAttribute('data-view-col-start', viewStart);
+    cell.setAttribute('data-view-col-end', viewEnd);
+    cell.setAttribute('data-col-start', firstColumn ? firstColumn._index : -1);
+    cell.setAttribute('data-col-end', lastColumn ? lastColumn._index : -1);
+    cell.setAttribute('data-frozen', pane === 'left' || pane === 'right' ? '1' : '0');
+    title.className = 'fg-header-title fg-header-group-title';
+    title.style.height = this.getHeaderRowHeight() + 'px';
+    label.className = 'fg-header-label';
+    label.textContent = headerText;
+    title.appendChild(label);
+    cell.appendChild(title);
+    return cell;
   };
 
   FabGrid.prototype.renderVisibleRows = function() {
@@ -12056,6 +12431,8 @@ function installFabGridView(FabGrid, context) {
     var headerText = this.getHeaderCellText(column);
     var headerTextWidth;
     var headerContentWidth;
+    var headerDepth = toNumber(column._headerDepth, 0);
+    var titleHeight = this.getColumnHeaderTitleHeight(column);
 
     cell.className = 'fg-header-cell';
     this.decorateFrozenDividerCell(cell, column._viewIndex, frozen || 'scroll');
@@ -12063,9 +12440,12 @@ function installFabGridView(FabGrid, context) {
       cell.className += ' fg-header-align-' + column.align;
     }
     cell.style.left = left + 'px';
+    cell.style.top = headerDepth * this.getHeaderRowHeight() + 'px';
     cell.style.width = column._width + 'px';
-    cell.style.height = this.getHeaderHeight() + 'px';
+    cell.style.height = titleHeight + this.getSearchRowHeight() + 'px';
     cell.setAttribute('data-col', column._viewIndex);
+    cell.setAttribute('data-header-row', headerDepth);
+    cell.setAttribute('data-header-title-height', titleHeight);
     cell.setAttribute('data-frozen', frozen ? '1' : '0');
     title.className = 'fg-header-title' +
       (getActiveFilterMode(this.options) ? ' fg-header-title-filterable' : '') +
@@ -12080,7 +12460,7 @@ function installFabGridView(FabGrid, context) {
         }
       }
     }
-    title.style.height = this.getHeaderTitleHeight() + 'px';
+    title.style.height = titleHeight + 'px';
     label.className = 'fg-header-label';
     label.textContent = headerText;
     sortWrap.className = 'fg-sort-wrap' + (sortDirection ? '' : ' fg-sort-wrap-none');
@@ -12453,6 +12833,9 @@ function installFabGridView(FabGrid, context) {
     }
     if (column.align) {
       cell.className += ' fg-align-' + column.align;
+    }
+    if (column.cssClass) {
+      cell.className = trimText(cell.className + ' ' + trimText(column.cssClass));
     }
     if (column.color) {
       cell.style.color = column.color;
@@ -14440,6 +14823,39 @@ function installFabGridSelection(FabGrid, context) {
     return toNumber(column.minWidth, toNumber(grid.options.columnMinWidth, DEFAULT_OPTIONS.columnMinWidth));
   }
 
+  function adjustColumnScrollIntoView(grid, col) {
+    var colObj = grid.visibleColumns[col];
+    var scrollableViewportWidth;
+    var scrollLeft;
+    var nextScrollLeft;
+    if (!colObj || !grid.bodyScroll ||
+        col < grid.frozenColumns || col >= grid.scrollableColumnEnd) {
+      return false;
+    }
+    scrollableViewportWidth = Math.max(
+      0,
+      grid.bodyScroll.clientWidth - grid.getFixedLeftWidth() - grid.frozenWidth - grid.frozenRightWidth
+    );
+    scrollLeft = grid.bodyScroll.scrollLeft;
+    nextScrollLeft = scrollLeft;
+    if (colObj._width > scrollableViewportWidth) {
+      nextScrollLeft = colObj._left - grid.frozenWidth;
+    } else if (colObj._left - grid.frozenWidth < scrollLeft) {
+      nextScrollLeft = colObj._left - grid.frozenWidth;
+    } else if (
+      colObj._left + colObj._width - grid.frozenWidth >
+      scrollLeft + scrollableViewportWidth
+    ) {
+      nextScrollLeft = colObj._left + colObj._width - grid.frozenWidth - scrollableViewportWidth;
+    }
+    nextScrollLeft = Math.max(0, nextScrollLeft);
+    if (nextScrollLeft === scrollLeft) {
+      return false;
+    }
+    grid.bodyScroll.scrollLeft = nextScrollLeft;
+    return true;
+  }
+
   function createCellRange(anchorRow, anchorCol, activeRow, activeCol) {
     return {
       row: Math.min(anchorRow, activeRow),
@@ -14653,9 +15069,19 @@ function installFabGridSelection(FabGrid, context) {
       return;
     }
 
+    if (header && header.classList && header.classList.contains('fg-header-group-cell')) {
+      this.root.focus();
+      return;
+    }
+
     if (header && this.options.allowSorting) {
       colIndex = toNumber(header.getAttribute('data-col'), -1);
-      this.toggleSort(colIndex, event.shiftKey === true);
+      if (
+        this.toggleSort(colIndex, event.shiftKey === true) !== false &&
+        adjustColumnScrollIntoView(this, colIndex)
+      ) {
+        this.render();
+      }
       return;
     }
 
@@ -14713,7 +15139,7 @@ function installFabGridSelection(FabGrid, context) {
         return;
       }
       if (this.editing && (this.editing.row !== rowIndex || this.editing.col !== colIndex)) {
-        if (this.finishEditing(true) === false) {
+        if (this.finishEditing(true, { restoreFocus: false }) === false) {
           event.preventDefault();
           return;
         }
@@ -14846,7 +15272,8 @@ function installFabGridSelection(FabGrid, context) {
         index: i,
         position: position,
         beforeColumn: beforeColumn,
-        cell: cell
+        cell: cell,
+        column: column
       };
     }
     return null;
@@ -14985,6 +15412,9 @@ function installFabGridSelection(FabGrid, context) {
     event.preventDefault();
     this.updateColumnDragPreview(event, state);
     target = this.getColumnDragTarget(event.clientX, event.clientY, state);
+    if (target && target.column && target.column._headerParent !== state.column._headerParent) {
+      target = null;
+    }
     if (!target || !this.isColumnDragMoveNeeded(state, target)) {
       target = null;
     }
@@ -15133,7 +15563,12 @@ function installFabGridSelection(FabGrid, context) {
         return;
       }
     }
-    if (!header || closest(event.target, 'fg-header-search') || closest(event.target, 'fg-filter-icon')) {
+    if (
+      !header ||
+      (header.classList && header.classList.contains('fg-header-group-cell')) ||
+      closest(event.target, 'fg-header-search') ||
+      closest(event.target, 'fg-filter-icon')
+    ) {
       return;
     }
     colIndex = toNumber(header.getAttribute('data-col'), -1);
@@ -15574,6 +16009,14 @@ function installFabGridSelection(FabGrid, context) {
     }
   };
 
+  FabGrid.prototype.cancelEditingForSelection = function(row, col) {
+    if (!this.editing ||
+        (this.editing.row === row && this.editing.col === col)) {
+      return false;
+    }
+    return this.finishEditing(false, { restoreFocus: false });
+  };
+
   FabGrid.prototype.updateInvalidTip = function(cell) {
     var rowIndex;
     var colIndex;
@@ -15824,6 +16267,12 @@ function installFabGridSelection(FabGrid, context) {
           event.key === 'Escape') {
         event.stopPropagation();
       }
+      if (this.options.editOnSelect !== true &&
+          (event.key === 'Enter' || event.key === 'Tab')) {
+        event.preventDefault();
+        this.finishEditing(true);
+        return;
+      }
       if (event.target === this.editor && this.handleNumberSpinnerKeyDown(event)) {
         return;
       }
@@ -15843,6 +16292,14 @@ function installFabGridSelection(FabGrid, context) {
         event.preventDefault();
         return;
       }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.finishEditing(false);
+        return;
+      }
+      if (this.options.editOnSelect !== true) {
+        return;
+      }
       if (event.key === 'Enter' || event.key === 'Tab') {
         event.preventDefault();
         if (event.shiftKey) {
@@ -15856,9 +16313,6 @@ function installFabGridSelection(FabGrid, context) {
       } else if (event.key === 'ArrowUp') {
         event.preventDefault();
         this.commitEditingAndMoveVertical(-1);
-      } else if (event.key === 'Escape') {
-        event.preventDefault();
-        this.finishEditing(false);
       }
       return;
     }
@@ -15941,6 +16395,30 @@ function installFabGridSelection(FabGrid, context) {
       if (this.options.allowEditing) {
         event.preventDefault();
         this.startEditing(row, col);
+      }
+      return;
+    } else if (this.options.editOnSelect !== true &&
+        this.options.allowEditing !== false &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.isComposing &&
+        typeof event.key === 'string' &&
+        event.key.length === 1 &&
+        event.key !== ' ') {
+      if (this.startEditing(row, col)) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!this.shouldBlockEditorKey(event)) {
+          this.editor.value = event.key;
+          this.handleEditorInput();
+          if (typeof this.editor.setSelectionRange === 'function') {
+            this.editor.setSelectionRange(
+              this.editor.value.length,
+              this.editor.value.length
+            );
+          }
+        }
       }
       return;
     } else {
@@ -16167,6 +16645,7 @@ function installFabGridSelection(FabGrid, context) {
     if (rowSelectionChanged && this.options.multiSelectRows !== true && this.emit('rowSelectionChanging', { row: nextRowSelection }) === false) {
       return false;
     }
+    this.cancelEditingForSelection(row, col);
     this.rowSelection = nextRowSelection;
     if (this.options.multiSelectRows !== true) {
       this._rowSelectionCleared = false;
@@ -16189,6 +16668,7 @@ function installFabGridSelection(FabGrid, context) {
     if (this.emit('rowSelectionChanging', { row: row }) === false) {
       return;
     }
+    this.cancelEditingForSelection(row, col);
     this.rowSelection = row;
     this._rowSelectionCleared = false;
     if (this.options.multiSelectRows === true) {
@@ -16218,6 +16698,7 @@ function installFabGridSelection(FabGrid, context) {
       this.selectRow(row, col);
       return;
     }
+    this.cancelEditingForSelection(row, col);
     item = this.view[row];
     if (this.isRowGroup(item)) {
       groupState = this.getRowGroupSelectionState(item);
@@ -16605,8 +17086,6 @@ function installFabGridSelection(FabGrid, context) {
     var lastFullRowTop = currentBottom - this.options.rowHeight;
     var partialBottomHeight;
     var maxScrollTop;
-    var scrollableViewportWidth = Math.max(0, this.bodyScroll.clientWidth - this.getFixedLeftWidth() - this.frozenWidth - this.frozenRightWidth);
-    var scrollLeft;
     if (!colObj) {
       return;
     }
@@ -16626,16 +17105,7 @@ function installFabGridSelection(FabGrid, context) {
         this.bodyScroll.scrollTop = Math.max(0, rowBottom - contentHeight);
       }
     }
-    if (col >= this.frozenColumns && col < this.scrollableColumnEnd) {
-      scrollLeft = this.bodyScroll.scrollLeft;
-      if (colObj._width > scrollableViewportWidth) {
-        this.bodyScroll.scrollLeft = colObj._left - this.frozenWidth;
-      } else if (colObj._left - this.frozenWidth < scrollLeft) {
-        this.bodyScroll.scrollLeft = colObj._left - this.frozenWidth;
-      } else if (colObj._left + colObj._width - this.frozenWidth > scrollLeft + scrollableViewportWidth) {
-        this.bodyScroll.scrollLeft = colObj._left + colObj._width - this.frozenWidth - scrollableViewportWidth;
-      }
-    }
+    adjustColumnScrollIntoView(this, col);
     this.render();
   };
 
@@ -16882,7 +17352,6 @@ function installFabGridEditorRuntime(FabGrid, context) {
   var formatYearMonthEditorText = context.formatYearMonthEditorText;
   var getByBinding = context.getByBinding;
   var getColorPalette = context.getColorPalette;
-  var getColorShowAlpha = context.getColorShowAlpha;
   var getColumnEditorConfig = context.getColumnEditorConfig;
   var getComboboxData = context.getComboboxData;
   var getComboboxDataValue = context.getComboboxDataValue;
@@ -16970,6 +17439,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
     if (!this.isCellEditable(row, col) || !item) {
       return false;
     }
+    this.cancelEditingForSelection(row, col);
     args = { row: row, col: col, column: column, item: item };
     if (this.emit('beginningEdit', args) === false) {
       return false;
@@ -17011,6 +17481,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
     var config = getColumnEditorConfig(column);
     var type = config.type;
     var definition = editorDefinitions[type] || null;
+    var multiLine = type === 'text' && column && column.multiLine === true;
     var editorClassName = definition && definition.className ? definition.className : 'textbox-f fg-editor-' + type + ' ' + type + '-f';
     var hasBuiltInEditorIcon = isDateLikeEditorType(type) || type === 'combo' || type === 'color';
     var iconConfigs = hasBuiltInEditorIcon ? [] : getEditorIconConfigs(config);
@@ -17018,15 +17489,20 @@ function installFabGridEditorRuntime(FabGrid, context) {
     var spinnerWidth = spinner ? getEditorSpinnerWidth(config) : 0;
     var editorIconWidth = getEditorIconConfigWidth(iconConfigs, type) + spinnerWidth;
     var hasEditorIcons = hasBuiltInEditorIcon || iconConfigs.length > 0 || Boolean(spinner);
+    this.setEditorMultiline(multiLine);
     this.editorConfig = config;
     this.editorIconConfigs = iconConfigs;
     this.editorSpinnerPosition = spinner;
     this.editorIconHostWidth = editorIconWidth;
     this.renderEditorIcons(type, iconConfigs, spinner, spinnerWidth);
-    this.editor.className = 'fg-editor ' + editorClassName + (hasEditorIcons ? ' fg-editor-with-icons' : '');
+    this.editor.className = 'fg-editor ' + editorClassName +
+      (multiLine ? ' fg-editor-multiline' : '') +
+      (hasEditorIcons ? ' fg-editor-with-icons' : '');
     this.editor.setAttribute('data-editor-type', type);
     this.editor.setAttribute('autocomplete', 'off');
-    this.editor.type = 'text';
+    if (!multiLine) {
+      this.editor.type = 'text';
+    }
     this.editor.inputMode = definition && definition.inputMode ? definition.inputMode : (isDateLikeEditorType(type) ? 'numeric' : 'text');
     this.editor.style.paddingLeft = spinner === 'left' ? (editorIconWidth + 6) + 'px' : '';
     this.editor.style.paddingRight = hasEditorIcons && spinner !== 'left' ? (editorIconWidth + 6) + 'px' : '';
@@ -17050,6 +17526,37 @@ function installFabGridEditorRuntime(FabGrid, context) {
     if (type !== 'color') {
       this.hideColorPanel();
     }
+  };
+
+  FabGrid.prototype.setEditorMultiline = function(multiLine) {
+    var useMultiline = multiLine === true;
+    var currentIsMultiline = this.editor && this.editor.tagName === 'TEXTAREA';
+    var ownerDocument;
+    var editor;
+    if (!this.editor || currentIsMultiline === useMultiline) {
+      return this.editor;
+    }
+    ownerDocument = (this.root && this.root.ownerDocument) ||
+      (typeof document !== 'undefined' ? document : null);
+    if (!ownerDocument || typeof ownerDocument.createElement !== 'function' ||
+        !this.editor.parentNode || typeof this.editor.parentNode.replaceChild !== 'function') {
+      return this.editor;
+    }
+    editor = ownerDocument.createElement(useMultiline ? 'textarea' : 'input');
+    editor.className = 'fg-editor textbox-f';
+    editor.style.display = 'none';
+    editor.setAttribute('aria-label', this.getText('aria.cellEditor'));
+    if (useMultiline) {
+      editor.rows = 1;
+      editor.setAttribute('aria-multiline', 'true');
+    } else {
+      editor.type = 'text';
+    }
+    this.unbindEditorEvents(this.editor);
+    this.editor.parentNode.replaceChild(editor, this.editor);
+    this.editor = editor;
+    this.bindEditorEvents(editor);
+    return editor;
   };
 
   FabGrid.prototype.renderEditorIcons = function(type, iconConfigs, spinner, spinnerWidth) {
@@ -17690,7 +18197,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
       !this.isRowGroup(this.view[row]) &&
       !this.isRowGroupFooter(this.view[row]) &&
       !!column &&
-      column.readOnly !== true;
+      column.isReadOnly !== true;
   };
 
   FabGrid.prototype.commitEditingAndMoveRight = function() {
@@ -18059,14 +18566,11 @@ function installFabGridEditorRuntime(FabGrid, context) {
     this.colorPopup.setOptions({
       anchor: input,
       ariaLabel: this.getText('aria.colorPicker'),
-      saturationText: this.getText('aria.colorSaturation'),
-      hueText: this.getText('aria.colorHue'),
-      alphaText: this.getText('aria.colorAlpha'),
+      clearText: this.getText('aria.colorClear'),
       palette: getColorPalette(config),
-      showAlpha: getColorShowAlpha(config),
-      closeOnDragEnd: target.type === 'search'
+      panelWidth: 162
     });
-    this.colorPopup.setValue(input.value || '#ff0000');
+    this.colorPopup.setValue(input.value);
   };
 
   FabGrid.prototype.applyColorValueToTarget = function(value) {
@@ -18329,13 +18833,12 @@ function installFabGridEditorRuntime(FabGrid, context) {
   };
 
   FabGrid.prototype.positionColorPanel = function(left, top) {
-    var panelWidth = Math.min(420, Math.max(260, this.root.clientWidth - 4));
     if (!this.colorPopup) return;
     this.colorPopup.setOptions({
       anchor: this.colorTarget && this.colorTarget.input ?
         this.colorTarget.input :
         this.editor,
-      panelWidth: panelWidth
+      panelWidth: 162
     });
     this.colorPopup.position();
   };
@@ -18373,7 +18876,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
     }
   };
 
-  FabGrid.prototype.finishEditing = function(commit) {
+  FabGrid.prototype.finishEditing = function(commit, options) {
     var edit = this.editing;
     var column;
     var item;
@@ -18384,6 +18887,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
     if (!edit) {
       return false;
     }
+    options = options || {};
     column = this.visibleColumns[edit.col];
     item = this.view[edit.row];
     if (commit && item && column) {
@@ -18431,7 +18935,9 @@ function installFabGridEditorRuntime(FabGrid, context) {
       this.applyView();
       this.render();
     }
-    this.root.focus();
+    if (options.restoreFocus !== false) {
+      this.root.focus();
+    }
     return true;
   };
 
@@ -18439,9 +18945,14 @@ function installFabGridEditorRuntime(FabGrid, context) {
     var self = this;
     var config = getColumnEditorConfig(column);
     var args;
+    var requiredError;
     var result;
     if (!item || !column) {
       return null;
+    }
+    requiredError = getRequiredValidationErrorForGrid(this, column, value);
+    if (requiredError) {
+      return requiredError;
     }
     if (typeof column.validate === 'function') {
       args = {
@@ -18625,6 +19136,20 @@ function installFabGridEditorRuntime(FabGrid, context) {
       message: grid ?
         grid.getText(isYearMonth ? 'validation.invalidYearMonth' : 'validation.invalidDate') :
         (isYearMonth ? 'Invalid year and month' : 'Invalid date'),
+      value: value
+    };
+  }
+
+  function getRequiredValidationErrorForGrid(grid, column, value) {
+    if (!column || column.isRequired !== true) {
+      return null;
+    }
+    if (value != null && (typeof value !== 'string' || trimText(value) !== '')) {
+      return null;
+    }
+    return {
+      type: 'required',
+      message: grid ? grid.getText('validation.required') : 'This field is required',
       value: value
     };
   }
@@ -18993,7 +19518,7 @@ function createEditorDefinitions() {
   }
 
   function shouldAutoUnmaskTime(options) {
-    return !options || options.autoUnmask !== false;
+    return Boolean(options && options.autoUnmask === true);
   }
 
   function getTimeDataValue(value, options) {
@@ -19173,7 +19698,7 @@ function createEditorDefinitions() {
     ) {
       return false;
     }
-    return true;
+    return false;
   }
 
   function countDateDigitsBeforeCaret(value, caret) {
@@ -19457,12 +19982,14 @@ function createEditorDefinitions() {
       type: 'text',
       className: 'textbox-f fg-editor-textbox',
       inputMode: 'text',
+      autoUnmask: false,
       normalize: function(value) { return value == null ? '' : String(value); }
     },
     number: {
       type: 'number',
       className: 'textbox-f numberbox-f fg-editor-numberbox',
       inputMode: 'decimal',
+      autoUnmask: false,
       normalizePrecision: normalizePrecision,
       getGroupSeparator: getGroupSeparator,
       stripFormatting: stripNumberFormatting,
@@ -19478,6 +20005,7 @@ function createEditorDefinitions() {
       type: 'combo',
       className: 'textbox-f combobox-f fg-editor-combobox',
       inputMode: 'text',
+      autoUnmask: false,
       normalize: function(value) { return value == null ? '' : String(value); }
     },
     date: {
@@ -19485,6 +20013,7 @@ function createEditorDefinitions() {
       className: 'textbox-f datebox-f fg-editor-datebox',
       inputMode: 'numeric',
       mask: '9999/99/99',
+      autoUnmask: false,
       sanitize: function(value, options) {
         return isYearMonthMask(options) ? formatYymm(value, options) : formatDate(value, options);
       },
@@ -19510,6 +20039,7 @@ function createEditorDefinitions() {
       className: 'textbox-f timebox-f fg-editor-timebox',
       inputMode: 'numeric',
       mask: '99:99',
+      autoUnmask: false,
       normalizeMask: normalizeTimeMask,
       sanitize: applyTimeMask,
       format: applyTimeMask,
@@ -19530,6 +20060,7 @@ function createEditorDefinitions() {
       type: 'color',
       className: 'textbox-f color-f fg-editor-color',
       inputMode: 'text',
+      autoUnmask: false,
       normalize: normalizeColor,
       parse: parseColor,
       isValid: function(value) {
@@ -19609,7 +20140,7 @@ function createTextBoxFactory(editorDefinitions) {
     cls: '',
     prompt: '',
     value: '',
-    autoUnmask: true,
+    autoUnmask: false,
     type: 'text',
     label: '',
     labelWidth: 80,
@@ -19898,6 +20429,11 @@ function createTextBoxFactory(editorDefinitions) {
     }
   };
 
+  TextBox.prototype.fix = function() {
+    this._commitEditorValue();
+    return this;
+  };
+
   TextBox.prototype._applyState = function() {
     var disabled = Boolean(this._options.disabled);
     var readonly = Boolean(this._options.readonly);
@@ -20090,14 +20626,6 @@ function createNumberBoxFactory(TextBox, editorDefinitions) {
     en: {
       increaseValueText: 'Increase value',
       decreaseValueText: 'Decrease value'
-    },
-    'zh-TW': {
-      increaseValueText: '增加數值',
-      decreaseValueText: '減少數值'
-    },
-    'zh-CN': {
-      increaseValueText: '增加数值',
-      decreaseValueText: '减少数值'
     }
   };
 
@@ -20803,21 +21331,11 @@ function createTimeBoxFactory(TextBox, editorDefinitions) {
       increaseValueText: 'Increase value',
       decreaseValueText: 'Decrease value',
       invalidTimeText: 'Please enter a valid time.'
-    },
-    'zh-TW': {
-      increaseValueText: '增加數值',
-      decreaseValueText: '減少數值',
-      invalidTimeText: '請輸入有效時間。'
-    },
-    'zh-CN': {
-      increaseValueText: '增加数值',
-      decreaseValueText: '减少数值',
-      invalidTimeText: '请输入有效时间。'
     }
   };
   var timeDefaults = {
     mask: '99:99',
-    autoUnmask: true,
+    autoUnmask: false,
     spinner: false,
     iconWidth: 28,
     locale: 'en',
@@ -22383,30 +22901,6 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
       nextYearText: 'Next year',
       weeks: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
       months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    },
-    'zh-TW': {
-      openCalendarText: '開啟日曆',
-      currentText: '今天',
-      currentMonthText: '當月',
-      closeText: '關閉',
-      okText: '確定',
-      yearText: '年份',
-      previousYearText: '上一年',
-      nextYearText: '下一年',
-      weeks: ['日', '一', '二', '三', '四', '五', '六'],
-      months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
-    },
-    'zh-CN': {
-      openCalendarText: '打开日历',
-      currentText: '今天',
-      currentMonthText: '当月',
-      closeText: '关闭',
-      okText: '确定',
-      yearText: '年份',
-      previousYearText: '上一年',
-      nextYearText: '下一年',
-      weeks: ['日', '一', '二', '三', '四', '五', '六'],
-      months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
     }
   };
 
@@ -22436,7 +22930,7 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
     formatter: null,
     parser: null,
     mask: '9999/99/99',
-    autoUnmask: true,
+    autoUnmask: false,
     maskValueIncludesLiterals: null,
     onSelect: null,
     onChange: null,
@@ -22522,8 +23016,12 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
   function normalizeLocale(name) {
     name = String(name || 'en').trim().replace(/_/g, '-');
     if (localePacks[name]) return name;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 
@@ -22554,6 +23052,14 @@ function createDateBoxFactory(TextBox, editorDefinitions) {
     this._explicitMask = Object.prototype.hasOwnProperty.call(userOptions, 'mask');
     this._initialValue = Object.prototype.hasOwnProperty.call(userOptions, 'value') ? userOptions.value : source.value;
     this._options = assign({}, DateBox.defaults, readElementOptions(source), userOptions);
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'autoUnmask')) {
+      this._options.autoUnmask =
+        userOptions.maskValueIncludesLiterals === false ||
+        userOptions.maskIncludesLiterals === false ||
+        userOptions.maskLiteralsInValue === false;
+    } else {
+      this._options.autoUnmask = userOptions.autoUnmask === true;
+    }
     this._editorDefinition = editorDefinitions[this._options.editorType] || editorDefinition;
     locale = localePacks[normalizeLocale(this._options.locale)];
     this._options.locale = normalizeLocale(this._options.locale);
@@ -23533,9 +24039,7 @@ function createComboBoxFactory(TextBox, editorDefinitions) {
   var editorDefinition = editorDefinitions.combo || editorDefinitions.combobox || null;
 
   var localePacks = {
-    en: { openListText: 'Open list' },
-    'zh-TW': { openListText: '開啟清單' },
-    'zh-CN': { openListText: '打开列表' }
+    en: { openListText: 'Open list' }
   };
 
   var comboDefaults = {
@@ -23644,8 +24148,12 @@ function createComboBoxFactory(TextBox, editorDefinitions) {
   function normalizeLocale(name) {
     name = String(name || 'en').trim().replace(/_/g, '-');
     if (localePacks[name]) return name;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 
@@ -23978,6 +24486,11 @@ function createComboBoxFactory(TextBox, editorDefinitions) {
     } else {
       this.setValues(this._values);
     }
+  };
+
+  ComboBox.prototype.fix = function() {
+    this._fixInput();
+    return this;
   };
 
   ComboBox.prototype._renderPanel = function() {
@@ -24403,103 +24916,16 @@ function findColorPopupTheme(element) {
   return 'default';
 }
 
-function clampColorPopup(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function rgbToColorPopupHsv(red, green, blue) {
-  var r = red / 255;
-  var g = green / 255;
-  var b = blue / 255;
-  var max = Math.max(r, g, b);
-  var min = Math.min(r, g, b);
-  var delta = max - min;
-  var hue = 0;
-  if (delta) {
-    if (max === r) {
-      hue = ((g - b) / delta) % 6;
-    } else if (max === g) {
-      hue = (b - r) / delta + 2;
-    } else {
-      hue = (r - g) / delta + 4;
-    }
-    hue *= 60;
-    if (hue < 0) hue += 360;
-  }
-  return {
-    h: hue,
-    s: max === 0 ? 0 : delta / max,
-    v: max
-  };
-}
-
-function hsvToColorPopupRgb(hue, saturation, value) {
-  var chroma = value * saturation;
-  var section = hue / 60;
-  var x = chroma * (1 - Math.abs(section % 2 - 1));
-  var m = value - chroma;
-  var r = 0;
-  var g = 0;
-  var b = 0;
-  if (section < 1) {
-    r = chroma;
-    g = x;
-  } else if (section < 2) {
-    r = x;
-    g = chroma;
-  } else if (section < 3) {
-    g = chroma;
-    b = x;
-  } else if (section < 4) {
-    g = x;
-    b = chroma;
-  } else if (section < 5) {
-    r = x;
-    b = chroma;
-  } else {
-    r = chroma;
-    b = x;
-  }
-  return {
-    r: Math.round((r + m) * 255),
-    g: Math.round((g + m) * 255),
-    b: Math.round((b + m) * 255)
-  };
-}
-
-function createColorPopupState(value, normalize) {
-  var color = normalize(value) || '#ff0000';
-  var hex = color.slice(1);
-  var rgb;
-  var state;
-  if (hex.length === 6) hex += 'ff';
-  rgb = {
-    r: parseInt(hex.slice(0, 2), 16),
-    g: parseInt(hex.slice(2, 4), 16),
-    b: parseInt(hex.slice(4, 6), 16)
-  };
-  state = rgbToColorPopupHsv(rgb.r, rgb.g, rgb.b);
-  state.a = parseInt(hex.slice(6, 8), 16) / 255;
-  return state;
-}
-
-function toColorPopupHexPart(value) {
-  var text = clampColorPopup(Math.round(value), 0, 255).toString(16);
-  return text.length < 2 ? '0' + text : text;
-}
-
-function colorPopupStateToHex(state, showAlpha) {
-  var rgb = hsvToColorPopupRgb(state.h, state.s, state.v);
-  var alpha = clampColorPopup(state.a == null ? 1 : state.a, 0, 1);
-  var value = '#' +
-    toColorPopupHexPart(rgb.r) +
-    toColorPopupHexPart(rgb.g) +
-    toColorPopupHexPart(rgb.b);
-  if (showAlpha && alpha < 0.999) {
-    value += toColorPopupHexPart(Math.round(alpha * 255));
-  }
-  return value;
-}
+var DEFAULT_COLOR_PALETTE = [
+  '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#006400', '#ff00ff', '#ffa500', '',
+  '#000000', '#444444', '#666666', '#999999', '#cccccc', '#eeeeee', '#f3f3f3', '#fffffe',
+  '#f4cccc', '#fce5cd', '#fff2cc', '#d9ead3', '#d0e0e3', '#cfe2f3', '#d9d2e9', '#ead1dc',
+  '#ea9999', '#f9cb9c', '#ffe599', '#b6d7a8', '#a2c4c9', '#9fc5e8', '#b4a7d6', '#d5a6bd',
+  '#e06666', '#f6b26b', '#ffd966', '#93c47d', '#76a5af', '#6fa8dc', '#8e7cc3', '#c27ba0',
+  '#cc0000', '#e69138', '#f1c232', '#6aa84f', '#45818e', '#3d85c6', '#674ea7', '#a64d79',
+  '#990000', '#b45f06', '#bf9000', '#38761d', '#134f5c', '#0b5394', '#351c75', '#741b47',
+  '#660000', '#783f04', '#7f6000', '#274e13', '#0c343d', '#073763', '#20124d', '#4c1130'
+];
 
 function ColorPopup(options) {
   if (!(this instanceof ColorPopup)) return new ColorPopup(options);
@@ -24507,9 +24933,7 @@ function ColorPopup(options) {
   this.destroyed = false;
   this.visible = false;
   this._openEventsBound = false;
-  this.dragState = null;
   this.value = '';
-  this.state = null;
   this._normalizeOptions();
   this._build();
   this.setTheme(this.options.theme);
@@ -24522,21 +24946,16 @@ ColorPopup.defaults = {
   theme: 'inherit',
   themeSource: null,
   className: '',
-  panelWidth: 420,
+  panelWidth: 162,
   ariaLabel: 'Color picker',
-  saturationText: 'Saturation and brightness',
-  hueText: 'Hue',
-  alphaText: 'Alpha',
-  palette: [],
-  showAlpha: true,
+  clearText: 'Clear color',
+  palette: DEFAULT_COLOR_PALETTE,
   normalize: function(value) {
     return value == null ? '' : String(value);
   },
   containsTarget: null,
   openClassHost: null,
   closeOnSelect: false,
-  closeOnDragEnd: false,
-  onInput: null,
   onSelect: null,
   onShow: null,
   onHide: null
@@ -24545,8 +24964,7 @@ ColorPopup.defaults = {
 ColorPopup.prototype._normalizeOptions = function() {
   this.options.palette = Array.isArray(this.options.palette) ?
     this.options.palette.slice() :
-    [];
-  this.options.showAlpha = this.options.showAlpha !== false;
+    DEFAULT_COLOR_PALETTE.slice();
   if (typeof this.options.normalize !== 'function') {
     this.options.normalize = ColorPopup.defaults.normalize;
   }
@@ -24568,11 +24986,8 @@ ColorPopup.prototype._bind = function() {
   this._onPanelPointerDown = function(event) {
     self._handlePointerDown(event);
   };
-  this._onPanelPointerMove = function(event) {
-    self._handlePointerMove(event);
-  };
-  this._onPanelPointerUp = function(event) {
-    self._handlePointerUp(event);
+  this._onPanelClick = function(event) {
+    self._handleClick(event);
   };
   this._onDocumentPointerDown = function(event) {
     if (self.visible &&
@@ -24591,9 +25006,7 @@ ColorPopup.prototype._bind = function() {
     if (self.visible) self.position();
   };
   this.panel.addEventListener('pointerdown', this._onPanelPointerDown);
-  this.panel.addEventListener('pointermove', this._onPanelPointerMove);
-  this.panel.addEventListener('pointerup', this._onPanelPointerUp);
-  this.panel.addEventListener('pointercancel', this._onPanelPointerUp);
+  this.panel.addEventListener('click', this._onPanelClick);
 };
 
 ColorPopup.prototype._bindOpenEvents = function() {
@@ -24649,208 +25062,81 @@ ColorPopup.prototype.setTheme = function(theme) {
 ColorPopup.prototype.setValue = function(value) {
   var normalized = this.options.normalize(value);
   this.value = value == null ? '' : String(value);
-  if (!this.dragState) {
-    this.state = createColorPopupState(normalized || '#ff0000', this.options.normalize);
-  }
   this._updateSelection(normalized);
-  this._updateVisuals();
   return this;
 };
 
 ColorPopup.prototype.render = function() {
   var palette = document.createElement('div');
-  var controls = document.createElement('div');
-  var sv = document.createElement('div');
-  var svMarker = document.createElement('span');
-  var hue = document.createElement('div');
-  var hueMarker = document.createElement('span');
-  var alpha = document.createElement('div');
-  var alphaFill = document.createElement('span');
-  var alphaMarker = document.createElement('span');
   var index;
   var raw;
   var normalized;
+  var isClear;
   var swatch;
   palette.className = 'fui-colorbox-palette';
   palette.setAttribute('role', 'listbox');
   for (index = 0; index < this.options.palette.length; index += 1) {
     raw = this.options.palette[index];
+    isClear = raw == null || String(raw).trim() === '';
     normalized = this.options.normalize(raw);
-    if (!normalized) continue;
+    if (!normalized && !isClear) continue;
     swatch = document.createElement('button');
     swatch.type = 'button';
-    swatch.className = 'fui-colorbox-swatch';
+    swatch.className = 'fui-colorbox-swatch' +
+      (isClear ? ' fui-colorbox-clear icon-clear' : '');
     swatch.setAttribute('role', 'option');
-    swatch.setAttribute('aria-label', String(raw));
-    swatch.title = String(raw);
-    swatch.dataset.value = String(raw);
+    swatch.setAttribute('aria-label', isClear ? this.options.clearText : String(raw));
+    swatch.title = isClear ? this.options.clearText : String(raw);
+    swatch.dataset.value = isClear ? '' : String(raw);
     swatch.dataset.normalizedValue = normalized;
-    swatch.style.backgroundColor = normalized;
+    swatch.dataset.clear = isClear ? 'true' : 'false';
+    swatch.style.backgroundColor = isClear ? '#ffffff' : normalized;
     palette.appendChild(swatch);
   }
-  controls.className = 'fui-colorbox-controls';
-  sv.className = 'fui-colorbox-sv';
-  sv.setAttribute('aria-label', this.options.saturationText);
-  svMarker.className = 'fui-colorbox-marker fui-colorbox-sv-marker';
-  sv.appendChild(svMarker);
-  hue.className = 'fui-colorbox-hue';
-  hue.setAttribute('aria-label', this.options.hueText);
-  hueMarker.className = 'fui-colorbox-marker fui-colorbox-hue-marker';
-  hue.appendChild(hueMarker);
-  alpha.className = 'fui-colorbox-alpha';
-  alpha.setAttribute('aria-label', this.options.alphaText);
-  alphaFill.className = 'fui-colorbox-alpha-fill';
-  alphaMarker.className = 'fui-colorbox-marker fui-colorbox-alpha-marker';
-  alpha.appendChild(alphaFill);
-  alpha.appendChild(alphaMarker);
-  controls.appendChild(sv);
-  controls.appendChild(hue);
-  if (this.options.showAlpha) controls.appendChild(alpha);
   this.panel.textContent = '';
   this.panel.appendChild(palette);
-  this.panel.appendChild(controls);
   this.paletteElement = palette;
-  this.saturationElement = sv;
-  this.hueElement = hue;
-  this.alphaElement = alpha;
   this.panel.style.width = typeof this.options.panelWidth === 'number' ?
     this.options.panelWidth + 'px' :
     String(this.options.panelWidth || ColorPopup.defaults.panelWidth + 'px');
   this._updateSelection(this.options.normalize(this.value));
-  this._updateVisuals();
   return this;
 };
 
 ColorPopup.prototype._updateSelection = function(normalized) {
+  var emptyValue = String(this.value == null ? '' : this.value).trim() === '';
   if (!this.paletteElement) return;
   Array.prototype.forEach.call(this.paletteElement.children, function(swatch) {
-    var selected = Boolean(normalized) &&
-      swatch.dataset.normalizedValue === normalized;
+    var selected = swatch.dataset.clear === 'true' ?
+      emptyValue :
+      Boolean(normalized) && swatch.dataset.normalizedValue === normalized;
     swatch.classList.toggle('fui-colorbox-swatch-selected', selected);
     swatch.setAttribute('aria-selected', selected ? 'true' : 'false');
   });
 };
 
-ColorPopup.prototype._updateVisuals = function() {
-  var state = this.state ||
-    createColorPopupState('#ff0000', this.options.normalize);
-  var rgb = hsvToColorPopupRgb(state.h, state.s, state.v);
-  var svMarker = this.panel.querySelector('.fui-colorbox-sv-marker');
-  var hueMarker = this.panel.querySelector('.fui-colorbox-hue-marker');
-  var alphaFill = this.panel.querySelector('.fui-colorbox-alpha-fill');
-  var alphaMarker = this.panel.querySelector('.fui-colorbox-alpha-marker');
-  if (this.saturationElement) {
-    this.saturationElement.style.backgroundColor =
-      'hsl(' + Math.round(state.h) + ', 100%, 50%)';
-  }
-  if (svMarker) {
-    svMarker.style.left = (state.s * 100) + '%';
-    svMarker.style.top = ((1 - state.v) * 100) + '%';
-  }
-  if (hueMarker) hueMarker.style.top = (state.h / 360 * 100) + '%';
-  if (alphaFill) {
-    alphaFill.style.backgroundImage = 'linear-gradient(to right, rgba(' +
-      rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', 0), rgb(' +
-      rgb.r + ', ' + rgb.g + ', ' + rgb.b + '))';
-  }
-  if (alphaMarker) alphaMarker.style.left = (state.a * 100) + '%';
-};
-
 ColorPopup.prototype._handlePointerDown = function(event) {
   var swatch = event.target.closest('.fui-colorbox-swatch');
-  var area;
-  var mode;
   var value;
   if (!this.visible) return;
+  if (!swatch) return;
   event.preventDefault();
   event.stopPropagation();
-  if (swatch) {
-    value = swatch.dataset.value;
-    this.setValue(value);
-    if (typeof this.options.onSelect === 'function') {
-      this.options.onSelect(value, this);
-    }
-    if (this.options.closeOnSelect) this.hide();
-    return;
+  value = swatch.dataset.value;
+  this.setValue(value);
+  if (typeof this.options.onSelect === 'function') {
+    this.options.onSelect(value, this);
   }
-  area = event.target.closest('.fui-colorbox-sv');
-  mode = 'sv';
-  if (!area) {
-    area = event.target.closest('.fui-colorbox-hue');
-    mode = 'hue';
-  }
-  if (!area) {
-    area = event.target.closest('.fui-colorbox-alpha');
-    mode = 'alpha';
-  }
-  if (!area) return;
-  this.dragState = {
-    mode: mode,
-    element: area,
-    pointerId: event.pointerId
-  };
-  if (area.setPointerCapture && event.pointerId != null) {
-    area.setPointerCapture(event.pointerId);
-  }
-  this._updateFromPointer(event);
 };
 
-ColorPopup.prototype._handlePointerMove = function(event) {
-  if (!this.dragState) return;
+ColorPopup.prototype._handleClick = function(event) {
+  var swatch;
+  if (!this.visible || !this.options.closeOnSelect) return;
+  swatch = event.target.closest('.fui-colorbox-swatch');
+  if (!swatch) return;
   event.preventDefault();
-  this._updateFromPointer(event);
-};
-
-ColorPopup.prototype._handlePointerUp = function(event) {
-  var drag = this.dragState;
-  if (!drag) return;
-  if (drag.element.releasePointerCapture && drag.pointerId != null) {
-    try {
-      drag.element.releasePointerCapture(drag.pointerId);
-    } catch (error) {
-      // Pointer capture may already be released.
-    }
-  }
-  this.dragState = null;
-  event.preventDefault();
-  if (this.options.closeOnDragEnd) this.hide();
-};
-
-ColorPopup.prototype._updateFromPointer = function(event) {
-  var drag = this.dragState;
-  var rect;
-  var x;
-  var y;
-  var value;
-  if (!drag || !drag.element) return;
-  rect = drag.element.getBoundingClientRect();
-  x = clampColorPopup(
-    (event.clientX - rect.left) / Math.max(1, rect.width),
-    0,
-    1
-  );
-  y = clampColorPopup(
-    (event.clientY - rect.top) / Math.max(1, rect.height),
-    0,
-    1
-  );
-  this.state = this.state ||
-    createColorPopupState(this.value || '#ff0000', this.options.normalize);
-  if (drag.mode === 'sv') {
-    this.state.s = x;
-    this.state.v = 1 - y;
-  } else if (drag.mode === 'hue') {
-    this.state.h = Math.min(359.999, y * 360);
-  } else if (drag.mode === 'alpha') {
-    this.state.a = x;
-  }
-  value = colorPopupStateToHex(this.state, this.options.showAlpha);
-  this.value = value;
-  this._updateSelection(this.options.normalize(value));
-  this._updateVisuals();
-  if (typeof this.options.onInput === 'function') {
-    this.options.onInput(value, this);
-  }
+  event.stopPropagation();
+  this.hide();
 };
 
 ColorPopup.prototype.show = function() {
@@ -24875,7 +25161,6 @@ ColorPopup.prototype.hide = function() {
   var openClassHost;
   if (!this.visible) return this;
   this.visible = false;
-  this.dragState = null;
   this.panel.hidden = true;
   this._unbindOpenEvents();
   if (activeColorPopup === this) activeColorPopup = null;
@@ -24937,12 +25222,12 @@ ColorPopup.prototype.destroy = function() {
   this.hide();
   this.destroyed = true;
   this.panel.removeEventListener('pointerdown', this._onPanelPointerDown);
-  this.panel.removeEventListener('pointermove', this._onPanelPointerMove);
-  this.panel.removeEventListener('pointerup', this._onPanelPointerUp);
-  this.panel.removeEventListener('pointercancel', this._onPanelPointerUp);
+  this.panel.removeEventListener('click', this._onPanelClick);
   this._unbindOpenEvents();
   if (this.panel.parentNode) this.panel.parentNode.removeChild(this.panel);
 };
+
+ColorPopup.defaultPalette = DEFAULT_COLOR_PALETTE.slice();
 
 
 
@@ -24960,44 +25245,21 @@ function createColorEditBoxFactory(TextBox, editorDefinitions) {
   var localePacks = {
     en: {
       openColorText: 'Open color palette',
-      saturationText: 'Saturation and brightness',
-      hueText: 'Hue',
-      alphaText: 'Alpha'
-    },
-    'zh-TW': {
-      openColorText: '開啟色盤',
-      saturationText: '飽和度與明度',
-      hueText: '色相',
-      alphaText: '透明度'
-    },
-    'zh-CN': {
-      openColorText: '打开色板',
-      saturationText: '饱和度与明度',
-      hueText: '色相',
-      alphaText: '透明度'
+      clearColorText: 'Clear color'
     }
   };
 
-  var defaultPalette = [
-    '#ffffff', '#000000', '#ff0000', '#ffc000', '#ffff00', '#92d050', '#00b050', '#00b0f0', '#0070c0', '#7030a0',
-    '#f2f2f2', '#737373', '#ffe5e5', '#fff9e5', '#ffffe5', '#f3ffe5', '#e5fff1', '#e5f8ff', '#e5f4ff', '#f4e5ff',
-    '#d9d9d9', '#595959', '#e6a1a1', '#e6d4a1', '#e5e6a1', '#c4e6a1', '#a1e6c0', '#a1d3e6', '#a1c9e6', '#c8a1e6',
-    '#bfbfbf', '#404040', '#cc6666', '#ccb366', '#cccc66', '#9bcc66', '#66cc94', '#66b1cc', '#66a2cc', '#a066cc',
-    '#a6a6a6', '#262626', '#b23636', '#b29436', '#b2b236', '#76b236', '#36b26e', '#3691b2', '#367eb2', '#7d36b2',
-    '#8c8c8c', '#0d0d0d', '#990f0f', '#99770f', '#99990f', '#56990f', '#0f994e', '#0f7499', '#0f6099', '#5e0f99'
-  ];
+  var defaultPalette = ColorPopup.defaultPalette;
 
   var defaults = {
+    autoUnmask: false,
     iconWidth: 28,
-    panelWidth: 420,
+    panelWidth: 162,
     locale: 'en',
     openColorText: null,
-    saturationText: null,
-    hueText: null,
-    alphaText: null,
+    clearColorText: null,
     palette: defaultPalette,
     colors: null,
-    showAlpha: true,
     onChange: null,
     onSelect: null,
     onShowPanel: null,
@@ -25024,8 +25286,12 @@ function createColorEditBoxFactory(TextBox, editorDefinitions) {
   function normalizeLocale(name) {
     name = String(name || 'en').trim().replace(/_/g, '-');
     if (localePacks[name]) return name;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 
@@ -25050,14 +25316,8 @@ function createColorEditBoxFactory(TextBox, editorDefinitions) {
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'openColorText')) {
       this._options.openColorText = localePacks[this._options.locale].openColorText;
     }
-    if (!Object.prototype.hasOwnProperty.call(userOptions, 'saturationText')) {
-      this._options.saturationText = localePacks[this._options.locale].saturationText;
-    }
-    if (!Object.prototype.hasOwnProperty.call(userOptions, 'hueText')) {
-      this._options.hueText = localePacks[this._options.locale].hueText;
-    }
-    if (!Object.prototype.hasOwnProperty.call(userOptions, 'alphaText')) {
-      this._options.alphaText = localePacks[this._options.locale].alphaText;
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'clearColorText')) {
+      this._options.clearColorText = localePacks[this._options.locale].clearColorText;
     }
     this._options.palette = Array.isArray(this._options.palette) ?
       this._options.palette.slice() :
@@ -25065,8 +25325,6 @@ function createColorEditBoxFactory(TextBox, editorDefinitions) {
     if (Array.isArray(this._options.colors) && this._options.colors.length) {
       this._options.palette = this._options.colors.slice();
     }
-    this._options.showAlpha = this._options.showAlpha !== false;
-
     icons = normalizeEditorIconDescriptors(this._options.icons);
     icons.push({
       iconCls: 'fui-colorbox-trigger fui-combobox-arrow',
@@ -25099,15 +25357,10 @@ function createColorEditBoxFactory(TextBox, editorDefinitions) {
       openClassHost: this._shell,
       panelWidth: this._options.panelWidth,
       ariaLabel: this._options.openColorText,
-      saturationText: this._options.saturationText,
-      hueText: this._options.hueText,
-      alphaText: this._options.alphaText,
+      clearText: this._options.clearColorText,
       palette: this._options.palette,
-      showAlpha: this._options.showAlpha,
+      closeOnSelect: true,
       normalize: this._normalizeColor.bind(this),
-      onInput: function(value) {
-        self._textbox.setValue(value);
-      },
       onSelect: function(value) {
         self.setValue(value);
         self._invoke('onSelect', self.getValue());
@@ -25185,6 +25438,10 @@ function createColorEditBoxFactory(TextBox, editorDefinitions) {
     return this;
   };
 
+  ColorEditBox.prototype.fix = function() {
+    return this.setValue(this._editor.value);
+  };
+
   ColorEditBox.prototype.initValue = function(value) {
     this._textbox.initValue(this._parseColor(value));
     this._syncColor();
@@ -25213,18 +25470,14 @@ function createColorEditBoxFactory(TextBox, editorDefinitions) {
     this._options.locale = normalizeLocale(name);
     pack = localePacks[this._options.locale] || localePacks.en;
     this._options.openColorText = pack.openColorText;
-    this._options.saturationText = pack.saturationText;
-    this._options.hueText = pack.hueText;
-    this._options.alphaText = pack.alphaText;
+    this._options.clearColorText = pack.clearColorText;
     if (this._trigger) {
       this._trigger.title = this._options.openColorText;
       this._trigger.setAttribute('aria-label', this._options.openColorText);
     }
     this._colorPopup.setOptions({
       ariaLabel: this._options.openColorText,
-      saturationText: this._options.saturationText,
-      hueText: this._options.hueText,
-      alphaText: this._options.alphaText
+      clearText: this._options.clearColorText
     });
     return this;
   };
@@ -25241,11 +25494,8 @@ function createColorEditBoxFactory(TextBox, editorDefinitions) {
       openClassHost: this._shell,
       panelWidth: this._options.panelWidth,
       ariaLabel: this._options.openColorText,
-      saturationText: this._options.saturationText,
-      hueText: this._options.hueText,
-      alphaText: this._options.alphaText,
-      palette: this._options.palette,
-      showAlpha: this._options.showAlpha
+      clearText: this._options.clearColorText,
+      palette: this._options.palette
     });
     this._colorPopup.setValue(this.getValue() || '#ff0000');
     this._colorPopup.show();
@@ -25426,7 +25676,7 @@ function createEditBoxFactory(editorDefinitions) {
     if (this._source.__fabuiEditBox) {
       return this._source.__fabuiEditBox;
     }
-    options = options || {};
+    options = assignEditBoxOptions({}, EditBox.defaults, options || {});
     this._editorType = inferEditorType(this._source, options);
     factory = factories[this._editorType];
     if (!factory) {
@@ -25445,8 +25695,36 @@ function createEditBoxFactory(editorDefinitions) {
     childOptions.cls = 'fui-editbox' + (childOptions.cls ? ' ' + childOptions.cls : '');
     this._destroyed = false;
     this._control = new factory(this._source, childOptions);
+    this._focusRoot = this._control.textbox().closest('.fui-textbox') || this._control.textbox();
+    this._focusPanel = typeof this._control.panel === 'function' ? this._control.panel() : null;
+    this._boundFocusOut = this._handleFocusOut.bind(this);
+    this._focusRoot.addEventListener('focusout', this._boundFocusOut);
+    if (this._focusPanel) {
+      this._focusPanel.addEventListener('focusout', this._boundFocusOut);
+    }
     this._source.__fabuiEditBox = this;
   }
+
+  EditBox.prototype._containsFocusTarget = function(target) {
+    var containers = [this._focusRoot, this._focusPanel];
+    var index;
+    if (!target) return false;
+    for (index = 0; index < containers.length; index += 1) {
+      if (containers[index] &&
+          (containers[index] === target ||
+            (typeof containers[index].contains === 'function' && containers[index].contains(target)))) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  EditBox.prototype._handleFocusOut = function(event) {
+    if (this._destroyed || this._containsFocusTarget(event.relatedTarget)) {
+      return;
+    }
+    this.fix();
+  };
 
   EditBox.prototype.getEditorType = function() {
     return this._editorType;
@@ -25683,9 +25961,16 @@ function createEditBoxFactory(editorDefinitions) {
   EditBox.prototype.destroy = function() {
     if (this._destroyed) return;
     this._destroyed = true;
+    this._focusRoot.removeEventListener('focusout', this._boundFocusOut);
+    if (this._focusPanel) {
+      this._focusPanel.removeEventListener('focusout', this._boundFocusOut);
+    }
     delete this._source.__fabuiEditBox;
     this._control.destroy();
     this._control = null;
+    this._focusRoot = null;
+    this._focusPanel = null;
+    this._boundFocusOut = null;
   };
 
   EditBox.prototype.dispose = EditBox.prototype.destroy;
@@ -25693,6 +25978,9 @@ function createEditBoxFactory(editorDefinitions) {
   EditBox.editorDefinitions = definitions;
   EditBox.editorTypes = EDITOR_TYPES.slice();
   EditBox.themes = EDITBOX_THEMES.slice();
+  EditBox.defaults = {
+    locale: 'en'
+  };
   EditBox.locales = {
     en: assignEditBoxOptions(
       {},
@@ -25701,23 +25989,21 @@ function createEditBoxFactory(editorDefinitions) {
       DateBox.locales.en,
       ComboBox.locales.en,
       ColorEditBox.locales.en
-    ),
-    'zh-TW': assignEditBoxOptions(
-      {},
-      NumberBox.locales['zh-TW'],
-      TimeBox.locales['zh-TW'],
-      DateBox.locales['zh-TW'],
-      ComboBox.locales['zh-TW'],
-      ColorEditBox.locales['zh-TW']
-    ),
-    'zh-CN': assignEditBoxOptions(
-      {},
-      NumberBox.locales['zh-CN'],
-      TimeBox.locales['zh-CN'],
-      DateBox.locales['zh-CN'],
-      ComboBox.locales['zh-CN'],
-      ColorEditBox.locales['zh-CN']
     )
+  };
+  EditBox.addLocale = function(name, pack) {
+    if (!name || !pack) return EditBox;
+    NumberBox.extendLocale(name, pack);
+    TimeBox.extendLocale(name, pack);
+    DateBox.addLocale(name, pack);
+    ComboBox.addLocale(name, pack);
+    ColorEditBox.addLocale(name, pack);
+    EditBox.locales[name] = assignEditBoxOptions({}, EditBox.locales.en, pack);
+    return EditBox;
+  };
+  EditBox.setDefaultLocale = function(locale) {
+    EditBox.defaults.locale = String(locale || 'en');
+    return EditBox;
   };
   EditBox.getEditorDefinition = function(name) {
     return definitions[normalizeDefinitionName(name)] || null;
@@ -25859,14 +26145,6 @@ function createFileBoxFactory(Control, registerControl, unregisterControl, EditB
     en: {
       chooseFile: 'Choose File',
       fileBox: 'File upload'
-    },
-    'zh-TW': {
-      chooseFile: '選擇檔案',
-      fileBox: '檔案上傳'
-    },
-    'zh-CN': {
-      chooseFile: '选择文件',
-      fileBox: '文件上传'
     }
   };
 
@@ -26638,32 +26916,6 @@ function createFormFactory(Control, registerControl, unregisterControl, EditBox)
       stepMismatch: 'Please enter a valid value.',
       badInput: 'Please enter a valid value.',
       invalid: 'Please enter a valid value.'
-    },
-    'zh-TW': {
-      valueMissing: '此欄位為必填。',
-      typeMismatchEmail: '請輸入有效的電子郵件地址。',
-      typeMismatchURL: '請輸入有效的網址。',
-      patternMismatch: '請依照要求的格式輸入。',
-      tooShort: '請至少輸入 {minLength} 個字元。',
-      tooLong: '請勿超過 {maxLength} 個字元。',
-      rangeUnderflow: '請輸入大於或等於 {min} 的值。',
-      rangeOverflow: '請輸入小於或等於 {max} 的值。',
-      stepMismatch: '請輸入有效值。',
-      badInput: '請輸入有效值。',
-      invalid: '請輸入有效值。'
-    },
-    'zh-CN': {
-      valueMissing: '此字段为必填项。',
-      typeMismatchEmail: '请输入有效的电子邮件地址。',
-      typeMismatchURL: '请输入有效的网址。',
-      patternMismatch: '请按照要求的格式输入。',
-      tooShort: '请至少输入 {minLength} 个字符。',
-      tooLong: '请勿超过 {maxLength} 个字符。',
-      rangeUnderflow: '请输入大于或等于 {min} 的值。',
-      rangeOverflow: '请输入小于或等于 {max} 的值。',
-      stepMismatch: '请输入有效值。',
-      badInput: '请输入有效值。',
-      invalid: '请输入有效值。'
     }
   };
 
@@ -27829,14 +28081,6 @@ function createMenuFactory(Control, registerControl, unregisterControl) {
     en: {
       menu: 'Menu',
       submenu: 'Submenu'
-    },
-    'zh-TW': {
-      menu: '選單',
-      submenu: '子選單'
-    },
-    'zh-CN': {
-      menu: '菜单',
-      submenu: '子菜单'
     }
   };
 
@@ -27871,6 +28115,7 @@ function createMenuFactory(Control, registerControl, unregisterControl) {
     this._options = assignMenuOptions({}, FabMenu.defaults, this._readElementOptions(), options || {});
     this._options.align = normalizeMenuAlign(this._options.align);
     this._options.locale = normalizeMenuLocale(this._options.locale);
+    if (!localePacks[this._options.locale]) this._options.locale = 'en';
     this._options.minWidth = Math.max(0, menuNumber(this._options.minWidth, 120));
     this._options.itemHeight = Math.max(22, menuNumber(this._options.itemHeight, 32));
     this._options.duration = Math.max(0, menuNumber(this._options.duration, 100));
@@ -27892,7 +28137,8 @@ function createMenuFactory(Control, registerControl, unregisterControl) {
   FabMenu.prototype.constructor = FabMenu;
 
   FabMenu.prototype._getText = function(key) {
-    return localePacks[this._options.locale][key] || localePacks.en[key] || key;
+    var pack = localePacks[this._options.locale] || localePacks.en;
+    return pack[key] || localePacks.en[key] || key;
   };
 
   FabMenu.prototype._readElementOptions = function() {
@@ -28624,6 +28870,7 @@ function createMenuFactory(Control, registerControl, unregisterControl) {
 
   FabMenu.prototype.setLocale = function(locale) {
     this._options.locale = normalizeMenuLocale(locale);
+    if (!localePacks[this._options.locale]) this._options.locale = 'en';
     this.hostElement.setAttribute('aria-label', this._options.ariaLabel || this._getText('menu'));
     return this;
   };
@@ -29597,32 +29844,18 @@ function createPanelFactory(Control, registerControl, unregisterControl) {
       maximize: 'Maximize',
       restore: 'Restore',
       loading: 'Loading...'
-    },
-    'zh-TW': {
-      close: '關閉',
-      collapse: '收合',
-      expand: '展開',
-      minimize: '最小化',
-      maximize: '最大化',
-      restore: '還原',
-      loading: '載入中...'
-    },
-    'zh-CN': {
-      close: '关闭',
-      collapse: '收合',
-      expand: '展开',
-      minimize: '最小化',
-      maximize: '最大化',
-      restore: '还原',
-      loading: '加载中...'
     }
   };
 
   function normalizeLocale(value) {
     value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 
@@ -29717,7 +29950,11 @@ function createPanelFactory(Control, registerControl, unregisterControl) {
     panel.appendChild(footer);
     if (this._originalParent) this._originalParent.insertBefore(panel, this._originalNextSibling);
     this.hostElement.classList.add('fui-panel-body');
-    if (this.options.bodyCls) this.hostElement.classList.add(this.options.bodyCls);
+    if (this.options.bodyCls) {
+      String(this.options.bodyCls).trim().split(/\s+/).forEach(function(className) {
+        if (className) this.hostElement.classList.add(className);
+      }, this);
+    }
     this.hostElement.removeAttribute('title');
     this.hostElement.style.display = '';
     this.panelElement = panel;
@@ -30587,26 +30824,6 @@ function createPropertyGridFactory(Control, registerControl, unregisterControl, 
       trueText: 'True',
       falseText: 'False',
       loadError: 'Unable to load property data.'
-    },
-    'zh-TW': {
-      propertyGrid: '屬性表',
-      name: '名稱',
-      value: '值',
-      expandGroup: '展開{group}',
-      collapseGroup: '收合{group}',
-      trueText: '是',
-      falseText: '否',
-      loadError: '無法載入屬性資料。'
-    },
-    'zh-CN': {
-      propertyGrid: '属性表',
-      name: '名称',
-      value: '值',
-      expandGroup: '展开{group}',
-      collapseGroup: '收起{group}',
-      trueText: '是',
-      falseText: '否',
-      loadError: '无法加载属性数据。'
     }
   };
 
@@ -31605,22 +31822,6 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
       close: 'Close {title}',
       tool: 'Tab tool {index}',
       loadError: 'Unable to load tab content: {status}'
-    },
-    'zh-TW': {
-      untitled: '未命名',
-      previous: '上一組頁籤',
-      next: '下一組頁籤',
-      close: '關閉 {title}',
-      tool: '頁籤工具 {index}',
-      loadError: '無法載入頁籤內容：{status}'
-    },
-    'zh-CN': {
-      untitled: '未命名',
-      previous: '上一组页签',
-      next: '下一组页签',
-      close: '关闭 {title}',
-      tool: '页签工具 {index}',
-      loadError: '无法加载页签内容：{status}'
     }
   };
 
@@ -31666,8 +31867,12 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
   function normalizeLocale(value) {
     value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
-    if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+    if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 
@@ -32027,6 +32232,7 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
     var tab = record.tab || document.createElement('button');
     var icon;
     var title;
+    var titleText;
     var close;
     tab.type = 'button';
     tab.className = 'fui-tabs-tab';
@@ -32040,7 +32246,8 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
     }
     title = document.createElement('span');
     title.className = 'fui-tabs-title';
-    title.textContent = record.options.title;
+    title.innerHTML = record.options.title == null ? '' : String(record.options.title);
+    titleText = title.textContent == null ? '' : title.textContent.trim();
     title.draggable = this._isHorizontalDragEnabled() && !record.options.disabled;
     tab.appendChild(title);
     record.panelTools = this._resolveTools(record.options.tools);
@@ -32057,7 +32264,7 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
     if (record.options.closable) {
       close = document.createElement('span');
       close.className = 'fui-tabs-close';
-      close.setAttribute('aria-label', formatText(this._getText('close'), { title: record.options.title }));
+      close.setAttribute('aria-label', formatText(this._getText('close'), { title: titleText }));
       close.textContent = '×';
       tab.appendChild(close);
     }
@@ -32887,6 +33094,8 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
     onlyLeafCheck: false,
     lines: false,
     dnd: false,
+    fitWidth: false,
+    externalDropTargets: null,
     data: null,
     queryParams: {},
     formatter: null,
@@ -32918,6 +33127,10 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
     onDragLeave: null,
     onBeforeDrop: null,
     onDrop: null,
+    onExternalDragOver: null,
+    onExternalDragLeave: null,
+    onBeforeExternalDrop: null,
+    onExternalDrop: null,
     onBeforeEdit: null,
     onAfterEdit: null,
     onCancelEdit: null
@@ -32931,24 +33144,6 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
       uncheck: 'Uncheck {text}',
       loading: 'Loading',
       edit: 'Edit {text}'
-    },
-    'zh-TW': {
-      tree: '樹狀清單',
-      expand: '展開{text}',
-      collapse: '收合{text}',
-      check: '勾選{text}',
-      uncheck: '取消勾選{text}',
-      loading: '載入中',
-      edit: '編輯{text}'
-    },
-    'zh-CN': {
-      tree: '树状列表',
-      expand: '展开{text}',
-      collapse: '收起{text}',
-      check: '勾选{text}',
-      uncheck: '取消勾选{text}',
-      loading: '加载中',
-      edit: '编辑{text}'
     }
   };
 
@@ -33014,6 +33209,7 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
     this._dragNode = null;
     this._dragTarget = null;
     this._dragPoint = null;
+    this._externalDropRecords = [];
     this._destroyed = false;
     this._loadSequence = 0;
     this._themeSource = this.hostElement.parentElement || document.body;
@@ -33056,7 +33252,15 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
     if (value) result.url = value;
     value = host.getAttribute('aria-label');
     if (value) result.ariaLabel = value;
-    ['animate', 'checkbox', 'cascadeCheck', 'onlyLeafCheck', 'lines', 'dnd'].forEach(function(name) {
+    [
+      'animate',
+      'checkbox',
+      'cascadeCheck',
+      'onlyLeafCheck',
+      'lines',
+      'dnd',
+      'fitWidth'
+    ].forEach(function(name) {
       var attribute = host.getAttribute('data-' + name.replace(/[A-Z]/g, function(letter) {
         return '-' + letter.toLowerCase();
       }));
@@ -33072,6 +33276,7 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
     this._options.onlyLeafCheck = treeBoolean(this._options.onlyLeafCheck, false);
     this._options.lines = treeBoolean(this._options.lines, false);
     this._options.dnd = treeBoolean(this._options.dnd, false);
+    this._options.fitWidth = treeBoolean(this._options.fitWidth, false);
     this._options.locale = normalizeTreeLocale(this._options.locale);
     this._options.method = String(this._options.method || 'post').toLowerCase();
   };
@@ -33088,6 +33293,7 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
     this.hostElement.classList.add('fui-tree');
     this.hostElement.classList.toggle('fui-tree-animate', this._options.animate);
     this.hostElement.classList.toggle('fui-tree-lines', this._options.lines);
+    this.hostElement.classList.toggle('fui-tree-fit-width', this._options.fitWidth);
     this.hostElement.setAttribute('role', 'tree');
     this.hostElement.setAttribute(
       'aria-label',
@@ -33106,6 +33312,112 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
     this.addEventListener(this.hostElement, 'dragleave', this._handleDragLeave.bind(this));
     this.addEventListener(this.hostElement, 'drop', this._handleDrop.bind(this));
     this.addEventListener(this.hostElement, 'dragend', this._handleDragEnd.bind(this));
+    this._bindExternalDropTargets();
+  };
+
+  FabTree.prototype._bindExternalDropTargets = function() {
+    var self = this;
+    var targets = this._options.externalDropTargets;
+    if (targets == null) return;
+    if (!Array.isArray(targets)) targets = [targets];
+    targets.forEach(function(definition) {
+      var descriptor = definition && typeof definition === 'object' &&
+        !definition.nodeType ? definition : { target: definition };
+      var element = resolveTreeElement(descriptor.target || descriptor.element);
+      var activeCls = String(
+        descriptor.activeCls || 'fui-tree-external-drop-active'
+      ).trim();
+      var record;
+      if (!element) return;
+      record = {
+        element: element,
+        descriptor: descriptor,
+        activeCls: activeCls
+      };
+      self._externalDropRecords.push(record);
+      self.addEventListener(element, 'dragover', function(event) {
+        if (!self._dragNode) return;
+        event.preventDefault();
+        self._clearDropState();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+        activeCls.split(/\s+/).forEach(function(className) {
+          if (className) element.classList.add(className);
+        });
+        if (typeof descriptor.onDragOver === 'function') {
+          descriptor.onDragOver.call(self, self._dragNode, event, element);
+        }
+        self._invoke('onExternalDragOver', element, self._dragNode, event);
+        self._emit('externaldragover', {
+          target: element,
+          source: self._dragNode,
+          originalEvent: event
+        });
+      });
+      self.addEventListener(element, 'dragleave', function(event) {
+        if (element.contains(event.relatedTarget)) return;
+        self._clearExternalDropRecord(record);
+        if (!self._dragNode) return;
+        if (typeof descriptor.onDragLeave === 'function') {
+          descriptor.onDragLeave.call(self, self._dragNode, event, element);
+        }
+        self._invoke('onExternalDragLeave', element, self._dragNode, event);
+        self._emit('externaldragleave', {
+          target: element,
+          source: self._dragNode,
+          originalEvent: event
+        });
+      });
+      self.addEventListener(element, 'drop', function(event) {
+        var source = self._dragNode;
+        var allowed;
+        if (!source) return;
+        event.preventDefault();
+        self._clearExternalDropRecord(record);
+        allowed = typeof descriptor.onBeforeDrop !== 'function' ||
+          descriptor.onBeforeDrop.call(self, source, event, element) !== false;
+        if (allowed) {
+          allowed = self._invoke(
+            'onBeforeExternalDrop',
+            element,
+            source,
+            event
+          ) !== false;
+        }
+        if (
+          allowed &&
+          !self._emit('beforeexternaldrop', {
+            target: element,
+            source: source,
+            originalEvent: event
+          }, true)
+        ) {
+          allowed = false;
+        }
+        if (!allowed) return;
+        if (typeof descriptor.onDrop === 'function') {
+          descriptor.onDrop.call(self, source, event, element);
+        }
+        self._invoke('onExternalDrop', element, source, event);
+        self._emit('externaldrop', {
+          target: element,
+          source: source,
+          originalEvent: event
+        });
+      });
+    });
+  };
+
+  FabTree.prototype._clearExternalDropRecord = function(record) {
+    if (!record || !record.element) return;
+    String(record.activeCls || '').split(/\s+/).forEach(function(className) {
+      if (className) record.element.classList.remove(className);
+    });
+  };
+
+  FabTree.prototype._clearExternalDropState = function() {
+    this._externalDropRecords.forEach(function(record) {
+      this._clearExternalDropRecord(record);
+    }, this);
   };
 
   FabTree.prototype._rowFromTarget = function(target) {
@@ -33281,6 +33593,7 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
     this.hostElement.classList.toggle('fui-tree-animate', this._options.animate);
     this.hostElement.classList.toggle('fui-tree-lines', this._options.lines);
     this.hostElement.classList.toggle('fui-tree-dnd', this._options.dnd);
+    this.hostElement.classList.toggle('fui-tree-fit-width', this._options.fitWidth);
     this.hostElement.appendChild(this._renderList(this._roots, 1));
     if (activeId != null) {
       this._selectedNode = this.find(activeId) || null;
@@ -33549,6 +33862,7 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
     var node = this._dragNode;
     if (node && node.target) node.target.classList.remove('fui-tree-node-dragging');
     this._clearDropState();
+    this._clearExternalDropState();
     this._dragNode = null;
     if (node) {
       this._invoke('onStopDrag', node);
@@ -33733,6 +34047,7 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
     this._normalizeOptions();
     this.hostElement.classList.toggle('fui-tree-animate', this._options.animate);
     this.hostElement.classList.toggle('fui-tree-lines', this._options.lines);
+    this.hostElement.classList.toggle('fui-tree-fit-width', this._options.fitWidth);
     this.setTheme(this._options.theme);
     return this.render();
   };
@@ -34173,6 +34488,7 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
     if (this._destroyed) return;
     this._destroyed = true;
     this._loadSequence += 1;
+    this._clearExternalDropState();
     this.removeEventListener();
     this.hostElement.innerHTML = this._original.html;
     restoreTreeAttribute(this.hostElement, 'class', this._original.className);
@@ -34184,6 +34500,7 @@ function createTreeFactory(Control, registerControl, unregisterControl) {
     delete this.hostElement.__fabuiTree;
     this._roots = [];
     this._selectedNode = null;
+    this._externalDropRecords = [];
     this._listeners = {};
   };
 
@@ -34988,34 +35305,18 @@ function createLayoutFactory(Control, registerControl, unregisterControl, Panel)
       expandSouth: 'Expand south',
       expandEast: 'Expand east',
       expandWest: 'Expand west'
-    },
-    'zh-TW': {
-      collapseNorth: '收合上方區域',
-      collapseSouth: '收合下方區域',
-      collapseEast: '收合右方區域',
-      collapseWest: '收合左方區域',
-      expandNorth: '展開上方區域',
-      expandSouth: '展開下方區域',
-      expandEast: '展開右方區域',
-      expandWest: '展開左方區域'
-    },
-    'zh-CN': {
-      collapseNorth: '收合上方区域',
-      collapseSouth: '收合下方区域',
-      collapseEast: '收合右方区域',
-      collapseWest: '收合左方区域',
-      expandNorth: '展开上方区域',
-      expandSouth: '展开下方区域',
-      expandEast: '展开右方区域',
-      expandWest: '展开左方区域'
     }
   };
 
   function normalizeLocale(value) {
     value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 
@@ -36177,30 +36478,18 @@ function createWindowFactory(Control, registerControl, unregisterControl) {
       minimize: 'Minimize',
       maximize: 'Maximize',
       restore: 'Restore'
-    },
-    'zh-TW': {
-      close: '關閉',
-      collapse: '收合',
-      expand: '展開',
-      minimize: '最小化',
-      maximize: '最大化',
-      restore: '還原'
-    },
-    'zh-CN': {
-      close: '关闭',
-      collapse: '收合',
-      expand: '展开',
-      minimize: '最小化',
-      maximize: '最大化',
-      restore: '还原'
     }
   };
 
   function normalizeLocale(value) {
     value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 
@@ -37179,22 +37468,6 @@ function createMessagerFactory(Window, Button) {
       confirm: 'Confirm',
       prompt: 'Prompt',
       progress: 'Please wait'
-    },
-    'zh-TW': {
-      ok: '確定',
-      cancel: '取消',
-      alert: '提示',
-      confirm: '確認',
-      prompt: '輸入',
-      progress: '請稍候'
-    },
-    'zh-CN': {
-      ok: '确定',
-      cancel: '取消',
-      alert: '提示',
-      confirm: '确认',
-      prompt: '输入',
-      progress: '请稍候'
     }
   };
   var dialogs = [];
@@ -37208,7 +37481,7 @@ function createMessagerFactory(Window, Button) {
 
   function localeMessages(options, callOptions) {
     var locale = normalizeMessagerLocale(options.locale);
-    var pack = localePacks[locale];
+    var pack = localePacks[locale] || localePacks.en;
     var defaults = Messager.defaults;
     var explicitOk = callOptions && Object.prototype.hasOwnProperty.call(callOptions, 'ok');
     var explicitCancel = callOptions && Object.prototype.hasOwnProperty.call(callOptions, 'cancel');
@@ -37241,6 +37514,7 @@ function createMessagerFactory(Window, Button) {
     }
     options = assignMessagerOptions({}, Messager.defaults, callOptions);
     options.locale = normalizeMessagerLocale(options.locale);
+    if (!localePacks[options.locale]) options.locale = 'en';
     options.theme = options.theme == null ? 'inherit' : options.theme;
     options.width = Math.max(240, messagerSize(options.width, 360));
     options.height = Math.max(130, messagerSize(options.height, 180));
@@ -37799,6 +38073,7 @@ function createMessagerFactory(Window, Button) {
     },
     setLocale: function(locale) {
       Messager.defaults.locale = normalizeMessagerLocale(locale);
+      if (!localePacks[Messager.defaults.locale]) Messager.defaults.locale = 'en';
       return Messager;
     },
     activeDialogs: function() {
@@ -37932,15 +38207,223 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     paginationHeight: 35,
     itemsSource: []
   };
-  var FABGRID_INTERNAL_LOCALES = {};
-  var DEFAULT_COLOR_PALETTE = [
-    '#ffffff', '#000000', '#ff0000', '#ffc000', '#ffff00', '#92d050', '#00b050', '#00b0f0', '#0070c0', '#7030a0',
-    '#f2f2f2', '#737373', '#ffe5e5', '#fff9e5', '#ffffe5', '#f3ffe5', '#e5fff1', '#e5f8ff', '#e5f4ff', '#f4e5ff',
-    '#d9d9d9', '#595959', '#e6a1a1', '#e6d4a1', '#e5e6a1', '#c4e6a1', '#a1e6c0', '#a1d3e6', '#a1c9e6', '#c8a1e6',
-    '#bfbfbf', '#404040', '#cc6666', '#ccb366', '#cccc66', '#9bcc66', '#66cc94', '#66b1cc', '#66a2cc', '#a066cc',
-    '#a6a6a6', '#262626', '#b23636', '#b29436', '#b2b236', '#76b236', '#36b26e', '#3691b2', '#367eb2', '#7d36b2',
-    '#8c8c8c', '#0d0d0d', '#990f0f', '#99770f', '#99990f', '#56990f', '#0f994e', '#0f7499', '#0f6099', '#5e0f99'
-  ];
+  var FABGRID_INTERNAL_LOCALES = { en: {
+    emptyText: 'No data',
+    chart: { emptyText: 'No data', value: 'Value', percent: 'Percent' },
+    combobox: { emptyText: 'No matching items' },
+    exportBusyText: 'Exporting Excel...',
+    workingText: 'Working...',
+    loadMsg: 'Processing, please wait...',
+    tree: {
+      contextMenuAriaLabel: 'TreeGrid expand and collapse',
+      expandAll: 'Expand all',
+      collapseAll: 'Collapse all'
+    },
+    pivot: {
+      grandTotal: 'Grand Total',
+      total: 'Total',
+      expandGroup: 'Expand group',
+      collapseGroup: 'Collapse group',
+      expandAll: 'Expand all',
+      collapseAll: 'Collapse all',
+      showDetail: 'Show detail',
+      detailTitle: 'Detail records',
+      detailCount: '{count} records',
+      closeDetail: 'Close detail',
+      sortAscending: 'Sort ascending',
+      sortDescending: 'Sort descending',
+      clearSort: 'Clear sort',
+      aggregate: 'Aggregate',
+      removeField: 'Remove field',
+      filteredValues: 'Filtered',
+      chart: {
+        ariaLabel: 'Pivot chart',
+        title: 'Pivot Chart',
+        pointsTruncated: 'Showing {count} of {total} categories',
+        seriesTruncated: 'Showing {count} of {total} series'
+      },
+      workspace: {
+        ariaLabel: 'Pivot analysis workspace',
+        panelTitle: 'Define View',
+        gridTitle: 'Pivot Grid',
+        chartTitle: 'Pivot Chart',
+        panelSplitter: 'Resize definition pane',
+        chartSplitter: 'Resize chart pane',
+        hidePanel: 'Hide Definition',
+        showPanel: 'Show Definition',
+        hideChart: 'Hide Chart',
+        showChart: 'Show Chart',
+        gridFullscreen: 'Pivot Grid fullscreen',
+        chartFullscreen: 'Pivot Chart fullscreen',
+        exitFullscreen: 'Exit fullscreen',
+        chartType: 'Chart type',
+        progress: 'Aggregating {progress}%',
+        cancel: 'Cancel',
+        cancelled: 'Aggregation cancelled',
+        error: 'Aggregation failed',
+        chartTypes: {
+          column: 'Column',
+          bar: 'Bar',
+          line: 'Line',
+          pie: 'Pie'
+        }
+      },
+      panel: {
+        ariaLabel: 'Pivot view settings',
+        fields: 'Fields',
+        filters: 'Filters',
+        rows: 'Rows',
+        columns: 'Columns',
+        values: 'Values',
+        allValues: 'All',
+        filterField: 'Filter {field}',
+        aggregateMenu: 'Value aggregation settings',
+        aggregateField: 'Set aggregation for {field}',
+        sortMenu: 'Dimension sorting settings',
+        sortField: 'Set sorting for {field}',
+        sortDefault: 'Default order',
+        filterMenu: 'Pivot field filter',
+        editFilter: 'Edit filter',
+        searchValues: 'Search values',
+        selectAll: 'Select all',
+        blankValue: '(blank)',
+        apply: 'Apply',
+        cancel: 'Cancel',
+        showAs: 'Show values as',
+        dropFields: 'Drag fields here',
+        noFields: 'No fields available',
+        removeField: 'Remove field'
+      },
+      aggregates: {
+        sum: 'Sum',
+        count: 'Count',
+        average: 'Average',
+        weightedaverage: 'Weighted average',
+        min: 'Minimum',
+        max: 'Maximum'
+      },
+      showAs: {
+        'no-calculation': 'No calculation',
+        'percent-of-grand-total': '% of grand total',
+        'percent-of-row-total': '% of row total',
+        'percent-of-column-total': '% of column total',
+        'difference-from-previous': 'Difference from previous',
+        'percent-difference-from-previous': '% difference from previous',
+        'running-total': 'Running total'
+      },
+      slicer: {
+        ariaLabel: 'Pivot slicer',
+        search: 'Search values',
+        selectAll: 'Select all',
+        apply: 'Apply',
+        clear: 'Clear',
+        noField: 'Select a field'
+      }
+    },
+    pagination: {
+      ariaLabel: 'Pagination',
+      pageSize: 'Page size',
+      pageNumber: 'Page number',
+      beforePageText: 'Page',
+      afterPageText: 'of {pages}',
+      displayMsg: 'Displaying {from} to {to} of {total} items',
+      first: 'First page',
+      previous: 'Previous page',
+      next: 'Next page',
+      last: 'Last page',
+      refresh: 'Refresh'
+    },
+    validation: {
+      invalidValue: 'Invalid value',
+      required: 'This field is required',
+      invalidDate: 'Invalid date',
+      invalidTime: 'Invalid time',
+      invalidYearMonth: 'Invalid year and month',
+      invalidColor: 'Invalid color',
+      comboboxLimitToList: 'Please select a valid item'
+    },
+    topLeftMenu: {
+      ariaLabel: 'Grid menu',
+      useSearchRow: 'Use search row',
+      useExcelFilter: 'Use Excel-like filter',
+      clearFilter: 'Clear filters',
+      rowHeaders: 'Row headers',
+      rowHeadersOff: 'Row headers: Off',
+      rowHeadersNumbers: 'Row headers: Numbers',
+      rowHeadersCellOnly: 'Row headers: Cells only',
+      exportExcel: 'Export Excel',
+      exportCsv: 'Export CSV',
+      fullscreen: 'Grid fullscreen',
+      exitFullscreen: 'Exit fullscreen'
+    },
+    aria: {
+      cellEditor: 'Cell editor',
+      increaseValue: 'Increase value',
+      decreaseValue: 'Decrease value',
+      openDatePicker: 'Open date picker',
+      datePicker: 'Date picker',
+      openComboBox: 'Open combo box',
+      comboBoxOptions: 'Combo box options',
+      openColorPicker: 'Open color picker',
+      colorPicker: 'Color picker',
+      colorClear: 'Clear color',
+      colorSaturation: 'Saturation and brightness',
+      colorHue: 'Hue',
+      colorAlpha: 'Alpha',
+      openColumnChooser: 'Open column chooser',
+      columnChooser: 'Column chooser',
+      selectAllRows: 'Select all rows',
+      selectRow: 'Select row {rowNumber}',
+      rowDragItem: 'Grid row',
+      expandNode: 'Expand node',
+      collapseNode: 'Collapse node',
+      year: 'Year'
+    },
+    filter: {
+      openMenu: 'Open filter menu for {column}',
+      searchValues: 'Search',
+      selectAll: 'Select All',
+      apply: 'Apply',
+      cancel: 'Cancel',
+      blankValue: '(Blanks)',
+      startsWith: 'Starts with ({symbol})',
+      contains: 'Contains ({symbol})',
+      endsWith: 'Ends with ({symbol})',
+      notStartsWith: 'Does not start with ({symbol})',
+      notContains: 'Does not contain ({symbol})',
+      notEndsWith: 'Does not end with ({symbol})',
+      greaterThanOrEqual: '{symbol}',
+      greaterThan: '{symbol}',
+      lessThanOrEqual: '{symbol}',
+      lessThan: '{symbol}',
+      notEqual: '{symbol}',
+      equal: '{symbol}',
+      clear: 'Clear'
+    },
+    datebox: {
+      today: 'Today',
+      currentMonth: 'Current month',
+      close: 'Close',
+      weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+      months: [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ],
+      monthTitle: '{month} {year}'
+    }
+  } };
+  var fabGridDefaultLocale = 'en';
+  var DEFAULT_COLOR_PALETTE = ColorPopup.defaultPalette;
 
   function FabGrid(element, options) {
     var self = this;
@@ -37966,6 +38449,11 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     }
     this.events = {};
     this.wijmoEvents = {};
+    this._updateCount = 0;
+    this._updatePendingRefresh = false;
+    this._updatePendingRender = false;
+    this._updatePendingInvalidate = false;
+    this._updatePendingSkipLayout = true;
     this.columns = [];
     this.source = [];
     this.view = [];
@@ -38142,7 +38630,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
 
     this.setColumns(this.options.columns || [], true);
     this.applyInitialFilterRules(this.options.filterRules);
-    this.setItemsSource(this.options.remote === true ? [] : (this.options.itemsSource || []), true);
+    this.setItemsSource(this.options.itemsSource || [], true);
     this.createWijmoEvents();
     this.bindOptionEvents();
     this.createDom();
@@ -38186,19 +38674,17 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.colorPopup = new ColorPopup({
       className: 'fui-grid-color-popup',
       normalize: normalizeColorValue,
+      clearText: this.getText('aria.colorClear'),
+      closeOnSelect: true,
       containsTarget: function(target) {
         return self.editor === target ||
           (self.editorIconHost && self.editorIconHost.contains(target)) ||
           Boolean(closest(target, 'fg-header-search-icons'));
       },
-      onInput: function(value) {
-        self.applyColorValueToTarget(value);
-      },
       onSelect: function(value) {
         var target = self.getColorTarget();
         self.applyColorValueToTarget(value);
-        if (target && target.type === 'search') {
-          self.colorPopup.hide();
+        if (target && target.input) {
           target.input.focus();
         }
       },
@@ -38506,7 +38992,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (typeof this.activateKeyboardEventOwner === 'function') {
       this.activateKeyboardEventOwner(event);
     }
-    if (!previousTarget || !this.root.contains(previousTarget)) {
+    if (!this.containsFocusTarget(previousTarget)) {
       this.emit('gotFocus', {
         originalEvent: event,
         relatedTarget: previousTarget || null
@@ -38514,14 +39000,39 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     }
   };
 
+  FabGrid.prototype.containsFocusTarget = function(target) {
+    var containers = [
+      this.root,
+      this.dateboxPanel,
+      this.comboboxPanel,
+      this.colorPanel
+    ];
+    var i;
+    if (!target) {
+      return false;
+    }
+    for (i = 0; i < containers.length; i += 1) {
+      if (containers[i] &&
+          (containers[i] === target ||
+            (typeof containers[i].contains === 'function' && containers[i].contains(target)))) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   FabGrid.prototype.handleFocusOut = function(event) {
     var nextTarget = event.relatedTarget;
-    if (!nextTarget || !this.root.contains(nextTarget)) {
-      this.emit('lostFocus', {
-        originalEvent: event,
-        relatedTarget: nextTarget || null
-      });
+    if (this.containsFocusTarget(nextTarget)) {
+      return;
     }
+    if (this.editing) {
+      this.finishEditing(true, { restoreFocus: false });
+    }
+    this.emit('lostFocus', {
+      originalEvent: event,
+      relatedTarget: nextTarget || null
+    });
   };
 
   FabGrid.prototype.setLocale = function(locale, messages, silent) {
@@ -38690,9 +39201,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (this.colorPopup) {
       this.colorPopup.setOptions({
         ariaLabel: this.getText('aria.colorPicker'),
-        saturationText: this.getText('aria.colorSaturation'),
-        hueText: this.getText('aria.colorHue'),
-        alphaText: this.getText('aria.colorAlpha')
+        clearText: this.getText('aria.colorClear')
       });
     }
     if (this.columnChooser) {
@@ -38765,6 +39274,9 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.root.addEventListener('keydown', this._boundKeyDown);
     this.root.addEventListener('focusin', this._boundFocusIn);
     this.root.addEventListener('focusout', this._boundFocusOut);
+    this.dateboxPanel.addEventListener('focusout', this._boundFocusOut);
+    this.comboboxPanel.addEventListener('focusout', this._boundFocusOut);
+    this.colorPanel.addEventListener('focusout', this._boundFocusOut);
     this.root.addEventListener('mousemove', this._boundMouseMove);
     this.root.addEventListener('mouseleave', this._boundMouseLeave);
     this.root.addEventListener('pointerdown', this._boundPointerDown);
@@ -38774,8 +39286,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.root.addEventListener('touchcancel', this._boundFixedPaneTouchEnd, { passive: true });
     this.root.addEventListener('wheel', this._boundBusyEvent, { passive: false });
     this.root.addEventListener('touchmove', this._boundBusyEvent, { passive: false });
-    this.editor.addEventListener('input', this._boundEditorInput);
-    this.editor.addEventListener('copy', this._boundEditorCopy);
+    this.bindEditorEvents(this.editor);
     this.header.addEventListener('beforeinput', this._boundHeaderSearchBeforeInput);
     this.header.addEventListener('input', this._boundHeaderSearchInput);
     this.header.addEventListener('compositionstart', this._boundHeaderSearchCompositionStart);
@@ -38794,11 +39305,28 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._paginationElement.addEventListener('keydown', this._boundPaginationKeyDown);
     document.addEventListener('fullscreenchange', this._boundFullscreenChange);
     document.addEventListener('webkitfullscreenchange', this._boundFullscreenChange);
-    this.editor.addEventListener('beforeinput', this._boundEditorBeforeInput);
     if (typeof ResizeObserver !== 'function') {
       window.addEventListener('resize', this._boundResize);
     }
     this.bindResizeObserver();
+  };
+
+  FabGrid.prototype.bindEditorEvents = function(editor) {
+    if (!editor) {
+      return;
+    }
+    editor.addEventListener('beforeinput', this._boundEditorBeforeInput);
+    editor.addEventListener('input', this._boundEditorInput);
+    editor.addEventListener('copy', this._boundEditorCopy);
+  };
+
+  FabGrid.prototype.unbindEditorEvents = function(editor) {
+    if (!editor) {
+      return;
+    }
+    editor.removeEventListener('beforeinput', this._boundEditorBeforeInput);
+    editor.removeEventListener('input', this._boundEditorInput);
+    editor.removeEventListener('copy', this._boundEditorCopy);
   };
 
   FabGrid.prototype.bindResizeObserver = function() {
@@ -38842,38 +39370,114 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
 
 
 
-  FabGrid.prototype.setColumns = function(columns, silent) {
+  function defineColumnInternalProperty(target, name, value) {
+    Object.defineProperty(target, name, {
+      configurable: true,
+      enumerable: false,
+      writable: true,
+      value: value
+    });
+  }
+
+  function createColumn(grid, definition, parent, depth) {
+    var col = mergeOptions({
+      binding: '',
+      header: '',
+      width: 120,
+      minWidth: grid.options.columnMinWidth,
+      align: '',
+      dataType: 'string',
+      visible: true,
+      cssClass: null,
+      formatter: null,
+      cellTemplate: null,
+      footer: null,
+      footerFormatter: null,
+      aggregate: null,
+      editor: null,
+      thousandsSeparator: null,
+      mask: '',
+      autoUnmask: false,
+      maskValueIncludesLiterals: null,
+      multiLine: false,
+      isReadOnly: false,
+      isRequired: false,
+      allowSorting: true
+    }, definition);
+    if (Object.prototype.hasOwnProperty.call(col, 'readOnly')) {
+      delete col.readOnly;
+    }
+    col.multiLine = col.multiLine === true;
+    col.isReadOnly = col.isReadOnly === true;
+    defineColumnCellTemplate(grid, col, col.cellTemplate);
+    col.editor = normalizeEditorConfig(col.editor, col);
+    normalizeColumnMaskOptions(col, definition);
+    col._index = grid.columns.length;
+    col._width = Math.max(1, toNumber(col.width, 120), toNumber(col.minWidth, grid.options.columnMinWidth));
+    defineColumnInternalProperty(col, '_headerParent', parent);
+    defineColumnInternalProperty(col, '_headerDepth', depth);
+    grid.columns.push(col);
+    grid._columnHeaderDepth = Math.max(grid._columnHeaderDepth, depth + 1);
+    while (parent) {
+      parent._leaves.push(col);
+      parent = parent._headerParent;
+    }
+    return col;
+  }
+
+  function createColumnGroup(grid, definition, parent, depth) {
+    var group = mergeOptions({
+      header: '',
+      align: ''
+    }, definition);
+    var definitions = Array.isArray(definition.columns) ? definition.columns : [];
     var i;
-    var col;
+    var child;
+    group.columns = [];
+    defineColumnInternalProperty(group, '_headerParent', parent);
+    defineColumnInternalProperty(group, '_headerDepth', depth);
+    defineColumnInternalProperty(group, '_leaves', []);
+    defineColumnInternalProperty(group, '_visibleViewStart', -1);
+    defineColumnInternalProperty(group, '_visibleViewEnd', -1);
+    grid._columnHeaderGroups.push(group);
+    for (i = 0; i < definitions.length; i += 1) {
+      child = normalizeColumnDefinition(grid, definitions[i], group, depth + 1);
+      if (child) {
+        group.columns.push(child);
+      }
+    }
+    if (!group._leaves.length) {
+      grid._columnHeaderGroups.splice(grid._columnHeaderGroups.indexOf(group), 1);
+      return null;
+    }
+    return group;
+  }
+
+  function normalizeColumnDefinition(grid, definition, parent, depth) {
+    if (!definition || typeof definition !== 'object') {
+      return null;
+    }
+    if (Array.isArray(definition.columns)) {
+      return createColumnGroup(grid, definition, parent, depth);
+    }
+    return createColumn(grid, definition, parent, depth);
+  }
+
+  FabGrid.prototype.setColumns = function(columns, silent) {
+    var definitions = Array.isArray(columns) ? columns : [];
+    var i;
+    var normalized;
     this.columns = [];
+    this._columnHeaderTree = [];
+    this._columnHeaderGroups = [];
+    this._columnHeaderDepth = 1;
+    this._visibleColumnHeaderDepth = 1;
     this.excelFilterValueCache = createDictionary();
-    for (i = 0; i < (columns || []).length; i += 1) {
-      col = mergeOptions({
-        binding: '',
-        header: '',
-        width: 120,
-        minWidth: this.options.columnMinWidth,
-        align: '',
-        dataType: 'string',
-        visible: true,
-        formatter: null,
-        cellTemplate: null,
-        footer: null,
-        footerFormatter: null,
-        aggregate: null,
-        editor: null,
-        thousandsSeparator: null,
-        mask: '',
-        autoUnmask: null,
-        maskValueIncludesLiterals: null,
-        readOnly: false,
-        allowSorting: true
-      }, columns[i]);
-      defineColumnCellTemplate(this, col, col.cellTemplate);
-      col.editor = normalizeEditorConfig(col.editor, col);
-      col._index = i;
-      col._width = Math.max(1, toNumber(col.width, 120), toNumber(col.minWidth, this.options.columnMinWidth));
-      this.columns.push(col);
+    for (i = 0; i < definitions.length; i += 1) {
+      normalized = normalizeColumnDefinition(this, definitions[i], null, 0);
+      if (normalized) {
+        this._columnHeaderTree.push(normalized);
+      }
     }
     this.updateLayout();
     if (!silent) {
@@ -39213,6 +39817,10 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.refresh = function() {
+    if (this.isUpdating) {
+      this._updatePendingRefresh = true;
+      return;
+    }
     if (this.emit('refreshing', {}) === false) {
       return;
     }
@@ -39221,7 +39829,82 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.invalidate = function() {
+    if (this.isUpdating) {
+      this._updatePendingInvalidate = true;
+      return;
+    }
     this.scheduleRender();
+  };
+
+  FabGrid.prototype.beginUpdate = function() {
+    if (!this.isUpdating) {
+      this._updatePendingRefresh = false;
+      this._updatePendingRender = false;
+      this._updatePendingInvalidate = false;
+      this._updatePendingSkipLayout = true;
+      if (this.raf) {
+        if (typeof cancelAnimationFrame === 'function') {
+          cancelAnimationFrame(this.raf);
+        }
+        this.raf = 0;
+        this._updatePendingInvalidate = true;
+      }
+    }
+    this._updateCount = (this._updateCount || 0) + 1;
+  };
+
+  FabGrid.prototype.endUpdate = function(shouldInvalidate) {
+    var pendingRefresh;
+    var pendingRender;
+    var pendingInvalidate;
+    var pendingSkipLayout;
+
+    if (!this.isUpdating) {
+      return;
+    }
+
+    this._updateCount -= 1;
+    if (this.isUpdating) {
+      return;
+    }
+
+    pendingRefresh = this._updatePendingRefresh;
+    pendingRender = this._updatePendingRender;
+    pendingInvalidate = this._updatePendingInvalidate;
+    pendingSkipLayout = this._updatePendingSkipLayout;
+    this._updatePendingRefresh = false;
+    this._updatePendingRender = false;
+    this._updatePendingInvalidate = false;
+    this._updatePendingSkipLayout = true;
+
+    if (shouldInvalidate === false || this.disposed) {
+      return;
+    }
+    if (pendingRefresh) {
+      this.refresh();
+      return;
+    }
+    if (pendingRender) {
+      this.render(pendingSkipLayout);
+      return;
+    }
+    if (pendingInvalidate) {
+      this.invalidate();
+      return;
+    }
+    this.invalidate();
+  };
+
+  FabGrid.prototype.deferUpdate = function(callback) {
+    if (typeof callback !== 'function') {
+      throw new TypeError('FabGrid.deferUpdate requires a callback.');
+    }
+    this.beginUpdate();
+    try {
+      callback();
+    } finally {
+      this.endUpdate();
+    }
   };
 
   FabGrid.prototype.hitTest = function(point, y) {
@@ -39256,14 +39939,23 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (!cell) {
       return info;
     }
-    if (cell.classList.contains('fg-header-cell')) {
+    if (cell.classList.contains('fg-header-group-cell')) {
+      info.panel = this.columnHeaders;
+      info.row = toNumber(cell.getAttribute('data-header-row'), 0);
+      info.viewCol = toNumber(cell.getAttribute('data-view-col-start'), -1);
+      info.col = toNumber(cell.getAttribute('data-col-start'), -1);
+      info.column = info.viewCol >= 0 && this.visibleColumns ? this.visibleColumns[info.viewCol] || null : null;
+    } else if (cell.classList.contains('fg-header-cell')) {
       info.panel = this.columnHeaders;
       info.isSearchRow = !!findClosestGridElement(target, ['fg-header-search'], cell);
       if (!info.isSearchRow && this.getSearchRowHeight() > 0 && typeof cell.getBoundingClientRect === 'function') {
         rect = cell.getBoundingClientRect();
-        info.isSearchRow = hitPoint.y - pageYOffset >= rect.top + this.getHeaderTitleHeight();
+        info.isSearchRow = hitPoint.y - pageYOffset >=
+          rect.top + toNumber(cell.getAttribute('data-header-title-height'), this.getHeaderTitleHeight());
       }
-      info.row = info.isSearchRow ? 1 : 0;
+      info.row = info.isSearchRow ?
+        this.getVisibleColumnHeaderDepth() :
+        toNumber(cell.getAttribute('data-header-row'), 0);
     } else if (cell.classList.contains('fg-row-header-cell') || cell.classList.contains('fg-selection-cell')) {
       info.panel = this.rowHeaders;
       row = parseInt(cell.getAttribute('data-row'), 10);
@@ -39301,6 +39993,26 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       col2: info.col
     } : null;
     info.mergedRange = null;
+    if (cell.classList.contains('fg-header-group-cell') && info.row >= 0 && info.col >= 0) {
+      info.mergedRange = {
+        row: info.row,
+        col: info.col,
+        row2: info.row,
+        col2: toNumber(cell.getAttribute('data-col-end'), info.col)
+      };
+    } else if (
+      cell.classList.contains('fg-header-cell') &&
+      !info.isSearchRow &&
+      info.column &&
+      info.row < this.getVisibleColumnHeaderDepth() - 1
+    ) {
+      info.mergedRange = {
+        row: info.row,
+        col: info.col,
+        row2: this.getVisibleColumnHeaderDepth() - 1,
+        col2: info.col
+      };
+    }
     info.cell = cell;
     if (typeof cell.getBoundingClientRect === 'function') {
       rect = cell.getBoundingClientRect();
@@ -39319,11 +40031,24 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.getHeaderHeight = function() {
-    return toNumber(this.options.headerHeight, DEFAULT_OPTIONS.headerHeight) + this.getSearchRowHeight();
+    return this.getHeaderTitleHeight() + this.getSearchRowHeight();
   };
 
   FabGrid.prototype.getHeaderTitleHeight = function() {
+    return this.getHeaderRowHeight() * this.getVisibleColumnHeaderDepth();
+  };
+
+  FabGrid.prototype.getHeaderRowHeight = function() {
     return toNumber(this.options.headerHeight, DEFAULT_OPTIONS.headerHeight);
+  };
+
+  FabGrid.prototype.getVisibleColumnHeaderDepth = function() {
+    return Math.max(1, toNumber(this._visibleColumnHeaderDepth, 1));
+  };
+
+  FabGrid.prototype.getColumnHeaderTitleHeight = function(column) {
+    var depth = column ? toNumber(column._headerDepth, 0) : 0;
+    return this.getHeaderRowHeight() * Math.max(1, this.getVisibleColumnHeaderDepth() - depth);
   };
 
   FabGrid.prototype.getSearchRowHeight = function() {
@@ -39399,6 +40124,9 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.root.removeEventListener('keydown', this._boundKeyDown);
     this.root.removeEventListener('focusin', this._boundFocusIn);
     this.root.removeEventListener('focusout', this._boundFocusOut);
+    this.dateboxPanel.removeEventListener('focusout', this._boundFocusOut);
+    this.comboboxPanel.removeEventListener('focusout', this._boundFocusOut);
+    this.colorPanel.removeEventListener('focusout', this._boundFocusOut);
     this.root.removeEventListener('mousemove', this._boundMouseMove);
     this.root.removeEventListener('mouseleave', this._boundMouseLeave);
     this.root.removeEventListener('pointerdown', this._boundPointerDown);
@@ -39408,8 +40136,7 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.root.removeEventListener('touchcancel', this._boundFixedPaneTouchEnd);
     this.root.removeEventListener('wheel', this._boundBusyEvent);
     this.root.removeEventListener('touchmove', this._boundBusyEvent);
-    this.editor.removeEventListener('input', this._boundEditorInput);
-    this.editor.removeEventListener('copy', this._boundEditorCopy);
+    this.unbindEditorEvents(this.editor);
     this.header.removeEventListener('beforeinput', this._boundHeaderSearchBeforeInput);
     this.header.removeEventListener('input', this._boundHeaderSearchInput);
     this.header.removeEventListener('compositionstart', this._boundHeaderSearchCompositionStart);
@@ -39428,7 +40155,6 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._paginationElement.removeEventListener('keydown', this._boundPaginationKeyDown);
     document.removeEventListener('fullscreenchange', this._boundFullscreenChange);
     document.removeEventListener('webkitfullscreenchange', this._boundFullscreenChange);
-    this.editor.removeEventListener('beforeinput', this._boundEditorBeforeInput);
     window.removeEventListener('resize', this._boundResize);
     this.unbindResizeObserver();
     if (this.datePopup) {
@@ -39684,7 +40410,9 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   }
 
   function getDefaultLocaleName() {
-    return typeof FABGRID_DEFAULT_LOCALE !== 'undefined' ? FABGRID_DEFAULT_LOCALE : 'zh-TW';
+    return typeof FABGRID_DEFAULT_LOCALE !== 'undefined' ?
+      FABGRID_DEFAULT_LOCALE :
+      fabGridDefaultLocale;
   }
 
   function normalizeLocaleName(locale) {
@@ -39694,10 +40422,14 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (Object.prototype.hasOwnProperty.call(locales, name)) {
       return name;
     }
-    if (lower === 'zh' || lower === 'zh-tw' || lower === 'zh-hant' || lower === 'zh-hant-tw' || lower === 'tw') {
+    if ((lower === 'zh' || lower === 'zh-tw' || lower === 'zh-hant' ||
+        lower === 'zh-hant-tw' || lower === 'tw') &&
+        Object.prototype.hasOwnProperty.call(locales, 'zh-TW')) {
       return 'zh-TW';
     }
-    if (lower === 'zh-cn' || lower === 'zh-hans' || lower === 'zh-hans-cn' || lower === 'cn') {
+    if ((lower === 'zh-cn' || lower === 'zh-hans' ||
+        lower === 'zh-hans-cn' || lower === 'cn') &&
+        Object.prototype.hasOwnProperty.call(locales, 'zh-CN')) {
       return 'zh-CN';
     }
     if (lower === 'en' || lower.indexOf('en-') === 0) {
@@ -39894,10 +40626,30 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   }
 
   function getColumnEditorConfig(column) {
-    if (column && column.editor) {
-      return normalizeEditorConfig(column.editor, column);
+    var config = column && column.editor ?
+      normalizeEditorConfig(column.editor, column) :
+      normalizeEditorConfig(null, column || {});
+    var optionNames = [
+      'spinner',
+      'increment',
+      'min',
+      'max',
+      'iconWidth',
+      'increaseValueText',
+      'decreaseValueText'
+    ];
+    var i;
+    var name;
+    if (!column) {
+      return config;
     }
-    return normalizeEditorConfig(null, column || {});
+    for (i = 0; i < optionNames.length; i += 1) {
+      name = optionNames[i];
+      if (column[name] != null) {
+        config.options[name] = column[name];
+      }
+    }
+    return config;
   }
 
   function getEditorOptions(editor) {
@@ -39912,6 +40664,42 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     result = mergeOptions(result, direct);
     result = mergeOptions(result, editor.options || {});
     return result;
+  }
+
+  function normalizeColumnMaskOptions(column, definition) {
+    var config = getColumnEditorConfig(column);
+    var options = config && config.options ? config.options : {};
+    var source = definition || {};
+    var hasExplicitAutoUnmask =
+      Object.prototype.hasOwnProperty.call(source, 'autoUnmask') ||
+      Object.prototype.hasOwnProperty.call(options, 'autoUnmask');
+    var optionNames = [
+      'mask',
+      'autoUnmask',
+      'maskValueIncludesLiterals',
+      'maskIncludesLiterals',
+      'maskLiteralsInValue'
+    ];
+    var i;
+    var name;
+    for (i = 0; i < optionNames.length; i += 1) {
+      name = optionNames[i];
+      if (!Object.prototype.hasOwnProperty.call(source, name) &&
+          Object.prototype.hasOwnProperty.call(options, name)) {
+        column[name] = options[name];
+      }
+    }
+    if (!hasExplicitAutoUnmask && (
+      column.maskValueIncludesLiterals === false ||
+      column.maskIncludesLiterals === false ||
+      column.maskLiteralsInValue === false
+    )) {
+      column.autoUnmask = true;
+    } else if (column.autoUnmask == null || !hasExplicitAutoUnmask) {
+      column.autoUnmask = false;
+    } else {
+      column.autoUnmask = column.autoUnmask === true;
+    }
   }
 
   function getEditorIconConfigs(config) {
@@ -39990,38 +40778,24 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   }
 
   function getExplicitEditorMask(column) {
-    var config;
-    var options;
     if (!column) {
       return '';
     }
-    if (column.mask) {
-      return column.mask;
-    }
-    config = getColumnEditorConfig(column);
-    options = config && config.options ? config.options : {};
-    return config && config.mask ? config.mask : options.mask || '';
+    return column.mask || '';
   }
 
   function getMaskOptions(column, mask) {
     var config = getColumnEditorConfig(column);
-    var options = config && config.options ? config.options : {};
-    var autoUnmask = column && column.autoUnmask != null ? column.autoUnmask : options.autoUnmask;
-    if (autoUnmask == null && (config.type === 'date' || config.type === 'time')) {
-      autoUnmask = true;
+    var autoUnmask = column && column.autoUnmask;
+    if (autoUnmask == null) {
+      autoUnmask = false;
     }
     return {
       mask: mask || getExplicitEditorMask(column),
       autoUnmask: autoUnmask,
-      maskValueIncludesLiterals: column && column.maskValueIncludesLiterals != null ?
-        column.maskValueIncludesLiterals :
-        options.maskValueIncludesLiterals,
-      maskIncludesLiterals: column && column.maskIncludesLiterals != null ?
-        column.maskIncludesLiterals :
-        options.maskIncludesLiterals,
-      maskLiteralsInValue: column && column.maskLiteralsInValue != null ?
-        column.maskLiteralsInValue :
-        options.maskLiteralsInValue
+      maskValueIncludesLiterals: column && column.maskValueIncludesLiterals,
+      maskIncludesLiterals: column && column.maskIncludesLiterals,
+      maskLiteralsInValue: column && column.maskLiteralsInValue
     };
   }
 
@@ -40031,9 +40805,6 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     }
     if (column && column.dataType === 'date') {
       return 'date';
-    }
-    if (column && column.dataType === 'time') {
-      return 'time';
     }
     return 'text';
   }
@@ -40528,6 +41299,11 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
           var ownerDocument = this.root && this.root.ownerDocument;
           return !!(ownerDocument && ownerDocument.activeElement &&
             this.root.contains(ownerDocument.activeElement));
+        }
+      },
+      isUpdating: {
+        get: function() {
+          return (this._updateCount || 0) > 0;
         }
       },
       itemsSource: {
@@ -41555,11 +42331,6 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     return Array.isArray(options.palette) && options.palette.length ? options.palette : DEFAULT_COLOR_PALETTE;
   }
 
-  function getColorShowAlpha(config) {
-    var options = config && config.options ? config.options : {};
-    return options.showAlpha !== false;
-  }
-
   function findColumnByOffset(columns, start, end, offset) {
     var low = start;
     var high = end - 1;
@@ -41680,7 +42451,6 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     formatYearMonthEditorText: formatYearMonthEditorText,
     getByBinding: getByBinding,
     getColorPalette: getColorPalette,
-    getColorShowAlpha: getColorShowAlpha,
     getColumnEditorConfig: getColumnEditorConfig,
     getComboboxData: getComboboxData,
     getComboboxDataValue: getComboboxDataValue,
@@ -41772,6 +42542,11 @@ function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (name && messages) {
       FabGrid.locales[String(name)] = messages;
     }
+    return FabGrid;
+  };
+  FabGrid.setDefaultLocale = function(locale) {
+    fabGridDefaultLocale = normalizeLocaleName(locale);
+    FabGrid.defaultLocale = fabGridDefaultLocale;
     return FabGrid;
   };
 
@@ -44174,7 +44949,6 @@ function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
         minWidth: 72,
         align: field.align || 'left',
         dataType: field.dataType,
-        readOnly: true,
         isReadOnly: true,
         _pivotRowField: field,
         _pivotRowFieldIndex: i,
@@ -44193,7 +44967,6 @@ function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
         dataType: field.dataType || 'number',
         format: field.format,
         visible: !isHiddenByCollapsedEntry(dataColumn.entry, this._pivotColumnCollapsed),
-        readOnly: true,
         isReadOnly: true,
         _pivotDataColumn: dataColumn,
         formatter: function(value, item, column) {
@@ -44945,7 +45718,7 @@ function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
         dataType: field.dataType,
         format: field.format,
         align: field.align,
-        readOnly: true
+        isReadOnly: true
       };
     });
     this.hideDetail();
@@ -47840,7 +48613,7 @@ function createPivotWorkspaceFactory(
 }
 
 global.fabui = global.fabui || {};
-global.fabui.version = "2026.7.27";
+global.fabui.version = "2026.8.1";
 global.fabui.setConfig = setConfig;
 global.fabui.getConfig = getConfig;
 global.fabui.Clipboard = Clipboard;
@@ -47883,676 +48656,37 @@ global.fabui.pivot.PivotSlicer = createPivotSlicerFactory(Control, registerContr
 global.fabui.pivot.PivotWorkspace = createPivotWorkspaceFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.pivot.PivotPanel, global.fabui.pivot.PivotGrid, global.fabui.pivot.PivotChart, global.fabui.FabGrid);
 global.fabui.pivot.PivotShowAs = PivotShowAs;
 global.fabui.pivot.PivotShowTotals = PivotShowTotals;
+var localeManager = createLocaleManager();
+global.fabui.EditBox = localeManager.registerTarget("EditBox", global.fabui.EditBox);
+global.fabui.Calendar = localeManager.registerTarget("Calendar", global.fabui.Calendar);
+global.fabui.CheckBox = localeManager.registerTarget("CheckBox", global.fabui.CheckBox);
+global.fabui.CheckGroup = localeManager.registerTarget("CheckGroup", global.fabui.CheckGroup);
+global.fabui.SwitchButton = localeManager.registerTarget("SwitchButton", global.fabui.SwitchButton);
+global.fabui.RadioButton = localeManager.registerTarget("RadioButton", global.fabui.RadioButton);
+global.fabui.RadioGroup = localeManager.registerTarget("RadioGroup", global.fabui.RadioGroup);
+global.fabui.chart.Chart = localeManager.registerTarget("Chart", global.fabui.chart.Chart);
+global.fabui.chart.Pie = localeManager.registerTarget("Pie", global.fabui.chart.Pie, "Chart");
+global.fabui.FileBox = localeManager.registerTarget("FileBox", global.fabui.FileBox);
+global.fabui.Form = localeManager.registerTarget("Form", global.fabui.Form);
+global.fabui.Window = localeManager.registerTarget("Window", global.fabui.Window);
+global.fabui.Menu = localeManager.registerTarget("Menu", global.fabui.Menu);
+global.fabui.Panel = localeManager.registerTarget("Panel", global.fabui.Panel);
+global.fabui.Accordion = localeManager.registerTarget("Accordion", global.fabui.Accordion);
+global.fabui.PropertyGrid = localeManager.registerTarget("PropertyGrid", global.fabui.PropertyGrid);
+global.fabui.Tabs = localeManager.registerTarget("Tabs", global.fabui.Tabs);
+global.fabui.Tree = localeManager.registerTarget("Tree", global.fabui.Tree);
+global.fabui.Layout = localeManager.registerTarget("Layout", global.fabui.Layout);
+global.fabui.Messager = localeManager.registerTarget("Messager", global.fabui.Messager);
+global.fabui.FabGrid = localeManager.registerTarget("FabGrid", global.fabui.FabGrid);
+global.fabui.pivot.PivotChart = localeManager.registerTarget("PivotChart", global.fabui.pivot.PivotChart, "FabGrid");
+global.fabui.pivot.PivotGrid = localeManager.registerTarget("PivotGrid", global.fabui.pivot.PivotGrid, "FabGrid");
+global.fabui.pivot.PivotPanel = localeManager.registerTarget("PivotPanel", global.fabui.pivot.PivotPanel, "FabGrid");
+global.fabui.pivot.PivotSlicer = localeManager.registerTarget("PivotSlicer", global.fabui.pivot.PivotSlicer, "FabGrid");
+global.fabui.pivot.PivotWorkspace = localeManager.registerTarget("PivotWorkspace", global.fabui.pivot.PivotWorkspace, "FabGrid");
+global.fabui.addLocale = function(locale, pack) { localeManager.addLocale(locale, pack); return global.fabui; };
+global.fabui.getLocale = localeManager.getLocale;
+global.fabui.getLocales = localeManager.getLocales;
+global.fabui.setLocale = function(locale) { localeManager.setLocale(locale); return global.fabui; };
+global.fabui.registerLocaleTarget = localeManager.registerTarget;
 global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
 }(typeof window !== "undefined" ? window : this));
-(function(root, factory) {
-  var locale = factory();
-  root.fabui = root.fabui || {};
-  root.fabui.FabGridLocales = root.fabui.FabGridLocales || {};
-  root.fabui.FabGridLocales.en = locale;
-  if (root.fabui.FabGrid && root.fabui.FabGrid.addLocale) {
-    root.fabui.FabGrid.addLocale('en', locale);
-  }
-}(typeof window !== 'undefined' ? window : this, function() {
-  return {
-    emptyText: 'No data',
-    chart: { emptyText: 'No data', value: 'Value', percent: 'Percent' },
-    combobox: { emptyText: 'No matching items' },
-    exportBusyText: 'Exporting Excel...',
-    workingText: 'Working...',
-    loadMsg: 'Processing, please wait...',
-    tree: {
-      contextMenuAriaLabel: 'TreeGrid expand and collapse',
-      expandAll: 'Expand all',
-      collapseAll: 'Collapse all'
-    },
-    pivot: {
-      grandTotal: 'Grand Total',
-      total: 'Total',
-      expandGroup: 'Expand group',
-      collapseGroup: 'Collapse group',
-      expandAll: 'Expand all',
-      collapseAll: 'Collapse all',
-      showDetail: 'Show detail',
-      detailTitle: 'Detail records',
-      detailCount: '{count} records',
-      closeDetail: 'Close detail',
-      sortAscending: 'Sort ascending',
-      sortDescending: 'Sort descending',
-      clearSort: 'Clear sort',
-      aggregate: 'Aggregate',
-      removeField: 'Remove field',
-      filteredValues: 'Filtered',
-      chart: {
-        ariaLabel: 'Pivot chart',
-        title: 'Pivot Chart',
-        pointsTruncated: 'Showing {count} of {total} categories',
-        seriesTruncated: 'Showing {count} of {total} series'
-      },
-      workspace: {
-        ariaLabel: 'Pivot analysis workspace',
-        panelTitle: 'Define View',
-        gridTitle: 'Pivot Grid',
-        chartTitle: 'Pivot Chart',
-        panelSplitter: 'Resize definition pane',
-        chartSplitter: 'Resize chart pane',
-        hidePanel: 'Hide Definition',
-        showPanel: 'Show Definition',
-        hideChart: 'Hide Chart',
-        showChart: 'Show Chart',
-        gridFullscreen: 'Pivot Grid fullscreen',
-        chartFullscreen: 'Pivot Chart fullscreen',
-        exitFullscreen: 'Exit fullscreen',
-        chartType: 'Chart type',
-        progress: 'Aggregating {progress}%',
-        cancel: 'Cancel',
-        cancelled: 'Aggregation cancelled',
-        error: 'Aggregation failed',
-        chartTypes: {
-          column: 'Column',
-          bar: 'Bar',
-          line: 'Line',
-          pie: 'Pie'
-        }
-      },
-      panel: {
-        ariaLabel: 'Pivot view settings',
-        fields: 'Fields',
-        filters: 'Filters',
-        rows: 'Rows',
-        columns: 'Columns',
-        values: 'Values',
-        allValues: 'All',
-        filterField: 'Filter {field}',
-        aggregateMenu: 'Value aggregation settings',
-        aggregateField: 'Set aggregation for {field}',
-        sortMenu: 'Dimension sorting settings',
-        sortField: 'Set sorting for {field}',
-        sortDefault: 'Default order',
-        filterMenu: 'Pivot field filter',
-        editFilter: 'Edit filter',
-        searchValues: 'Search values',
-        selectAll: 'Select all',
-        blankValue: '(blank)',
-        apply: 'Apply',
-        cancel: 'Cancel',
-        showAs: 'Show values as',
-        dropFields: 'Drag fields here',
-        noFields: 'No fields available',
-        removeField: 'Remove field'
-      },
-      aggregates: {
-        sum: 'Sum',
-        count: 'Count',
-        average: 'Average',
-        weightedaverage: 'Weighted average',
-        min: 'Minimum',
-        max: 'Maximum'
-      },
-      showAs: {
-        'no-calculation': 'No calculation',
-        'percent-of-grand-total': '% of grand total',
-        'percent-of-row-total': '% of row total',
-        'percent-of-column-total': '% of column total',
-        'difference-from-previous': 'Difference from previous',
-        'percent-difference-from-previous': '% difference from previous',
-        'running-total': 'Running total'
-      },
-      slicer: {
-        ariaLabel: 'Pivot slicer',
-        search: 'Search values',
-        selectAll: 'Select all',
-        apply: 'Apply',
-        clear: 'Clear',
-        noField: 'Select a field'
-      }
-    },
-    pagination: {
-      ariaLabel: 'Pagination',
-      pageSize: 'Page size',
-      pageNumber: 'Page number',
-      beforePageText: 'Page',
-      afterPageText: 'of {pages}',
-      displayMsg: 'Displaying {from} to {to} of {total} items',
-      first: 'First page',
-      previous: 'Previous page',
-      next: 'Next page',
-      last: 'Last page',
-      refresh: 'Refresh'
-    },
-    validation: {
-      invalidValue: 'Invalid value',
-      invalidDate: 'Invalid date',
-      invalidTime: 'Invalid time',
-      invalidYearMonth: 'Invalid year and month',
-      invalidColor: 'Invalid color',
-      comboboxLimitToList: 'Please select a valid item'
-    },
-    topLeftMenu: {
-      ariaLabel: 'Grid menu',
-      useSearchRow: 'Use search row',
-      useExcelFilter: 'Use Excel-like filter',
-      clearFilter: 'Clear filters',
-      rowHeaders: 'Row headers',
-      rowHeadersOff: 'Row headers: Off',
-      rowHeadersNumbers: 'Row headers: Numbers',
-      rowHeadersCellOnly: 'Row headers: Cells only',
-      exportExcel: 'Export Excel',
-      exportCsv: 'Export CSV',
-      fullscreen: 'Grid fullscreen',
-      exitFullscreen: 'Exit fullscreen'
-    },
-    aria: {
-      cellEditor: 'Cell editor',
-      increaseValue: 'Increase value',
-      decreaseValue: 'Decrease value',
-      openDatePicker: 'Open date picker',
-      datePicker: 'Date picker',
-      openComboBox: 'Open combo box',
-      comboBoxOptions: 'Combo box options',
-      openColorPicker: 'Open color picker',
-      colorPicker: 'Color picker',
-      colorSaturation: 'Saturation and brightness',
-      colorHue: 'Hue',
-      colorAlpha: 'Alpha',
-      openColumnChooser: 'Open column chooser',
-      columnChooser: 'Column chooser',
-      selectAllRows: 'Select all rows',
-      selectRow: 'Select row {rowNumber}',
-      rowDragItem: 'Grid row',
-      expandNode: 'Expand node',
-      collapseNode: 'Collapse node',
-      year: 'Year'
-    },
-    filter: {
-      openMenu: 'Open filter menu for {column}',
-      searchValues: 'Search',
-      selectAll: 'Select All',
-      apply: 'Apply',
-      cancel: 'Cancel',
-      blankValue: '(Blanks)',
-      startsWith: 'Starts with ({symbol})',
-      contains: 'Contains ({symbol})',
-      endsWith: 'Ends with ({symbol})',
-      notStartsWith: 'Does not start with ({symbol})',
-      notContains: 'Does not contain ({symbol})',
-      notEndsWith: 'Does not end with ({symbol})',
-      greaterThanOrEqual: '{symbol}',
-      greaterThan: '{symbol}',
-      lessThanOrEqual: '{symbol}',
-      lessThan: '{symbol}',
-      notEqual: '{symbol}',
-      equal: '{symbol}',
-      clear: 'Clear'
-    },
-    datebox: {
-      today: 'Today',
-      currentMonth: 'Current month',
-      close: 'Close',
-      weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-      months: [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec'
-      ],
-      monthTitle: '{month} {year}'
-    }
-  };
-}));
-
-(function(root, factory) {
-  var locale = factory();
-  root.fabui = root.fabui || {};
-  root.fabui.FabGridLocales = root.fabui.FabGridLocales || {};
-  root.fabui.FabGridLocales['zh-TW'] = locale;
-  if (root.fabui.FabGrid && root.fabui.FabGrid.addLocale) {
-    root.fabui.FabGrid.addLocale('zh-TW', locale);
-  }
-}(typeof window !== 'undefined' ? window : this, function() {
-  return {
-    emptyText: '沒有資料',
-    chart: { emptyText: '沒有資料', value: '數值', percent: '百分比' },
-    combobox: { emptyText: '沒有符合項目' },
-    exportBusyText: '匯出 Excel 中...',
-    workingText: '處理中...',
-    loadMsg: '正在處理，請稍候...',
-    tree: {
-      contextMenuAriaLabel: 'TreeGrid 展開與疊合',
-      expandAll: '全部展開',
-      collapseAll: '全部疊合'
-    },
-    pivot: {
-      grandTotal: '總計',
-      total: '小計',
-      expandGroup: '展開群組',
-      collapseGroup: '收合群組',
-      expandAll: '全部展開',
-      collapseAll: '全部疊合',
-      showDetail: '查看明細',
-      detailTitle: '明細資料',
-      detailCount: '共 {count} 筆',
-      closeDetail: '關閉明細',
-      sortAscending: '升冪排序',
-      sortDescending: '降冪排序',
-      clearSort: '清除排序',
-      aggregate: '彙總方式',
-      removeField: '移除欄位',
-      filteredValues: '已篩選',
-      chart: {
-        ariaLabel: 'Pivot 圖表',
-        title: 'Pivot 圖表',
-        pointsTruncated: '顯示前 {count}／{total} 個分類',
-        seriesTruncated: '顯示前 {count}／{total} 個系列'
-      },
-      workspace: {
-        ariaLabel: 'Pivot 分析工作區',
-        panelTitle: '定義 View',
-        gridTitle: 'Pivot Grid',
-        chartTitle: 'Pivot 圖表',
-        panelSplitter: '調整定義區大小',
-        chartSplitter: '調整圖表區大小',
-        hidePanel: '隱藏定義',
-        showPanel: '顯示定義',
-        hideChart: '隱藏圖表',
-        showChart: '顯示圖表',
-        gridFullscreen: 'Pivot Grid 全螢幕',
-        chartFullscreen: 'Pivot 圖表全螢幕',
-        exitFullscreen: '離開全螢幕',
-        chartType: '圖形類型',
-        progress: '彙總中 {progress}%',
-        cancel: '取消',
-        cancelled: '已取消彙總',
-        error: '彙總失敗',
-        chartTypes: {
-          column: '直條圖',
-          bar: '橫條圖',
-          line: '折線圖',
-          pie: '圓餅圖'
-        }
-      },
-      panel: {
-        ariaLabel: 'Pivot View 設定',
-        fields: '欄位',
-        filters: '篩選',
-        rows: '列',
-        columns: '欄',
-        values: '數值',
-        allValues: '全部',
-        filterField: '篩選「{field}」',
-        aggregateMenu: '數值彙總設定',
-        aggregateField: '設定「{field}」彙總函數',
-        sortMenu: '維度排序設定',
-        sortField: '設定「{field}」排序',
-        sortDefault: '預設順序',
-        filterMenu: 'Pivot 欄位篩選',
-        editFilter: '編輯篩選',
-        searchValues: '搜尋內容',
-        selectAll: '全部選取',
-        blankValue: '（空白）',
-        apply: '套用',
-        cancel: '取消',
-        showAs: '值顯示方式',
-        dropFields: '拖曳欄位到這裡',
-        noFields: '沒有可用欄位',
-        removeField: '移除欄位'
-      },
-      aggregates: {
-        sum: '加總',
-        count: '筆數',
-        average: '平均',
-        weightedaverage: '加權平均',
-        min: '最小值',
-        max: '最大值'
-      },
-      showAs: {
-        'no-calculation': '不計算',
-        'percent-of-grand-total': '總計百分比',
-        'percent-of-row-total': '列總計百分比',
-        'percent-of-column-total': '欄總計百分比',
-        'difference-from-previous': '與前一項差異',
-        'percent-difference-from-previous': '與前一項差異百分比',
-        'running-total': '累計'
-      },
-      slicer: {
-        ariaLabel: 'Pivot 交叉分析篩選器',
-        search: '搜尋內容',
-        selectAll: '全部選取',
-        apply: '套用',
-        clear: '清除',
-        noField: '請選擇欄位'
-      }
-    },
-    pagination: {
-      ariaLabel: '分頁導覽',
-      pageSize: '每頁筆數',
-      pageNumber: '頁碼',
-      beforePageText: '頁',
-      afterPageText: '共{pages}頁',
-      displayMsg: '顯示{from}到{to},共{total}記錄',
-      first: '第一頁',
-      previous: '上一頁',
-      next: '下一頁',
-      last: '最後一頁',
-      refresh: '重新整理'
-    },
-    validation: {
-      invalidValue: '輸入值無效',
-      invalidDate: '日期格式錯誤',
-      invalidTime: '時間格式錯誤',
-      invalidYearMonth: '年月格式錯誤',
-      invalidColor: '色碼格式錯誤',
-      comboboxLimitToList: '請從清單選擇有效項目'
-    },
-    topLeftMenu: {
-      ariaLabel: 'Grid 功能表',
-      useSearchRow: '使用搜尋列',
-      useExcelFilter: '使用 Excel-like 篩選',
-      clearFilter: '清除篩選',
-      rowHeaders: '列號',
-      rowHeadersOff: '列號：關閉',
-      rowHeadersNumbers: '列號：顯示列號',
-      rowHeadersCellOnly: '列號：只顯示 cell',
-      exportExcel: '匯出 Excel',
-      exportCsv: '匯出 CSV',
-      fullscreen: 'Grid 全螢幕',
-      exitFullscreen: '離開全螢幕'
-    },
-    aria: {
-      cellEditor: '儲存格編輯器',
-      increaseValue: '增加數值',
-      decreaseValue: '減少數值',
-      openDatePicker: '開啟日期選擇器',
-      datePicker: '日期選擇器',
-      openComboBox: '開啟下拉選單',
-      comboBoxOptions: '下拉選項',
-      openColorPicker: '開啟顏色選擇器',
-      colorPicker: '顏色選擇器',
-      colorSaturation: '飽和度與明度',
-      colorHue: '色相',
-      colorAlpha: '透明度',
-      openColumnChooser: '開啟欄位選擇器',
-      columnChooser: '欄位選擇器',
-      selectAllRows: '選取所有列',
-      selectRow: '選取第 {rowNumber} 列',
-      rowDragItem: 'Grid 資料列',
-      expandNode: '展開節點',
-      collapseNode: '收合節點',
-      year: '年份'
-    },
-    filter: {
-      openMenu: '開啟「{column}」篩選選單',
-      searchValues: '搜尋',
-      selectAll: '全選',
-      apply: '套用',
-      cancel: '取消',
-      blankValue: '(空白)',
-      startsWith: '開頭比對({symbol})',
-      contains: '包含比對({symbol})',
-      endsWith: '結尾比對({symbol})',
-      notStartsWith: '隱藏開頭比對({symbol})',
-      notContains: '不包含比對({symbol})',
-      notEndsWith: '隱藏結尾比對({symbol})',
-      greaterThanOrEqual: '{symbol}',
-      greaterThan: '{symbol}',
-      lessThanOrEqual: '{symbol}',
-      lessThan: '{symbol}',
-      notEqual: '{symbol}',
-      equal: '{symbol}',
-      clear: '清除'
-    },
-    datebox: {
-      today: '今天',
-      currentMonth: '當月',
-      close: '關閉',
-      weekdays: ['日', '一', '二', '三', '四', '五', '六'],
-      months: [
-        '一月',
-        '二月',
-        '三月',
-        '四月',
-        '五月',
-        '六月',
-        '七月',
-        '八月',
-        '九月',
-        '十月',
-        '十一月',
-        '十二月'
-      ],
-      monthTitle: '{month} {year}'
-    }
-  };
-}));
-
-(function(root, factory) {
-  var locale = factory();
-  root.fabui = root.fabui || {};
-  root.fabui.FabGridLocales = root.fabui.FabGridLocales || {};
-  root.fabui.FabGridLocales['zh-CN'] = locale;
-  if (root.fabui.FabGrid && root.fabui.FabGrid.addLocale) {
-    root.fabui.FabGrid.addLocale('zh-CN', locale);
-  }
-}(typeof window !== 'undefined' ? window : this, function() {
-  return {
-    emptyText: '没有数据',
-    chart: { emptyText: '没有数据', value: '数值', percent: '百分比' },
-    combobox: { emptyText: '没有匹配项' },
-    exportBusyText: '正在导出 Excel...',
-    workingText: '处理中...',
-    loadMsg: '正在处理，请稍候...',
-    tree: {
-      contextMenuAriaLabel: 'TreeGrid 展开与折叠',
-      expandAll: '全部展开',
-      collapseAll: '全部折叠'
-    },
-    pivot: {
-      grandTotal: '总计',
-      total: '小计',
-      expandGroup: '展开群组',
-      collapseGroup: '折叠群组',
-      expandAll: '全部展开',
-      collapseAll: '全部折叠',
-      showDetail: '查看明细',
-      detailTitle: '明细数据',
-      detailCount: '共 {count} 条',
-      closeDetail: '关闭明细',
-      sortAscending: '升序排序',
-      sortDescending: '降序排序',
-      clearSort: '清除排序',
-      aggregate: '汇总方式',
-      removeField: '移除字段',
-      filteredValues: '已筛选',
-      chart: {
-        ariaLabel: 'Pivot 图表',
-        title: 'Pivot 图表',
-        pointsTruncated: '显示前 {count}/{total} 个分类',
-        seriesTruncated: '显示前 {count}/{total} 个系列'
-      },
-      workspace: {
-        ariaLabel: 'Pivot 分析工作区',
-        panelTitle: '定义 View',
-        gridTitle: 'Pivot Grid',
-        chartTitle: 'Pivot 图表',
-        panelSplitter: '调整定义区大小',
-        chartSplitter: '调整图表区大小',
-        hidePanel: '隐藏定义',
-        showPanel: '显示定义',
-        hideChart: '隐藏图表',
-        showChart: '显示图表',
-        gridFullscreen: 'Pivot Grid 全屏',
-        chartFullscreen: 'Pivot 图表全屏',
-        exitFullscreen: '退出全屏',
-        chartType: '图形类型',
-        progress: '汇总中 {progress}%',
-        cancel: '取消',
-        cancelled: '已取消汇总',
-        error: '汇总失败',
-        chartTypes: {
-          column: '柱形图',
-          bar: '条形图',
-          line: '折线图',
-          pie: '饼图'
-        }
-      },
-      panel: {
-        ariaLabel: 'Pivot View 设置',
-        fields: '字段',
-        filters: '筛选',
-        rows: '行',
-        columns: '列',
-        values: '数值',
-        allValues: '全部',
-        filterField: '筛选“{field}”',
-        aggregateMenu: '数值汇总设置',
-        aggregateField: '设置“{field}”汇总函数',
-        sortMenu: '维度排序设置',
-        sortField: '设置“{field}”排序',
-        sortDefault: '默认顺序',
-        filterMenu: 'Pivot 字段筛选',
-        editFilter: '编辑筛选',
-        searchValues: '搜索内容',
-        selectAll: '全部选择',
-        blankValue: '（空白）',
-        apply: '应用',
-        cancel: '取消',
-        showAs: '值显示方式',
-        dropFields: '拖动字段到这里',
-        noFields: '没有可用字段',
-        removeField: '移除字段'
-      },
-      aggregates: {
-        sum: '求和',
-        count: '计数',
-        average: '平均',
-        weightedaverage: '加权平均',
-        min: '最小值',
-        max: '最大值'
-      },
-      showAs: {
-        'no-calculation': '不计算',
-        'percent-of-grand-total': '总计百分比',
-        'percent-of-row-total': '行总计百分比',
-        'percent-of-column-total': '列总计百分比',
-        'difference-from-previous': '与前一项差异',
-        'percent-difference-from-previous': '与前一项差异百分比',
-        'running-total': '累计'
-      },
-      slicer: {
-        ariaLabel: 'Pivot 切片器',
-        search: '搜索内容',
-        selectAll: '全部选择',
-        apply: '应用',
-        clear: '清除',
-        noField: '请选择字段'
-      }
-    },
-    pagination: {
-      ariaLabel: '分页导航',
-      pageSize: '每页条数',
-      pageNumber: '页码',
-      beforePageText: '页',
-      afterPageText: '共{pages}页',
-      displayMsg: '显示{from}到{to},共{total}记录',
-      first: '第一页',
-      previous: '上一页',
-      next: '下一页',
-      last: '最后一页',
-      refresh: '刷新'
-    },
-    validation: {
-      invalidValue: '输入值无效',
-      invalidDate: '日期格式错误',
-      invalidTime: '时间格式错误',
-      invalidYearMonth: '年月格式错误',
-      invalidColor: '色码格式错误',
-      comboboxLimitToList: '请从列表选择有效项目'
-    },
-    topLeftMenu: {
-      ariaLabel: 'Grid 菜单',
-      useSearchRow: '使用搜索行',
-      useExcelFilter: '使用 Excel-like 筛选',
-      clearFilter: '清除筛选',
-      rowHeaders: '行号',
-      rowHeadersOff: '行号：关闭',
-      rowHeadersNumbers: '行号：显示行号',
-      rowHeadersCellOnly: '行号：仅显示 cell',
-      exportExcel: '导出 Excel',
-      exportCsv: '导出 CSV',
-      fullscreen: 'Grid 全屏',
-      exitFullscreen: '退出全屏'
-    },
-    aria: {
-      cellEditor: '单元格编辑器',
-      increaseValue: '增加数值',
-      decreaseValue: '减少数值',
-      openDatePicker: '打开日期选择器',
-      datePicker: '日期选择器',
-      openComboBox: '打开下拉菜单',
-      comboBoxOptions: '下拉选项',
-      openColorPicker: '打开颜色选择器',
-      colorPicker: '颜色选择器',
-      colorSaturation: '饱和度与明度',
-      colorHue: '色相',
-      colorAlpha: '透明度',
-      openColumnChooser: '打开字段选择器',
-      columnChooser: '字段选择器',
-      selectAllRows: '选择所有行',
-      selectRow: '选择第 {rowNumber} 行',
-      rowDragItem: 'Grid 数据行',
-      expandNode: '展开节点',
-      collapseNode: '折叠节点',
-      year: '年份'
-    },
-    filter: {
-      openMenu: '打开“{column}”筛选菜单',
-      searchValues: '搜索',
-      selectAll: '全选',
-      apply: '应用',
-      cancel: '取消',
-      blankValue: '(空白)',
-      startsWith: '开头比对({symbol})',
-      contains: '包含比对({symbol})',
-      endsWith: '结尾比对({symbol})',
-      notStartsWith: '隐藏开头比对({symbol})',
-      notContains: '不包含比对({symbol})',
-      notEndsWith: '隐藏结尾比对({symbol})',
-      greaterThanOrEqual: '{symbol}',
-      greaterThan: '{symbol}',
-      lessThanOrEqual: '{symbol}',
-      lessThan: '{symbol}',
-      notEqual: '{symbol}',
-      equal: '{symbol}',
-      clear: '清除'
-    },
-    datebox: {
-      today: '今天',
-      currentMonth: '当月',
-      close: '关闭',
-      weekdays: ['日', '一', '二', '三', '四', '五', '六'],
-      months: [
-        '一月',
-        '二月',
-        '三月',
-        '四月',
-        '五月',
-        '六月',
-        '七月',
-        '八月',
-        '九月',
-        '十月',
-        '十一月',
-        '十二月'
-      ],
-      monthTitle: '{month} {year}'
-    }
-  };
-}));

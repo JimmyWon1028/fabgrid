@@ -59,22 +59,6 @@ export function createMessagerFactory(Window, Button) {
       confirm: 'Confirm',
       prompt: 'Prompt',
       progress: 'Please wait'
-    },
-    'zh-TW': {
-      ok: '確定',
-      cancel: '取消',
-      alert: '提示',
-      confirm: '確認',
-      prompt: '輸入',
-      progress: '請稍候'
-    },
-    'zh-CN': {
-      ok: '确定',
-      cancel: '取消',
-      alert: '提示',
-      confirm: '确认',
-      prompt: '输入',
-      progress: '请稍候'
     }
   };
   var dialogs = [];
@@ -88,7 +72,7 @@ export function createMessagerFactory(Window, Button) {
 
   function localeMessages(options, callOptions) {
     var locale = normalizeMessagerLocale(options.locale);
-    var pack = localePacks[locale];
+    var pack = localePacks[locale] || localePacks.en;
     var defaults = Messager.defaults;
     var explicitOk = callOptions && Object.prototype.hasOwnProperty.call(callOptions, 'ok');
     var explicitCancel = callOptions && Object.prototype.hasOwnProperty.call(callOptions, 'cancel');
@@ -121,6 +105,7 @@ export function createMessagerFactory(Window, Button) {
     }
     options = assignMessagerOptions({}, Messager.defaults, callOptions);
     options.locale = normalizeMessagerLocale(options.locale);
+    if (!localePacks[options.locale]) options.locale = 'en';
     options.theme = options.theme == null ? 'inherit' : options.theme;
     options.width = Math.max(240, messagerSize(options.width, 360));
     options.height = Math.max(130, messagerSize(options.height, 180));
@@ -679,6 +664,7 @@ export function createMessagerFactory(Window, Button) {
     },
     setLocale: function(locale) {
       Messager.defaults.locale = normalizeMessagerLocale(locale);
+      if (!localePacks[Messager.defaults.locale]) Messager.defaults.locale = 'en';
       return Messager;
     },
     activeDialogs: function() {

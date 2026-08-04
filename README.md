@@ -94,19 +94,24 @@ Diagram, Gantt, Scheduler, and HtmlEditor are not included in FabUI core. Load f
 | Category | Capabilities |
 | --- | --- |
 | Performance | Two-dimensional virtualization with fixed row heights and column widths renders only the visible range. Vertical scrolling reuses the existing layout, Header, Footer, and Pager. Local multi-column sorting prepares each row's sort values in advance. |
-| Data sources | Supports local Arrays and remote pagination, sorting, searching, and filtering with `remote: true`. Built-in `url` requests can use `credentials: 'include'` to send cross-origin session cookies. A newer load or `dispose()` aborts an unfinished older Fetch request. Applying successful remote rows triggers `itemsSourceChanged`. |
-| Grid layout | Supports left and right frozen columns, row headers, column resizing, column visibility, Footer aggregates, alternating row backgrounds, and fullscreen mode. |
+| Data sources | `itemsSource` accepts an Array or `fabui.collections.CollectionView` in both local and `remote: true` modes. Remote rows replace the Array source or update the same CollectionView instance, keeping shared Charts synchronized. Built-in `url` requests can use `credentials: 'include'`; a newer load or `dispose()` aborts an unfinished older Fetch request. |
+| Grid layout | Supports nested `columns` with merged multi-row Headers, left and right frozen column ranges that include hidden columns in their configured counts, row headers, column resizing, column visibility, Footer aggregates, alternating row backgrounds, and fullscreen mode. |
 | Column width | `width` defaults to `120px`; `columnMinWidth` defaults to `20px`, and an individual Column can override it with `minWidth`. |
-| Sorting and filtering | Supports single-column sorting, Shift multi-column sorting, `allowMultiSorting: false`, Column-level `allowSorting: false`, cancellable `sortingColumn`, Quick Search, Search Row, Excel-like value filters, and runtime Filter Rules. |
+| Sorting and filtering | Supports single-column sorting, Shift multi-column sorting, `clearSort()`, safe `getSortState()` and `getFilterState()` snapshots, `allowMultiSorting: false`, Column-level `allowSorting: false`, cancellable `sortingColumn`, numeric sorting for string values with thousands separators, horizontal scroll preservation while sorting with minimal adjustment for a partially hidden clicked Header, Quick Search, Search Row, Excel-like value filters, and runtime Filter Rules. |
 | Grouping and TreeGrid | Supports one to three grouping levels, subtotals, collapsing, and `childItemsPath` TreeGrid data. |
 | Row drag and drop | Supports reordering within a Grid, moving rows across Grids, and TreeGrid hierarchy changes using `before`, `inside`, and `after`. |
-| Selection and clipboard | Supports Cell, CellRange, the read-only `selectedRow` active row, single-selection `unselectRow()`, no-op out-of-range `select()`, `selectedRowChanged`, multiple row selection, mouse dragging, whole-row range selection through row headers, Shift extension, keyboard navigation, and TSV copy. CellRange borders use `activeCellBorder`. `stopNavigation` can pause user selection and scrolling while keeping programmatic APIs available. |
-| Editing and validation | Includes `text`, `number`, `time`, `date`, `combo`, and `color` editors with masks and synchronous or asynchronous validation. During continuous editing, moving beyond the visible range scrolls one row at a time and keeps the active editor at the top or bottom boundary. |
-| Display customization | Provides formatters, `formatItem`, `cellTemplate`, Header styles, Row/GroupRow types, and event APIs. |
+| Selection and clipboard | Supports Cell, CellRange, the read-only `selectedRow` active row, single-selection `unselectRow()`, `select()` with full `grid.columns` indexes, `selectedRowChanged`, multiple row selection, mouse dragging, whole-row range selection through row headers, Shift extension, keyboard navigation, and TSV copy. Every public event `e.col` uses the full `grid.columns` index including hidden columns; `e.viewCol` exposes the visible index when needed. CellRange borders use `activeCellBorder`. `stopNavigation` can pause user selection and scrolling while keeping programmatic APIs available. |
+| Editing and validation | Includes `text`, `number`, `time`, `date`, `combo`, and `color` editors with masks and synchronous or asynchronous validation. The `text`, `combo`, and `color` editors support `charcase: 'upper'` or `'lower'`, converting ASCII English letters while preserving all other characters; `date`, `time`, and `number` are excluded. Grid and EditBox share this definition. The read-only `editRange` reports the currently edited cell or `null`. While a cell is editing, Enter/Shift+Enter moves right/left through editable cells and wraps to the next row's first or previous row's last editable cell, regardless of `editOnSelect`. With `editOnSelect: true`, Tab/Shift+Tab may also continue across rows and vertical arrows continue across rows. With `editOnSelect: false`, typing an accepted character on the active editable cell starts editing and replaces the original value; Tab/Shift+Tab commit and end editing, while unclaimed arrow keys keep their native editor caret behavior. Column `multiLine: true` gives text editors a `<textarea>` that can hold multiline values while cells remain single-line. Column `isReadOnly: true` prevents editing even while the Grid is editable. Column `isRequired` defaults to `false`; when enabled, empty values automatically create a required entry in `invalidItems`. Deleting rows or replacing the data source removes their stale synchronous and asynchronous errors, while row and column layout changes update every retained error index. The editor always stays on the only active cell; moving the pointer outside the edit cell keeps editing unchanged, clicking another cell commits the current value before changing selection, while programmatically selecting another cell still cancels the current edit. A keyboard focus transition out of the Grid also commits the editor, and every EditBox commits when focus leaves the control. Grid and EditBox share the compact 8×8 color palette with 63 colors and a clear-color swatch; selecting either immediately closes the popup. Color cells show the swatch while keeping the value text at the normal cell text color. During continuous editing, moving beyond the visible range scrolls one row at a time and keeps the active editor at the top or bottom boundary. |
+| Display customization | Provides Column `cssClass`, formatters, `formatItem`, `cellTemplate`, Header styles, Row/GroupRow types, and event APIs. |
 | Import and export | Supports JSON, CSV, and XLSX. Excel exports can preserve formatting, frozen panes, filters, groups, Footers, and hidden columns. |
 | Popups | Context menus, filters, column choosers, and editor popups close with `Escape` or an outside click. With `filterMode: false`, Clear Filter is hidden. Row Header and fullscreen entries are independently controlled by `showRowHeaderMenu` and `showFullscreenMenu`, both hidden by default. |
-| Lifecycle | `fabui.Control.getControl()` retrieves an instance. `hasFocus` reports whether the Grid currently has focus. `dispose()` removes managed DOM listeners. |
+| Lifecycle | `fabui.Control.getControl()` retrieves an instance. `hasFocus` reports whether the Grid currently has focus. `beginUpdate()`/`endUpdate()` and `deferUpdate()` coalesce View updates, with read-only `isUpdating` reporting batch state. `dispose()` removes managed DOM listeners. |
+| Events | Constructor callbacks, `grid.on()`, and Wijmo-compatible `addHandler()` all use `(grid, eventArgs)`. Every event args object includes `grid`, `type`, and `cancel`, with `eventArgs.grid === grid`. Each event dispatch keeps its own args object, so a retained before-event reference is not rewritten by the matching after-event. Every before/action-start event is cancellable, including `updatingLayout` and `excelExporting`. |
 | Clipboard | `fabui.Clipboard.copy(str)` copies text to the system clipboard. |
+
+Local Column uniqueness checks use `args.isDuplicate()`: each non-empty value may appear once, while blank values may repeat. Pass `{ ignoreCase: true }` for case-insensitive comparison.
+
+Every numeric Column argument in a public method uses the full `grid.columns` index, including hidden columns. Decimal integer strings such as `"1"` are accepted as the same index because Column identifiers start with a letter. Visible indexes are exposed only through event `viewCol` and related `view*` fields. Wijmo-compatible calls such as `startEditing(false)` edit the current active cell, and the existing `startEditing(row, col, options)` form uses the same full Column index.
 
 ### Sorting and Filtering
 
@@ -162,10 +167,12 @@ FabGrid cell editors, the Search Row, and `fabui.EditBox` share editor definitio
 
 | Feature | Description |
 | --- | --- |
-| Custom icons | Use `icons: [{ iconCls, title, ariaLabel, text, width, align, keepFocus, onClick }]`. |
+| Custom icons | Use `icons: [{ iconCls, title, ariaLabel, text, width, align, keepFocus, onClick }]`. `iconCls` may be an external CSS class that defines `background` or `background-image`; it does not require `:root` or `!important`. |
 | Number Spinner | `spinner: true`/`'right'` displays it on the right; `spinner: 'left'` displays it on the left. The default is `false`. |
 | Spinner values | `increment` defaults to `1` and follows `min`, `max`, `precision`, and change/cell-edit contracts. |
-| Time editor | `editor: 'time'` defaults to `99:99` and `autoUnmask: true`; `99:99:99` is also supported. |
+| Column masks | Define `mask`, `autoUnmask`, and mask-literal behavior on the Column so they also apply when `editor` is omitted. Legacy editor-level values are normalized to the Column during initialization. |
+| Time editor | Use `dataType: 'string'` with `editor: 'time'`. It defaults to `99:99` and `autoUnmask: false`; `99:99:99` is also supported. |
+| Date editor | `editor: 'date'` supports both `dataType: 'string'` and `dataType: 'date'`. Date data automatically selects the Date editor, while string data requires the explicit editor. |
 | Time range | Uses a 24-hour clock. Only the complete values `24:00` and `24:00:00` are accepted as the upper limit. |
 
 See the [EditBox API](./docs/editbox-api.md) for complete examples.
@@ -255,13 +262,38 @@ The Diagram demo includes a production manufacturing workflow example with no ex
 | Item | Description |
 | --- | --- |
 | Theme count | Public components expose the same metadata for 17 themes. |
-| Default | Built into FabUI core and Lite CSS. |
+| Default | Built into FabUI core and Lite CSS; theme builds also publish optional standalone `fabui.default.{css,min.css}` files. |
 | Other themes | The 16 external Theme stylesheets must load last and directly override Default selectors. |
 | Mono | `mono` uses monochrome SVG assets from `dist/theme/mono/`. |
 | Style isolation | Native controls inside FabUI core use fixed component classes and an isolated base, preventing generic `button`, `input`, `label`, `select`, `textarea`, and `a` selectors from changing component appearance. |
-| Localization | Includes `en`, `zh-TW`, and `zh-CN`, and normalizes common Traditional and Simplified Chinese locale aliases. |
+| Localization | Core defaults to embedded English. Optional `en`, `zh-TW`, and `zh-CN` language files are loaded from `dist/locales/` when needed; the English file explicitly switches back to the embedded English messages. |
 
 All demos use `default` initially. Selecting another theme replaces the Theme stylesheet and reloads the page.
+
+Load a language pack after FabUI core. Loading it registers all component
+messages, sets the global display language, and updates existing controls:
+
+```html
+<script src="./dist/fabui.min.js"></script>
+<script src="./dist/locales/fabui-locale.zh-TW.min.js"></script>
+```
+
+Loading `fabui-locale.en.min.js` switches back to English by overwriting the
+current defaults. If the requested language pack has not been loaded, FabUI
+stays in English. Use `fabui.getLocale()` and `fabui.getLocales()` to inspect
+the active and loaded locales.
+
+Locale files also overwrite the English defaults of loaded components, like
+jQuery EasyUI locale files. With fabLoader, loading the target language file
+is enough to switch the display language:
+
+```js
+fabLoader.script('./dist/locales/fabui-locale.zh-TW.min.js');
+```
+
+No separate switch call is required when the locale file is loaded. fabLoader
+remains independent and applies its normal script cache without recognizing
+FabUI locale filenames.
 
 ## Demos and API Documentation
 
@@ -289,7 +321,7 @@ Source mode loads directly from `src/` and is intended for development testing. 
 - Navigation and containers: [Tabs](./docs/tabs-api.md), [Tree](./docs/tree-api.md), [PropertyGrid](./docs/propertygrid-api.md), [Panel](./docs/panel-api.md), [Accordion](./docs/accordion-api.md), [Window](./docs/window-api.md), [Layout](./docs/layout-api.md)
 - Commands and feedback: [Button](./docs/button-api.md), [Menu](./docs/menu-api.md), [MenuButton](./docs/menubutton-api.md), [SplitButton](./docs/splitbutton-api.md), [Messager](./docs/messager-api.md), [Tooltip](./docs/tooltip-api.md)
 - Extensions: [Diagram](./docs/diagram-api.md), [Gantt](./docs/gantt-api.md), [Scheduler](./docs/scheduler-api.md), [HtmlEditor](./docs/htmleditor-api.md)
-- Wrappers: [Vue 2](./docs/vue-api.md), [jQuery](./docs/jquery-api.md)
+- Wrappers: [Vue 2](./docs/vue-api.md), [FabGrid jQuery](./docs/jquery-api.md), [FabUI jQuery compatibility](./docs/fabui-jquery-api.md)
 
 ## Distribution Bundles
 
@@ -301,16 +333,17 @@ Source mode loads directly from `src/` and is intended for development testing. 
 | Gantt | `dist/fabui.gantt.{js,min.js,css,min.css}` | Standalone `fabui.Gantt` extension. |
 | Scheduler | `dist/fabui.scheduler.{js,min.js,css,min.css}` | Standalone `fabui.Scheduler` extension. |
 | HtmlEditor | `dist/fabui.htmleditor.{js,min.js,css,min.css}` | Standalone `fabui.HtmlEditor` extension. |
-| fabLoader | `dist/fabLoader.{js,min.js}` | Experimental standalone dynamic resource loader with a built-in DOM helper; not attached to `fabui`. |
-| Theme | `dist/theme/fabui.<theme>.{css,min.css}` | The 16 non-Default themes and required assets. |
+| fabLoader | `dist/fabLoader.{js,min.js}` | Experimental standalone dynamic resource loader. `build fabloader` includes the DOM helper; `build loader` excludes it. Not attached to `fabui`. |
+| Theme | `dist/theme/fabui.<theme>.{css,min.css}` | All 17 themes, including Default, and required assets. |
+| Locale | `dist/locales/fabui-locale.<locale>.{js,min.js}` | Optional `en`, `zh-TW`, and `zh-CN` language files shared by core and standalone components. |
 
-`fabui.EditBox` is included in core and no longer has a standalone bundle. The experimental fabLoader is not included in `build:all`. fabDom remains only as source code combined into fabLoader and no longer has standalone distribution files. The Vue 2 and FabGrid jQuery wrappers are currently paused and excluded from default builds; their existing source code and documentation remain available.
+`fabui.EditBox` is included in core and no longer has a standalone component bundle. The experimental fabLoader is not included in `build:all`. fabDom remains source-only and is combined by `build fabloader`; it has no standalone distribution files. The Vue 2 and FabGrid jQuery wrappers remain excluded from default builds. The FabUI jQuery compatibility wrapper is also independent and is built only with `npm run build:fabui-jquery`.
 
 Browser globals use these namespaces:
 
 | Namespace | Contents |
 | --- | --- |
-| `fabui` | FabGrid, general UI components, Control, editor definitions, and locales. |
+| `fabui` | FabGrid, general UI components, Control, editor definitions, and loaded locale management. |
 | `fabui.collections` | Shared CollectionView data view for Grid/Chart sorting, filtering, and current-item synchronization. |
 | `fabui.chart` | Chart, Pie, ChartType, Position, SelectionMode, and the animation namespace containing ChartAnimation, AnimationMode, and Easing. |
 | `fabui.pivot` | PivotEngine, PivotField, PivotPanel, PivotGrid, PivotChart, PivotSlicer, and PivotWorkspace. |
@@ -333,7 +366,7 @@ Use `fabui.getConfig()` to retrieve an independent copy of the current configura
 
 ## Experimental fabLoader
 
-`fabLoader` is a standalone browser global with no package dependencies. It is currently being evaluated by the production Diagram demo and is not included in the `fabui` namespace. Its distribution includes a small DOM helper exposed through `fabLoader.dom()`. When a page has no jQuery and `$` is not already occupied, fabLoader also safely provides `$` as an alias.
+`fabLoader` is a standalone browser global with no package dependencies. It is currently being evaluated by the production Diagram demo and is not included in the `fabui` namespace. The `build fabloader` distribution includes a small DOM helper exposed through `fabLoader.dom()`. When a page has no jQuery and `$` is not already occupied, that combined build also safely provides `$` as an alias. The `build loader` distribution excludes fabDom.
 
 See the [fabLoader API](./docs/fabloader-api.md) for complete usage and parameters.
 
@@ -418,7 +451,7 @@ $('#place-b').append(myImage.loader);
 $('#place-b').append(myImage.unlock);
 ```
 
-`vue(url)` is an optional Vue 2 SFC queue step. When unused, fabLoader does not depend on Vue or SystemJS. When called, it checks for an existing `System.import()`, the full Vue 2 build, and the browser template compiler, then passes the `.vue` file to the existing SystemJS loader configuration. Missing dependencies or failed imports enter the same `catch()`. `demo2/index.html` provides a simple CDN-free demonstration.
+`vue(url)` is an optional Vue 2 SFC queue step. When unused, fabLoader does not depend on Vue or SystemJS. When called, it checks for an existing `System.import()`, the full Vue 2 build, and the browser template compiler, then passes the `.vue` file to the existing SystemJS loader configuration. Missing dependencies or failed imports are logged through `console.error`, and later queue steps continue. `demo2/index.html` provides a simple CDN-free demonstration.
 
 `react(url)` is an optional React JSX queue step. When unused, fabLoader does not depend on React or SystemJS. When called, it checks for an existing `System.import()`, React, and a ReactDOM Client that provides `createRoot()`, then passes the `.jsx` file to the existing SystemJS JSX loader configuration. Demo2 uses a separate `runtime.config.js` for the local systemjs-plugin-babel setup, while the original `systemjs.config.js` remains Vue-only.
 
@@ -481,9 +514,14 @@ fabLoader
 
 Scripts within an array load in parallel and are not guaranteed to execute in relation to one another. Only mutually independent scripts belong in the same group. Later queue steps wait for the entire group to finish.
 
+Queue resource steps (`style`, `script`, `module`, `vue`, and `react`) log load
+errors through `console.error` and continue with the remaining steps. Direct
+loading methods still reject their Promises, while queue `catch()` handles
+exceptions thrown by `run()` or `done()` callbacks.
+
 ## Experimental fabDom
 
-`fabDom` is implemented in `src/fabdom/fabDom.js`, bundled into `dist/fabLoader.{js,min.js}`, and exposed as `fabLoader.dom`. It no longer has standalone distribution files. When fabLoader loads on a page without jQuery and `$` is still unused, `$` automatically points to the built-in fabDom. An existing `$` is never replaced.
+`fabDom` is implemented in `src/fabdom/fabDom.js`, bundled into `dist/fabLoader.{js,min.js}` by `build fabloader`, and exposed as `fabLoader.dom`. It is excluded by `build loader` and no longer has standalone distribution files. When the combined build loads on a page without jQuery and `$` is still unused, `$` automatically points to the built-in fabDom. An existing `$` is never replaced.
 
 ```js
 $('#target')
@@ -532,15 +570,17 @@ npm run serve
 
 | Command | Scope |
 | --- | --- |
-| `npm run build` | FabUI core, Default CSS, 16 external themes, and their image assets. |
+| `npm run build` | FabUI core, Default CSS, all 17 standalone theme files, and their image assets. |
 | `npm run build:lite` | Rebuilds only `fabui.lite.*`. |
 | `npm run build:diagram` | Rebuilds only `fabui.diagram.*`. |
 | `npm run build:gantt` | Rebuilds only `fabui.gantt.*`. |
 | `npm run build:scheduler` | Rebuilds only `fabui.scheduler.*`. |
 | `npm run build:htmleditor` | Rebuilds only `fabui.htmleditor.*`. |
 | `npm run build:loader` | Rebuilds only the experimental `dist/fabLoader.js` and `dist/fabLoader.min.js`. |
-| `npm run build:theme` | Rebuilds only `dist/theme/`. |
-| `npm run build:all` | Rebuilds core, Lite, Diagram, Gantt, Scheduler, and HtmlEditor in sequence. |
+| `npm run build:theme` | Rebuilds all 17 themes under `dist/theme/`, including `fabui.default.{css,min.css}`. |
+| `npm run build:locale` | Rebuilds only the optional `en`, `zh-TW`, and `zh-CN` files under `dist/locales/`. |
+| `npm run build:all` | Rebuilds core, Lite, Diagram, Gantt, Scheduler, HtmlEditor, and Locale in sequence. |
+| `npm run build:fabloader` | Rebuilds `fabLoader.*` with the built-in fabDom helper. |
 | `npm run benchmark:grid` | Benchmarks binding, global search, two-column sorting, and two-dimensional virtualization limits with a 20,000×50 dataset without rebuilding `dist`. |
 | `npm test` | Runs the Node.js automated tests without rebuilding `dist`. |
 
@@ -548,11 +588,15 @@ Add `-- min` after npm arguments for a single build scope to keep only that scop
 
 All builds produce only browser-global JavaScript, CSS, minified files, and required image assets. They do not produce `.esm.*` files.
 
-When using Codex, `build <scope>,<scope> [min]` combines `fabui`, `lite`, `diagram`, `gantt`, `scheduler`, `htmleditor`, and `theme` in the specified order. For example: `build fabui,htmleditor min`. Do not put spaces around the comma. `all` and `clear` must be used alone.
+When using Codex, `build <scope>,<scope> [min]` combines `fabui`, `lite`, `diagram`, `gantt`, `scheduler`, `htmleditor`, `theme`, and `locale` in the specified order. For example: `build fabui,htmleditor min`. Do not put spaces around the comma. `all` and `clear` must be used alone.
 
 `build htmleditor min` maps to `npm run build:htmleditor -- min` and only produces and retains `dist/fabui.htmleditor.min.js` and `dist/fabui.htmleditor.min.css`. It does not rebuild FabUI core or any other standalone bundle.
 
-`build loader` maps to `npm run build:loader` and only produces `dist/fabLoader.js` and `dist/fabLoader.min.js`. `build loader min` maps to `npm run build:loader -- min` and only produces and retains `dist/fabLoader.min.js`. Loader is excluded from `build all` and comma-separated multi-scope builds.
+`build locale` maps to `npm run build:locale` and only produces the regular and minified `en`, `zh-TW`, and `zh-CN` language files under `dist/locales/`. `build locale min` maps to `npm run build:locale -- min` and only retains the three `.min.js` language files.
+
+`build fabloader` maps to `npm run build:fabloader` and produces `dist/fabLoader.js` and `dist/fabLoader.min.js` with fabDom included. `build fabloader min` maps to `npm run build:fabloader -- min` and only produces and retains the combined `dist/fabLoader.min.js`.
+
+`build loader` maps to `npm run build:loader` and produces the same output filenames without fabDom. `build loader min` maps to `npm run build:loader -- min` and only produces and retains the pure `dist/fabLoader.min.js`. Fabloader and Loader are both excluded from `build all` and comma-separated multi-scope builds; the mode built last determines the contents of the same output filenames.
 
 ### Performance Benchmark
 
@@ -573,9 +617,9 @@ The benchmark always creates 20,000 rows and 50 columns, totaling one million da
 | `src/diagram/` | Diagram renderer, toolbox, interactions, history, and export. |
 | `src/gantt/`, `src/scheduler/`, `src/htmleditor/` | Standalone Gantt, Scheduler, and HtmlEditor source. |
 | `src/fabloader/` | Experimental standalone dynamic resource Loader. |
-| `src/theme/`, `src/locales/` | Themes, images, and the `en`/`zh-TW`/`zh-CN` locales. |
+| `src/theme/`, `src/locales/` | Themes, images, and optional `en`/`zh-TW`/`zh-CN` language files; English messages remain embedded as the default. |
 | `src/<component>/` | General components such as Button, Calendar, Form, Tabs, Tree, Panel, and Window. |
-| `packages/` | Paused Vue 2 and jQuery wrappers. |
+| `packages/` | Independent Vue 2, FabGrid jQuery, and FabUI jQuery wrappers. |
 | `build/` | Build scripts, Theme builder, and smoke scripts. |
 | `demo/` | Source-mode and Build-mode demos. |
 | `docs/` | API manuals. |

@@ -1,6 +1,6 @@
 # FabUI Theme API
 
-FabUI 公開元件提供相同的 17 組 theme metadata。Default 配色已包含在 FabUI core 與 Lite CSS；其他主題由外部 Theme CSS 覆蓋。
+FabUI 公開元件提供相同的 17 組 theme metadata。Default 配色已包含在 FabUI core 與 Lite CSS；theme build 仍會另外產生可選用的 `fabui.default.css` 與 `fabui.default.min.css`，其他主題則由外部 Theme CSS 覆蓋。
 
 ## 載入方式
 

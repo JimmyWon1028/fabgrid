@@ -79,32 +79,18 @@ export function createPanelFactory(Control, registerControl, unregisterControl) 
       maximize: 'Maximize',
       restore: 'Restore',
       loading: 'Loading...'
-    },
-    'zh-TW': {
-      close: '關閉',
-      collapse: '收合',
-      expand: '展開',
-      minimize: '最小化',
-      maximize: '最大化',
-      restore: '還原',
-      loading: '載入中...'
-    },
-    'zh-CN': {
-      close: '关闭',
-      collapse: '收合',
-      expand: '展开',
-      minimize: '最小化',
-      maximize: '最大化',
-      restore: '还原',
-      loading: '加载中...'
     }
   };
 
   function normalizeLocale(value) {
     value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 
@@ -199,7 +185,11 @@ export function createPanelFactory(Control, registerControl, unregisterControl) 
     panel.appendChild(footer);
     if (this._originalParent) this._originalParent.insertBefore(panel, this._originalNextSibling);
     this.hostElement.classList.add('fui-panel-body');
-    if (this.options.bodyCls) this.hostElement.classList.add(this.options.bodyCls);
+    if (this.options.bodyCls) {
+      String(this.options.bodyCls).trim().split(/\s+/).forEach(function(className) {
+        if (className) this.hostElement.classList.add(className);
+      }, this);
+    }
     this.hostElement.removeAttribute('title');
     this.hostElement.style.display = '';
     this.panelElement = panel;

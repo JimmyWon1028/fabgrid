@@ -1293,7 +1293,8 @@ export function installFabGridFilterUi(FabGrid, context) {
     return {
       grid: this,
       column: column,
-      col: column ? column._viewIndex : -1,
+      col: column && typeof column._index === 'number' ? column._index : -1,
+      viewCol: column ? column._viewIndex : -1,
       input: input || null,
       editor: input || null,
       value: input ? input.value : '',
@@ -1369,13 +1370,13 @@ export function installFabGridFilterUi(FabGrid, context) {
     event.stopPropagation();
     if (targetRow !== currentRow || !this.selection || this.selection.col !== col) {
       if (this.options.multiSelectRows === true) {
-        this.select(targetRow, col);
+        this._selectVisibleCell(targetRow, col);
       } else {
-        this.selectRow(targetRow, col);
+        this._selectVisibleRow(targetRow, col);
       }
     }
     if (this.selection && this.selection.row === targetRow) {
-      this.scrollIntoView(targetRow, col, {
+      this._scrollVisibleIntoView(targetRow, col, {
         directionY: targetRow === currentRow ? 0 : direction
       });
     }

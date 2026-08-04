@@ -1,4 +1,4 @@
-import { ColorPopup } from './color-popup.js?v=20260725-remove-mono-variants-v1';
+import { ColorPopup } from './color-popup.js?v=20260729-color-palette-layout-v2';
 import { normalizeEditorIconDescriptors } from './editor-icons.js?v=20260718-editor-icons-v1';
 
 export function createColorEditBoxFactory(TextBox, editorDefinitions) {
@@ -14,44 +14,21 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
   var localePacks = {
     en: {
       openColorText: 'Open color palette',
-      saturationText: 'Saturation and brightness',
-      hueText: 'Hue',
-      alphaText: 'Alpha'
-    },
-    'zh-TW': {
-      openColorText: '開啟色盤',
-      saturationText: '飽和度與明度',
-      hueText: '色相',
-      alphaText: '透明度'
-    },
-    'zh-CN': {
-      openColorText: '打开色板',
-      saturationText: '饱和度与明度',
-      hueText: '色相',
-      alphaText: '透明度'
+      clearColorText: 'Clear color'
     }
   };
 
-  var defaultPalette = [
-    '#ffffff', '#000000', '#ff0000', '#ffc000', '#ffff00', '#92d050', '#00b050', '#00b0f0', '#0070c0', '#7030a0',
-    '#f2f2f2', '#737373', '#ffe5e5', '#fff9e5', '#ffffe5', '#f3ffe5', '#e5fff1', '#e5f8ff', '#e5f4ff', '#f4e5ff',
-    '#d9d9d9', '#595959', '#e6a1a1', '#e6d4a1', '#e5e6a1', '#c4e6a1', '#a1e6c0', '#a1d3e6', '#a1c9e6', '#c8a1e6',
-    '#bfbfbf', '#404040', '#cc6666', '#ccb366', '#cccc66', '#9bcc66', '#66cc94', '#66b1cc', '#66a2cc', '#a066cc',
-    '#a6a6a6', '#262626', '#b23636', '#b29436', '#b2b236', '#76b236', '#36b26e', '#3691b2', '#367eb2', '#7d36b2',
-    '#8c8c8c', '#0d0d0d', '#990f0f', '#99770f', '#99990f', '#56990f', '#0f994e', '#0f7499', '#0f6099', '#5e0f99'
-  ];
+  var defaultPalette = ColorPopup.defaultPalette;
 
   var defaults = {
+    autoUnmask: false,
     iconWidth: 28,
-    panelWidth: 420,
+    panelWidth: 162,
     locale: 'en',
     openColorText: null,
-    saturationText: null,
-    hueText: null,
-    alphaText: null,
+    clearColorText: null,
     palette: defaultPalette,
     colors: null,
-    showAlpha: true,
     onChange: null,
     onSelect: null,
     onShowPanel: null,
@@ -78,8 +55,12 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
   function normalizeLocale(name) {
     name = String(name || 'en').trim().replace(/_/g, '-');
     if (localePacks[name]) return name;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 
@@ -104,14 +85,8 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'openColorText')) {
       this._options.openColorText = localePacks[this._options.locale].openColorText;
     }
-    if (!Object.prototype.hasOwnProperty.call(userOptions, 'saturationText')) {
-      this._options.saturationText = localePacks[this._options.locale].saturationText;
-    }
-    if (!Object.prototype.hasOwnProperty.call(userOptions, 'hueText')) {
-      this._options.hueText = localePacks[this._options.locale].hueText;
-    }
-    if (!Object.prototype.hasOwnProperty.call(userOptions, 'alphaText')) {
-      this._options.alphaText = localePacks[this._options.locale].alphaText;
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'clearColorText')) {
+      this._options.clearColorText = localePacks[this._options.locale].clearColorText;
     }
     this._options.palette = Array.isArray(this._options.palette) ?
       this._options.palette.slice() :
@@ -119,8 +94,6 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
     if (Array.isArray(this._options.colors) && this._options.colors.length) {
       this._options.palette = this._options.colors.slice();
     }
-    this._options.showAlpha = this._options.showAlpha !== false;
-
     icons = normalizeEditorIconDescriptors(this._options.icons);
     icons.push({
       iconCls: 'fui-colorbox-trigger fui-combobox-arrow',
@@ -153,15 +126,10 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
       openClassHost: this._shell,
       panelWidth: this._options.panelWidth,
       ariaLabel: this._options.openColorText,
-      saturationText: this._options.saturationText,
-      hueText: this._options.hueText,
-      alphaText: this._options.alphaText,
+      clearText: this._options.clearColorText,
       palette: this._options.palette,
-      showAlpha: this._options.showAlpha,
+      closeOnSelect: true,
       normalize: this._normalizeColor.bind(this),
-      onInput: function(value) {
-        self._textbox.setValue(value);
-      },
       onSelect: function(value) {
         self.setValue(value);
         self._invoke('onSelect', self.getValue());
@@ -239,6 +207,10 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
     return this;
   };
 
+  ColorEditBox.prototype.fix = function() {
+    return this.setValue(this._editor.value);
+  };
+
   ColorEditBox.prototype.initValue = function(value) {
     this._textbox.initValue(this._parseColor(value));
     this._syncColor();
@@ -267,18 +239,14 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
     this._options.locale = normalizeLocale(name);
     pack = localePacks[this._options.locale] || localePacks.en;
     this._options.openColorText = pack.openColorText;
-    this._options.saturationText = pack.saturationText;
-    this._options.hueText = pack.hueText;
-    this._options.alphaText = pack.alphaText;
+    this._options.clearColorText = pack.clearColorText;
     if (this._trigger) {
       this._trigger.title = this._options.openColorText;
       this._trigger.setAttribute('aria-label', this._options.openColorText);
     }
     this._colorPopup.setOptions({
       ariaLabel: this._options.openColorText,
-      saturationText: this._options.saturationText,
-      hueText: this._options.hueText,
-      alphaText: this._options.alphaText
+      clearText: this._options.clearColorText
     });
     return this;
   };
@@ -295,11 +263,8 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
       openClassHost: this._shell,
       panelWidth: this._options.panelWidth,
       ariaLabel: this._options.openColorText,
-      saturationText: this._options.saturationText,
-      hueText: this._options.hueText,
-      alphaText: this._options.alphaText,
-      palette: this._options.palette,
-      showAlpha: this._options.showAlpha
+      clearText: this._options.clearColorText,
+      palette: this._options.palette
     });
     this._colorPopup.setValue(this.getValue() || '#ff0000');
     this._colorPopup.show();

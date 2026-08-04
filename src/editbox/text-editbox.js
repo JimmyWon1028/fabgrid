@@ -15,7 +15,8 @@ export function createTextBoxFactory(editorDefinitions) {
     cls: '',
     prompt: '',
     value: '',
-    autoUnmask: true,
+    autoUnmask: false,
+    charcase: '',
     type: 'text',
     label: '',
     labelWidth: 80,
@@ -238,6 +239,23 @@ export function createTextBoxFactory(editorDefinitions) {
   TextBox.prototype._bind = function() {
     var self = this;
     this._onInput = function() {
+      var start = self._editor.selectionStart;
+      var value = self._editor.value;
+      var nextValue;
+      var nextStart;
+      if (editorDefinition && typeof editorDefinition.sanitize === 'function') {
+        nextValue = editorDefinition.sanitize(value, self._options);
+        if (nextValue !== value) {
+          nextStart = editorDefinition.sanitize(
+            value.slice(0, start == null ? value.length : start),
+            self._options
+          ).length;
+          self._editor.value = nextValue;
+          if (self._editor.setSelectionRange) {
+            self._editor.setSelectionRange(nextStart, nextStart);
+          }
+        }
+      }
       self._commitEditorValue();
     };
     this._onFocus = function() {
@@ -302,6 +320,10 @@ export function createTextBoxFactory(editorDefinitions) {
       this._invoke('onChange', newValue, oldValue);
       this._emit('change', { value: newValue, oldValue: oldValue });
     }
+  };
+
+  TextBox.prototype.fix = function() {
+    return this.setValue(this._editor.value);
   };
 
   TextBox.prototype._applyState = function() {
@@ -375,7 +397,7 @@ export function createTextBoxFactory(editorDefinitions) {
 
   TextBox.prototype.setValue = function(value, silent) {
     var oldValue = this._source.value;
-    var newValue = editorDefinition && typeof editorDefinition.normalize === 'function' ? editorDefinition.normalize(value) : (value == null ? '' : String(value));
+    var newValue = editorDefinition && typeof editorDefinition.normalize === 'function' ? editorDefinition.normalize(value, this._options) : (value == null ? '' : String(value));
     this._editor.value = newValue;
     this._source.value = newValue;
     this._options.value = newValue;

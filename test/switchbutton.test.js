@@ -55,14 +55,12 @@ test('SwitchButton exposes the local EasyUI 1.11.5 defaults', function() {
   assert.equal(fabui.SwitchButton.defaults.labelAlign, 'left');
 });
 
-test('SwitchButton publishes all required locale packs and themes', function() {
+test('SwitchButton core publishes English locale and themes', function() {
   assert.deepEqual(
     Object.keys(fabui.SwitchButton.locales),
-    ['en', 'zh-TW', 'zh-CN']
+    ['en']
   );
   assert.equal(fabui.SwitchButton.locales.en.switchbutton, 'Switch button');
-  assert.equal(fabui.SwitchButton.locales['zh-TW'].switchbutton, '切換按鈕');
-  assert.equal(fabui.SwitchButton.locales['zh-CN'].switchbutton, '切换按钮');
   assert.deepEqual(
     fabui.SwitchButton.themes.slice().sort(),
     Object.keys(themePalettes).concat('mono').sort()

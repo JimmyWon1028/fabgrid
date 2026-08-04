@@ -42,7 +42,8 @@
     return '成為子節點';
   }
 
-  function handleDraggedRow(event) {
+  function handleDraggedRow(sender, event) {
+    event = event || sender;
     if (event.role === 'source') {
       return;
     }

@@ -151,12 +151,6 @@ export function createRadioGroupFactory(
   var localePacks = {
     en: {
       group: 'Radio group'
-    },
-    'zh-TW': {
-      group: '單選群組'
-    },
-    'zh-CN': {
-      group: '单选组'
     }
   };
 

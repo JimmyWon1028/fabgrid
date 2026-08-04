@@ -21,6 +21,8 @@ Grid 內建排序與篩選會更新同一個 CollectionView。Chart 監聽 `coll
 
 Grid 與 Chart 也共用 `currentItem`／`currentPosition`。Grid 選取資料列或 Chart 點擊資料點時，會透過 `currentChanged` 自動同步，不提供 `selectionSource`。
 
+`remote: true` 也可直接使用同一個 CollectionView。遠端回應的 rows 會更新該 instance 的 `sourceCollection`，Grid 不會再次套用本機 filter／sort，因此 Grid 與 Chart 會同步顯示後端回傳順序。
+
 ## 建構
 
 ```js

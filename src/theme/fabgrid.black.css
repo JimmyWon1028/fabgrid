@@ -1,6 +1,6 @@
 /*! FabGrid theme black | performance-first data grid */
 @import './black/tabs.css?v=20260724-native-elements-v2';
-@import './black/components.css?v=20260725-editbox-themes-v1';
+@import './black/components.css?v=20260731-tree-icons-v1';
 :root .fg-root,
 :root .fui-tabs {
   --fg-border: #222;

@@ -44,9 +44,8 @@ test('HtmlEditor factory requires the complete FabUI core dependency set', funct
   );
 });
 
-test('HtmlEditor publishes a Control subclass with complete locale and theme metadata', function() {
+test('HtmlEditor publishes a Control subclass with English locale and theme metadata', function() {
   var HtmlEditor = createHtmlEditorFactory(coreFabui);
-  var expectedKeys = Object.keys(HtmlEditor.locales.en).sort();
   assert.equal(typeof HtmlEditor, 'function');
   assert.equal(Object.getPrototypeOf(HtmlEditor.prototype), coreFabui.Control.prototype);
   assert.deepEqual(HtmlEditor.themes, themes);
@@ -59,10 +58,7 @@ test('HtmlEditor publishes a Control subclass with complete locale and theme met
     '#630000', '#7B3900', '#846300', '#295218',
     '#083139', '#003163', '#21104A', '#4A1031'
   ]);
-  assert.deepEqual(Object.keys(HtmlEditor.locales), ['en', 'zh-TW', 'zh-CN']);
-  Object.keys(HtmlEditor.locales).forEach(function(locale) {
-    assert.deepEqual(Object.keys(HtmlEditor.locales[locale]).sort(), expectedKeys);
-  });
+  assert.deepEqual(Object.keys(HtmlEditor.locales), ['en']);
   assert.equal(HtmlEditor.normalizeLocale('zh_Hant_TW'), 'zh-TW');
   assert.equal(HtmlEditor.normalizeLocale('zh-Hans'), 'zh-CN');
 });

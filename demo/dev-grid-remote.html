@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>FabGrid 遠端資料 Demo</title>
     <link rel="stylesheet" href="../src/fabui.css?v=20260722-filter-active-theme-v1" />
-    <script src="./js/theme-loader.js?v=20260725-editbox-themes-v1"></script>
+    <script src="./js/theme-loader.js?v=20260731-tree-icons-v1"></script>
     <style>
       :root {
         color-scheme: light;
@@ -149,11 +149,11 @@
     </main>
 
     <script type="module">
-      import fabui from "../src/fabui.js?v=20260725-remove-mono-variants-v1";
+      import fabui from "../src/fabui.js?v=20260804-grid-event-args-v1";
 
       window.fabui = fabui;
       await import(
-        "../src/locales/fabgrid-locale.zh-TW.js?v=20260719-remote-demo-v1"
+        "../src/locales/fabui-locale.zh-TW.js?v=20260728-locale-packs-v1"
       );
 
       var REMOTE_PROXY_URL = "/__fabgrid_remote_data__";
@@ -235,19 +235,22 @@
         ],
       });
 
-      grid.on("beforeLoad", function (event) {
+      grid.on("beforeLoad", function (sender, event) {
+        event = event || sender;
         setLoadStatus(
           "正在載入第 " + (event.params.page || 1) + " 頁…",
           "loading"
         );
       });
 
-      grid.on("loadSuccess", function (event) {
+      grid.on("loadSuccess", function (sender, event) {
+        event = event || sender;
         var total = Number(event.data && event.data.total) || 0;
         setLoadStatus("載入完成，共 " + total.toLocaleString("zh-TW") + " 筆", "success");
       });
 
-      grid.on("loadError", function (event) {
+      grid.on("loadError", function (sender, event) {
+        event = event || sender;
         var message = event.error && event.error.message
           ? event.error.message
           : "無法載入遠端資料";

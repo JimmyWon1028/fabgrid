@@ -27,11 +27,9 @@ test('CheckBox exposes the official EasyUI-compatible defaults', function() {
   assert.equal(fabui.CheckBox.defaults.labelAlign, 'left');
 });
 
-test('CheckBox publishes all required locale packs', function() {
-  assert.deepEqual(Object.keys(fabui.CheckBox.locales), ['en', 'zh-TW', 'zh-CN']);
+test('CheckBox core publishes English locale only', function() {
+  assert.deepEqual(Object.keys(fabui.CheckBox.locales), ['en']);
   assert.equal(fabui.CheckBox.locales.en.checkbox, 'Checkbox');
-  assert.equal(fabui.CheckBox.locales['zh-TW'].checkbox, '核取方塊');
-  assert.equal(fabui.CheckBox.locales['zh-CN'].checkbox, '复选框');
 });
 
 test('CheckBox normalizes themes, label position and label alignment', function() {

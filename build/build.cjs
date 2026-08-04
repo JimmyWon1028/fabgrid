@@ -12,6 +12,7 @@ const buildDate = new Date();
 const buildVersion = buildDate.getFullYear() + '.' + (buildDate.getMonth() + 1) + '.' + buildDate.getDate();
 const javascriptSources = [
   'core/config.js',
+  'core/locale.js',
   'core/clipboard.js',
   'core/control.js',
   'collections/collection-view.js',
@@ -68,12 +69,6 @@ const javascriptSources = [
   'pivot/pivot-slicer.js',
   'pivot/pivot-workspace.js'
 ];
-const localeSources = [
-  'locales/fabgrid-locale.en.js',
-  'locales/fabgrid-locale.zh-TW.js',
-  'locales/fabgrid-locale.zh-CN.js'
-];
-
 function banner(name) {
   return '/*! FabUI ' + name + ' | Pure JavaScript UI bundle */\n';
 }
@@ -150,7 +145,6 @@ function createJavascriptBundle() {
   const modules = javascriptSources.map(function(file) {
     return stripExports(readSource(file));
   }).join('\n');
-  const locales = localeSources.map(readSource).join('\n');
   return banner('browser global') + '(function(global) {\n' + modules + '\n' +
     'global.fabui = global.fabui || {};\n' +
     'global.fabui.version = ' + JSON.stringify(buildVersion) + ';\n' +
@@ -196,8 +190,40 @@ function createJavascriptBundle() {
     'global.fabui.pivot.PivotWorkspace = createPivotWorkspaceFactory(Control, registerControl, unregisterControl, PivotEngine, global.fabui.pivot.PivotPanel, global.fabui.pivot.PivotGrid, global.fabui.pivot.PivotChart, global.fabui.FabGrid);\n' +
     'global.fabui.pivot.PivotShowAs = PivotShowAs;\n' +
     'global.fabui.pivot.PivotShowTotals = PivotShowTotals;\n' +
+    'var localeManager = createLocaleManager();\n' +
+    'global.fabui.EditBox = localeManager.registerTarget("EditBox", global.fabui.EditBox);\n' +
+    'global.fabui.Calendar = localeManager.registerTarget("Calendar", global.fabui.Calendar);\n' +
+    'global.fabui.CheckBox = localeManager.registerTarget("CheckBox", global.fabui.CheckBox);\n' +
+    'global.fabui.CheckGroup = localeManager.registerTarget("CheckGroup", global.fabui.CheckGroup);\n' +
+    'global.fabui.SwitchButton = localeManager.registerTarget("SwitchButton", global.fabui.SwitchButton);\n' +
+    'global.fabui.RadioButton = localeManager.registerTarget("RadioButton", global.fabui.RadioButton);\n' +
+    'global.fabui.RadioGroup = localeManager.registerTarget("RadioGroup", global.fabui.RadioGroup);\n' +
+    'global.fabui.chart.Chart = localeManager.registerTarget("Chart", global.fabui.chart.Chart);\n' +
+    'global.fabui.chart.Pie = localeManager.registerTarget("Pie", global.fabui.chart.Pie, "Chart");\n' +
+    'global.fabui.FileBox = localeManager.registerTarget("FileBox", global.fabui.FileBox);\n' +
+    'global.fabui.Form = localeManager.registerTarget("Form", global.fabui.Form);\n' +
+    'global.fabui.Window = localeManager.registerTarget("Window", global.fabui.Window);\n' +
+    'global.fabui.Menu = localeManager.registerTarget("Menu", global.fabui.Menu);\n' +
+    'global.fabui.Panel = localeManager.registerTarget("Panel", global.fabui.Panel);\n' +
+    'global.fabui.Accordion = localeManager.registerTarget("Accordion", global.fabui.Accordion);\n' +
+    'global.fabui.PropertyGrid = localeManager.registerTarget("PropertyGrid", global.fabui.PropertyGrid);\n' +
+    'global.fabui.Tabs = localeManager.registerTarget("Tabs", global.fabui.Tabs);\n' +
+    'global.fabui.Tree = localeManager.registerTarget("Tree", global.fabui.Tree);\n' +
+    'global.fabui.Layout = localeManager.registerTarget("Layout", global.fabui.Layout);\n' +
+    'global.fabui.Messager = localeManager.registerTarget("Messager", global.fabui.Messager);\n' +
+    'global.fabui.FabGrid = localeManager.registerTarget("FabGrid", global.fabui.FabGrid);\n' +
+    'global.fabui.pivot.PivotChart = localeManager.registerTarget("PivotChart", global.fabui.pivot.PivotChart, "FabGrid");\n' +
+    'global.fabui.pivot.PivotGrid = localeManager.registerTarget("PivotGrid", global.fabui.pivot.PivotGrid, "FabGrid");\n' +
+    'global.fabui.pivot.PivotPanel = localeManager.registerTarget("PivotPanel", global.fabui.pivot.PivotPanel, "FabGrid");\n' +
+    'global.fabui.pivot.PivotSlicer = localeManager.registerTarget("PivotSlicer", global.fabui.pivot.PivotSlicer, "FabGrid");\n' +
+    'global.fabui.pivot.PivotWorkspace = localeManager.registerTarget("PivotWorkspace", global.fabui.pivot.PivotWorkspace, "FabGrid");\n' +
+    'global.fabui.addLocale = function(locale, pack) { localeManager.addLocale(locale, pack); return global.fabui; };\n' +
+    'global.fabui.getLocale = localeManager.getLocale;\n' +
+    'global.fabui.getLocales = localeManager.getLocales;\n' +
+    'global.fabui.setLocale = function(locale) { localeManager.setLocale(locale); return global.fabui; };\n' +
+    'global.fabui.registerLocaleTarget = localeManager.registerTarget;\n' +
     'global.fabui.FabGridLocales = global.fabui.FabGrid.locales;\n' +
-    '}(typeof window !== "undefined" ? window : this));\n' + locales;
+    '}(typeof window !== "undefined" ? window : this));\n';
 }
 
 function verifyCssAssets(file) {

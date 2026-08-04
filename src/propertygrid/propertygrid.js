@@ -202,26 +202,6 @@ export function createPropertyGridFactory(Control, registerControl, unregisterCo
       trueText: 'True',
       falseText: 'False',
       loadError: 'Unable to load property data.'
-    },
-    'zh-TW': {
-      propertyGrid: '屬性表',
-      name: '名稱',
-      value: '值',
-      expandGroup: '展開{group}',
-      collapseGroup: '收合{group}',
-      trueText: '是',
-      falseText: '否',
-      loadError: '無法載入屬性資料。'
-    },
-    'zh-CN': {
-      propertyGrid: '属性表',
-      name: '名称',
-      value: '值',
-      expandGroup: '展开{group}',
-      collapseGroup: '收起{group}',
-      trueText: '是',
-      falseText: '否',
-      loadError: '无法加载属性数据。'
     }
   };
 

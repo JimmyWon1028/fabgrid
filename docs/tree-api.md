@@ -79,6 +79,8 @@
 | `onlyLeafCheck` | `false` | 只在 leaf 顯示 checkbox。 |
 | `lines` | `false` | 顯示階層連接線。 |
 | `dnd` | `false` | 啟用節點拖放；落點為 `top`、`append`、`bottom`。 |
+| `fitWidth` | `false` | 將節點限制在 Tree 可用寬度內，過長標題以省略號顯示並避免橫向捲軸。 |
+| `externalDropTargets` | `null` | 外部放置目標或陣列；每項可設定 `target`、`activeCls`、`onBeforeDrop`、`onDragOver`、`onDragLeave`、`onDrop`。 |
 | `formatter` | `null` | `(node) => string \| HTMLElement`；字串視為受信任 HTML。 |
 | `filter` | `null` | `(query, node) => boolean`；供 `doFilter()` 使用。 |
 | `loader` | `null` | `(param, success, error)`，也可回傳 Promise。 |
@@ -90,6 +92,22 @@
 `state: 'closed'` 且未提供 `children` 的節點視為 lazy node。第一次展開會呼叫 loader，參數包含該節點的 `id`。
 
 Tree 的展開／收合、階層線、資料夾、檔案、checkbox 與 loading 圖示由目前載入的 Theme CSS 決定。正式 source 與 build 不依賴本機參考用的 `res/`。
+
+外部放置目標由 Tree 管理 listener 與拖曳中樣式，`onDrop` 直接取得來源 Node，不需要應用程式自行解析 `dataTransfer`：
+
+```js
+var tree = new fabui.Tree('#tree', {
+  dnd: true,
+  externalDropTargets: [{
+    target: '#remove-target',
+    onDrop: function(source) {
+      removeItem(source.id);
+    }
+  }]
+});
+```
+
+也可在 Tree options 設定共用的 `onBeforeExternalDrop(target, source, event)`、`onExternalDragOver(target, source, event)`、`onExternalDragLeave(target, source, event)` 與 `onExternalDrop(target, source, event)`。
 
 ## Methods
 

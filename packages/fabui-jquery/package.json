@@ -1,0 +1,11 @@
+{
+  "name": "@fabui/jquery",
+  "version": "2026.7.31",
+  "description": "jQuery compatibility wrapper for FabUI components.",
+  "type": "module",
+  "main": "dist/fabui-jquery.js",
+  "types": "index.d.ts",
+  "peerDependencies": {
+    "jquery": ">=3.7.0"
+  }
+}

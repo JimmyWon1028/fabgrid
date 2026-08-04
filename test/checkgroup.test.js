@@ -56,11 +56,9 @@ test('CheckGroup normalizes direction, labels and themes', function() {
   assert.equal(normalizeCheckGroupTheme('unknown'), 'default');
 });
 
-test('CheckGroup publishes all required locale packs', function() {
-  assert.deepEqual(Object.keys(fabui.CheckGroup.locales), ['en', 'zh-TW', 'zh-CN']);
+test('CheckGroup core publishes English locale only', function() {
+  assert.deepEqual(Object.keys(fabui.CheckGroup.locales), ['en']);
   assert.equal(fabui.CheckGroup.locales.en.group, 'Checkbox group');
-  assert.equal(fabui.CheckGroup.locales['zh-TW'].group, '核取方塊群組');
-  assert.equal(fabui.CheckGroup.locales['zh-CN'].group, '复选框组');
 });
 
 test('CheckGroup factory exposes official and FabUI lifecycle methods', function() {

@@ -383,54 +383,6 @@ export function createGanttFactory(fabui, registerControl, unregisterControl) {
       noTasks: 'No tasks',
       splitter: 'Resize task list',
       selected: 'Selected {title}'
-    },
-    'zh-TW': {
-      gantt: '甘特圖',
-      addTask: '新增任務',
-      day: '日',
-      week: '週',
-      month: '月',
-      year: '年',
-      task: '任務',
-      start: '開始',
-      end: '結束',
-      complete: '完成度',
-      newTask: '新任務',
-      editTask: '編輯任務',
-      title: '標題',
-      progress: '進度',
-      save: '儲存',
-      cancel: '取消',
-      remove: '刪除',
-      expand: '展開「{title}」',
-      collapse: '收合「{title}」',
-      noTasks: '沒有任務',
-      splitter: '調整任務清單寬度',
-      selected: '已選取「{title}」'
-    },
-    'zh-CN': {
-      gantt: '甘特图',
-      addTask: '新增任务',
-      day: '日',
-      week: '周',
-      month: '月',
-      year: '年',
-      task: '任务',
-      start: '开始',
-      end: '结束',
-      complete: '完成度',
-      newTask: '新任务',
-      editTask: '编辑任务',
-      title: '标题',
-      progress: '进度',
-      save: '保存',
-      cancel: '取消',
-      remove: '删除',
-      expand: '展开“{title}”',
-      collapse: '收起“{title}”',
-      noTasks: '没有任务',
-      splitter: '调整任务列表宽度',
-      selected: '已选择“{title}”'
     }
   };
 
@@ -452,6 +404,7 @@ export function createGanttFactory(fabui, registerControl, unregisterControl) {
     this._syncingScroll = false;
     this.options = ganttAssign({}, Gantt.defaults, options || {});
     this.options.locale = normalizeGanttLocale(this.options.locale);
+    if (!localePacks[this.options.locale]) this.options.locale = 'en';
     this.options.view = normalizeGanttView(this.options.view);
     this.options.listWidth = clampGantt(this.options.listWidth, this.options.minListWidth, 1200);
     this.options.rowHeight = clampGantt(this.options.rowHeight, 28, 80);
@@ -1256,6 +1209,7 @@ export function createGanttFactory(fabui, registerControl, unregisterControl) {
 
   Gantt.prototype.setLocale = function(locale) {
     this.options.locale = normalizeGanttLocale(locale);
+    if (!localePacks[this.options.locale]) this.options.locale = 'en';
     this._buildToolbar();
     if (this._editorWindow) {
       this._destroyEditor();

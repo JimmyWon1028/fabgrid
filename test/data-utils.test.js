@@ -43,9 +43,21 @@ test('value comparison follows column data types', function() {
 
 test('prepared sort values preserve comparison semantics without repeated conversion', function() {
   assert.equal(prepareSortValue('10', 'number'), 10);
+  assert.equal(prepareSortValue('8,647.7', 'number'), 8647.7);
+  assert.equal(prepareSortValue('-4,962.71', 'number'), -4962.71);
   assert.equal(prepareSortValue('2026-07-12', 'date'), new Date('2026-07-12').getTime());
   assert.equal(prepareSortValue(true, 'boolean'), 1);
   assert.equal(prepareSortValue('Beta', 'string'), 'beta');
   assert.ok(comparePreparedValues(10, 2) > 0);
   assert.ok(comparePreparedValues(null, 'value') < 0);
+});
+
+test('number comparison sorts values with thousands separators numerically', function() {
+  var values = ['9', '8,647.7', '722.3', '5.46', '4,962.71'];
+
+  values.sort(function(a, b) {
+    return compareValues(a, b, 'number');
+  });
+
+  assert.deepEqual(values, ['5.46', '9', '722.3', '4,962.71', '8,647.7']);
 });

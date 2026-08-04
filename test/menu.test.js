@@ -50,7 +50,7 @@ test('Menu parses declarative data values without executing code', function() {
   assert.equal(typeof options.onclick, 'string');
 });
 
-test('Menu factory exposes locale packs and public helpers', function() {
+test('Menu factory exposes English locale and public helpers', function() {
   function Control() {
     this._managedEventListeners = [];
   }
@@ -58,8 +58,8 @@ test('Menu factory exposes locale packs and public helpers', function() {
   Control.prototype.removeEventListener = function() {};
   var Menu = createMenuFactory(Control, function() {}, function() {});
   assert.equal(typeof Menu, 'function');
-  assert.equal(Menu.locales['zh-TW'].menu, '選單');
-  assert.equal(Menu.locales['zh-CN'].submenu, '子菜单');
+  assert.deepEqual(Object.keys(Menu.locales), ['en']);
+  assert.equal(Menu.locales.en.menu, 'Menu');
   assert.equal(Menu.normalizeTheme('sunny'), 'sunny');
   assert.equal(Menu.normalizeAlign('right'), 'right');
 });

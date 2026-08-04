@@ -12,12 +12,15 @@ const regularOutputFile = path.join(distDir, 'fabLoader.js');
 const minifiedOutputFile = path.join(distDir, 'fabLoader.min.js');
 const args = process.argv.slice(2);
 const invalidArgs = args.filter(function(arg) {
-  return arg !== 'min';
+  return arg !== 'min' && arg !== 'fabdom';
 });
 const minOnly = args.indexOf('min') >= 0;
+const includeDom = args.indexOf('fabdom') >= 0;
 
 if (invalidArgs.length) {
-  throw new Error('fabLoader build only accepts the optional "min" argument.');
+  throw new Error(
+    'fabLoader build only accepts the optional "fabdom" and "min" arguments.'
+  );
 }
 
 function banner(name) {
@@ -36,11 +39,8 @@ function verifyBrowserGlobal(outputFile) {
   const output = fs.readFileSync(outputFile, 'utf8');
   if (
     output.indexOf('fabLoader') < 0 ||
-    output.indexOf('fabDom') < 0 ||
-    !/(?:dom\s*:|\.dom=)/.test(output) ||
     output.indexOf('useDom') < 0 ||
     output.indexOf('wait') < 0 ||
-    !/(?:prototype\.load|\.load=function)/.test(output) ||
     output.indexOf('loadScript') < 0 ||
     output.indexOf('loadCss') < 0 ||
     output.indexOf('preloadImage') < 0 ||
@@ -58,6 +58,16 @@ function verifyBrowserGlobal(outputFile) {
   if (/\b(?:import|export)\s/.test(output)) {
     throw new Error('fabLoader output must remain a browser global.');
   }
+  if (
+    includeDom &&
+    (
+      output.indexOf('fabDom') < 0 ||
+      !/(?:dom\s*:|\.dom=)/.test(output) ||
+      !/(?:prototype\.load|\.load=function)/.test(output)
+    )
+  ) {
+    throw new Error('fabLoader output is missing fabDom.');
+  }
 }
 
 function verifyOutput() {
@@ -74,10 +84,15 @@ function verifyOutput() {
   verifyBrowserGlobal(minifiedOutputFile);
 }
 
-const source = [
-  fs.readFileSync(domSourceFile, 'utf8'),
-  fs.readFileSync(loaderSourceFile, 'utf8')
-].join('\n');
+const sourceFiles = includeDom ?
+  [domSourceFile, loaderSourceFile] :
+  [loaderSourceFile];
+const source = sourceFiles.map(function(file) {
+  return fs.readFileSync(file, 'utf8');
+}).join('\n');
+const buildName = includeDom ?
+  'Standalone browser resource loader with fabDom' :
+  'Standalone browser resource loader';
 
 fs.mkdirSync(distDir, { recursive: true });
 [
@@ -91,17 +106,21 @@ fs.mkdirSync(distDir, { recursive: true });
 if (!minOnly) {
   fs.writeFileSync(
     regularOutputFile,
-    banner('Standalone browser resource loader') + source,
+    banner(buildName) + source,
     'utf8'
   );
 }
 fs.writeFileSync(
   minifiedOutputFile,
-  banner('Standalone browser resource loader min') + minifyJs(source),
+  banner(buildName + ' min') + minifyJs(source),
   'utf8'
 );
 verifyOutput();
 
-console.log(minOnly ?
-  'Built minified standalone dist/fabLoader.min.js.' :
-  'Built standalone dist/fabLoader.js and dist/fabLoader.min.js.');
+console.log(
+  'Built ' +
+  (includeDom ? 'fabLoader with fabDom' : 'fabLoader without fabDom') +
+  (minOnly ?
+    ' as minified dist/fabLoader.min.js.' :
+    ' as dist/fabLoader.js and dist/fabLoader.min.js.')
+);

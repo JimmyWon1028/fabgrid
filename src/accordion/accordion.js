@@ -110,24 +110,18 @@ export function createAccordionFactory(
       untitled: 'Untitled',
       expand: 'Expand {title}',
       collapse: 'Collapse {title}'
-    },
-    'zh-TW': {
-      untitled: '未命名',
-      expand: '展開「{title}」',
-      collapse: '收合「{title}」'
-    },
-    'zh-CN': {
-      untitled: '未命名',
-      expand: '展开“{title}”',
-      collapse: '收合“{title}”'
     }
   };
 
   function normalizeLocale(value) {
     value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>FabGrid Source Header Groups</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260727-header-groups-v1">
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 12px;
+      background: #fff;
+    }
+
+    #grid {
+      width: 220px;
+      height: 180px;
+    }
+  </style>
+</head>
+<body>
+  <div id="grid"></div>
+  <pre id="result" hidden>pending</pre>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260727-header-groups-v1';
+
+    const grid = new fabui.FabGrid('#grid', {
+      filterMode: ['searchRow', 'excel'],
+      showRowHeaders: false,
+      itemsSource: [
+        { w: 1134, h: 266, l: 172 }
+      ],
+      columns: [
+        {
+          header: '規格',
+          align: 'center',
+          columns: [
+            { binding: 'w', width: 45, header: '寬', isRequired: false, align: 'right' },
+            { binding: 'h', width: 45, header: '高', isRequired: false, align: 'right' },
+            { binding: 'l', width: 45, header: '深', isRequired: false, align: 'right' }
+          ]
+        }
+      ]
+    });
+    const groupCell = grid.hostElement.querySelector('.fg-header-group-cell');
+    const firstLeaf = grid.hostElement.querySelector('.fg-header-cell[data-col="0"]');
+    const groupHit = grid.hitTest(groupCell);
+
+    document.querySelector('#result').textContent = JSON.stringify({
+      bindings: grid.columns.map((column) => column.binding),
+      groupText: groupCell ? groupCell.textContent : '',
+      groupWidth: groupCell ? groupCell.getBoundingClientRect().width : 0,
+      firstLeafTop: firstLeaf ? firstLeaf.getBoundingClientRect().top : 0,
+      mergedRange: groupHit.mergedRange
+    }, null, 2);
+
+    window.headerGroupsSourceTest = {
+      fabui,
+      grid
+    };
+  </script>
+</body>
+</html>

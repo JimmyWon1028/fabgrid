@@ -50,9 +50,9 @@ test('Scheduler extension publishes a Control subclass with metadata', function(
   assert.deepEqual(Scheduler.views, [
     'day', 'workWeek', 'week', 'month', 'year', 'agenda', 'timeline'
   ]);
-  assert.deepEqual(Object.keys(Scheduler.locales), ['en', 'zh-TW', 'zh-CN']);
-  assert.equal(Scheduler.normalizeLocale('zh_Hant_TW'), 'zh-TW');
-  assert.equal(Scheduler.normalizeLocale('zh-Hans'), 'zh-CN');
+  assert.deepEqual(Object.keys(Scheduler.locales), ['en']);
+  assert.equal(Scheduler.normalizeLocale('zh_Hant_TW'), 'en');
+  assert.equal(Scheduler.normalizeLocale('zh-Hans'), 'en');
 });
 
 test('Scheduler normalizes themes and public view names', function() {

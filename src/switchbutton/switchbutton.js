@@ -115,12 +115,6 @@ export function createSwitchButtonFactory(Control, registerControl, unregisterCo
   var localePacks = {
     en: {
       switchbutton: 'Switch button'
-    },
-    'zh-TW': {
-      switchbutton: '切換按鈕'
-    },
-    'zh-CN': {
-      switchbutton: '切换按钮'
     }
   };
 

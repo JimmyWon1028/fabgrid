@@ -1,6 +1,6 @@
 /*! FabGrid theme dark-hive | performance-first data grid */
 @import './dark-hive/tabs.css?v=20260724-native-elements-v2';
-@import './dark-hive/components.css?v=20260725-editbox-themes-v1';
+@import './dark-hive/components.css?v=20260731-tree-icons-v1';
 :root .fg-root,
 :root .fui-tabs {
   --fg-border: #aaa;

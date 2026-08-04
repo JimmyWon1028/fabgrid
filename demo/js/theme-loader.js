@@ -22,7 +22,7 @@
   ];
   var parameters = new URLSearchParams(global.location.search);
   var requestedTheme = String(parameters.get('theme') || 'default').toLowerCase();
-  var themeCssVersion = '20260725-editbox-themes-v1';
+  var themeCssVersion = '20260731-tree-icons-v1';
   var baseLink = Array.prototype.find.call(
     document.querySelectorAll('link[rel="stylesheet"]'),
     function(link) {

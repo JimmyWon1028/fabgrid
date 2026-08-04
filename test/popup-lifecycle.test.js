@@ -48,3 +48,13 @@ function readMethod(source, type, name) {
     assert.match(hide, /this\._unbindOpenEvents\(\)/);
   });
 });
+
+test('ColorPopup closes a selected swatch after click without pointer click-through', function() {
+  var source = fs.readFileSync('src/editbox/color-popup.js', 'utf8');
+  var pointerDown = readMethod(source, 'ColorPopup', '_handlePointerDown');
+  var click = readMethod(source, 'ColorPopup', '_handleClick');
+  assert.doesNotMatch(pointerDown, /closeOnSelect[^;]*hide/);
+  assert.match(click, /this\.options\.closeOnSelect/);
+  assert.match(click, /event\.stopPropagation\(\)/);
+  assert.match(click, /this\.hide\(\)/);
+});

@@ -32,7 +32,8 @@ Source mode：
 import fabui from './src/fabui.js';
 
 var editBox = new fabui.EditBox('#name', {
-  editor: 'text'
+  editor: 'text',
+  charcase: 'upper'
 });
 ```
 
@@ -48,6 +49,8 @@ var editBox = new fabui.EditBox('#name', {
 - `color`：文字輸入支援 hex 與標準 CSS 顏色名稱；右側色塊按鈕開啟常用色盤，CSS 色名會保留原始文字。
 
 未設定 `editor` 時，`select` 自動使用 `combo`，`input[type="number"]` 使用 `number`，`input[type="date"]`／`input[type="month"]` 使用 `date`，`input[type="color"]` 使用 `color`，其餘使用 `text`。時間模式請明確設定 `editor: 'time'`。
+
+`text`、`combo`、`color` editor 的 `charcase: 'upper'`／`'lower'` 只轉換 ASCII 英文字母，中文、數字、空白及符號維持原值；`date`、`time`、`number` 不套用。
 
 舊名稱保留為相容別名：
 
@@ -77,9 +80,11 @@ icons: [{
 
 公開標準欄位為 `iconCls`、`title`、`ariaLabel`、`text`、`width`、`align`、`keepFocus` 與 `onClick`。`align` 預設為 `right`；EditBox 可用 `left` 將 icon 放到輸入框左側，FabGrid cell editor 與 Search Row 維持右側排列。舊 `className`／`iconClass`／`icon`、`label`、`click`／`handler` 只保留為相容別名，內部會先轉成標準欄位。
 
-Color popup 與 FabGrid editor 共用同一個內部 ColorPopup，包含 60 色 palette、飽和度／明度、色相與透明度控制。`palette` 可自訂色票，`colors` 保留為相容別名；`showAlpha: false` 可隱藏透明度控制並固定輸出六碼 hex。自訂色票若使用標準 CSS 顏色名稱，選取後會保留原始名稱，不會強制轉成 hex。
+`iconCls` 可使用外部普通 CSS class 定義 `background` 或 `background-image`，不需要加上 `:root` 或 `!important`。
 
-DateBox 的 `autoUnmask` 預設為 `true`。複製日期或年月時會移除遮罩字面值，例如 `2026/07/17` 複製為 `20260717`、`2026/07` 複製為 `202607`；明確設定 `autoUnmask: false` 可保留遮罩。
+Color popup 與 FabGrid editor 共用同一個內部 ColorPopup，預設是 63 色加清除色彩的 8×8 精簡色盤，每格 20px。點選色票或清除色彩後會立即關閉 popup。`palette` 可自訂色票，空字串項目代表清除色彩，`colors` 保留為相容別名。自訂色票若使用標準 CSS 顏色名稱，選取後會保留原始名稱，不會強制轉成 hex。
+
+所有 editor 類型的 `autoUnmask` 預設為 `false`。日期或年月預設保留遮罩字面值，例如 `2026/07/17` 與 `2026/07`；只有明確設定 `autoUnmask: true` 時，複製內容才會分別移除為 `20260717` 與 `202607`。
 
 ## 共用 options
 
@@ -89,6 +94,8 @@ DateBox 的 `autoUnmask` 預設為 `true`。複製日期或年月時會移除遮
 | `width` | `200` | 控件寬度；接受 number 或 CSS 尺寸字串。 |
 | `height` | `30` | 控件高度；接受 number 或 CSS 尺寸字串。 |
 | `value` | 原 element 值 | 初始值。 |
+| `autoUnmask` | `false` | 所有 editor 類型預設保留遮罩字面值；明確設為 `true` 時移除遮罩。 |
+| `charcase` | `''` | `text`、`combo`、`color` 可設為 `upper` 或 `lower`；只轉換 ASCII 英文字母，其他字元不變。`date`、`time`、`number` 不套用。 |
 | `prompt` | element placeholder | 輸入提示文字。 |
 | `cls` | `''` | 加在控件外層的自訂 class。 |
 | `label` | `''` | 控件標籤。 |
@@ -152,7 +159,7 @@ Time EditBox 的輸入文字預設靠左，只接受數字輸入並會自動補�
 | Option | 預設值 | 說明 |
 | --- | ---: | --- |
 | `mask` | `99:99` | 可設為 `99:99` 或 `99:99:99`。 |
-| `autoUnmask` | `true` | `getValue()` 與複製內容移除冒號；設為 `false` 時保留遮罩。 |
+| `autoUnmask` | `false` | `getValue()` 與複製內容預設保留冒號；設為 `true` 時移除遮罩。 |
 | `spinner` | `false` | `true` 或 `'right'` 在右側顯示上下箭頭；`'left'` 顯示於左側。 |
 | `iconWidth` | `28` | Spinner 寬度。 |
 | `locale` | `en` | Spinner ARIA 與 invalid 訊息語系：`en`、`zh-TW`、`zh-CN`。 |
@@ -172,7 +179,7 @@ var startTime = new fabui.EditBox('#start-time', {
 | Option | 預設值 | 說明 |
 | --- | ---: | --- |
 | `mask` | `9999/99/99` | 日期遮罩；`9999/99`、`9999-99` 自動切換為年份／月份選擇 popup。 |
-| `autoUnmask` | `true` | 複製時移除遮罩字面值。 |
+| `autoUnmask` | `false` | 複製時預設保留遮罩字面值；設為 `true` 時移除遮罩。 |
 | `maskValueIncludesLiterals` | `null` | 明確控制資料值是否保留 `/`、`-` 等遮罩字元。 |
 | `locale` | `en` | `en`、`zh-TW`、`zh-CN`。 |
 | `firstDay` | `0` | 每週第一天，`0` 代表星期日。 |
@@ -200,6 +207,8 @@ var dateBox = new fabui.EditBox('#date', {
 ```
 
 `setTheme(theme)` 保留相容狀態，但不會載入或切換 Theme CSS。完整規則請見 [Theme API](./theme-api.md)。
+
+可在應用程式或 Theme CSS 設定 `--fui-control-focus-bg` 調整輸入框取得焦點時的背景色；預設為 `transparent`，不改變既有外觀。
 
 ### Combo options
 
@@ -237,15 +246,16 @@ var dateBox = new fabui.EditBox('#date', {
 
 | Option | 預設值 | 說明 |
 | --- | ---: | --- |
-| `palette` | 60 色 | Popup 色票；`colors` 為相容別名。 |
-| `showAlpha` | `true` | 顯示透明度控制；關閉時固定輸出六碼 hex。 |
-| `panelWidth` | `420` | Popup 寬度。 |
+| `palette` | 63 色＋清除 | 8 欄 Popup 色票；空字串項目代表清除色彩，`colors` 為相容別名。 |
+| `panelWidth` | `162` | Popup 寬度。 |
 | `locale` | `en` | `en`、`zh-TW`、`zh-CN`。 |
 | `openColorText` | locale | 色盤 icon 的輔助文字。 |
-| `saturationText` / `hueText` / `alphaText` | locale | 色彩控制項的輔助文字。 |
+| `clearColorText` | locale | 清除色彩色票的輔助文字。 |
 | `onSelect` / `onShowPanel` / `onHidePanel` | `null` | 顏色選取與 popup lifecycle callbacks。 |
 
 Date、Combo、Color popup 都支援 `Escape` 與點擊控件外部關閉；點擊 popup 內部或右側 trigger 不會誤關閉。同一頁同時開啟多個 EditBox popup 時，點進其中一個會關閉其餘 popup。
+
+六種 EditBox 都會在焦點離開控件時呼叫 `fix()`，驗證並提交目前輸入值。焦點移入該 EditBox 的 Date／Combo／Color popup 仍屬於同一次編輯，不會提前提交；從 popup 再移到控件外才提交。
 
 ## 共用 methods
 
@@ -254,7 +264,7 @@ Date、Combo、Color popup 都支援 `Escape` 與點擊控件外部關閉；點�
 - `options()`、`textbox()`、`button()`、`getIcon(index)`。
 - `getText()`、`setText(value)`。
 - `getValue()`、`setValue(value, silent?)`、`initValue(value)`。
-- `clear()`、`reset()`、`focus()`、`resize(width, height)`。
+- `clear()`、`reset()`、`focus()`、`fix()`、`resize(width, height)`。
 - `disable()`、`enable()`、`readonly(mode)`、`setEditable(mode)`。
 - `on(name, listener)`、`off(name, listener)`。
 - `destroy()`／`dispose()`。
@@ -279,12 +289,12 @@ Date、Combo、Color popup 都支援 `Escape` 與點擊控件外部關閉；點�
 
 ## 類型專用 methods
 
-- NumberBox：`getNumber()`、`fix()`。
-- TimeBox：`getTime()`、`fix()`；`getTime()` 回傳 `{ hour, minute, second }`，無效或不完整時回傳 `null`。
+- NumberBox：`getNumber()`。
+- TimeBox：`getTime()`；`getTime()` 回傳 `{ hour, minute, second }`，無效或不完整時回傳 `null`。
 - 共用：`setLocale(locale, messages?)`；Date／Combo／Color 會立即更新 popup 與 trigger 的輔助文字。
-- DateBox：`getDate()`、`setDate(date)`、`setTheme(theme)`、`calendar()`、`panel()`、`showPanel()`、`hidePanel()`、`togglePanel()`、`cloneFrom(from)`、`fix()`。
+- DateBox：`getDate()`、`setDate(date)`、`setTheme(theme)`、`calendar()`、`panel()`、`showPanel()`、`hidePanel()`、`togglePanel()`、`cloneFrom(from)`。
 - ComboBox：`getData()`、`loadData(data)`、`reload()`、`getValues()`、`setValues(values)`、`select(value)`、`unselect(value)`、`scrollTo(value)`、`panel()`、`showPanel()`、`hidePanel()`、`togglePanel()`。
-- Color：`panel()`、`showPanel()`、`hidePanel()`、`togglePanel()`；支援 `palette`／`colors` 與 `showAlpha`。
+- Color：`panel()`、`showPanel()`、`hidePanel()`、`togglePanel()`；支援 `palette`／`colors`。
 
 ## 靜態 API
 

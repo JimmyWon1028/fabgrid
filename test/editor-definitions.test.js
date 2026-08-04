@@ -16,6 +16,19 @@ test('editor definitions expose simplified names with legacy aliases', function(
   assert.equal(definitions.combo.type, 'combo');
 });
 
+test('text editor charcase converts only ASCII English letters', function() {
+  var definitions = createEditorDefinitions();
+  var text = definitions.text;
+
+  assert.equal(text.normalizeCharcase('UPPER'), 'upper');
+  assert.equal(text.normalizeCharcase('lower'), 'lower');
+  assert.equal(text.normalizeCharcase('invalid'), '');
+  assert.equal(text.normalize('Abc 中文-123_!', { charcase: 'upper' }), 'ABC 中文-123_!');
+  assert.equal(text.normalize('AbC 中文-123_!', { charcase: 'lower' }), 'abc 中文-123_!');
+  assert.equal(text.normalize('AbC 中文-123_!', {}), 'AbC 中文-123_!');
+  assert.equal(definitions.combo.normalize('AbC 中文-123_!', { charcase: 'upper' }), 'ABC 中文-123_!');
+});
+
 test('color editor normalizes supported hex formats', function() {
   var color = createEditorDefinitions().color;
 
@@ -46,17 +59,17 @@ test('color editor preserves invalid text for grid validation', function() {
   assert.equal(color.isValid(''), true);
 });
 
-test('datebox copy removes mask literals by default', function() {
+test('datebox copy preserves mask literals by default', function() {
   var datebox = createEditorDefinitions().datebox;
 
-  assert.equal(datebox.getCopyText('2026/07/17', { mask: '9999/99/99' }), '20260717');
-  assert.equal(datebox.getCopyText('2026/07', { mask: '9999/99' }), '202607');
+  assert.equal(datebox.getCopyText('2026/07/17', { mask: '9999/99/99' }), '2026/07/17');
+  assert.equal(datebox.getCopyText('2026/07', { mask: '9999/99' }), '2026/07');
   assert.equal(
     datebox.getCopyText('2026/07/17', {
       mask: '9999/99/99',
-      autoUnmask: false
+      autoUnmask: true
     }),
-    '2026/07/17'
+    '20260717'
   );
 });
 
@@ -82,7 +95,8 @@ test('time editor enforces the standard 24-hour upper bound', function() {
   assert.equal(time.isValid('23:60', {}), false);
   assert.equal(time.isValid('24:00:00', { mask: '99:99:99' }), true);
   assert.equal(time.isValid('24:00:01', { mask: '99:99:99' }), false);
-  assert.equal(time.getDataValue('09:30', {}), '0930');
+  assert.equal(time.getDataValue('09:30', {}), '09:30');
+  assert.equal(time.getDataValue('09:30', { autoUnmask: true }), '0930');
   assert.equal(time.getDataValue('09:30', { autoUnmask: false }), '09:30');
 });
 

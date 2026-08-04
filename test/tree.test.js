@@ -25,15 +25,15 @@ test('Tree exposes the documented EasyUI-compatible defaults', function() {
   assert.equal(fabui.Tree.defaults.onlyLeafCheck, false);
   assert.equal(fabui.Tree.defaults.lines, false);
   assert.equal(fabui.Tree.defaults.dnd, false);
+  assert.equal(fabui.Tree.defaults.fitWidth, false);
+  assert.equal(fabui.Tree.defaults.externalDropTargets, null);
   assert.equal(fabui.Tree.defaults.data, null);
   assert.deepEqual(fabui.Tree.defaults.queryParams, {});
 });
 
-test('Tree publishes all required locale packs', function() {
-  assert.deepEqual(Object.keys(fabui.Tree.locales), ['en', 'zh-TW', 'zh-CN']);
+test('Tree core publishes English locale only', function() {
+  assert.deepEqual(Object.keys(fabui.Tree.locales), ['en']);
   assert.equal(fabui.Tree.locales.en.tree, 'Tree');
-  assert.equal(fabui.Tree.locales['zh-TW'].loading, '載入中');
-  assert.equal(fabui.Tree.locales['zh-CN'].check, '勾选{text}');
 });
 
 test('Tree normalizes supported themes and alias', function() {
@@ -134,6 +134,66 @@ test('Tree source contains delegated keyboard, lazy loading, editing and DnD pat
   assert.match(css, /opacity: var\(--fg-drag-indicator-opacity, 0\.55\)/);
 });
 
+test('Tree supports width fitting and managed external drop targets', function() {
+  var source = readFileSync(new URL('../src/tree/tree.js', import.meta.url), 'utf8');
+  var css = readFileSync(new URL('../src/tree/tree.css', import.meta.url), 'utf8');
+  assert.match(source, /_bindExternalDropTargets/);
+  assert.match(source, /onBeforeExternalDrop/);
+  assert.match(source, /onExternalDrop/);
+  assert.match(source, /_clearExternalDropState/);
+  assert.match(source, /this\.removeEventListener\(\)/);
+  assert.match(css, /\.fui-tree-fit-width \.fui-tree-node/);
+  assert.match(css, /\.fui-tree-external-drop-active/);
+});
+
+test('Tree external drop targets receive the dragged source node', function() {
+  function Control() {}
+  var Tree = createTreeFactory(Control, function() {}, function() {});
+  var listeners = {};
+  var classes = new Set();
+  var source = { id: 'menu-1', text: 'Menu 1' };
+  var dropped = null;
+  var prevented = 0;
+  var target = {
+    nodeType: 1,
+    classList: {
+      add: function(name) { classes.add(name); },
+      remove: function(name) { classes.delete(name); }
+    },
+    contains: function() { return false; }
+  };
+  var tree = Object.create(Tree.prototype);
+  tree._options = {
+    externalDropTargets: [{
+      target: target,
+      onDrop: function(node) {
+        dropped = node;
+      }
+    }]
+  };
+  tree._dragNode = source;
+  tree._externalDropRecords = [];
+  tree._listeners = {};
+  tree._clearDropState = function() {};
+  tree.addEventListener = function(element, type, handler) {
+    assert.equal(element, target);
+    listeners[type] = handler;
+  };
+
+  tree._bindExternalDropTargets();
+  listeners.dragover({
+    preventDefault: function() { prevented += 1; },
+    dataTransfer: {}
+  });
+  assert.equal(classes.has('fui-tree-external-drop-active'), true);
+  listeners.drop({
+    preventDefault: function() { prevented += 1; }
+  });
+  assert.equal(dropped, source);
+  assert.equal(classes.has('fui-tree-external-drop-active'), false);
+  assert.equal(prevented, 2);
+});
+
 test('Tree uses the matching EasyUI sprite assets for every FabUI theme', function() {
   var baseCss = readFileSync(new URL('../src/tree/tree.css', import.meta.url), 'utf8');
   var themes = [
@@ -176,6 +236,18 @@ test('Tree uses the matching EasyUI sprite assets for every FabUI theme', functi
       css,
       /--fui-tree-icons:\s*url\('[^']*tree_icons\.png'\)/
     );
+    if (theme !== 'default') {
+      assert.match(
+        css,
+        /\.fui-tree \.fui-tree-expander::before,[\s\S]*?\.fui-tree-icon-file::before,[\s\S]*?\.fui-tree\.fui-tree-lines \.fui-tree-indent-line::before\s*\{[\s\S]*?background-image:\s*var\(--fui-tree-icons\)/,
+        theme
+      );
+      assert.match(
+        css,
+        /\.fui-tree \.fui-tree-node-loading \.fui-tree-icon::before\s*\{[\s\S]*?background-image:\s*var\(--fui-tree-loading\)/,
+        theme
+      );
+    }
     assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', theme);
     assert.equal(png.readUInt32BE(16), 272, theme);
     assert.equal(png.readUInt32BE(20), 36, theme);

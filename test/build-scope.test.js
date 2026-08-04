@@ -50,6 +50,7 @@ test('all build commands omit ESM output files', function() {
     'build/build-scheduler.cjs',
     'build/build-htmleditor.cjs',
     'build/build-loader.cjs',
+    'build/build-locale.cjs',
     'build/build-theme.cjs',
     'build/build-vue.cjs',
     'build/build-jquery.cjs'
@@ -95,6 +96,12 @@ test('default build preserves public constructor names and descendant pseudo sel
     assert.equal(context.fabui.FabGrid.CellType, undefined);
     assert.equal(typeof context.fabui.chart.animation.ChartAnimation, 'function');
     assert.equal(typeof context.fabui.collections.CollectionView, 'function');
+    assert.deepEqual(
+      Array.from(context.fabui.getLocales()),
+      ['en']
+    );
+    context.fabui.setLocale('zh-TW');
+    assert.equal(context.fabui.getLocale(), 'en');
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -119,11 +126,12 @@ test('theme build supports regular and min-only isolated output', function() {
     themeFiles = fs.readdirSync(path.join(tempDir, 'theme'));
     assert.equal(themeFiles.filter(function(file) {
       return /^fabui\..+\.css$/i.test(file) && !/\.min\.css$/i.test(file);
-    }).length, 16);
+    }).length, 17);
     assert.equal(themeFiles.filter(function(file) {
       return /^fabui\..+\.min\.css$/i.test(file);
-    }).length, 16);
-    assert.equal(themeFiles.includes('fabui.default.css'), false);
+    }).length, 17);
+    assert.equal(themeFiles.includes('fabui.default.css'), true);
+    assert.equal(themeFiles.includes('fabui.default.min.css'), true);
 
     result = spawnSync(process.execPath, ['build/build-theme.cjs', 'min'], {
       cwd: process.cwd(),
@@ -134,12 +142,79 @@ test('theme build supports regular and min-only isolated output', function() {
     themeFiles = fs.readdirSync(path.join(tempDir, 'theme'));
     assert.equal(themeFiles.filter(function(file) {
       return /^fabui\..+\.min\.css$/i.test(file);
-    }).length, 16);
+    }).length, 17);
     assert.equal(themeFiles.filter(function(file) {
       return /^fabui\..+\.css$/i.test(file) && !/\.min\.css$/i.test(file);
     }).length, 0);
+    assert.equal(themeFiles.includes('fabui.default.min.css'), true);
     assert.equal(fs.readFileSync(sentinel, 'utf8'), 'keep');
     assert.equal(fs.existsSync(path.join(tempDir, 'theme', 'mono', 'pagination-next.svg')), true);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('locale build supports regular and min-only isolated output', function() {
+  var packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  var tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fabui-locale-build-'));
+  var sentinel = path.join(tempDir, 'fabui.min.js');
+  var result;
+  var localeDir;
+  var context;
+
+  assert.equal(packageJson.scripts['build:locale'], 'node build/build-locale.cjs');
+  fs.writeFileSync(sentinel, 'keep', 'utf8');
+  try {
+    result = spawnSync(process.execPath, ['build/build-locale.cjs'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: Object.assign({}, process.env, { FABUI_DIST_DIR: tempDir })
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    localeDir = path.join(tempDir, 'locales');
+    assert.deepEqual(fs.readdirSync(localeDir).sort(), [
+      'fabui-locale.en.js',
+      'fabui-locale.en.min.js',
+      'fabui-locale.zh-CN.js',
+      'fabui-locale.zh-CN.min.js',
+      'fabui-locale.zh-TW.js',
+      'fabui-locale.zh-TW.min.js'
+    ]);
+    context = { registered: {} };
+    context.window = context;
+    context.fabui = {
+      addLocale: function(name, pack) {
+        context.registered[name] = pack;
+      }
+    };
+    vm.createContext(context);
+    vm.runInContext(
+      fs.readFileSync(path.join(localeDir, 'fabui-locale.en.min.js'), 'utf8'),
+      context
+    );
+    assert.ok(context.registered.en);
+    vm.runInContext(
+      fs.readFileSync(path.join(localeDir, 'fabui-locale.zh-TW.min.js'), 'utf8'),
+      context
+    );
+    assert.equal(
+      context.registered['zh-TW'].FabGrid.pagination.ariaLabel,
+      '分頁導覽'
+    );
+    assert.equal(context.registered['zh-TW'].Diagram.snapSize, '吸附間距');
+
+    result = spawnSync(process.execPath, ['build/build-locale.cjs', 'min'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: Object.assign({}, process.env, { FABUI_DIST_DIR: tempDir })
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.deepEqual(fs.readdirSync(localeDir).sort(), [
+      'fabui-locale.en.min.js',
+      'fabui-locale.zh-CN.min.js',
+      'fabui-locale.zh-TW.min.js'
+    ]);
+    assert.equal(fs.readFileSync(sentinel, 'utf8'), 'keep');
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -216,31 +291,45 @@ test('EditBox jQuery wrapper remains removed', function() {
 });
 
 test('build command contract supports comma-separated scopes', function() {
+  var packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   var agents = fs.readFileSync('AGENTS.md', 'utf8');
   var readme = fs.readFileSync('README.md', 'utf8');
+  var readmeZh = fs.readFileSync('README.zh-TW.md', 'utf8');
 
   assert.match(agents, /`build`／`build fabui`/);
   assert.match(agents, /`build <scope>,<scope> \[min\]`/);
   assert.match(agents, /`build fabui,htmleditor min`/);
+  assert.match(agents, /`build locale`/);
+  assert.match(agents, /`build locale min`/);
+  assert.match(packageJson.scripts['build:all'], /npm run build:locale$/);
   assert.match(agents, /`build htmleditor min`/);
+  assert.match(agents, /`build fabloader`/);
+  assert.match(agents, /`build fabloader min`/);
   assert.match(agents, /`build loader`/);
   assert.match(agents, /`build loader min`/);
   assert.doesNotMatch(agents, /`build dom(?: min)?`/);
   assert.match(agents, /逗號左右不得有空白/);
   assert.match(agents, /`all` 與 `clear` 必須單獨使用/);
   assert.match(readme, /`build fabui,htmleditor min`/);
+  assert.match(readme, /`npm run build:locale`/);
+  assert.match(readme, /`build locale min` maps to `npm run build:locale -- min`/);
+  assert.match(readme, /`build fabloader min`/);
   assert.match(readme, /`build loader min`/);
   assert.doesNotMatch(readme, /`build dom(?: min)?`/);
   assert.match(
     readme,
-    /`build htmleditor min` 對應 `npm run build:htmleditor -- min`/
+    /`build htmleditor min` maps to `npm run build:htmleditor -- min`/
   );
   assert.match(
     readme,
-    /`dist\/fabui\.htmleditor\.min\.js` 與 `dist\/fabui\.htmleditor\.min\.css`/
+    /`dist\/fabui\.htmleditor\.min\.js` and `dist\/fabui\.htmleditor\.min\.css`/
   );
   assert.match(
     readme,
-    /`fabui`、`lite`、`diagram`、`gantt`、`scheduler`、`htmleditor`、`theme`/
+    /`fabui`, `lite`, `diagram`, `gantt`, `scheduler`, `htmleditor`, `theme`, and `locale`/
   );
+  assert.match(readmeZh, /`npm run build:locale`/);
+  assert.match(readmeZh, /`build locale min` 對應 `npm run build:locale -- min`/);
+  assert.match(readmeZh, /`build fabloader min`/);
+  assert.match(readmeZh, /`build loader min`/);
 });

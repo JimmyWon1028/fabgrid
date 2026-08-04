@@ -183,6 +183,19 @@
   --fui-tree-editor-border: #f6c1bc;
 }
 
+:root .fui-tree .fui-tree-expander::before,
+:root .fui-tree .fui-tree-checkbox::before,
+:root .fui-tree .fui-tree-icon-folder::before,
+:root .fui-tree .fui-tree-icon-folder-open::before,
+:root .fui-tree .fui-tree-icon-file::before,
+:root .fui-tree.fui-tree-lines .fui-tree-indent-line::before {
+  background-image: var(--fui-tree-icons);
+}
+
+:root .fui-tree .fui-tree-node-loading .fui-tree-icon::before {
+  background-image: var(--fui-tree-loading);
+}
+
 :root .fui-window-mask {
   --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
 }

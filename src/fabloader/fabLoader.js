@@ -985,6 +985,19 @@
       return queue;
     }
 
+    function loadAndContinue(step) {
+      return Promise.resolve()
+        .then(step)
+        .catch(function(error) {
+          if (
+            global.console &&
+            typeof global.console.error === 'function'
+          ) {
+            global.console.error(error);
+          }
+        });
+    }
+
     function requireCallback(callback, name) {
       if (typeof callback !== 'function') {
         throw new TypeError(name + ' callback must be a function.');
@@ -996,7 +1009,9 @@
         var list = Array.isArray(urls) ? urls.slice() : [urls];
         return append(function() {
           return Promise.all(list.map(function(url) {
-            return loadCss(url, options);
+            return loadAndContinue(function() {
+              return loadCss(url, options);
+            });
           }));
         });
       },
@@ -1005,10 +1020,14 @@
         return append(function() {
           if (urls) {
             return Promise.all(urls.map(function(item) {
-              return loadScript(item, options);
+              return loadAndContinue(function() {
+                return loadScript(item, options);
+              });
             }));
           }
-          return loadScript(url, options);
+          return loadAndContinue(function() {
+            return loadScript(url, options);
+          });
         });
       },
       module: function(url, options) {
@@ -1018,17 +1037,23 @@
         });
         moduleOptions.type = 'module';
         return append(function() {
-          return loadScript(url, moduleOptions);
+          return loadAndContinue(function() {
+            return loadScript(url, moduleOptions);
+          });
         });
       },
       vue: function(url) {
         return append(function() {
-          return loadVue(url);
+          return loadAndContinue(function() {
+            return loadVue(url);
+          });
         });
       },
       react: function(url) {
         return append(function() {
-          return loadReact(url);
+          return loadAndContinue(function() {
+            return loadReact(url);
+          });
         });
       },
       run: function(callback) {

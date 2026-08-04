@@ -193,7 +193,7 @@ export function createEditorDefinitions() {
   }
 
   function shouldAutoUnmaskTime(options) {
-    return !options || options.autoUnmask !== false;
+    return Boolean(options && options.autoUnmask === true);
   }
 
   function getTimeDataValue(value, options) {
@@ -373,7 +373,7 @@ export function createEditorDefinitions() {
     ) {
       return false;
     }
-    return true;
+    return false;
   }
 
   function countDateDigitsBeforeCaret(value, caret) {
@@ -652,17 +652,35 @@ export function createEditorDefinitions() {
     return normalized || text;
   }
 
+  function normalizeCharcase(value) {
+    value = String(value == null ? '' : value).toLowerCase();
+    return value === 'upper' || value === 'lower' ? value : '';
+  }
+
+  function sanitizeText(value, options) {
+    var charcase = normalizeCharcase(options && options.charcase);
+    var text = value == null ? '' : String(value);
+    if (!charcase) return text;
+    return charcase === 'upper' ?
+      text.replace(/[a-z]/g, function(character) { return character.toUpperCase(); }) :
+      text.replace(/[A-Z]/g, function(character) { return character.toLowerCase(); });
+  }
+
   var definitions = {
     text: {
       type: 'text',
       className: 'textbox-f fg-editor-textbox',
       inputMode: 'text',
-      normalize: function(value) { return value == null ? '' : String(value); }
+      autoUnmask: false,
+      normalizeCharcase: normalizeCharcase,
+      normalize: sanitizeText,
+      sanitize: sanitizeText
     },
     number: {
       type: 'number',
       className: 'textbox-f numberbox-f fg-editor-numberbox',
       inputMode: 'decimal',
+      autoUnmask: false,
       normalizePrecision: normalizePrecision,
       getGroupSeparator: getGroupSeparator,
       stripFormatting: stripNumberFormatting,
@@ -678,13 +696,17 @@ export function createEditorDefinitions() {
       type: 'combo',
       className: 'textbox-f combobox-f fg-editor-combobox',
       inputMode: 'text',
-      normalize: function(value) { return value == null ? '' : String(value); }
+      autoUnmask: false,
+      normalizeCharcase: normalizeCharcase,
+      normalize: sanitizeText,
+      sanitize: sanitizeText
     },
     date: {
       type: 'date',
       className: 'textbox-f datebox-f fg-editor-datebox',
       inputMode: 'numeric',
       mask: '9999/99/99',
+      autoUnmask: false,
       sanitize: function(value, options) {
         return isYearMonthMask(options) ? formatYymm(value, options) : formatDate(value, options);
       },
@@ -710,6 +732,7 @@ export function createEditorDefinitions() {
       className: 'textbox-f timebox-f fg-editor-timebox',
       inputMode: 'numeric',
       mask: '99:99',
+      autoUnmask: false,
       normalizeMask: normalizeTimeMask,
       sanitize: applyTimeMask,
       format: applyTimeMask,
@@ -730,6 +753,7 @@ export function createEditorDefinitions() {
       type: 'color',
       className: 'textbox-f color-f fg-editor-color',
       inputMode: 'text',
+      autoUnmask: false,
       normalize: normalizeColor,
       parse: parseColor,
       isValid: function(value) {

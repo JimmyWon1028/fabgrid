@@ -24,12 +24,8 @@ test('Gantt is published only by the standalone source entry', function() {
   assert.doesNotMatch(coreCss, /Gantt|gantt/);
 });
 
-test('Gantt publishes complete locale and theme metadata', function() {
-  var keys = Object.keys(Gantt.locales.en).sort();
-  assert.deepEqual(Object.keys(Gantt.locales), ['en', 'zh-TW', 'zh-CN']);
-  ['zh-TW', 'zh-CN'].forEach(function(locale) {
-    assert.deepEqual(Object.keys(Gantt.locales[locale]).sort(), keys);
-  });
+test('Gantt core publishes English locale and complete theme metadata', function() {
+  assert.deepEqual(Object.keys(Gantt.locales), ['en']);
   assert.deepEqual(Gantt.themes, [
     'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
     'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',

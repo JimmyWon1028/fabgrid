@@ -21,26 +21,6 @@ var CALENDAR_LOCALES = {
     nextYearText: 'Next year',
     weeks: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
     months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  },
-  'zh-TW': {
-    ariaLabel: '日曆',
-    yearText: '年份',
-    previousYearText: '上一年',
-    previousMonthText: '上個月',
-    nextMonthText: '下個月',
-    nextYearText: '下一年',
-    weeks: ['日', '一', '二', '三', '四', '五', '六'],
-    months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
-  },
-  'zh-CN': {
-    ariaLabel: '日历',
-    yearText: '年份',
-    previousYearText: '上一年',
-    previousMonthText: '上个月',
-    nextMonthText: '下个月',
-    nextYearText: '下一年',
-    weeks: ['日', '一', '二', '三', '四', '五', '六'],
-    months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
   }
 };
 
@@ -79,9 +59,12 @@ function calendarDateOnly(date) {
 function normalizeCalendarLocale(locale) {
   var value = String(locale || '').trim().replace(/_/g, '-');
   if (CALENDAR_LOCALES[value]) return value;
-  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
-  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value)) return 'zh-CN';
-  if (/^zh/i.test(value)) return 'zh-CN';
+  if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) {
+    return CALENDAR_LOCALES['zh-TW'] ? 'zh-TW' : 'en';
+  }
+  if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh/i.test(value)) {
+    return CALENDAR_LOCALES['zh-CN'] ? 'zh-CN' : 'en';
+  }
   return 'en';
 }
 

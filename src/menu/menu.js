@@ -149,14 +149,6 @@ export function createMenuFactory(Control, registerControl, unregisterControl) {
     en: {
       menu: 'Menu',
       submenu: 'Submenu'
-    },
-    'zh-TW': {
-      menu: '選單',
-      submenu: '子選單'
-    },
-    'zh-CN': {
-      menu: '菜单',
-      submenu: '子菜单'
     }
   };
 
@@ -191,6 +183,7 @@ export function createMenuFactory(Control, registerControl, unregisterControl) {
     this._options = assignMenuOptions({}, FabMenu.defaults, this._readElementOptions(), options || {});
     this._options.align = normalizeMenuAlign(this._options.align);
     this._options.locale = normalizeMenuLocale(this._options.locale);
+    if (!localePacks[this._options.locale]) this._options.locale = 'en';
     this._options.minWidth = Math.max(0, menuNumber(this._options.minWidth, 120));
     this._options.itemHeight = Math.max(22, menuNumber(this._options.itemHeight, 32));
     this._options.duration = Math.max(0, menuNumber(this._options.duration, 100));
@@ -212,7 +205,8 @@ export function createMenuFactory(Control, registerControl, unregisterControl) {
   FabMenu.prototype.constructor = FabMenu;
 
   FabMenu.prototype._getText = function(key) {
-    return localePacks[this._options.locale][key] || localePacks.en[key] || key;
+    var pack = localePacks[this._options.locale] || localePacks.en;
+    return pack[key] || localePacks.en[key] || key;
   };
 
   FabMenu.prototype._readElementOptions = function() {
@@ -944,6 +938,7 @@ export function createMenuFactory(Control, registerControl, unregisterControl) {
 
   FabMenu.prototype.setLocale = function(locale) {
     this._options.locale = normalizeMenuLocale(locale);
+    if (!localePacks[this._options.locale]) this._options.locale = 'en';
     this.hostElement.setAttribute('aria-label', this._options.ariaLabel || this._getText('menu'));
     return this;
   };

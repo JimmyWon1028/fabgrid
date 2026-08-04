@@ -74,9 +74,16 @@
     '  <span id="selectionRangeLabel">選範圍</span>',
     "</label>",
   ].join("");
+  var EDIT_ON_SELECT_MARKUP = [
+    '<label class="toggle">',
+    '  <input id="editOnSelectInput" type="checkbox">',
+    '  <span id="editOnSelectLabel">editMode</span>',
+    "</label>",
+  ].join("");
 
   function render(host) {
     var multiSelectControl;
+    var editModeControl;
     if (!host || host.getAttribute("data-demo-toolbar-ready") === "true")
       return host;
     host.classList.add("toolbar");
@@ -88,6 +95,15 @@
         multiSelectControl.parentElement.insertAdjacentHTML(
           "afterend",
           SELECTION_RANGE_MARKUP
+        );
+      }
+    }
+    if (host.getAttribute("data-edit-mode-toggle") === "true") {
+      editModeControl = host.querySelector("#editModeInput");
+      if (editModeControl && editModeControl.parentElement) {
+        editModeControl.parentElement.insertAdjacentHTML(
+          "afterend",
+          EDIT_ON_SELECT_MARKUP
         );
       }
     }
@@ -132,6 +148,7 @@
     setText(host, "remoteLabel", text.remote);
     setText(host, "multiSelectLabel", text.multiSelect);
     setText(host, "editModeLabel", text.editMode);
+    setText(host, "editOnSelectLabel", text.editOnSelect);
     setText(host, "selectionRangeLabel", text.selectionRange);
     setOptionText(host, "rowHeadersInput", "false", text.off);
     setOptionText(host, "rowHeadersInput", "true", text.rowNumber);
@@ -164,6 +181,7 @@
     setChecked(host, "remoteInput", values.remote);
     setChecked(host, "multiSelectInput", values.multiSelectRows);
     setChecked(host, "editModeInput", values.editMode);
+    setChecked(host, "editOnSelectInput", values.editOnSelect);
     setChecked(
       host,
       "selectionRangeInput",

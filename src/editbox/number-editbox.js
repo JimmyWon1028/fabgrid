@@ -11,14 +11,6 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
     en: {
       increaseValueText: 'Increase value',
       decreaseValueText: 'Decrease value'
-    },
-    'zh-TW': {
-      increaseValueText: '增加數值',
-      decreaseValueText: '減少數值'
-    },
-    'zh-CN': {
-      increaseValueText: '增加数值',
-      decreaseValueText: '减少数值'
     }
   };
 
@@ -181,6 +173,7 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
       cls: 'fui-numberbox' + (options.cls ? ' ' + options.cls : ''),
       value: '',
       type: 'text',
+      charcase: '',
       multiline: false,
       onChange: null
     });

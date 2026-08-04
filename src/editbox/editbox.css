@@ -1,11 +1,11 @@
 @import "../fabui.icon.css?v=20260724-native-elements-v2";
-@import "./text-editbox.css?v=20260724-native-elements-v2";
+@import "./text-editbox.css?v=20260730-focus-background-v1";
 @import "./number-editbox.css?v=20260724-native-elements-v2";
 @import "./time-editbox.css?v=20260724-native-elements-v2";
 @import "./date-editbox.css?v=20260724-native-elements-v2";
 @import "./date-editbox-theme.css?v=20260724-native-elements-v2";
 @import "./combo-editbox.css?v=20260724-native-elements-v2";
-@import "./color-editbox.css?v=20260724-native-elements-v2";
+@import "./color-editbox.css?v=20260729-color-palette-layout-v2";
 
 :root .fui-editbox-demo-note {
   color: var(--fg-muted, #666);

@@ -1,8 +1,11 @@
-import fabui from './fabui.js?v=20260725-remove-mono-variants-v1';
-import { createSchedulerFactory } from './scheduler/scheduler.js?v=20260725-remove-mono-variants-v1';
+import fabui from './fabui.js?v=20260728-locale-packs-v1';
+import { createSchedulerFactory } from './scheduler/scheduler.js?v=20260728-locale-packs-v1';
 
 if (!fabui.Scheduler) {
-  fabui.Scheduler = createSchedulerFactory(fabui);
+  fabui.Scheduler = fabui.registerLocaleTarget(
+    'Scheduler',
+    createSchedulerFactory(fabui)
+  );
 }
 
 var Scheduler = fabui.Scheduler;

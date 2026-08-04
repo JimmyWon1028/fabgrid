@@ -9,10 +9,10 @@ import {
   normalizeRemoteData,
   normalizeRemoteCredentials,
   setByBinding
-} from './fabgrid-data.js?v=20260727-collection-view-sort-v1';
-import { installFabGridExport } from './fabgrid-export.js?v=20260717-pivot-excel-hidden-rows-v1';
-import { installFabGridDrag } from './fabgrid-drag.js?v=20260718-row-drop-width-v1';
-import { installFabGridTree } from './fabgrid-tree.js?v=20260723-grid-performance-v1';
+} from './fabgrid-data.js?v=20260804-grid-event-layout-v2';
+import { installFabGridExport } from './fabgrid-export.js?v=20260804-grid-public-api-v1';
+import { installFabGridDrag } from './fabgrid-drag.js?v=20260804-grid-event-layout-v2';
+import { installFabGridTree } from './fabgrid-tree.js?v=20260804-grid-event-layout-v2';
 import {
   applyMask,
   countMaskCharactersBeforeCaret,
@@ -26,14 +26,14 @@ import {
   isMaskValueIncludingLiterals
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
-import { installFabGridView } from './fabgrid-view.js?v=20260725-stop-navigation-v1';
-import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260723-popup-listeners-v1';
-import { installFabGridSelection } from './fabgrid-selection.js?v=20260726-collection-view-v1';
-import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260726-collection-view-v1';
+import { installFabGridView } from './fabgrid-view.js?v=20260804-grid-event-layout-v2';
+import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260804-grid-public-api-v1';
+import { installFabGridSelection } from './fabgrid-selection.js?v=20260804-grid-event-layout-v2';
+import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260804-grid-event-layout-v2';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
 import { DatePopup } from '../editbox/date-popup.js?v=20260725-remove-mono-variants-v1';
-import { ColorPopup } from '../editbox/color-popup.js?v=20260725-remove-mono-variants-v1';
+import { ColorPopup } from '../editbox/color-popup.js?v=20260729-color-palette-layout-v2';
 import { ComboPopup } from '../editbox/combo-popup.js?v=20260725-remove-mono-variants-v1';
 import { normalizeEditorIconDescriptors } from '../editbox/editor-icons.js?v=20260718-editor-icons-v1';
 
@@ -63,6 +63,92 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   ];
   var FILTER_MODE_EXCEL = 'excel';
   var FILTER_MODE_SEARCH_ROW = 'searchRow';
+  var GRID_EVENT_DEFINITIONS = createGridEventDefinitions();
+
+  function createGridEventDefinitions() {
+    var definitions = Object.create(null);
+
+    function add(names, cancelable) {
+      var i;
+      for (i = 0; i < names.length; i += 1) {
+        definitions[names[i]] = {
+          cancelable: cancelable === true,
+          aliasOf: null
+        };
+      }
+    }
+
+    add([
+      'autoSizedColumn',
+      'cellEditEnded',
+      'columnVisibilityChanged',
+      'copied',
+      'copiedCell',
+      'copyFailed',
+      'draggedColumn',
+      'draggedRow',
+      'excelExportFailed',
+      'excelExported',
+      'filterChanged',
+      'filterModeChanged',
+      'formatItem',
+      'gotFocus',
+      'groupCollapsedChanged',
+      'itemsSourceChanged',
+      'loadedRows',
+      'loadError',
+      'loadSuccess',
+      'lostFocus',
+      'pageChanged',
+      'refreshed',
+      'resizedColumn',
+      'rowHeaderModeChanged',
+      'rowSelectionChanged',
+      'scrollPositionChanged',
+      'searchCleared',
+      'selectedRowChanged',
+      'selectionChanged',
+      'sortedColumn',
+      'treeContextMenuAction',
+      'updatedLayout',
+      'updatedView',
+      'viewportChanged'
+    ], false);
+
+    add([
+      'autoSizingColumn',
+      'beforeLoad',
+      'beginningEdit',
+      'cellEditEnding',
+      'copying',
+      'copyingCell',
+      'draggingColumn',
+      'draggingRow',
+      'excelExporting',
+      'groupCollapsedChanging',
+      'itemsSourceChanging',
+      'loadingRows',
+      'pageChanging',
+      'refreshing',
+      'resizingColumn',
+      'rowSelectionChanging',
+      'selectionChanging',
+      'sortingColumn',
+      'updatingLayout',
+      'updatingView'
+    ], true);
+
+    definitions.cellEditStarting = {
+      cancelable: true,
+      aliasOf: 'beginningEdit'
+    };
+    definitions.cellCopied = {
+      cancelable: false,
+      aliasOf: 'copiedCell'
+    };
+
+    return Object.freeze(definitions);
+  }
 
   var DEFAULT_OPTIONS = {
     rowHeight: 32,
@@ -136,15 +222,223 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     paginationHeight: 35,
     itemsSource: []
   };
-  var FABGRID_INTERNAL_LOCALES = {};
-  var DEFAULT_COLOR_PALETTE = [
-    '#ffffff', '#000000', '#ff0000', '#ffc000', '#ffff00', '#92d050', '#00b050', '#00b0f0', '#0070c0', '#7030a0',
-    '#f2f2f2', '#737373', '#ffe5e5', '#fff9e5', '#ffffe5', '#f3ffe5', '#e5fff1', '#e5f8ff', '#e5f4ff', '#f4e5ff',
-    '#d9d9d9', '#595959', '#e6a1a1', '#e6d4a1', '#e5e6a1', '#c4e6a1', '#a1e6c0', '#a1d3e6', '#a1c9e6', '#c8a1e6',
-    '#bfbfbf', '#404040', '#cc6666', '#ccb366', '#cccc66', '#9bcc66', '#66cc94', '#66b1cc', '#66a2cc', '#a066cc',
-    '#a6a6a6', '#262626', '#b23636', '#b29436', '#b2b236', '#76b236', '#36b26e', '#3691b2', '#367eb2', '#7d36b2',
-    '#8c8c8c', '#0d0d0d', '#990f0f', '#99770f', '#99990f', '#56990f', '#0f994e', '#0f7499', '#0f6099', '#5e0f99'
-  ];
+  var FABGRID_INTERNAL_LOCALES = { en: {
+    emptyText: 'No data',
+    chart: { emptyText: 'No data', value: 'Value', percent: 'Percent' },
+    combobox: { emptyText: 'No matching items' },
+    exportBusyText: 'Exporting Excel...',
+    workingText: 'Working...',
+    loadMsg: 'Processing, please wait...',
+    tree: {
+      contextMenuAriaLabel: 'TreeGrid expand and collapse',
+      expandAll: 'Expand all',
+      collapseAll: 'Collapse all'
+    },
+    pivot: {
+      grandTotal: 'Grand Total',
+      total: 'Total',
+      expandGroup: 'Expand group',
+      collapseGroup: 'Collapse group',
+      expandAll: 'Expand all',
+      collapseAll: 'Collapse all',
+      showDetail: 'Show detail',
+      detailTitle: 'Detail records',
+      detailCount: '{count} records',
+      closeDetail: 'Close detail',
+      sortAscending: 'Sort ascending',
+      sortDescending: 'Sort descending',
+      clearSort: 'Clear sort',
+      aggregate: 'Aggregate',
+      removeField: 'Remove field',
+      filteredValues: 'Filtered',
+      chart: {
+        ariaLabel: 'Pivot chart',
+        title: 'Pivot Chart',
+        pointsTruncated: 'Showing {count} of {total} categories',
+        seriesTruncated: 'Showing {count} of {total} series'
+      },
+      workspace: {
+        ariaLabel: 'Pivot analysis workspace',
+        panelTitle: 'Define View',
+        gridTitle: 'Pivot Grid',
+        chartTitle: 'Pivot Chart',
+        panelSplitter: 'Resize definition pane',
+        chartSplitter: 'Resize chart pane',
+        hidePanel: 'Hide Definition',
+        showPanel: 'Show Definition',
+        hideChart: 'Hide Chart',
+        showChart: 'Show Chart',
+        gridFullscreen: 'Pivot Grid fullscreen',
+        chartFullscreen: 'Pivot Chart fullscreen',
+        exitFullscreen: 'Exit fullscreen',
+        chartType: 'Chart type',
+        progress: 'Aggregating {progress}%',
+        cancel: 'Cancel',
+        cancelled: 'Aggregation cancelled',
+        error: 'Aggregation failed',
+        chartTypes: {
+          column: 'Column',
+          bar: 'Bar',
+          line: 'Line',
+          pie: 'Pie'
+        }
+      },
+      panel: {
+        ariaLabel: 'Pivot view settings',
+        fields: 'Fields',
+        filters: 'Filters',
+        rows: 'Rows',
+        columns: 'Columns',
+        values: 'Values',
+        allValues: 'All',
+        filterField: 'Filter {field}',
+        aggregateMenu: 'Value aggregation settings',
+        aggregateField: 'Set aggregation for {field}',
+        sortMenu: 'Dimension sorting settings',
+        sortField: 'Set sorting for {field}',
+        sortDefault: 'Default order',
+        filterMenu: 'Pivot field filter',
+        editFilter: 'Edit filter',
+        searchValues: 'Search values',
+        selectAll: 'Select all',
+        blankValue: '(blank)',
+        apply: 'Apply',
+        cancel: 'Cancel',
+        showAs: 'Show values as',
+        dropFields: 'Drag fields here',
+        noFields: 'No fields available',
+        removeField: 'Remove field'
+      },
+      aggregates: {
+        sum: 'Sum',
+        count: 'Count',
+        average: 'Average',
+        weightedaverage: 'Weighted average',
+        min: 'Minimum',
+        max: 'Maximum'
+      },
+      showAs: {
+        'no-calculation': 'No calculation',
+        'percent-of-grand-total': '% of grand total',
+        'percent-of-row-total': '% of row total',
+        'percent-of-column-total': '% of column total',
+        'difference-from-previous': 'Difference from previous',
+        'percent-difference-from-previous': '% difference from previous',
+        'running-total': 'Running total'
+      },
+      slicer: {
+        ariaLabel: 'Pivot slicer',
+        search: 'Search values',
+        selectAll: 'Select all',
+        apply: 'Apply',
+        clear: 'Clear',
+        noField: 'Select a field'
+      }
+    },
+    pagination: {
+      ariaLabel: 'Pagination',
+      pageSize: 'Page size',
+      pageNumber: 'Page number',
+      beforePageText: 'Page',
+      afterPageText: 'of {pages}',
+      displayMsg: 'Displaying {from} to {to} of {total} items',
+      first: 'First page',
+      previous: 'Previous page',
+      next: 'Next page',
+      last: 'Last page',
+      refresh: 'Refresh'
+    },
+    validation: {
+      invalidValue: 'Invalid value',
+      required: 'This field is required',
+      invalidDate: 'Invalid date',
+      invalidTime: 'Invalid time',
+      invalidYearMonth: 'Invalid year and month',
+      invalidColor: 'Invalid color',
+      comboboxLimitToList: 'Please select a valid item'
+    },
+    topLeftMenu: {
+      ariaLabel: 'Grid menu',
+      useSearchRow: 'Use search row',
+      useExcelFilter: 'Use Excel-like filter',
+      clearFilter: 'Clear filters',
+      rowHeaders: 'Row headers',
+      rowHeadersOff: 'Row headers: Off',
+      rowHeadersNumbers: 'Row headers: Numbers',
+      rowHeadersCellOnly: 'Row headers: Cells only',
+      exportExcel: 'Export Excel',
+      exportCsv: 'Export CSV',
+      fullscreen: 'Grid fullscreen',
+      exitFullscreen: 'Exit fullscreen'
+    },
+    aria: {
+      cellEditor: 'Cell editor',
+      increaseValue: 'Increase value',
+      decreaseValue: 'Decrease value',
+      openDatePicker: 'Open date picker',
+      datePicker: 'Date picker',
+      openComboBox: 'Open combo box',
+      comboBoxOptions: 'Combo box options',
+      openColorPicker: 'Open color picker',
+      colorPicker: 'Color picker',
+      colorClear: 'Clear color',
+      colorSaturation: 'Saturation and brightness',
+      colorHue: 'Hue',
+      colorAlpha: 'Alpha',
+      openColumnChooser: 'Open column chooser',
+      columnChooser: 'Column chooser',
+      selectAllRows: 'Select all rows',
+      selectRow: 'Select row {rowNumber}',
+      rowDragItem: 'Grid row',
+      expandNode: 'Expand node',
+      collapseNode: 'Collapse node',
+      year: 'Year'
+    },
+    filter: {
+      openMenu: 'Open filter menu for {column}',
+      searchValues: 'Search',
+      selectAll: 'Select All',
+      apply: 'Apply',
+      cancel: 'Cancel',
+      blankValue: '(Blanks)',
+      startsWith: 'Starts with ({symbol})',
+      contains: 'Contains ({symbol})',
+      endsWith: 'Ends with ({symbol})',
+      notStartsWith: 'Does not start with ({symbol})',
+      notContains: 'Does not contain ({symbol})',
+      notEndsWith: 'Does not end with ({symbol})',
+      greaterThanOrEqual: '{symbol}',
+      greaterThan: '{symbol}',
+      lessThanOrEqual: '{symbol}',
+      lessThan: '{symbol}',
+      notEqual: '{symbol}',
+      equal: '{symbol}',
+      clear: 'Clear'
+    },
+    datebox: {
+      today: 'Today',
+      currentMonth: 'Current month',
+      close: 'Close',
+      weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+      months: [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ],
+      monthTitle: '{month} {year}'
+    }
+  } };
+  var fabGridDefaultLocale = 'en';
+  var DEFAULT_COLOR_PALETTE = ColorPopup.defaultPalette;
 
   function FabGrid(element, options) {
     var self = this;
@@ -170,6 +464,11 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     }
     this.events = {};
     this.wijmoEvents = {};
+    this._updateCount = 0;
+    this._updatePendingRefresh = false;
+    this._updatePendingRender = false;
+    this._updatePendingInvalidate = false;
+    this._updatePendingSkipLayout = true;
     this.columns = [];
     this.source = [];
     this.view = [];
@@ -259,6 +558,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._validationErrorSeq = 0;
     this._asyncValidationSeq = 0;
     this._asyncValidationMap = {};
+    this._asyncValidationItems = {};
     this._validationItems = [];
     this._validationItemIds = [];
     this.busy = false;
@@ -346,7 +646,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
 
     this.setColumns(this.options.columns || [], true);
     this.applyInitialFilterRules(this.options.filterRules);
-    this.setItemsSource(this.options.remote === true ? [] : (this.options.itemsSource || []), true);
+    this.setItemsSource(this.options.itemsSource || [], true);
     this.createWijmoEvents();
     this.bindOptionEvents();
     this.createDom();
@@ -390,19 +690,17 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.colorPopup = new ColorPopup({
       className: 'fui-grid-color-popup',
       normalize: normalizeColorValue,
+      clearText: this.getText('aria.colorClear'),
+      closeOnSelect: true,
       containsTarget: function(target) {
         return self.editor === target ||
           (self.editorIconHost && self.editorIconHost.contains(target)) ||
           Boolean(closest(target, 'fg-header-search-icons'));
       },
-      onInput: function(value) {
-        self.applyColorValueToTarget(value);
-      },
       onSelect: function(value) {
         var target = self.getColorTarget();
         self.applyColorValueToTarget(value);
-        if (target && target.type === 'search') {
-          self.colorPopup.hide();
+        if (target && target.input) {
           target.input.focus();
         }
       },
@@ -567,6 +865,10 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   }
 
   FabGrid.prototype.on = function(name, handler) {
+    name = getCanonicalGridEventName(name);
+    if (typeof handler !== 'function') {
+      return this;
+    }
     if (!this.events[name]) {
       this.events[name] = [];
     }
@@ -575,6 +877,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.off = function(name, handler) {
+    name = getCanonicalGridEventName(name);
     var list = this.events[name];
     var i;
     if (!list) {
@@ -589,20 +892,31 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.emit = function(name, detail) {
-    var list = this.events[name];
-    var wijmoEvent = this.wijmoEvents ? this.wijmoEvents[name] : null;
+    var eventName = getCanonicalGridEventName(name);
+    var definition = getGridEventDefinition(eventName);
+    var list = this.events[eventName];
+    var wijmoEvent = this.wijmoEvents ? this.wijmoEvents[eventName] : null;
     var i;
-    detail = detail || {};
+    detail = prepareGridEventArgs(this, eventName, detail);
+    if (!definition.cancelable) {
+      detail.cancel = false;
+    }
     if (list) {
       list = list.slice();
       for (i = 0; i < list.length; i += 1) {
-        if (list[i](detail) === false) {
+        if (list[i].call(this, this, detail) === false && definition.cancelable) {
           detail.cancel = true;
+        }
+        if (!definition.cancelable) {
+          detail.cancel = false;
         }
       }
     }
     if (wijmoEvent && wijmoEvent.raise(this, detail) === false) {
       detail.cancel = true;
+    }
+    if (!definition.cancelable) {
+      detail.cancel = false;
     }
     if (name === 'selectionChanged' && typeof this.syncCollectionViewCurrentFromSelection === 'function') {
       this.syncCollectionViewCurrentFromSelection();
@@ -611,75 +925,25 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.createWijmoEvents = function() {
-    var names = [
-      'autoGeneratedColumns',
-      'autoSizedColumn',
-      'autoSizedRow',
-      'autoSizingColumn',
-      'autoSizingRow',
-      'beforeLoad',
-      'beginningEdit',
-      'bigCheckboxesChanged',
-      'cellEditEnding',
-      'cellEditEnded',
-      'columnGroupCollapsedChanged',
-      'columnGroupCollapsedChanging',
-      'copied',
-      'copiedCell',
-      'copying',
-      'copyingCell',
-      'deletedRow',
-      'deletingRow',
-      'draggedColumn',
-      'draggedRow',
-      'draggingColumn',
-      'draggingRow',
-      'filterChanged',
-      'filterModeChanged',
-      'formatItem',
-      'gotFocus',
-      'groupCollapsedChanged',
-      'groupCollapsedChanging',
-      'itemsSourceChanged',
-      'itemsSourceChanging',
-      'loadedRows',
-      'loadingRows',
-      'loadError',
-      'loadSuccess',
-      'lostFocus',
-      'pasted',
-      'pastedCell',
-      'pasting',
-      'pastingCell',
-      'pageChanged',
-      'pageChanging',
-      'prepareCellForEdit',
-      'refreshed',
-      'refreshing',
-      'resizedColumn',
-      'resizedRow',
-      'resizingColumn',
-      'resizingRow',
-      'rowAdded',
-      'rowEditEnded',
-      'rowEditEnding',
-      'rowEditStarted',
-      'rowEditStarting',
-      'scrollPositionChanged',
-      'selectedRowChanged',
-      'selectionChanged',
-      'selectionChanging',
-      'sortedColumn',
-      'sortingColumn',
-      'updatedLayout',
-      'updatedView',
-      'updatingLayout',
-      'updatingView'
-    ];
+    var names = Object.keys(GRID_EVENT_DEFINITIONS);
+    var definition;
     var i;
     var event;
     for (i = 0; i < names.length; i += 1) {
-      event = createWijmoEvent(this, names[i]);
+      definition = GRID_EVENT_DEFINITIONS[names[i]];
+      if (definition.aliasOf) {
+        continue;
+      }
+      event = createWijmoEvent(this, names[i], definition);
+      this.wijmoEvents[names[i]] = event;
+      this[names[i]] = event;
+    }
+    for (i = 0; i < names.length; i += 1) {
+      definition = GRID_EVENT_DEFINITIONS[names[i]];
+      if (!definition.aliasOf) {
+        continue;
+      }
+      event = this.wijmoEvents[definition.aliasOf];
       this.wijmoEvents[names[i]] = event;
       this[names[i]] = event;
     }
@@ -688,9 +952,6 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   FabGrid.prototype.bindOptionEvent = function(name) {
     var event = this.wijmoEvents ? this.wijmoEvents[name] : null;
     var handler = this.options ? this.options[name] : null;
-    if (name === 'sortingColumn') {
-      return;
-    }
     if (event && typeof event.addHandler === 'function' && typeof handler === 'function') {
       event.addHandler(handler, this);
     }
@@ -710,7 +971,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (typeof this.activateKeyboardEventOwner === 'function') {
       this.activateKeyboardEventOwner(event);
     }
-    if (!previousTarget || !this.root.contains(previousTarget)) {
+    if (!this.containsFocusTarget(previousTarget)) {
       this.emit('gotFocus', {
         originalEvent: event,
         relatedTarget: previousTarget || null
@@ -718,14 +979,39 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     }
   };
 
+  FabGrid.prototype.containsFocusTarget = function(target) {
+    var containers = [
+      this.root,
+      this.dateboxPanel,
+      this.comboboxPanel,
+      this.colorPanel
+    ];
+    var i;
+    if (!target) {
+      return false;
+    }
+    for (i = 0; i < containers.length; i += 1) {
+      if (containers[i] &&
+          (containers[i] === target ||
+            (typeof containers[i].contains === 'function' && containers[i].contains(target)))) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   FabGrid.prototype.handleFocusOut = function(event) {
     var nextTarget = event.relatedTarget;
-    if (!nextTarget || !this.root.contains(nextTarget)) {
-      this.emit('lostFocus', {
-        originalEvent: event,
-        relatedTarget: nextTarget || null
-      });
+    if (this.containsFocusTarget(nextTarget)) {
+      return;
     }
+    if (this.editing) {
+      this.finishEditing(true, { restoreFocus: false });
+    }
+    this.emit('lostFocus', {
+      originalEvent: event,
+      relatedTarget: nextTarget || null
+    });
   };
 
   FabGrid.prototype.setLocale = function(locale, messages, silent) {
@@ -894,9 +1180,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (this.colorPopup) {
       this.colorPopup.setOptions({
         ariaLabel: this.getText('aria.colorPicker'),
-        saturationText: this.getText('aria.colorSaturation'),
-        hueText: this.getText('aria.colorHue'),
-        alphaText: this.getText('aria.colorAlpha')
+        clearText: this.getText('aria.colorClear')
       });
     }
     if (this.columnChooser) {
@@ -969,6 +1253,9 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.root.addEventListener('keydown', this._boundKeyDown);
     this.root.addEventListener('focusin', this._boundFocusIn);
     this.root.addEventListener('focusout', this._boundFocusOut);
+    this.dateboxPanel.addEventListener('focusout', this._boundFocusOut);
+    this.comboboxPanel.addEventListener('focusout', this._boundFocusOut);
+    this.colorPanel.addEventListener('focusout', this._boundFocusOut);
     this.root.addEventListener('mousemove', this._boundMouseMove);
     this.root.addEventListener('mouseleave', this._boundMouseLeave);
     this.root.addEventListener('pointerdown', this._boundPointerDown);
@@ -978,8 +1265,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.root.addEventListener('touchcancel', this._boundFixedPaneTouchEnd, { passive: true });
     this.root.addEventListener('wheel', this._boundBusyEvent, { passive: false });
     this.root.addEventListener('touchmove', this._boundBusyEvent, { passive: false });
-    this.editor.addEventListener('input', this._boundEditorInput);
-    this.editor.addEventListener('copy', this._boundEditorCopy);
+    this.bindEditorEvents(this.editor);
     this.header.addEventListener('beforeinput', this._boundHeaderSearchBeforeInput);
     this.header.addEventListener('input', this._boundHeaderSearchInput);
     this.header.addEventListener('compositionstart', this._boundHeaderSearchCompositionStart);
@@ -998,11 +1284,28 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._paginationElement.addEventListener('keydown', this._boundPaginationKeyDown);
     document.addEventListener('fullscreenchange', this._boundFullscreenChange);
     document.addEventListener('webkitfullscreenchange', this._boundFullscreenChange);
-    this.editor.addEventListener('beforeinput', this._boundEditorBeforeInput);
     if (typeof ResizeObserver !== 'function') {
       window.addEventListener('resize', this._boundResize);
     }
     this.bindResizeObserver();
+  };
+
+  FabGrid.prototype.bindEditorEvents = function(editor) {
+    if (!editor) {
+      return;
+    }
+    editor.addEventListener('beforeinput', this._boundEditorBeforeInput);
+    editor.addEventListener('input', this._boundEditorInput);
+    editor.addEventListener('copy', this._boundEditorCopy);
+  };
+
+  FabGrid.prototype.unbindEditorEvents = function(editor) {
+    if (!editor) {
+      return;
+    }
+    editor.removeEventListener('beforeinput', this._boundEditorBeforeInput);
+    editor.removeEventListener('input', this._boundEditorInput);
+    editor.removeEventListener('copy', this._boundEditorCopy);
   };
 
   FabGrid.prototype.bindResizeObserver = function() {
@@ -1046,43 +1349,140 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
 
 
 
-  FabGrid.prototype.setColumns = function(columns, silent) {
-    var i;
-    var col;
-    this.columns = [];
-    this.excelFilterValueCache = createDictionary();
-    for (i = 0; i < (columns || []).length; i += 1) {
-      col = mergeOptions({
-        binding: '',
-        header: '',
-        width: 120,
-        minWidth: this.options.columnMinWidth,
-        align: '',
-        dataType: 'string',
-        visible: true,
-        formatter: null,
-        cellTemplate: null,
-        footer: null,
-        footerFormatter: null,
-        aggregate: null,
-        editor: null,
-        thousandsSeparator: null,
-        mask: '',
-        autoUnmask: null,
-        maskValueIncludesLiterals: null,
-        readOnly: false,
-        allowSorting: true
-      }, columns[i]);
-      defineColumnCellTemplate(this, col, col.cellTemplate);
-      col.editor = normalizeEditorConfig(col.editor, col);
-      col._index = i;
-      col._width = Math.max(1, toNumber(col.width, 120), toNumber(col.minWidth, this.options.columnMinWidth));
-      this.columns.push(col);
+  function defineColumnInternalProperty(target, name, value) {
+    Object.defineProperty(target, name, {
+      configurable: true,
+      enumerable: false,
+      writable: true,
+      value: value
+    });
+  }
+
+  function createColumn(grid, definition, parent, depth) {
+    var col = mergeOptions({
+      binding: '',
+      header: '',
+      width: 120,
+      minWidth: grid.options.columnMinWidth,
+      align: '',
+      dataType: 'string',
+      visible: true,
+      cssClass: null,
+      formatter: null,
+      cellTemplate: null,
+      footer: null,
+      footerFormatter: null,
+      aggregate: null,
+      editor: null,
+      charcase: '',
+      thousandsSeparator: null,
+      mask: '',
+      autoUnmask: false,
+      maskValueIncludesLiterals: null,
+      multiLine: false,
+      isReadOnly: false,
+      isRequired: false,
+      allowSorting: true
+    }, definition);
+    if (Object.prototype.hasOwnProperty.call(col, 'readOnly')) {
+      delete col.readOnly;
     }
-    this.updateLayout();
+    if (Object.prototype.hasOwnProperty.call(col, 'isVisible')) {
+      delete col.isVisible;
+    }
+    col.multiLine = col.multiLine === true;
+    col.charcase = editorDefinitions.text && typeof editorDefinitions.text.normalizeCharcase === 'function' ?
+      editorDefinitions.text.normalizeCharcase(col.charcase) : '';
+    col.isReadOnly = col.isReadOnly === true;
+    defineColumnCellTemplate(grid, col, col.cellTemplate);
+    col.editor = normalizeEditorConfig(col.editor, col);
+    normalizeColumnMaskOptions(col, definition);
+    col._index = grid.columns.length;
+    col._width = Math.max(1, toNumber(col.width, 120), toNumber(col.minWidth, grid.options.columnMinWidth));
+    defineColumnInternalProperty(col, '_headerParent', parent);
+    defineColumnInternalProperty(col, '_headerDepth', depth);
+    grid.columns.push(col);
+    grid._columnHeaderDepth = Math.max(grid._columnHeaderDepth, depth + 1);
+    while (parent) {
+      parent._leaves.push(col);
+      parent = parent._headerParent;
+    }
+    return col;
+  }
+
+  function createColumnGroup(grid, definition, parent, depth) {
+    var group = mergeOptions({
+      header: '',
+      align: ''
+    }, definition);
+    var definitions = Array.isArray(definition.columns) ? definition.columns : [];
+    var i;
+    var child;
+    group.columns = [];
+    defineColumnInternalProperty(group, '_headerParent', parent);
+    defineColumnInternalProperty(group, '_headerDepth', depth);
+    defineColumnInternalProperty(group, '_leaves', []);
+    defineColumnInternalProperty(group, '_visibleViewStart', -1);
+    defineColumnInternalProperty(group, '_visibleViewEnd', -1);
+    grid._columnHeaderGroups.push(group);
+    for (i = 0; i < definitions.length; i += 1) {
+      child = normalizeColumnDefinition(grid, definitions[i], group, depth + 1);
+      if (child) {
+        group.columns.push(child);
+      }
+    }
+    if (!group._leaves.length) {
+      grid._columnHeaderGroups.splice(grid._columnHeaderGroups.indexOf(group), 1);
+      return null;
+    }
+    return group;
+  }
+
+  function normalizeColumnDefinition(grid, definition, parent, depth) {
+    if (!definition || typeof definition !== 'object') {
+      return null;
+    }
+    if (Array.isArray(definition.columns)) {
+      return createColumnGroup(grid, definition, parent, depth);
+    }
+    return createColumn(grid, definition, parent, depth);
+  }
+
+  FabGrid.prototype.setColumns = function(columns, silent) {
+    var definitions = Array.isArray(columns) ? columns : [];
+    var previousColumns = this.columns;
+    var previousHeaderTree = this._columnHeaderTree;
+    var previousHeaderGroups = this._columnHeaderGroups;
+    var previousHeaderDepth = this._columnHeaderDepth;
+    var previousVisibleHeaderDepth = this._visibleColumnHeaderDepth;
+    var previousExcelFilterValueCache = this.excelFilterValueCache;
+    var i;
+    var normalized;
+    this.columns = [];
+    this._columnHeaderTree = [];
+    this._columnHeaderGroups = [];
+    this._columnHeaderDepth = 1;
+    this._visibleColumnHeaderDepth = 1;
+    this.excelFilterValueCache = createDictionary();
+    for (i = 0; i < definitions.length; i += 1) {
+      normalized = normalizeColumnDefinition(this, definitions[i], null, 0);
+      if (normalized) {
+        this._columnHeaderTree.push(normalized);
+      }
+    }
+    if (this.updateLayout() === false) {
+      this.columns = previousColumns;
+      this._columnHeaderTree = previousHeaderTree;
+      this._columnHeaderGroups = previousHeaderGroups;
+      this._columnHeaderDepth = previousHeaderDepth;
+      this._visibleColumnHeaderDepth = previousVisibleHeaderDepth;
+      this.excelFilterValueCache = previousExcelFilterValueCache;
+      return false;
+    }
     if (!silent) {
       this.refresh();
     }
+    return true;
   };
 
   function defineColumnCellTemplate(grid, column, initialValue) {
@@ -1114,16 +1514,23 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
 
   FabGrid.prototype.setColumnVisible = function(column, visible) {
     var target = column;
+    var columnIndex;
+    var previousVisible;
     var wasEditingTarget;
-    if (typeof column === 'number') {
-      target = this.columns[column] || this.visibleColumns[column];
+    if (typeof column !== 'object' || column == null) {
+      columnIndex = FabGrid.prototype._getColumnIndex.call(this, column);
+      target = columnIndex >= 0 ? this.columns[columnIndex] : null;
     }
     if (!target || this.columns.indexOf(target) < 0) {
       return false;
     }
     wasEditingTarget = this.editing && this.visibleColumns[this.editing.col] === target;
+    previousVisible = target.visible;
     target.visible = visible !== false;
-    this.updateLayout();
+    if (this.updateLayout() === false) {
+      target.visible = previousVisible;
+      return false;
+    }
     if (wasEditingTarget) {
       this.finishEditing(false);
     }
@@ -1165,8 +1572,12 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   FabGrid.prototype.setShowRowHeaders = function(value) {
     var mode = normalizeRowHeaderMode(value);
     var changed = this.options.showRowHeaders !== mode;
+    var previousMode = this.options.showRowHeaders;
     this.options.showRowHeaders = mode;
-    this.updateLayout();
+    if (this.updateLayout() === false) {
+      this.options.showRowHeaders = previousMode;
+      return false;
+    }
     this.refresh();
     if (changed) {
       this.emit('rowHeaderModeChanged', {
@@ -1174,6 +1585,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
         showRowHeaders: mode
       });
     }
+    return true;
   };
 
   FabGrid.prototype.setShowFooter = function(value) {
@@ -1251,7 +1663,12 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.setMultiSelectRows = function(value) {
+    var previousValue = this.options.multiSelectRows;
     this.options.multiSelectRows = value === true;
+    if (this.updateLayout() === false) {
+      this.options.multiSelectRows = previousValue;
+      return false;
+    }
     if (!this.options.multiSelectRows) {
       this.selectedRowMap = {};
       this.resetSelectedItemSelection([]);
@@ -1260,8 +1677,8 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
         this._rowSelectionCleared = false;
       }
     }
-    this.updateLayout();
     this.refresh();
+    return true;
   };
 
   FabGrid.prototype.setPage = function(pageNumber) {
@@ -1299,7 +1716,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       this.renderPagination();
       return this.load().then(function(success) {
         if (success) {
-          this.emit('pageChanged', args);
+          this.emit('pageChanged', Object.assign({}, args));
         }
         return success;
       }.bind(this));
@@ -1307,7 +1724,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.applyView();
     this.resetVerticalScroll();
     this.refresh();
-    this.emit('pageChanged', args);
+    this.emit('pageChanged', Object.assign({}, args));
     return true;
   };
 
@@ -1417,15 +1834,97 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.refresh = function() {
-    if (this.emit('refreshing', {}) === false) {
-      return;
+    if (this.isUpdating) {
+      this._updatePendingRefresh = true;
+      return false;
     }
-    this.render();
+    if (this.emit('refreshing', {}) === false) {
+      return false;
+    }
+    if (this.render() === false) {
+      return false;
+    }
     this.emit('refreshed', {});
+    return true;
   };
 
   FabGrid.prototype.invalidate = function() {
+    if (this.isUpdating) {
+      this._updatePendingInvalidate = true;
+      return;
+    }
     this.scheduleRender();
+  };
+
+  FabGrid.prototype.beginUpdate = function() {
+    if (!this.isUpdating) {
+      this._updatePendingRefresh = false;
+      this._updatePendingRender = false;
+      this._updatePendingInvalidate = false;
+      this._updatePendingSkipLayout = true;
+      if (this.raf) {
+        if (typeof cancelAnimationFrame === 'function') {
+          cancelAnimationFrame(this.raf);
+        }
+        this.raf = 0;
+        this._updatePendingInvalidate = true;
+      }
+    }
+    this._updateCount = (this._updateCount || 0) + 1;
+  };
+
+  FabGrid.prototype.endUpdate = function(shouldInvalidate) {
+    var pendingRefresh;
+    var pendingRender;
+    var pendingInvalidate;
+    var pendingSkipLayout;
+
+    if (!this.isUpdating) {
+      return;
+    }
+
+    this._updateCount -= 1;
+    if (this.isUpdating) {
+      return;
+    }
+
+    pendingRefresh = this._updatePendingRefresh;
+    pendingRender = this._updatePendingRender;
+    pendingInvalidate = this._updatePendingInvalidate;
+    pendingSkipLayout = this._updatePendingSkipLayout;
+    this._updatePendingRefresh = false;
+    this._updatePendingRender = false;
+    this._updatePendingInvalidate = false;
+    this._updatePendingSkipLayout = true;
+
+    if (shouldInvalidate === false || this.disposed) {
+      return;
+    }
+    if (pendingRefresh) {
+      this.refresh();
+      return;
+    }
+    if (pendingRender) {
+      this.render(pendingSkipLayout);
+      return;
+    }
+    if (pendingInvalidate) {
+      this.invalidate();
+      return;
+    }
+    this.invalidate();
+  };
+
+  FabGrid.prototype.deferUpdate = function(callback) {
+    if (typeof callback !== 'function') {
+      throw new TypeError('FabGrid.deferUpdate requires a callback.');
+    }
+    this.beginUpdate();
+    try {
+      callback();
+    } finally {
+      this.endUpdate();
+    }
   };
 
   FabGrid.prototype.hitTest = function(point, y) {
@@ -1460,14 +1959,23 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (!cell) {
       return info;
     }
-    if (cell.classList.contains('fg-header-cell')) {
+    if (cell.classList.contains('fg-header-group-cell')) {
+      info.panel = this.columnHeaders;
+      info.row = toNumber(cell.getAttribute('data-header-row'), 0);
+      info.viewCol = toNumber(cell.getAttribute('data-view-col-start'), -1);
+      info.col = toNumber(cell.getAttribute('data-col-start'), -1);
+      info.column = info.viewCol >= 0 && this.visibleColumns ? this.visibleColumns[info.viewCol] || null : null;
+    } else if (cell.classList.contains('fg-header-cell')) {
       info.panel = this.columnHeaders;
       info.isSearchRow = !!findClosestGridElement(target, ['fg-header-search'], cell);
       if (!info.isSearchRow && this.getSearchRowHeight() > 0 && typeof cell.getBoundingClientRect === 'function') {
         rect = cell.getBoundingClientRect();
-        info.isSearchRow = hitPoint.y - pageYOffset >= rect.top + this.getHeaderTitleHeight();
+        info.isSearchRow = hitPoint.y - pageYOffset >=
+          rect.top + toNumber(cell.getAttribute('data-header-title-height'), this.getHeaderTitleHeight());
       }
-      info.row = info.isSearchRow ? 1 : 0;
+      info.row = info.isSearchRow ?
+        this.getVisibleColumnHeaderDepth() :
+        toNumber(cell.getAttribute('data-header-row'), 0);
     } else if (cell.classList.contains('fg-row-header-cell') || cell.classList.contains('fg-selection-cell')) {
       info.panel = this.rowHeaders;
       row = parseInt(cell.getAttribute('data-row'), 10);
@@ -1505,6 +2013,26 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       col2: info.col
     } : null;
     info.mergedRange = null;
+    if (cell.classList.contains('fg-header-group-cell') && info.row >= 0 && info.col >= 0) {
+      info.mergedRange = {
+        row: info.row,
+        col: info.col,
+        row2: info.row,
+        col2: toNumber(cell.getAttribute('data-col-end'), info.col)
+      };
+    } else if (
+      cell.classList.contains('fg-header-cell') &&
+      !info.isSearchRow &&
+      info.column &&
+      info.row < this.getVisibleColumnHeaderDepth() - 1
+    ) {
+      info.mergedRange = {
+        row: info.row,
+        col: info.col,
+        row2: this.getVisibleColumnHeaderDepth() - 1,
+        col2: info.col
+      };
+    }
     info.cell = cell;
     if (typeof cell.getBoundingClientRect === 'function') {
       rect = cell.getBoundingClientRect();
@@ -1523,11 +2051,24 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.getHeaderHeight = function() {
-    return toNumber(this.options.headerHeight, DEFAULT_OPTIONS.headerHeight) + this.getSearchRowHeight();
+    return this.getHeaderTitleHeight() + this.getSearchRowHeight();
   };
 
   FabGrid.prototype.getHeaderTitleHeight = function() {
+    return this.getHeaderRowHeight() * this.getVisibleColumnHeaderDepth();
+  };
+
+  FabGrid.prototype.getHeaderRowHeight = function() {
     return toNumber(this.options.headerHeight, DEFAULT_OPTIONS.headerHeight);
+  };
+
+  FabGrid.prototype.getVisibleColumnHeaderDepth = function() {
+    return Math.max(1, toNumber(this._visibleColumnHeaderDepth, 1));
+  };
+
+  FabGrid.prototype.getColumnHeaderTitleHeight = function(column) {
+    var depth = column ? toNumber(column._headerDepth, 0) : 0;
+    return this.getHeaderRowHeight() * Math.max(1, this.getVisibleColumnHeaderDepth() - depth);
   };
 
   FabGrid.prototype.getSearchRowHeight = function() {
@@ -1603,6 +2144,9 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.root.removeEventListener('keydown', this._boundKeyDown);
     this.root.removeEventListener('focusin', this._boundFocusIn);
     this.root.removeEventListener('focusout', this._boundFocusOut);
+    this.dateboxPanel.removeEventListener('focusout', this._boundFocusOut);
+    this.comboboxPanel.removeEventListener('focusout', this._boundFocusOut);
+    this.colorPanel.removeEventListener('focusout', this._boundFocusOut);
     this.root.removeEventListener('mousemove', this._boundMouseMove);
     this.root.removeEventListener('mouseleave', this._boundMouseLeave);
     this.root.removeEventListener('pointerdown', this._boundPointerDown);
@@ -1612,8 +2156,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.root.removeEventListener('touchcancel', this._boundFixedPaneTouchEnd);
     this.root.removeEventListener('wheel', this._boundBusyEvent);
     this.root.removeEventListener('touchmove', this._boundBusyEvent);
-    this.editor.removeEventListener('input', this._boundEditorInput);
-    this.editor.removeEventListener('copy', this._boundEditorCopy);
+    this.unbindEditorEvents(this.editor);
     this.header.removeEventListener('beforeinput', this._boundHeaderSearchBeforeInput);
     this.header.removeEventListener('input', this._boundHeaderSearchInput);
     this.header.removeEventListener('compositionstart', this._boundHeaderSearchCompositionStart);
@@ -1632,7 +2175,6 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._paginationElement.removeEventListener('keydown', this._boundPaginationKeyDown);
     document.removeEventListener('fullscreenchange', this._boundFullscreenChange);
     document.removeEventListener('webkitfullscreenchange', this._boundFullscreenChange);
-    this.editor.removeEventListener('beforeinput', this._boundEditorBeforeInput);
     window.removeEventListener('resize', this._boundResize);
     this.unbindResizeObserver();
     if (this.datePopup) {
@@ -1733,11 +2275,11 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (area === 'selection' || area === 'rowHeader') {
       this.toggleRowSelection(rowIndex, colIndex);
     } else if (this.shouldEditOnSelect(rowIndex, colIndex)) {
-      this.selectRow(rowIndex, colIndex);
+      this._selectVisibleRow(rowIndex, colIndex);
     } else {
       this.toggleRowSelection(rowIndex, colIndex);
     }
-    this.scrollIntoView(rowIndex, colIndex);
+    this._scrollVisibleIntoView(rowIndex, colIndex);
     this.fixedPaneTouchClickUntil = Date.now() + 700;
     this.root.focus();
   };
@@ -1888,7 +2430,9 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   }
 
   function getDefaultLocaleName() {
-    return typeof FABGRID_DEFAULT_LOCALE !== 'undefined' ? FABGRID_DEFAULT_LOCALE : 'zh-TW';
+    return typeof FABGRID_DEFAULT_LOCALE !== 'undefined' ?
+      FABGRID_DEFAULT_LOCALE :
+      fabGridDefaultLocale;
   }
 
   function normalizeLocaleName(locale) {
@@ -1898,10 +2442,14 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (Object.prototype.hasOwnProperty.call(locales, name)) {
       return name;
     }
-    if (lower === 'zh' || lower === 'zh-tw' || lower === 'zh-hant' || lower === 'zh-hant-tw' || lower === 'tw') {
+    if ((lower === 'zh' || lower === 'zh-tw' || lower === 'zh-hant' ||
+        lower === 'zh-hant-tw' || lower === 'tw') &&
+        Object.prototype.hasOwnProperty.call(locales, 'zh-TW')) {
       return 'zh-TW';
     }
-    if (lower === 'zh-cn' || lower === 'zh-hans' || lower === 'zh-hans-cn' || lower === 'cn') {
+    if ((lower === 'zh-cn' || lower === 'zh-hans' ||
+        lower === 'zh-hans-cn' || lower === 'cn') &&
+        Object.prototype.hasOwnProperty.call(locales, 'zh-CN')) {
       return 'zh-CN';
     }
     if (lower === 'en' || lower.indexOf('en-') === 0) {
@@ -2098,10 +2646,31 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   }
 
   function getColumnEditorConfig(column) {
-    if (column && column.editor) {
-      return normalizeEditorConfig(column.editor, column);
+    var config = column && column.editor ?
+      normalizeEditorConfig(column.editor, column) :
+      normalizeEditorConfig(null, column || {});
+    var optionNames = [
+      'charcase',
+      'spinner',
+      'increment',
+      'min',
+      'max',
+      'iconWidth',
+      'increaseValueText',
+      'decreaseValueText'
+    ];
+    var i;
+    var name;
+    if (!column) {
+      return config;
     }
-    return normalizeEditorConfig(null, column || {});
+    for (i = 0; i < optionNames.length; i += 1) {
+      name = optionNames[i];
+      if (column[name] != null) {
+        config.options[name] = column[name];
+      }
+    }
+    return config;
   }
 
   function getEditorOptions(editor) {
@@ -2116,6 +2685,42 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     result = mergeOptions(result, direct);
     result = mergeOptions(result, editor.options || {});
     return result;
+  }
+
+  function normalizeColumnMaskOptions(column, definition) {
+    var config = getColumnEditorConfig(column);
+    var options = config && config.options ? config.options : {};
+    var source = definition || {};
+    var hasExplicitAutoUnmask =
+      Object.prototype.hasOwnProperty.call(source, 'autoUnmask') ||
+      Object.prototype.hasOwnProperty.call(options, 'autoUnmask');
+    var optionNames = [
+      'mask',
+      'autoUnmask',
+      'maskValueIncludesLiterals',
+      'maskIncludesLiterals',
+      'maskLiteralsInValue'
+    ];
+    var i;
+    var name;
+    for (i = 0; i < optionNames.length; i += 1) {
+      name = optionNames[i];
+      if (!Object.prototype.hasOwnProperty.call(source, name) &&
+          Object.prototype.hasOwnProperty.call(options, name)) {
+        column[name] = options[name];
+      }
+    }
+    if (!hasExplicitAutoUnmask && (
+      column.maskValueIncludesLiterals === false ||
+      column.maskIncludesLiterals === false ||
+      column.maskLiteralsInValue === false
+    )) {
+      column.autoUnmask = true;
+    } else if (column.autoUnmask == null || !hasExplicitAutoUnmask) {
+      column.autoUnmask = false;
+    } else {
+      column.autoUnmask = column.autoUnmask === true;
+    }
   }
 
   function getEditorIconConfigs(config) {
@@ -2194,38 +2799,24 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   }
 
   function getExplicitEditorMask(column) {
-    var config;
-    var options;
     if (!column) {
       return '';
     }
-    if (column.mask) {
-      return column.mask;
-    }
-    config = getColumnEditorConfig(column);
-    options = config && config.options ? config.options : {};
-    return config && config.mask ? config.mask : options.mask || '';
+    return column.mask || '';
   }
 
   function getMaskOptions(column, mask) {
     var config = getColumnEditorConfig(column);
-    var options = config && config.options ? config.options : {};
-    var autoUnmask = column && column.autoUnmask != null ? column.autoUnmask : options.autoUnmask;
-    if (autoUnmask == null && (config.type === 'date' || config.type === 'time')) {
-      autoUnmask = true;
+    var autoUnmask = column && column.autoUnmask;
+    if (autoUnmask == null) {
+      autoUnmask = false;
     }
     return {
       mask: mask || getExplicitEditorMask(column),
       autoUnmask: autoUnmask,
-      maskValueIncludesLiterals: column && column.maskValueIncludesLiterals != null ?
-        column.maskValueIncludesLiterals :
-        options.maskValueIncludesLiterals,
-      maskIncludesLiterals: column && column.maskIncludesLiterals != null ?
-        column.maskIncludesLiterals :
-        options.maskIncludesLiterals,
-      maskLiteralsInValue: column && column.maskLiteralsInValue != null ?
-        column.maskLiteralsInValue :
-        options.maskLiteralsInValue
+      maskValueIncludesLiterals: column && column.maskValueIncludesLiterals,
+      maskIncludesLiterals: column && column.maskIncludesLiterals,
+      maskLiteralsInValue: column && column.maskLiteralsInValue
     };
   }
 
@@ -2235,9 +2826,6 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     }
     if (column && column.dataType === 'date') {
       return 'date';
-    }
-    if (column && column.dataType === 'time') {
-      return 'time';
     }
     return 'text';
   }
@@ -2368,6 +2956,21 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     return item == null ? '' : String(item);
   }
 
+  function normalizeEditorCharcase(value, config) {
+    var type = config && config.type;
+    var definition = editorDefinitions.text || null;
+    if (type === 'date' || type === 'time' || type === 'number') {
+      return value == null ? '' : String(value);
+    }
+    return definition && typeof definition.normalize === 'function' ?
+      definition.normalize(value, config && config.options ? config.options : {}) :
+      (value == null ? '' : String(value));
+  }
+
+  function normalizeComboboxText(value, config) {
+    return normalizeEditorCharcase(value, config);
+  }
+
   function getComboboxTextByValue(value, config) {
     var items = getComboboxData(config);
     var item;
@@ -2375,23 +2978,24 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     for (i = 0; i < items.length; i += 1) {
       item = items[i];
       if (String(getComboboxItemValue(item, config)) === String(value)) {
-        return getComboboxItemText(item, config);
+        return normalizeComboboxText(getComboboxItemText(item, config), config);
       }
     }
-    return value == null ? '' : String(value);
+    return normalizeComboboxText(value, config);
   }
 
   function getComboboxValueByText(text, config) {
     var items = getComboboxData(config);
+    var normalizedText = normalizeComboboxText(text, config);
     var item;
     var i;
     for (i = 0; i < items.length; i += 1) {
       item = items[i];
-      if (getComboboxItemText(item, config) === text) {
+      if (normalizeComboboxText(getComboboxItemText(item, config), config) === normalizedText) {
         return getComboboxItemValue(item, config);
       }
     }
-    return text;
+    return normalizedText;
   }
 
   function isComboboxValueInList(value, config) {
@@ -2401,7 +3005,8 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     var i;
     for (i = 0; i < items.length; i += 1) {
       item = items[i];
-      if (String(getComboboxItemValue(item, config)) === text || getComboboxItemText(item, config) === text) {
+      if (String(getComboboxItemValue(item, config)) === text ||
+          normalizeComboboxText(getComboboxItemText(item, config), config) === normalizeComboboxText(text, config)) {
         return true;
       }
     }
@@ -2617,7 +3222,28 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     };
   }
 
-  function createWijmoEvent(grid, name) {
+  function getGridEventDefinition(name) {
+    return GRID_EVENT_DEFINITIONS[name] || {
+      cancelable: true,
+      aliasOf: null
+    };
+  }
+
+  function getCanonicalGridEventName(name) {
+    var eventName = String(name || '');
+    var definition = GRID_EVENT_DEFINITIONS[eventName];
+    return definition && definition.aliasOf ? definition.aliasOf : eventName;
+  }
+
+  function prepareGridEventArgs(grid, name, args) {
+    var detail = args && typeof args === 'object' ? args : {};
+    detail.grid = grid;
+    detail.type = name;
+    detail.cancel = detail.cancel === true;
+    return detail;
+  }
+
+  function createWijmoEvent(grid, name, definition) {
     var handlers = [];
     return {
       addHandler: function(handler, self) {
@@ -2638,11 +3264,18 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       raise: function(sender, args) {
         var i;
         var snapshot = handlers.slice();
-        args = args || {};
+        var eventGrid = sender || grid;
+        args = prepareGridEventArgs(eventGrid, name, args);
         for (i = 0; i < snapshot.length; i += 1) {
-          if (snapshot[i].handler.call(snapshot[i].self || grid, sender || grid, args) === false) {
+          if (snapshot[i].handler.call(snapshot[i].self || grid, eventGrid, args) === false && definition.cancelable) {
             args.cancel = true;
           }
+          if (!definition.cancelable) {
+            args.cancel = false;
+          }
+        }
+        if (!definition.cancelable) {
+          args.cancel = false;
         }
         return args.cancel !== true;
       },
@@ -2653,71 +3286,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   }
 
   function defineWijmoCompatibility(FabGridCtor) {
-    var eventNames = [
-      'autoGeneratedColumns',
-      'autoSizedColumn',
-      'autoSizedRow',
-      'autoSizingColumn',
-      'autoSizingRow',
-      'beforeLoad',
-      'beginningEdit',
-      'bigCheckboxesChanged',
-      'cellEditEnding',
-      'cellEditEnded',
-      'columnGroupCollapsedChanged',
-      'columnGroupCollapsedChanging',
-      'copied',
-      'copiedCell',
-      'copying',
-      'copyingCell',
-      'deletedRow',
-      'deletingRow',
-      'draggedColumn',
-      'draggedRow',
-      'draggingColumn',
-      'draggingRow',
-      'filterChanged',
-      'filterModeChanged',
-      'formatItem',
-      'gotFocus',
-      'groupCollapsedChanged',
-      'groupCollapsedChanging',
-      'itemsSourceChanged',
-      'itemsSourceChanging',
-      'loadedRows',
-      'loadingRows',
-      'loadError',
-      'loadSuccess',
-      'lostFocus',
-      'pasted',
-      'pastedCell',
-      'pasting',
-      'pastingCell',
-      'pageChanged',
-      'pageChanging',
-      'prepareCellForEdit',
-      'refreshed',
-      'refreshing',
-      'resizedColumn',
-      'resizedRow',
-      'resizingColumn',
-      'resizingRow',
-      'rowAdded',
-      'rowEditEnded',
-      'rowEditEnding',
-      'rowEditStarted',
-      'rowEditStarting',
-      'scrollPositionChanged',
-      'selectedRowChanged',
-      'selectionChanged',
-      'selectionChanging',
-      'sortedColumn',
-      'sortingColumn',
-      'updatedLayout',
-      'updatedView',
-      'updatingLayout',
-      'updatingView'
-    ];
+    var eventNames = Object.keys(GRID_EVENT_DEFINITIONS);
     var i;
     var name;
 
@@ -2732,6 +3301,11 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
           var ownerDocument = this.root && this.root.ownerDocument;
           return !!(ownerDocument && ownerDocument.activeElement &&
             this.root.contains(ownerDocument.activeElement));
+        }
+      },
+      isUpdating: {
+        get: function() {
+          return (this._updateCount || 0) > 0;
         }
       },
       itemsSource: {
@@ -2886,6 +3460,24 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       activeCell: {
         get: function() {
           return this.root ? this.root.querySelector('.fg-cell.fg-selected, .fg-cell.fg-row-group-selected') : null;
+        }
+      },
+      editRange: {
+        get: function() {
+          var edit = this.editing;
+          var column;
+          var col;
+          if (!edit) {
+            return null;
+          }
+          column = this.visibleColumns && this.visibleColumns[edit.col];
+          col = column && typeof column._index === 'number' ? column._index : edit.col;
+          return {
+            row: edit.row,
+            col: col,
+            row2: edit.row,
+            col2: col
+          };
         }
       },
       activeEditor: {
@@ -3759,11 +4351,6 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     return Array.isArray(options.palette) && options.palette.length ? options.palette : DEFAULT_COLOR_PALETTE;
   }
 
-  function getColorShowAlpha(config) {
-    var options = config && config.options ? config.options : {};
-    return options.showAlpha !== false;
-  }
-
   function findColumnByOffset(columns, start, end, offset) {
     var low = start;
     var high = end - 1;
@@ -3884,7 +4471,6 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     formatYearMonthEditorText: formatYearMonthEditorText,
     getByBinding: getByBinding,
     getColorPalette: getColorPalette,
-    getColorShowAlpha: getColorShowAlpha,
     getColumnEditorConfig: getColumnEditorConfig,
     getComboboxData: getComboboxData,
     getComboboxDataValue: getComboboxDataValue,
@@ -3916,6 +4502,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     mergeOptions: mergeOptions,
     normalizeClassName: normalizeClassName,
     normalizeColorValue: normalizeColorValue,
+    normalizeEditorCharcase: normalizeEditorCharcase,
     normalizeTextAlign: normalizeTextAlign,
     normalizeValidationResult: normalizeValidationResult,
     parseColorValue: parseColorValue,
@@ -3976,6 +4563,11 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (name && messages) {
       FabGrid.locales[String(name)] = messages;
     }
+    return FabGrid;
+  };
+  FabGrid.setDefaultLocale = function(locale) {
+    fabGridDefaultLocale = normalizeLocaleName(locale);
+    FabGrid.defaultLocale = fabGridDefaultLocale;
     return FabGrid;
   };
 

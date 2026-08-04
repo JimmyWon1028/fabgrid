@@ -27,11 +27,10 @@ test('Calendar exposes EasyUI-compatible defaults', function() {
   assert.equal(fabui.Calendar.defaults.formatter(new Date(2026, 6, 18)), 18);
 });
 
-test('Calendar publishes all required locale packs', function() {
-  assert.deepEqual(Object.keys(fabui.Calendar.locales), ['en', 'zh-TW', 'zh-CN']);
+test('Calendar core publishes English locale only', function() {
+  assert.deepEqual(Object.keys(fabui.Calendar.locales), ['en']);
   assert.equal(fabui.Calendar.locales.en.months.length, 12);
-  assert.equal(fabui.Calendar.locales['zh-TW'].weeks.length, 7);
-  assert.equal(fabui.Calendar.locales['zh-CN'].ariaLabel, '日历');
+  assert.equal(fabui.Calendar.normalizeLocale('zh-Hant'), 'en');
 });
 
 test('Calendar keeps DatePopup theme and lunar helpers shared', function() {

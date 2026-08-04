@@ -1,10 +1,10 @@
-import { createEditorDefinitions } from './editbox-definitions.js?v=20260721-time-editbox-v1';
-import { createColorEditBoxFactory } from './color-editbox.js?v=20260719-i18n-theme-audit-v1';
-import { createTextBoxFactory } from './text-editbox.js?v=20260718-editor-icons-v1';
-import { createNumberBoxFactory } from './number-editbox.js?v=20260721-grid-number-spinner-v1';
-import { createTimeBoxFactory } from './time-editbox.js?v=20260721-time-editbox-v1';
-import { createDateBoxFactory } from './date-editbox.js?v=20260719-i18n-theme-audit-v1';
-import { createComboBoxFactory } from './combo-editbox.js?v=20260719-combo-fit-content-v1';
+import { createEditorDefinitions } from './editbox-definitions.js?v=20260803-text-charcase-v2';
+import { createColorEditBoxFactory } from './color-editbox.js?v=20260729-color-palette-layout-v2';
+import { createTextBoxFactory } from './text-editbox.js?v=20260803-text-charcase-v2';
+import { createNumberBoxFactory } from './number-editbox.js?v=20260803-text-charcase-v2';
+import { createTimeBoxFactory } from './time-editbox.js?v=20260803-text-charcase-v2';
+import { createDateBoxFactory } from './date-editbox.js?v=20260803-text-charcase-v2';
+import { createComboBoxFactory } from './combo-editbox.js?v=20260727-editbox-blur-commit-v1';
 
 var EDITOR_TYPES = ['text', 'number', 'time', 'date', 'combo', 'color'];
 var EDITBOX_THEMES = [
@@ -93,7 +93,7 @@ export function createEditBoxFactory(editorDefinitions) {
     if (this._source.__fabuiEditBox) {
       return this._source.__fabuiEditBox;
     }
-    options = options || {};
+    options = assignEditBoxOptions({}, EditBox.defaults, options || {});
     this._editorType = inferEditorType(this._source, options);
     factory = factories[this._editorType];
     if (!factory) {
@@ -112,8 +112,36 @@ export function createEditBoxFactory(editorDefinitions) {
     childOptions.cls = 'fui-editbox' + (childOptions.cls ? ' ' + childOptions.cls : '');
     this._destroyed = false;
     this._control = new factory(this._source, childOptions);
+    this._focusRoot = this._control.textbox().closest('.fui-textbox') || this._control.textbox();
+    this._focusPanel = typeof this._control.panel === 'function' ? this._control.panel() : null;
+    this._boundFocusOut = this._handleFocusOut.bind(this);
+    this._focusRoot.addEventListener('focusout', this._boundFocusOut);
+    if (this._focusPanel) {
+      this._focusPanel.addEventListener('focusout', this._boundFocusOut);
+    }
     this._source.__fabuiEditBox = this;
   }
+
+  EditBox.prototype._containsFocusTarget = function(target) {
+    var containers = [this._focusRoot, this._focusPanel];
+    var index;
+    if (!target) return false;
+    for (index = 0; index < containers.length; index += 1) {
+      if (containers[index] &&
+          (containers[index] === target ||
+            (typeof containers[index].contains === 'function' && containers[index].contains(target)))) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  EditBox.prototype._handleFocusOut = function(event) {
+    if (this._destroyed || this._containsFocusTarget(event.relatedTarget)) {
+      return;
+    }
+    this.fix();
+  };
 
   EditBox.prototype.getEditorType = function() {
     return this._editorType;
@@ -350,9 +378,16 @@ export function createEditBoxFactory(editorDefinitions) {
   EditBox.prototype.destroy = function() {
     if (this._destroyed) return;
     this._destroyed = true;
+    this._focusRoot.removeEventListener('focusout', this._boundFocusOut);
+    if (this._focusPanel) {
+      this._focusPanel.removeEventListener('focusout', this._boundFocusOut);
+    }
     delete this._source.__fabuiEditBox;
     this._control.destroy();
     this._control = null;
+    this._focusRoot = null;
+    this._focusPanel = null;
+    this._boundFocusOut = null;
   };
 
   EditBox.prototype.dispose = EditBox.prototype.destroy;
@@ -360,6 +395,9 @@ export function createEditBoxFactory(editorDefinitions) {
   EditBox.editorDefinitions = definitions;
   EditBox.editorTypes = EDITOR_TYPES.slice();
   EditBox.themes = EDITBOX_THEMES.slice();
+  EditBox.defaults = {
+    locale: 'en'
+  };
   EditBox.locales = {
     en: assignEditBoxOptions(
       {},
@@ -368,23 +406,21 @@ export function createEditBoxFactory(editorDefinitions) {
       DateBox.locales.en,
       ComboBox.locales.en,
       ColorEditBox.locales.en
-    ),
-    'zh-TW': assignEditBoxOptions(
-      {},
-      NumberBox.locales['zh-TW'],
-      TimeBox.locales['zh-TW'],
-      DateBox.locales['zh-TW'],
-      ComboBox.locales['zh-TW'],
-      ColorEditBox.locales['zh-TW']
-    ),
-    'zh-CN': assignEditBoxOptions(
-      {},
-      NumberBox.locales['zh-CN'],
-      TimeBox.locales['zh-CN'],
-      DateBox.locales['zh-CN'],
-      ComboBox.locales['zh-CN'],
-      ColorEditBox.locales['zh-CN']
     )
+  };
+  EditBox.addLocale = function(name, pack) {
+    if (!name || !pack) return EditBox;
+    NumberBox.extendLocale(name, pack);
+    TimeBox.extendLocale(name, pack);
+    DateBox.addLocale(name, pack);
+    ComboBox.addLocale(name, pack);
+    ColorEditBox.addLocale(name, pack);
+    EditBox.locales[name] = assignEditBoxOptions({}, EditBox.locales.en, pack);
+    return EditBox;
+  };
+  EditBox.setDefaultLocale = function(locale) {
+    EditBox.defaults.locale = String(locale || 'en');
+    return EditBox;
   };
   EditBox.getEditorDefinition = function(name) {
     return definitions[normalizeDefinitionName(name)] || null;

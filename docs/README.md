@@ -60,9 +60,10 @@
 | [Scheduler](./scheduler-api.md) | `fabui.Scheduler` |
 | [HtmlEditor](./htmleditor-api.md) | `fabui.HtmlEditor` |
 
-## Wrapper（暫緩）
+## Wrapper
 
-Vue 2 與 jQuery wrapper 保留原始碼與手冊，但不納入預設 build 或 `build:all`。
+Wrapper 不納入預設 build 或 `build:all`，只在明確需要時以各自的獨立命令編譯。
 
 - [Vue 2 Wrapper](./vue-api.md)
-- [jQuery Wrapper](./jquery-api.md)
+- [FabGrid jQuery Wrapper](./jquery-api.md)
+- [FabUI jQuery 相容 Wrapper](./fabui-jquery-api.md)

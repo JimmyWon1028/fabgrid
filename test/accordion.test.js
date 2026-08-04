@@ -40,10 +40,10 @@ test('Accordion normalizes supported themes and header alignment', function() {
   assert.equal(normalizeAccordionHalign('invalid'), 'top');
 });
 
-test('Accordion publishes matching locale and theme metadata', function() {
+test('Accordion core publishes English locale and theme metadata', function() {
   assert.deepEqual(
     Object.keys(fabui.Accordion.locales),
-    ['en', 'zh-TW', 'zh-CN']
+    ['en']
   );
   assert.deepEqual(fabui.Accordion.themes, [
     'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
@@ -51,15 +51,9 @@ test('Accordion publishes matching locale and theme metadata', function() {
     'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
     'black', 'mono'
   ]);
-  assert.equal(
-    fabui.Accordion.locales['zh-TW'].expand,
-    '展開「{title}」'
-  );
-  assert.equal(
-    fabui.Accordion.normalizeLocale('zh_Hant_TW'),
-    'zh-TW'
-  );
-  assert.equal(fabui.Accordion.normalizeLocale('zh-Hans'), 'zh-CN');
+  assert.equal(fabui.Accordion.locales.en.expand, 'Expand {title}');
+  assert.equal(fabui.Accordion.normalizeLocale('zh_Hant_TW'), 'en');
+  assert.equal(fabui.Accordion.normalizeLocale('zh-Hans'), 'en');
 });
 
 test('Accordion composes Panel instead of duplicating its renderer', function() {

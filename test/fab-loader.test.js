@@ -23,6 +23,7 @@ function createLoaderContext(options) {
   var imageLoadCount = 0;
   var lastImage = null;
   var lastFetchOptions = null;
+  var consoleErrors = [];
 
   options = options || {};
   if (options.fetchPending === true) fetchPending = true;
@@ -144,6 +145,11 @@ function createLoaderContext(options) {
     document: document,
     Image: FakeImage,
     DOMParser: FakeDOMParser,
+    console: {
+      error: function(error) {
+        consoleErrors.push(error);
+      }
+    },
     fetch: function(url, options) {
       fetchCount += 1;
       lastFetchOptions = options;
@@ -187,6 +193,9 @@ function createLoaderContext(options) {
   };
   context.getRemoved = function() {
     return removed.slice();
+  };
+  context.getConsoleErrors = function() {
+    return consoleErrors.slice();
   };
   context.setElementAutoLoad = function(value) {
     elementAutoLoad = value === true;
@@ -687,43 +696,43 @@ test('fabLoader vue waits for SystemJS and the full Vue 2 build', async function
   assert.deepEqual(order, ['vue', 'run']);
 });
 
-test('fabLoader vue reports missing optional dependencies through catch', async function() {
+test('fabLoader vue logs missing optional dependencies and continues', async function() {
   var context = createLoaderContext();
   var loader = context.fabLoader;
   var systemMessage;
   var vueMessage;
   var compilerMessage;
 
-  systemMessage = await new Promise(function(resolve) {
+  await new Promise(function(resolve, reject) {
     loader
       .vue('../components/demo.vue')
-      .catch(function(error) {
-        resolve(error.message);
-      });
+      .done(resolve)
+      .catch(reject);
   });
+  systemMessage = context.getConsoleErrors().at(-1).message;
 
   context.System = {
     import: function() {
       return Promise.resolve({});
     }
   };
-  vueMessage = await new Promise(function(resolve) {
+  await new Promise(function(resolve, reject) {
     loader
       .vue('../components/demo.vue')
-      .catch(function(error) {
-        resolve(error.message);
-      });
+      .done(resolve)
+      .catch(reject);
   });
+  vueMessage = context.getConsoleErrors().at(-1).message;
 
   context.Vue = function() {};
   context.Vue.version = '2.7.16';
-  compilerMessage = await new Promise(function(resolve) {
+  await new Promise(function(resolve, reject) {
     loader
       .vue('../components/demo.vue')
-      .catch(function(error) {
-        resolve(error.message);
-      });
+      .done(resolve)
+      .catch(reject);
   });
+  compilerMessage = context.getConsoleErrors().at(-1).message;
 
   assert.equal(
     systemMessage,
@@ -773,44 +782,44 @@ test('fabLoader react waits for SystemJS and the React client runtime', async fu
   assert.deepEqual(order, ['react', 'run']);
 });
 
-test('fabLoader react reports missing optional dependencies through catch', async function() {
+test('fabLoader react logs missing optional dependencies and continues', async function() {
   var context = createLoaderContext();
   var loader = context.fabLoader;
   var systemMessage;
   var reactMessage;
   var clientMessage;
 
-  systemMessage = await new Promise(function(resolve) {
+  await new Promise(function(resolve, reject) {
     loader
       .react('../components/demo.jsx')
-      .catch(function(error) {
-        resolve(error.message);
-      });
+      .done(resolve)
+      .catch(reject);
   });
+  systemMessage = context.getConsoleErrors().at(-1).message;
 
   context.System = {
     import: function() {
       return Promise.resolve({});
     }
   };
-  reactMessage = await new Promise(function(resolve) {
+  await new Promise(function(resolve, reject) {
     loader
       .react('../components/demo.jsx')
-      .catch(function(error) {
-        resolve(error.message);
-      });
+      .done(resolve)
+      .catch(reject);
   });
+  reactMessage = context.getConsoleErrors().at(-1).message;
 
   context.React = {
     createElement: function() {}
   };
-  clientMessage = await new Promise(function(resolve) {
+  await new Promise(function(resolve, reject) {
     loader
       .react('../components/demo.jsx')
-      .catch(function(error) {
-        resolve(error.message);
-      });
+      .done(resolve)
+      .catch(reject);
   });
+  clientMessage = context.getConsoleErrors().at(-1).message;
 
   assert.equal(
     systemMessage,
@@ -823,7 +832,41 @@ test('fabLoader react reports missing optional dependencies through catch', asyn
   );
 });
 
-test('fabLoader queue catch handles an earlier step and stops later loads', async function() {
+test('fabLoader queue logs a load error and continues later loads', async function() {
+  var context = createLoaderContext({ elementAutoLoad: false });
+  var loader = context.fabLoader;
+  var completed = new Promise(function(resolve, reject) {
+    loader
+      .script('../assets/missing.js')
+      .script('../assets/after.js')
+      .done(resolve)
+      .catch(reject);
+  });
+
+  await new Promise(function(resolve) {
+    setTimeout(resolve, 0);
+  });
+  context.getAppended()[0].onerror();
+  await new Promise(function(resolve) {
+    setTimeout(resolve, 0);
+  });
+
+  assert.equal(context.getAppended().length, 1);
+  assert.equal(
+    context.getAppended()[0].src,
+    'https://example.test/assets/after.js'
+  );
+  context.getAppended()[0].onload();
+  await completed;
+
+  assert.equal(context.getConsoleErrors().length, 1);
+  assert.match(
+    context.getConsoleErrors()[0].message,
+    /Failed to load script/
+  );
+});
+
+test('fabLoader queue catch handles a callback error and stops later loads', async function() {
   var context = createLoaderContext();
   var loader = context.fabLoader;
   var message = await new Promise(function(resolve, reject) {
@@ -1012,7 +1055,7 @@ test('fabLoader loadHtml accepts parallel arrays and named maps', async function
   assert.equal(loader.getHtml('../parts/body.html'), map.body);
 });
 
-test('fabLoader build supports regular and min-only browser globals', function() {
+test('loader build excludes fabDom in regular and min-only outputs', function() {
   var packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   var tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fab-loader-build-'));
   var sentinel = path.join(tempDir, 'fabui.js');
@@ -1050,8 +1093,12 @@ test('fabLoader build supports regular and min-only browser globals', function()
     vm.createContext(context);
     vm.runInContext(minifiedOutput, context);
     assert.equal(context.fabLoader.version, '0.12.0');
-    assert.equal(context.fabLoader.dom, context.fabDom);
-    assert.equal(context.$, context.fabDom);
+    assert.equal(context.fabLoader.dom, undefined);
+    assert.equal(context.fabDom, undefined);
+    assert.equal(context.$, undefined);
+    assert.throws(function() {
+      context.fabLoader.useDom();
+    }, /DOM helper is unavailable/);
 
     result = spawnSync(process.execPath, ['build/build-loader.cjs', 'min'], {
       cwd: process.cwd(),
@@ -1064,6 +1111,57 @@ test('fabLoader build supports regular and min-only browser globals', function()
       'fabui.js'
     ]);
     assert.equal(fs.readFileSync(sentinel, 'utf8'), 'keep');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('fabloader build includes fabDom in regular and min-only outputs', function() {
+  var packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  var tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fab-loader-dom-build-'));
+  var result;
+  var output;
+  var context;
+
+  assert.equal(
+    packageJson.scripts['build:fabloader'],
+    'node build/build-loader.cjs fabdom'
+  );
+  try {
+    result = spawnSync(
+      process.execPath,
+      ['build/build-loader.cjs', 'fabdom'],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        env: Object.assign({}, process.env, { FABUI_DIST_DIR: tempDir })
+      }
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.deepEqual(fs.readdirSync(tempDir).sort(), [
+      'fabLoader.js',
+      'fabLoader.min.js'
+    ]);
+    output = fs.readFileSync(path.join(tempDir, 'fabLoader.min.js'), 'utf8');
+    context = {};
+    vm.createContext(context);
+    vm.runInContext(output, context);
+    assert.equal(context.fabLoader.dom, context.fabDom);
+    assert.equal(context.$, context.fabDom);
+
+    result = spawnSync(
+      process.execPath,
+      ['build/build-loader.cjs', 'fabdom', 'min'],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        env: Object.assign({}, process.env, { FABUI_DIST_DIR: tempDir })
+      }
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.deepEqual(fs.readdirSync(tempDir).sort(), [
+      'fabLoader.min.js'
+    ]);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

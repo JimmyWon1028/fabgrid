@@ -26,11 +26,9 @@ test('FileBox exposes the official EasyUI-compatible defaults', function() {
   assert.equal(fabui.FileBox.defaults.separator, ',');
 });
 
-test('FileBox publishes all required locale packs', function() {
-  assert.deepEqual(Object.keys(fabui.FileBox.locales), ['en', 'zh-TW', 'zh-CN']);
+test('FileBox core publishes English locale only', function() {
+  assert.deepEqual(Object.keys(fabui.FileBox.locales), ['en']);
   assert.equal(fabui.FileBox.locales.en.chooseFile, 'Choose File');
-  assert.equal(fabui.FileBox.locales['zh-TW'].chooseFile, '選擇檔案');
-  assert.equal(fabui.FileBox.locales['zh-CN'].chooseFile, '选择文件');
 });
 
 test('FileBox normalizes themes, button alignment and label position', function() {

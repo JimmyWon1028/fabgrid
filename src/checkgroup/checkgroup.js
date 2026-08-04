@@ -156,12 +156,6 @@ export function createCheckGroupFactory(Control, registerControl, unregisterCont
   var localePacks = {
     en: {
       group: 'Checkbox group'
-    },
-    'zh-TW': {
-      group: '核取方塊群組'
-    },
-    'zh-CN': {
-      group: '复选框组'
     }
   };
 

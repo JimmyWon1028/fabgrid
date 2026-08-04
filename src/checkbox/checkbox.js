@@ -109,12 +109,6 @@ export function createCheckBoxFactory(Control, registerControl, unregisterContro
   var localePacks = {
     en: {
       checkbox: 'Checkbox'
-    },
-    'zh-TW': {
-      checkbox: '核取方塊'
-    },
-    'zh-CN': {
-      checkbox: '复选框'
     }
   };
 

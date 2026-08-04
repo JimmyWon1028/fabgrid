@@ -119,22 +119,6 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
       close: 'Close {title}',
       tool: 'Tab tool {index}',
       loadError: 'Unable to load tab content: {status}'
-    },
-    'zh-TW': {
-      untitled: '未命名',
-      previous: '上一組頁籤',
-      next: '下一組頁籤',
-      close: '關閉 {title}',
-      tool: '頁籤工具 {index}',
-      loadError: '無法載入頁籤內容：{status}'
-    },
-    'zh-CN': {
-      untitled: '未命名',
-      previous: '上一组页签',
-      next: '下一组页签',
-      close: '关闭 {title}',
-      tool: '页签工具 {index}',
-      loadError: '无法加载页签内容：{status}'
     }
   };
 
@@ -180,8 +164,12 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
   function normalizeLocale(value) {
     value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) return 'zh-TW';
-    if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+    if (/^zh-(?:TW|Hant)(?:-|$)/i.test(value)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:CN|Hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 
@@ -541,6 +529,7 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
     var tab = record.tab || document.createElement('button');
     var icon;
     var title;
+    var titleText;
     var close;
     tab.type = 'button';
     tab.className = 'fui-tabs-tab';
@@ -554,7 +543,8 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
     }
     title = document.createElement('span');
     title.className = 'fui-tabs-title';
-    title.textContent = record.options.title;
+    title.innerHTML = record.options.title == null ? '' : String(record.options.title);
+    titleText = title.textContent == null ? '' : title.textContent.trim();
     title.draggable = this._isHorizontalDragEnabled() && !record.options.disabled;
     tab.appendChild(title);
     record.panelTools = this._resolveTools(record.options.tools);
@@ -571,7 +561,7 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
     if (record.options.closable) {
       close = document.createElement('span');
       close.className = 'fui-tabs-close';
-      close.setAttribute('aria-label', formatText(this._getText('close'), { title: record.options.title }));
+      close.setAttribute('aria-label', formatText(this._getText('close'), { title: titleText }));
       close.textContent = '×';
       tab.appendChild(close);
     }

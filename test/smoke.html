@@ -293,7 +293,8 @@
           selectionChanged: 0
         };
         var formatItemTypes = {};
-        grid.on('cellCopied', function(event) {
+        grid.on('cellCopied', function(sender, event) {
+          event = event || sender;
           copiedText = event.text;
         });
         grid.beginningEdit.addHandler(function() {
@@ -663,10 +664,12 @@
         var headerDividerResizeWorks = resizeStartWidth === 150 && resizeEndWidth === 180;
         var autoSizingColumnCount = 0;
         var autoSizedColumnCount = 0;
-        var autoSizingColumnHandler = function(e) {
+        var autoSizingColumnHandler = function(g, e) {
+          e = e || g;
           if (e.column === grid.visibleColumns[1]) autoSizingColumnCount += 1;
         };
-        var autoSizedColumnHandler = function(e) {
+        var autoSizedColumnHandler = function(g, e) {
+          e = e || g;
           if (e.column === grid.visibleColumns[1]) autoSizedColumnCount += 1;
         };
         grid.on('autoSizingColumn', autoSizingColumnHandler);
@@ -990,7 +993,7 @@
               grid.activeEditor.selectionStart === 0 &&
               grid.activeEditor.selectionEnd === grid.activeEditor.value.length;
             grid.finishEditing(false);
-            grid.visibleColumns[1].readOnly = true;
+            grid.visibleColumns[1].isReadOnly = true;
             var readOnlyClickCell = document.querySelector('.fg-cell[data-col="1"]');
             if (readOnlyClickCell) {
               readOnlyClickCell.click();
@@ -1030,7 +1033,7 @@
               grid.selection.col === 1 &&
               grid.rowSelection === readOnlyClickRow &&
               !grid.editing;
-            grid.visibleColumns[3].readOnly = true;
+            grid.visibleColumns[3].isReadOnly = true;
             grid.select(0, 2);
             grid.startEditing(0, 2);
             grid.activeEditor.value = '777';
@@ -1388,8 +1391,8 @@
               grid.startEditing(0, 2) === false &&
               !grid.editing;
             grid.isReadOnly = false;
-            grid.visibleColumns[1].readOnly = false;
-            grid.visibleColumns[3].readOnly = false;
+            grid.visibleColumns[1].isReadOnly = false;
+            grid.visibleColumns[3].isReadOnly = false;
             grid.select(0, 1);
             grid.startEditing(0, 1);
             var textboxDefaultEditorWorks = grid.activeEditor &&

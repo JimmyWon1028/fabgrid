@@ -84,6 +84,9 @@ export function prepareSortValue(value, type) {
     return null;
   }
   if (type === 'number') {
+    if (typeof value === 'string') {
+      value = value.replace(/,/g, '').replace(/\s/g, '');
+    }
     return Number(value);
   }
   if (type === 'date') {
@@ -350,7 +353,8 @@ export function installFabGridData(FabGrid, context) {
     var excelFilters = getActiveFilterMode(grid.options) === 'excel' && hasExcelFilters(grid.excelFilters) ?
       grid.excelFilters : null;
     var columns = grid.columns;
-    if (!filterPredicate && !searchText && !columnSearchValues && !excelFilters) {
+    if (grid.options.remote === true ||
+        !filterPredicate && !searchText && !columnSearchValues && !excelFilters) {
       return null;
     }
     return function(item, index) {
@@ -880,7 +884,7 @@ export function installFabGridData(FabGrid, context) {
     col = this.selection && this.selection.col >= 0 ? this.selection.col : 0;
     this._suppressCollectionViewCurrentChange = true;
     try {
-      return this.select(row, Math.min(col, this.visibleColumns.length - 1));
+      return this._selectVisibleCell(row, Math.min(col, this.visibleColumns.length - 1));
     } finally {
       this._suppressCollectionViewCurrentChange = false;
     }
@@ -1092,6 +1096,29 @@ export function installFabGridData(FabGrid, context) {
     return serialized ? JSON.parse(serialized) : [];
   };
 
+  FabGrid.prototype.getFilterState = function() {
+    var columnSearchValues = mergeOptions({}, this.columnSearchValues || {});
+    var columnSearchOperators = mergeOptions({}, this.columnSearchOperators || {});
+    var excelFilters = cloneExcelFilters(this.excelFilters || {});
+    var activeMode = getActiveFilterMode(this.options);
+    var columnSearchActive = activeMode === 'searchRow' && Object.keys(columnSearchValues).some(function(key) {
+      return String(columnSearchValues[key] == null ? '' : columnSearchValues[key]).trim() !== '';
+    });
+    var excelFilterActive = activeMode === 'excel' && hasExcelFilters(excelFilters);
+    var filterPredicateActive = typeof this.filterPredicate === 'function';
+    var searchText = this.searchText || '';
+    return {
+      active: Boolean(filterPredicateActive || searchText || columnSearchActive || excelFilterActive),
+      filterMode: activeMode || null,
+      filterPredicateActive: filterPredicateActive,
+      searchText: searchText,
+      filterRules: this.getFilterRules(),
+      columnSearchValues: columnSearchValues,
+      columnSearchOperators: columnSearchOperators,
+      excelFilters: excelFilters
+    };
+  };
+
   FabGrid.prototype.reload = function() {
     return this.load();
   };
@@ -1111,10 +1138,27 @@ export function installFabGridData(FabGrid, context) {
   FabGrid.prototype.loadRemoteData = function(data) {
     var normalized = normalizeRemoteData(data);
     var previousSelectedRow = this.captureSelectedRowChangeState();
+    var previousSuppressChange;
+    var previousSuppressCurrent;
     if (typeof this.resetTreeState === 'function') {
       this.resetTreeState();
     }
-    this.source = this.createObservedItemsSource(normalized.rows);
+    if (this._collectionView) {
+      previousSuppressChange = this._suppressCollectionViewChange;
+      previousSuppressCurrent = this._suppressCollectionViewCurrentChange;
+      this._suppressCollectionViewChange = true;
+      this._suppressCollectionViewCurrentChange = true;
+      try {
+        this._collectionView.sourceCollection = normalized.rows;
+      } finally {
+        this._suppressCollectionViewChange = previousSuppressChange;
+        this._suppressCollectionViewCurrentChange = previousSuppressCurrent;
+      }
+      this.source = this._collectionView.sourceCollection;
+    } else {
+      this._itemsSource = normalized.rows;
+      this.source = this.createObservedItemsSource(this._itemsSource);
+    }
     this.paginationTotal = normalized.total;
     this.applyView();
     this.emit('itemsSourceChanged', { rows: this.source, remote: true });
@@ -1377,7 +1421,7 @@ export function installFabGridData(FabGrid, context) {
   };
 
   FabGrid.prototype.setColumnSearch = function(column, value) {
-    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
+    var col = typeof column === 'object' ? column : this.getColumn(column);
     var key;
     if (!col || getActiveFilterMode(this.options) !== 'searchRow') {
       return false;
@@ -1396,7 +1440,7 @@ export function installFabGridData(FabGrid, context) {
   };
 
   FabGrid.prototype.setColumnSearchOperator = function(column, operator) {
-    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
+    var col = typeof column === 'object' ? column : this.getColumn(column);
     var key;
     if (!col || getActiveFilterMode(this.options) !== 'searchRow') {
       return false;
@@ -1428,7 +1472,7 @@ export function installFabGridData(FabGrid, context) {
   };
 
   FabGrid.prototype.setExcelFilter = function(column, filter) {
-    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
+    var col = typeof column === 'object' ? column : this.getColumn(column);
     var key;
     var normalized;
     if (!col || getActiveFilterMode(this.options) !== 'excel') {
@@ -1448,7 +1492,7 @@ export function installFabGridData(FabGrid, context) {
   };
 
   FabGrid.prototype.getExcelFilter = function(column) {
-    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
+    var col = typeof column === 'object' ? column : this.getColumn(column);
     var filter;
     if (!col) {
       return null;
@@ -1458,7 +1502,7 @@ export function installFabGridData(FabGrid, context) {
   };
 
   FabGrid.prototype.clearExcelFilter = function(column) {
-    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
+    var col = typeof column === 'object' ? column : this.getColumn(column);
     var key;
     if (!col) {
       return false;
@@ -1704,13 +1748,27 @@ export function installFabGridData(FabGrid, context) {
   };
 
   FabGrid.prototype.toggleSort = function(colIndex, multiSort) {
+    var column;
+    var viewCol;
+    colIndex = FabGrid.prototype._getColumnIndex.call(this, colIndex);
+    if (colIndex < 0) {
+      return false;
+    }
+    column = this.columns[colIndex];
+    viewCol = this.visibleColumns.indexOf(column);
+    if (viewCol < 0) {
+      return false;
+    }
+    return FabGrid.prototype._toggleVisibleSort.call(this, viewCol, multiSort);
+  };
+
+  FabGrid.prototype._toggleVisibleSort = function(colIndex, multiSort) {
     var column = this.visibleColumns[colIndex];
     var sortStates;
     var sortIndex;
     var currentState;
     var nextSortStates;
     var sortingArgs;
-    var sortingHandler;
     var direction = 1;
     if (!column || column.allowSorting === false) {
       return false;
@@ -1732,10 +1790,6 @@ export function installFabGridData(FabGrid, context) {
       multiSort: multiSort === true,
       sortIndex: sortIndex
     };
-    sortingHandler = this.options && this.options.sortingColumn;
-    if (typeof sortingHandler === 'function' && sortingHandler.call(this, this, sortingArgs) === false) {
-      sortingArgs.cancel = true;
-    }
     if (this.emit('sortingColumn', sortingArgs) === false) {
       return false;
     }
@@ -1763,7 +1817,7 @@ export function installFabGridData(FabGrid, context) {
       this.syncCollectionViewSort();
     }
     this.applyView();
-    this.resetScroll();
+    this.resetVerticalScroll();
     this.render();
     this.emit('sortedColumn', {
       column: column,
@@ -1775,6 +1829,30 @@ export function installFabGridData(FabGrid, context) {
     if (this.options.remote === true) {
       this.load();
     }
+  };
+
+  FabGrid.prototype.clearSort = function() {
+    if (!this.getSortStates().length) {
+      return false;
+    }
+    this.sortStates = [];
+    this.sortState = null;
+    if (this.options.remote === true) {
+      this.options.pageNumber = 1;
+      if (this.options.pager) {
+        this.options.pager.pageNumber = 1;
+      }
+    }
+    if (typeof this.syncCollectionViewSort === 'function') {
+      this.syncCollectionViewSort();
+    }
+    this.applyView();
+    this.resetVerticalScroll();
+    this.render();
+    if (this.options.remote === true) {
+      this.load();
+    }
+    return true;
   };
 
   FabGrid.prototype.getSortGlyph = function(column) {
@@ -1807,5 +1885,26 @@ export function installFabGridData(FabGrid, context) {
       return this.sortStates;
     }
     return this.sortState && this.sortState.direction ? [this.sortState] : [];
+  };
+
+  FabGrid.prototype.getSortState = function() {
+    var columns = this.columns || [];
+    var visibleColumns = this.visibleColumns || [];
+    var sortStates = this.getSortStates().map(function(state, index) {
+      var column = state.column || null;
+      var direction = state.direction === -1 ? -1 : 1;
+      return {
+        columnIndex: columns.indexOf(column),
+        visibleColumnIndex: visibleColumns.indexOf(column),
+        binding: column && typeof column.binding === 'string' ? column.binding : null,
+        direction: direction,
+        order: direction === -1 ? 'desc' : 'asc',
+        sortIndex: index
+      };
+    });
+    return {
+      active: sortStates.length > 0,
+      sortStates: sortStates
+    };
   };
 }

@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>FabGrid Dev Grid Demo</title>
-    <link rel="stylesheet" href="../src/fabui.css?v=20260725-stop-navigation-v1" />
-    <script src="./js/theme-loader.js?v=20260725-editbox-themes-v1"></script>
+    <link rel="stylesheet" href="../src/fabui.css?v=20260803-external-editor-icon-v1" />
+    <script src="./js/theme-loader.js?v=20260731-tree-icons-v1"></script>
     <link
       rel="stylesheet"
       href="./style/my.icon.css?v=20260713-demo-style-folder-v1"
@@ -16,7 +16,7 @@
     />
     <link
       rel="stylesheet"
-      href="./style/grid2.css?v=20260719-toolbar-icon-only-v1"
+      href="./style/grid2.css?v=20260727-column-css-class-v1"
     />
   </head>
   <body
@@ -27,6 +27,7 @@
       <section
         data-fabgrid-demo-toolbar
         data-selection-range-toggle="true"
+        data-edit-mode-toggle="true"
       ></section>
 
       <section class="stats" aria-label="FabGrid stats">
@@ -70,27 +71,20 @@
       </section>
     </main>
 
-    <script src="./js/grid-toolbar.js?v=20260723-selection-range-v1"></script>
+    <script src="./js/grid-toolbar.js?v=20260728-edit-mode-toggle-v2"></script>
     <script src="./js/grid-data.js?v=20260721-initial-filter-rules-v1"></script>
-    <script src="./js/grid-locales.js?v=20260723-selection-range-v1"></script>
+    <script src="./js/grid-locales.js?v=20260728-edit-mode-toggle-v2"></script>
     <script src="./js/grid-query.js?v=20260722-remote-op-symbol-v1"></script>
     <script type="module">
-      import fabui from "../src/fabui.js?v=20260726-editor-navigation-scroll-v1";
-      import { createGrid2FabuiDemo } from "./js/grid2-components.js?v=20260725-remove-mono-variants-v1";
+      import fabui from "../src/fabui.js?v=20260804-grid-event-layout-v2";
+      import { createGrid2FabuiDemo } from "./js/grid2-components.js?v=20260728-edit-mode-toggle-v2";
 
       window.fabui = fabui;
+      window.FABUI_DEMO_LOCALE_BASE_URL = "../src/locales/";
+      window.FABGRID_DEMO_HEADER_GROUPS = true;
       const grid2Components = createGrid2FabuiDemo(fabui);
-      await import(
-        "../src/locales/fabgrid-locale.zh-TW.js?v=20260719-current-month-text-v1"
-      );
-      await import(
-        "../src/locales/fabgrid-locale.zh-CN.js?v=20260719-current-month-text-v1"
-      );
-      await import(
-        "../src/locales/fabgrid-locale.en.js?v=20260719-current-month-text-v1"
-      );
 
-      await import("./js/grid.js?v=20260725-remove-mono-variants-v1");
+      await import("./js/grid.js?v=20260804-grid-event-layout-v2");
       grid2Components.complete();
     </script>
     <script type="module" src="./js/dev-controls.js?v=20260721-initial-filter-rules-v1"></script>

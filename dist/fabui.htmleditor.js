@@ -79,130 +79,6 @@ var HTML_EDITOR_LOCALES = {
     helpContent: 'Ctrl/⌘ + B: bold\nCtrl/⌘ + I: italic\nCtrl/⌘ + U: underline\nCtrl/⌘ + Z: undo\nCtrl/⌘ + Y or Ctrl/⌘ + Shift + Z: redo\nEscape: close popup or fullscreen',
     invalidUrl: 'Enter a valid URL.',
     resize: 'Resize editor'
-  },
-  'zh-TW': {
-    ariaLabel: 'HTML 編輯器',
-    style: '樣式',
-    paragraph: '段落',
-    blockquote: '引言',
-    pre: '預先格式化',
-    heading1: '標題 1',
-    heading2: '標題 2',
-    heading3: '標題 3',
-    heading4: '標題 4',
-    heading5: '標題 5',
-    heading6: '標題 6',
-    bold: '粗體',
-    italic: '斜體',
-    underline: '底線',
-    strikethrough: '刪除線',
-    superscript: '上標',
-    subscript: '下標',
-    clear: '清除格式',
-    fontName: '字型',
-    fontSize: '字級',
-    color: '文字顏色',
-    backColor: '文字底色',
-    clearColor: '清除顏色',
-    unorderedList: '項目符號',
-    orderedList: '編號',
-    paragraphTools: '段落',
-    alignLeft: '靠左對齊',
-    alignCenter: '置中對齊',
-    alignRight: '靠右對齊',
-    justify: '左右對齊',
-    outdent: '減少縮排',
-    indent: '增加縮排',
-    table: '表格',
-    insertTable: '插入 {0} × {1} 表格',
-    link: '連結',
-    picture: '圖片',
-    video: '影片',
-    horizontalRule: '水平線',
-    undo: '復原',
-    redo: '重做',
-    fullscreen: '全螢幕',
-    codeView: 'HTML 原始碼',
-    help: '說明',
-    linkDialog: '插入連結',
-    linkText: '顯示文字',
-    linkUrl: '網址',
-    openNewWindow: '在新視窗開啟',
-    pictureDialog: '插入圖片',
-    pictureUrl: '圖片網址',
-    pictureAlt: '替代文字',
-    pictureFile: '本機圖片',
-    choosePicture: '選擇圖片',
-    videoDialog: '插入影片',
-    videoUrl: '影片或嵌入網址',
-    insert: '插入',
-    cancel: '取消',
-    helpDialog: '鍵盤快速鍵',
-    helpContent: 'Ctrl/⌘ + B：粗體\nCtrl/⌘ + I：斜體\nCtrl/⌘ + U：底線\nCtrl/⌘ + Z：復原\nCtrl/⌘ + Y 或 Ctrl/⌘ + Shift + Z：重做\nEscape：關閉選單或全螢幕',
-    invalidUrl: '請輸入有效網址。',
-    resize: '調整編輯器高度'
-  },
-  'zh-CN': {
-    ariaLabel: 'HTML 编辑器',
-    style: '样式',
-    paragraph: '段落',
-    blockquote: '引用',
-    pre: '预先格式化',
-    heading1: '标题 1',
-    heading2: '标题 2',
-    heading3: '标题 3',
-    heading4: '标题 4',
-    heading5: '标题 5',
-    heading6: '标题 6',
-    bold: '粗体',
-    italic: '斜体',
-    underline: '下划线',
-    strikethrough: '删除线',
-    superscript: '上标',
-    subscript: '下标',
-    clear: '清除格式',
-    fontName: '字体',
-    fontSize: '字号',
-    color: '文字颜色',
-    backColor: '文字底色',
-    clearColor: '清除颜色',
-    unorderedList: '项目符号',
-    orderedList: '编号',
-    paragraphTools: '段落',
-    alignLeft: '左对齐',
-    alignCenter: '居中对齐',
-    alignRight: '右对齐',
-    justify: '两端对齐',
-    outdent: '减少缩进',
-    indent: '增加缩进',
-    table: '表格',
-    insertTable: '插入 {0} × {1} 表格',
-    link: '链接',
-    picture: '图片',
-    video: '视频',
-    horizontalRule: '水平线',
-    undo: '撤销',
-    redo: '重做',
-    fullscreen: '全屏',
-    codeView: 'HTML 源码',
-    help: '帮助',
-    linkDialog: '插入链接',
-    linkText: '显示文字',
-    linkUrl: '网址',
-    openNewWindow: '在新窗口打开',
-    pictureDialog: '插入图片',
-    pictureUrl: '图片网址',
-    pictureAlt: '替代文字',
-    pictureFile: '本地图片',
-    choosePicture: '选择图片',
-    videoDialog: '插入视频',
-    videoUrl: '视频或嵌入网址',
-    insert: '插入',
-    cancel: '取消',
-    helpDialog: '键盘快捷键',
-    helpContent: 'Ctrl/⌘ + B：粗体\nCtrl/⌘ + I：斜体\nCtrl/⌘ + U：下划线\nCtrl/⌘ + Z：撤销\nCtrl/⌘ + Y 或 Ctrl/⌘ + Shift + Z：重做\nEscape：关闭菜单或全屏',
-    invalidUrl: '请输入有效网址。',
-    resize: '调整编辑器高度'
   }
 };
 
@@ -449,6 +325,7 @@ function createHtmlEditorFactory(fabui) {
       options || {}
     );
     this.options.locale = normalizeHtmlEditorLocale(this.options.locale);
+    if (!HTML_EDITOR_LOCALES[this.options.locale]) this.options.locale = 'en';
     this.options.theme = normalizeHtmlEditorTheme(this.options.theme);
     this.options.toolbar = normalizeHtmlEditorToolbar(this.options.toolbar);
     this.options.height = Math.max(80, htmlEditorNumber(this.options.height, 300));
@@ -1460,6 +1337,7 @@ function createHtmlEditorFactory(fabui) {
   HtmlEditor.prototype.setLocale = function(locale, messages) {
     var self = this;
     this.options.locale = normalizeHtmlEditorLocale(locale);
+    if (!HTML_EDITOR_LOCALES[this.options.locale]) this.options.locale = 'en';
     this.options.messages = messages || this.options.messages;
     this._messages = assignHtmlEditorOptions(
       {},
@@ -1672,6 +1550,6 @@ function createHtmlEditorFactory(fabui) {
   return HtmlEditor;
 }
 
-global.fabui.HtmlEditor = createHtmlEditorFactory(global.fabui);
-global.fabui.HtmlEditor.version = "2026.7.27";
+global.fabui.HtmlEditor = global.fabui.registerLocaleTarget("HtmlEditor", createHtmlEditorFactory(global.fabui));
+global.fabui.HtmlEditor.version = "2026.7.30";
 }(typeof window !== "undefined" ? window : this));

@@ -91,6 +91,27 @@
             .catch(reject);
         });
       }).then(function() {
+        var originalConsoleError = window.console.error;
+        window.fabLoaderQueueErrors = [];
+        window.console.error = function(error) {
+          window.fabLoaderQueueErrors.push(error);
+        };
+        return new Promise(function(resolve, reject) {
+          loader
+            .script('/test/fixtures/missing-script.js')
+            .run(function() {
+              window.fabLoaderQueueOrder.push('after-missing');
+            })
+            .done(function() {
+              window.console.error = originalConsoleError;
+              resolve();
+            })
+            .catch(function(error) {
+              window.console.error = originalConsoleError;
+              reject(error);
+            });
+        });
+      }).then(function() {
         var resources = loadedResources;
         var target = document.getElementById('fab-loader-html-target');
         var probe = document.getElementById('fab-loader-css-probe');
@@ -113,7 +134,12 @@
             config.text.timeout === 30000 &&
             config.text.credentials === 'same-origin',
           queuePassed: JSON.stringify(window.fabLoaderQueueOrder) ===
-            '["wait","module","after-module"]',
+            '["wait","module","after-module","after-missing"]',
+          queueContinuedAfterLoadError:
+            window.fabLoaderQueueErrors.length === 1 &&
+            /Failed to load script/.test(
+              window.fabLoaderQueueErrors[0].message
+            ),
           scriptDeduplicated: resources[0] === resources[1] &&
             window.fabLoaderStandaloneScriptRuns === 1,
           cssDeduplicated: resources[2] === resources[3],

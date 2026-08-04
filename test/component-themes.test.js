@@ -122,6 +122,10 @@ test('Mono theme keeps its icon assets SVG-only and maps every referenced file',
     css,
     /(?:accordion_arrows|layout_arrows|pagination_icons|panel_tools|tabs_icons|tree_icons)/i
   );
+  assert.match(
+    css,
+    /\.fui-tree \.fui-tree-node-loading \.fui-tree-icon::before\s*\{[\s\S]*?background-image:\s*url\(['"]\.\/images\/loading\.svg['"]\)/
+  );
 });
 
 test('Mono theme uses the Metro Gray palette with its own SVG icon layer', function() {

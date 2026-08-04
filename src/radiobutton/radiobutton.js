@@ -109,12 +109,6 @@ export function createRadioButtonFactory(Control, registerControl, unregisterCon
   var localePacks = {
     en: {
       radiobutton: 'Radio button'
-    },
-    'zh-TW': {
-      radiobutton: '選項按鈕'
-    },
-    'zh-CN': {
-      radiobutton: '单选按钮'
     }
   };
 

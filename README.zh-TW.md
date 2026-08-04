@@ -94,19 +94,24 @@ Diagram、Gantt、Scheduler 與 HtmlEditor 不包含在 FabUI core。載入順�
 | 類別 | 能力 |
 | --- | --- |
 | 效能 | 固定列高與欄寬的雙向 virtualization，只渲染可視範圍；垂直捲動重用既有 layout、Header、Footer 與 Pager，本機多欄排序預先準備每列排序值。 |
-| 資料來源 | 支援本機 Array，以及 `remote: true` 的遠端分頁、排序、搜尋與篩選；內建 `url` 請求可用 `credentials: 'include'` 傳送跨來源 Session Cookie，較新的 load 或 `dispose()` 會中止尚未完成的舊 Fetch，遠端成功套用 rows 時會觸發 `itemsSourceChanged`。 |
-| 表格版面 | 支援左右凍結欄、列號欄、欄寬調整、欄位顯示切換、Footer aggregate、交替列背景與全螢幕。 |
+| 資料來源 | 本機與 `remote: true` 模式的 `itemsSource` 都可接受 Array 或 `fabui.collections.CollectionView`；遠端 rows 會取代 Array 資料來源，或更新同一個 CollectionView instance，讓共用 Chart 保持同步。內建 `url` 請求可用 `credentials: 'include'`，較新的 load 或 `dispose()` 會中止尚未完成的舊 Fetch。 |
+| 表格版面 | 支援巢狀 `columns` 合併多列 Header、hidden 欄位仍計入指定數量的左右凍結欄範圍、列號欄、欄寬調整、欄位顯示切換、Footer aggregate、交替列背景與全螢幕。 |
 | Column 寬度 | `width` 預設為 `120px`；`columnMinWidth` 預設為 `20px`，個別 Column 可用 `minWidth` 覆寫。 |
-| 排序與篩選 | 支援單欄／Shift 多欄排序、`allowMultiSorting: false`、Column `allowSorting: false`、可取消的 `sortingColumn`、Quick Search、Search Row、Excel-like 值篩選及 runtime Filter Rules。 |
+| 排序與篩選 | 支援單欄／Shift 多欄排序、`clearSort()`、安全的 `getSortState()`／`getFilterState()` 狀態快照、`allowMultiSorting: false`、Column `allowSorting: false`、可取消的 `sortingColumn`、含千位符號字串的數值排序、排序時保留水平捲動位置；點擊部分被遮住的 Header 時只做最小幅度調整讓整欄可見，並支援 Quick Search、Search Row、Excel-like 值篩選及 runtime Filter Rules。 |
 | 群組與 TreeGrid | 支援 1 至 3 階群組、小計、收合，以及 `childItemsPath` TreeGrid。 |
 | 資料列拖曳 | 支援 Grid 內重排、跨 Grid 移動，以及 TreeGrid 的 `before`、`inside`、`after` 階層調整。 |
-| 選取與剪貼簿 | 支援 Cell、CellRange、唯讀 `selectedRow` active row、單選列 `unselectRow()`、越界 `select()` 不動作、`selectedRowChanged`、列多選、滑鼠拖曳、列號整列範圍選取、Shift 延伸、鍵盤導覽與 TSV 複製；CellRange 外框沿用 `activeCellBorder`。`stopNavigation` 可暫停使用者選取與捲動，程式 API 仍可操作。 |
-| 編輯與驗證 | 內建 `text`、`number`、`time`、`date`、`combo`、`color` editor，支援遮罩與同步／非同步驗證；連續編輯移出可視區時逐列捲動，active editor 保持在頂部或底部邊界。 |
-| 顯示自訂 | 提供 formatter、`formatItem`、`cellTemplate`、Header style、Row／GroupRow 與事件 API。 |
+| 選取與剪貼簿 | 支援 Cell、CellRange、唯讀 `selectedRow` active row、單選列 `unselectRow()`、使用完整 `grid.columns` index 的 `select()`、`selectedRowChanged`、列多選、滑鼠拖曳、列號整列範圍選取、Shift 延伸、鍵盤導覽與 TSV 複製；所有公開事件的 `e.col` 都使用包含隱藏欄位的完整 `grid.columns` index，需要可見欄索引時使用 `e.viewCol`。CellRange 外框沿用 `activeCellBorder`。`stopNavigation` 可暫停使用者選取與捲動，程式 API 仍可操作。 |
+| 編輯與驗證 | 內建 `text`、`number`、`time`、`date`、`combo`、`color` editor，支援遮罩與同步／非同步驗證；`text`、`combo`、`color` 支援 `charcase: 'upper'`／`'lower'`，只轉換 ASCII 英文字母並保留其他字元，`date`、`time`、`number` 不套用，Grid 與 EditBox 共用此定義；唯讀 `editRange` 回報目前編輯中的 cell，未編輯時為 `null`；只要 cell 正在編輯，Enter／Shift+Enter 會向右／向左尋找可編輯 cell，並從列尾接續到下一列第一個可編輯 cell，或從列首回到上一列最後一個可編輯 cell，不受 `editOnSelect` 影響；`editOnSelect: true` 時 Tab／Shift+Tab 也可跨列左右搜尋，上下方向鍵跨列編輯；`editOnSelect: false` 時在可編輯 active cell 輸入可用字元會自動開始編輯並取代原值，Tab／Shift+Tab 只提交並結束編輯，未被 Spinner 或 Popup 接管的方向鍵保留 editor 原生字元游標移動；Column `multiLine: true` 讓文字 editor 使用可承載多行值的 `<textarea>`，cell 顯示仍為單行；Column `isReadOnly: true` 在 Grid 可編輯時仍會禁止該欄編輯；Column `isRequired` 預設為 `false`，啟用後空值會自動在 `invalidItems` 建立 required error；刪除資料列或取代資料來源時會移除該列過期的同步／非同步錯誤，列與欄版面改變時會同步更新所有保留錯誤的索引；滑鼠點擊其他 cell 時會先提交目前 editor 值再切換，程式選取其他 cell 仍取消目前編輯；Grid editor 在焦點離開 Grid、EditBox 在焦點離開控件時也會提交目前值，進入該 editor 的 Date／Combo／Color popup 仍屬於同一次編輯；Grid 與 EditBox 共用 63 色加清除色彩的 8×8 精簡色盤，選取後立即關閉 popup；Color cell 保留色塊，色碼文字使用一般 cell 文字色；連續編輯移出可視區時逐列捲動，active editor 保持在頂部或底部邊界。 |
+| 顯示自訂 | 提供 Column `cssClass`、formatter、`formatItem`、`cellTemplate`、Header style、Row／GroupRow 與事件 API。 |
 | 匯入與匯出 | 支援 JSON、CSV 與 XLSX；Excel 可保留格式、凍結窗格、篩選、群組、Footer 與隱藏欄位。 |
 | Popup | 右鍵選單、Filter、欄位選擇器與 editor popup 支援 `Escape` 及點擊外部關閉；`filterMode: false` 時不顯示「清除篩選」，「列號」與全螢幕項目分別由 `showRowHeaderMenu`、`showFullscreenMenu` 控制且預設隱藏。 |
-| 生命週期 | `fabui.Control.getControl()` 可取得 instance；`hasFocus` 可直接判斷 Grid 是否取得焦點；`dispose()` 會解除受管理的 DOM listener。 |
+| 生命週期 | `fabui.Control.getControl()` 可取得 instance；`hasFocus` 可直接判斷 Grid 是否取得焦點；`beginUpdate()`／`endUpdate()` 與 `deferUpdate()` 可合併 View 更新，唯讀 `isUpdating` 回報批次狀態；`dispose()` 會解除受管理的 DOM listener。 |
+| 事件 | Constructor callback、`grid.on()` 與 Wijmo-compatible `addHandler()` 全部統一使用 `(grid, eventArgs)`；每個事件參數固定包含 `grid`、`type`、`cancel`，且 `eventArgs.grid === grid`。每次事件派送使用獨立 args object，保留的動作前事件參考不會被後續完成事件改寫。所有動作前事件都可取消，包含 `updatingLayout` 與 `excelExporting`。 |
 | 剪貼簿 | `fabui.Clipboard.copy(str)` 將文字複製到系統剪貼簿。 |
+
+本機 Column 不可重複檢查可呼叫 `args.isDuplicate()`：同欄非空白值只能出現一次，空白可以重複；傳入 `{ ignoreCase: true }` 可忽略大小寫。
+
+所有公開方法的數字欄位參數都使用完整 `grid.columns` index，包含隱藏欄位；因欄位識別字以字母開頭，`"1"` 這類十進位整數字串也視為相同 index。需要可見欄 index 時只使用事件的 `viewCol` 等 `view*` 欄位。`startEditing(false)` 等 Wijmo-compatible 呼叫會直接編輯目前 active cell；既有 `startEditing(row, col, options)` 的 `col` 也使用完整欄 index。
 
 ### 排序與篩選
 
@@ -162,10 +167,12 @@ FabGrid cell editor、Search Row 與 `fabui.EditBox` 共用 editor definitions�
 
 | 功能 | 說明 |
 | --- | --- |
-| 自訂 icon | 使用 `icons: [{ iconCls, title, ariaLabel, text, width, align, keepFocus, onClick }]`。 |
+| 自訂 icon | 使用 `icons: [{ iconCls, title, ariaLabel, text, width, align, keepFocus, onClick }]`。`iconCls` 可使用外部 CSS class 定義 `background` 或 `background-image`，不需要加上 `:root` 或 `!important`。 |
 | Number Spinner | `spinner: true`／`'right'` 顯示於右側，`spinner: 'left'` 顯示於左側；預設為 `false`。 |
 | Spinner 數值 | `increment` 預設為 `1`，並沿用 `min`、`max`、`precision` 與 change／cell edit 契約。 |
-| Time editor | `editor: 'time'` 預設使用 `99:99` 與 `autoUnmask: true`，也支援 `99:99:99`。 |
+| Column 遮罩 | `mask`、`autoUnmask` 與遮罩字面值行為統一定義在 Column，即使省略 `editor` 也有效；舊版 editor 層設定會在初始化時正規化到 Column。 |
+| Time editor | 使用 `dataType: 'string'` 搭配 `editor: 'time'`，預設使用 `99:99` 與 `autoUnmask: false`，也支援 `99:99:99`。 |
+| Date editor | `editor: 'date'` 同時支援 `dataType: 'string'` 與 `dataType: 'date'`；Date 資料會自動選擇 Date editor，字串資料則必須明確設定 editor。 |
 | 時間範圍 | 使用 24 小時制；只有完整的 `24:00`／`24:00:00` 可作為上限。 |
 
 完整範例請見 [EditBox API](./docs/editbox-api.md)。
@@ -255,13 +262,34 @@ Diagram Demo 內建無外部依賴的生產製造流程範例。完整行為與 
 | 項目 | 說明 |
 | --- | --- |
 | 主題數量 | 公開元件統一提供 17 組 theme metadata。 |
-| Default | 內建於 FabUI core 與 Lite CSS。 |
+| Default | 內建於 FabUI core 與 Lite CSS；theme build 也會產生可選用的 `fabui.default.{css,min.css}` 獨立檔。 |
 | 其他主題 | 16 組外部 Theme CSS 必須最後載入，並直接覆蓋 Default selector。 |
 | Mono | `mono` 使用 `dist/theme/mono/` 的單色 SVG。 |
 | 樣式隔離 | FabUI core 原生控制節點使用固定 component class 與隔離基底，避免一般 `button`、`input`、`label`、`select`、`textarea`、`a` selector 改變元件外觀。 |
-| 多語系 | 內建 `en`、`zh-TW`、`zh-CN`，並正規化常用繁簡中文別名。 |
+| 多語系 | Core 預設使用內建英文；`en`、`zh-TW`、`zh-CN` 語言檔需要時才從 `dist/locales/` 載入，英文檔用於明確切回內建英文。 |
 
 所有 Demo 預設使用 `default`。選擇其他主題時，頁面會更換 Theme CSS 並重新載入。
+
+語言包必須在 FabUI core 之後載入。載入後會註冊所有元件文字、自動設為
+全域顯示語言，並更新已存在的控件：
+
+```html
+<script src="./dist/fabui.min.js"></script>
+<script src="./dist/locales/fabui-locale.zh-TW.min.js"></script>
+```
+
+載入 `fabui-locale.en.min.js` 會覆蓋目前預設文字並切回英文。指定尚未載入的語言時會維持英文。
+可用 `fabui.getLocale()`、`fabui.getLocales()` 查詢目前語言與已載入語言。
+
+語言檔也會像 jQuery EasyUI locale 一樣，直接覆蓋已載入元件的英文預設
+文字。使用 fabLoader 時，只需載入目標語言檔：
+
+```js
+fabLoader.script('./dist/locales/fabui-locale.zh-TW.min.js');
+```
+
+語言檔載入完成後會直接切換，不需要另外呼叫切換 API。fabLoader 維持
+獨立並沿用一般 script 快取，不辨識或處理 FabUI 語言檔名。
 
 ## Demo 與 API 文件
 
@@ -289,7 +317,7 @@ Source mode 直接引用 `src/`，適合開發測試；Build mode 引用 `dist/`
 - 導覽與容器：[Tabs](./docs/tabs-api.md)、[Tree](./docs/tree-api.md)、[PropertyGrid](./docs/propertygrid-api.md)、[Panel](./docs/panel-api.md)、[Accordion](./docs/accordion-api.md)、[Window](./docs/window-api.md)、[Layout](./docs/layout-api.md)
 - 命令與提示：[Button](./docs/button-api.md)、[Menu](./docs/menu-api.md)、[MenuButton](./docs/menubutton-api.md)、[SplitButton](./docs/splitbutton-api.md)、[Messager](./docs/messager-api.md)、[Tooltip](./docs/tooltip-api.md)
 - 附加元件：[Diagram](./docs/diagram-api.md)、[Gantt](./docs/gantt-api.md)、[Scheduler](./docs/scheduler-api.md)、[HtmlEditor](./docs/htmleditor-api.md)
-- Wrapper：[Vue 2](./docs/vue-api.md)、[jQuery](./docs/jquery-api.md)
+- Wrapper：[Vue 2](./docs/vue-api.md)、[FabGrid jQuery](./docs/jquery-api.md)、[FabUI jQuery 相容層](./docs/fabui-jquery-api.md)
 
 ## 發佈套件
 
@@ -301,16 +329,17 @@ Source mode 直接引用 `src/`，適合開發測試；Build mode 引用 `dist/`
 | Gantt | `dist/fabui.gantt.{js,min.js,css,min.css}` | 獨立附加 `fabui.Gantt`。 |
 | Scheduler | `dist/fabui.scheduler.{js,min.js,css,min.css}` | 獨立附加 `fabui.Scheduler`。 |
 | HtmlEditor | `dist/fabui.htmleditor.{js,min.js,css,min.css}` | 獨立附加 `fabui.HtmlEditor`。 |
-| fabLoader | `dist/fabLoader.{js,min.js}` | 實驗性的獨立動態資源 Loader，內建 DOM helper，不附加到 `fabui`。 |
-| Theme | `dist/theme/fabui.<theme>.{css,min.css}` | Default 以外 16 組主題與必要圖片。 |
+| fabLoader | `dist/fabLoader.{js,min.js}` | 實驗性的獨立動態資源 Loader；`build fabloader` 內建 DOM helper，`build loader` 不包含，不附加到 `fabui`。 |
+| Theme | `dist/theme/fabui.<theme>.{css,min.css}` | 包含 Default 的完整 17 組主題與必要圖片。 |
+| Locale | `dist/locales/fabui-locale.<locale>.{js,min.js}` | Core 與獨立附加元件共用的 `en`、`zh-TW`、`zh-CN` 選用語言檔。 |
 
-`fabui.EditBox` 已納入 core，不再產生獨立 bundle。實驗性的 fabLoader 不納入 `build:all`。fabDom 只保留供 fabLoader 組合使用的原始碼，不再產生獨立 dist。Vue 2 與 FabGrid jQuery wrapper 目前暫緩，不納入預設 build；既有原始碼與文件仍保留。
+`fabui.EditBox` 已納入 core，不再產生獨立元件 bundle。實驗性的 fabLoader 不納入 `build:all`。fabDom 只保留原始碼並由 `build fabloader` 組合使用，不再產生獨立 dist。Vue 2 與 FabGrid jQuery wrapper 不納入預設 build；FabUI jQuery 相容 Wrapper 也保持獨立，只能以 `npm run build:fabui-jquery` 單獨編譯。
 
 Browser global 使用以下 namespace：
 
 | Namespace | 內容 |
 | --- | --- |
-| `fabui` | FabGrid、一般 UI 元件、Control、editor definitions 與 locale。 |
+| `fabui` | FabGrid、一般 UI 元件、Control、editor definitions 與已載入語言管理。 |
 | `fabui.collections` | CollectionView 共用資料 view，提供 Grid／Chart 排序、篩選與目前項目同步。 |
 | `fabui.chart` | Chart、Pie、ChartType、Position、SelectionMode，以及包含 ChartAnimation、AnimationMode、Easing 的 animation namespace。 |
 | `fabui.pivot` | PivotEngine、PivotField、PivotPanel、PivotGrid、PivotChart、PivotSlicer 與 PivotWorkspace。 |
@@ -334,9 +363,10 @@ fabui.setConfig({
 ## 實驗性 fabLoader
 
 `fabLoader` 是不依賴其他套件的獨立 browser global，目前先由正式版
-Diagram Demo 試用，不併入 `fabui` namespace。發佈檔已內建小型 DOM
-helper，可由 `fabLoader.dom()` 使用；頁面沒有 jQuery 且 `$` 尚未被
-占用時，也會安全地提供 `$` 別名。
+Diagram Demo 試用，不併入 `fabui` namespace。`build fabloader` 發佈檔
+內建小型 DOM helper，可由 `fabLoader.dom()` 使用；頁面沒有 jQuery 且
+`$` 尚未被占用時，也會安全地提供 `$` 別名。`build loader` 發佈檔則
+不包含 fabDom。
 
 完整操作與參數請參閱 [fabLoader API](./docs/fabloader-api.md)。
 
@@ -514,10 +544,11 @@ fabLoader
 
 ## 實驗性 fabDom
 
-`fabDom` 的實作位於 `src/fabdom/fabDom.js`，已納入
-`dist/fabLoader.{js,min.js}` 並由 `fabLoader.dom` 公開，不再產生
-獨立 fabDom dist。載入 fabLoader 時若頁面沒有 jQuery，且 `$` 尚未
-被其他程式使用，會自動將 `$` 指向內建 fabDom；否則不覆蓋既有 `$`。
+`fabDom` 的實作位於 `src/fabdom/fabDom.js`，由 `build fabloader` 納入
+`dist/fabLoader.{js,min.js}` 並由 `fabLoader.dom` 公開；`build loader`
+不包含 fabDom，也不再產生獨立 fabDom dist。載入合併版時若頁面沒有
+jQuery，且 `$` 尚未被其他程式使用，會自動將 `$` 指向內建 fabDom；
+否則不覆蓋既有 `$`。
 
 ```js
 $('#target')
@@ -579,15 +610,17 @@ npm run serve
 
 | 指令 | 範圍 |
 | --- | --- |
-| `npm run build` | FabUI core、Default CSS、16 組外部 theme 與圖片。 |
+| `npm run build` | FabUI core、Default CSS、完整 17 組獨立 theme 檔與圖片。 |
 | `npm run build:lite` | 只重建 `fabui.lite.*`。 |
 | `npm run build:diagram` | 只重建 `fabui.diagram.*`。 |
 | `npm run build:gantt` | 只重建 `fabui.gantt.*`。 |
 | `npm run build:scheduler` | 只重建 `fabui.scheduler.*`。 |
 | `npm run build:htmleditor` | 只重建 `fabui.htmleditor.*`。 |
 | `npm run build:loader` | 只重建實驗性的 `dist/fabLoader.js` 與 `dist/fabLoader.min.js`。 |
-| `npm run build:theme` | 只重建 `dist/theme/`。 |
-| `npm run build:all` | 依序重建 core、Lite、Diagram、Gantt、Scheduler 與 HtmlEditor。 |
+| `npm run build:theme` | 只重建 `dist/theme/` 下完整 17 組主題，包含 `fabui.default.{css,min.css}`。 |
+| `npm run build:locale` | 只重建 `dist/locales/` 下選用的 `en`、`zh-TW`、`zh-CN` 語言檔。 |
+| `npm run build:all` | 依序重建 core、Lite、Diagram、Gantt、Scheduler、HtmlEditor 與 Locale。 |
+| `npm run build:fabloader` | 重建內建 fabDom helper 的 `fabLoader.*`。 |
 | `npm run benchmark:grid` | 以 20,000×50 資料集量測 binding、全域搜尋、雙欄排序與雙向 virtualization 上限，不重建 `dist`。 |
 | `npm test` | 執行 Node.js 自動測試，不重建 `dist`。 |
 
@@ -595,11 +628,15 @@ npm run serve
 
 所有 build 都只產生 browser global JavaScript、CSS、壓縮檔與必要圖片，不產生 `.esm.*`。
 
-使用 Codex 時可用 `build <scope>,<scope> [min]` 依指定順序組合 `fabui`、`lite`、`diagram`、`gantt`、`scheduler`、`htmleditor`、`theme`，例如 `build fabui,htmleditor min`。逗號左右不可留空白；`all` 與 `clear` 必須單獨使用。
+使用 Codex 時可用 `build <scope>,<scope> [min]` 依指定順序組合 `fabui`、`lite`、`diagram`、`gantt`、`scheduler`、`htmleditor`、`theme`、`locale`，例如 `build fabui,htmleditor min`。逗號左右不可留空白；`all` 與 `clear` 必須單獨使用。
 
 `build htmleditor min` 對應 `npm run build:htmleditor -- min`，只產生並保留 `dist/fabui.htmleditor.min.js` 與 `dist/fabui.htmleditor.min.css`，不重建 FabUI core 或其他獨立 bundle。
 
-`build loader` 對應 `npm run build:loader`，只產生 `dist/fabLoader.js` 與 `dist/fabLoader.min.js`；`build loader min` 對應 `npm run build:loader -- min`，只產生並保留 `dist/fabLoader.min.js`。Loader 不納入 `build all` 或逗號分隔的多範圍 build。
+`build locale` 對應 `npm run build:locale`，只產生 `dist/locales/` 下 `en`、`zh-TW`、`zh-CN` 的一般版與壓縮版語言檔；`build locale min` 對應 `npm run build:locale -- min`，只保留三個 `.min.js` 語言檔。
+
+`build fabloader` 對應 `npm run build:fabloader`，產生內含 fabDom 的 `dist/fabLoader.js` 與 `dist/fabLoader.min.js`；`build fabloader min` 對應 `npm run build:fabloader -- min`，只產生並保留合併版 `dist/fabLoader.min.js`。
+
+`build loader` 對應 `npm run build:loader`，使用相同輸出檔名但不包含 fabDom；`build loader min` 對應 `npm run build:loader -- min`，只產生並保留純 Loader 的 `dist/fabLoader.min.js`。Fabloader 與 Loader 都不納入 `build all` 或逗號分隔的多範圍 build；最後執行的模式會決定同名輸出內容。
 
 ### 效能基準
 
@@ -620,9 +657,9 @@ npm run benchmark:grid
 | `src/diagram/` | Diagram renderer、工具箱、互動、歷程與匯出。 |
 | `src/gantt/`、`src/scheduler/`、`src/htmleditor/` | 獨立 Gantt、Scheduler 與 HtmlEditor 原始碼。 |
 | `src/fabloader/` | 實驗性的獨立動態資源 Loader。 |
-| `src/theme/`、`src/locales/` | 主題、圖片與 `en`／`zh-TW`／`zh-CN` 語系。 |
+| `src/theme/`、`src/locales/` | 主題、圖片與選用的 `en`／`zh-TW`／`zh-CN` 語言檔；英文訊息仍內建作為預設。 |
 | `src/<component>/` | Button、Calendar、Form、Tabs、Tree、Panel、Window 等一般元件。 |
-| `packages/` | 暫緩的 Vue 2 與 jQuery wrapper。 |
+| `packages/` | 獨立的 Vue 2、FabGrid jQuery 與 FabUI jQuery wrapper。 |
 | `build/` | Build、Theme builder 與 smoke scripts。 |
 | `demo/` | Source mode 與 Build mode Demo。 |
 | `docs/` | API 操作手冊。 |

@@ -451,6 +451,8 @@ export function createPivotChartFactory(Control, registerControl, unregisterCont
     var grid = this._selectionSource;
     var selection = eventArgs && eventArgs.selection;
     var cell;
+    var column;
+    var columnIndex;
     if (!grid || typeof grid.select !== 'function' || !selection) {
       return;
     }
@@ -458,7 +460,12 @@ export function createPivotChartFactory(Control, registerControl, unregisterCont
     if (!cell) {
       return;
     }
-    grid.select(cell.row, cell.col);
+    column = grid.visibleColumns && grid.visibleColumns[cell.col];
+    columnIndex = grid.columns && column ? grid.columns.indexOf(column) : cell.col;
+    if (columnIndex < 0) {
+      return;
+    }
+    grid.select(cell.row, columnIndex);
     if (typeof grid.scrollIntoView === 'function') {
       grid.scrollIntoView(cell.row, cell.col);
     }

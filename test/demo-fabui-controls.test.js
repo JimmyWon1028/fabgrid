@@ -29,6 +29,10 @@ var grid2Script = readFileSync(
   new URL('../demo/js/grid2-components.js', import.meta.url),
   'utf8'
 );
+var grid2Css = readFileSync(
+  new URL('../demo/style/grid2.css', import.meta.url),
+  'utf8'
+);
 var gridScript = readFileSync(
   new URL('../demo/js/grid.js', import.meta.url),
   'utf8'
@@ -319,11 +323,11 @@ test('The Grid demos enable both frozen column EditBox spinners', function() {
   );
   assert.match(
     devGridHtml,
-    /grid2-components\.js\?v=20260725-remove-mono-variants-v1/
+    /grid2-components\.js\?v=20260728-edit-mode-toggle-v2/
   );
   assert.match(
     buildGridHtml,
-    /grid2-components\.js\?v=20260725-remove-mono-variants-v1/
+    /grid2-components\.js\?v=20260728-edit-mode-toggle-v2/
   );
 });
 
@@ -348,7 +352,7 @@ test('The Dev Grid filtering switch follows the filterMode API', function() {
   );
 });
 
-test('The Grid demos expose the same range selection switch', function() {
+test('The Grid demos expose the same range selection and edit mode switches', function() {
   assert.match(
     devGridHtml,
     /data-selection-range-toggle="true"/
@@ -357,6 +361,8 @@ test('The Grid demos expose the same range selection switch', function() {
     buildGridHtml,
     /data-selection-range-toggle="true"/
   );
+  assert.match(devGridHtml, /data-edit-mode-toggle="true"/);
+  assert.match(buildGridHtml, /data-edit-mode-toggle="true"/);
   assert.match(
     gridToolbarScript,
     /id="selectionRangeInput" type="checkbox"/
@@ -364,6 +370,14 @@ test('The Grid demos expose the same range selection switch', function() {
   assert.match(
     gridToolbarScript,
     /multiSelectControl\.parentElement\.insertAdjacentHTML\(\s*"afterend",\s*SELECTION_RANGE_MARKUP/
+  );
+  assert.match(
+    gridToolbarScript,
+    /id="editOnSelectInput" type="checkbox"/
+  );
+  assert.match(
+    gridToolbarScript,
+    /editModeControl\.parentElement\.insertAdjacentHTML\(\s*"afterend",\s*EDIT_ON_SELECT_MARKUP/
   );
   assert.match(
     gridScript,
@@ -374,19 +388,55 @@ test('The Grid demos expose the same range selection switch', function() {
     /grid\.selectionMode = event\.target\.checked \? "CellRange" : "Cell"/
   );
   assert.match(
+    gridScript,
+    /DEFAULT_DEMO_SETTINGS\s*=\s*\{[\s\S]*?editMode:\s*false,[\s\S]*?editOnSelect:\s*false/
+  );
+  assert.match(
+    gridScript,
+    /allowEditing:\s*settings\.editMode,[\s\S]*?editOnSelect:\s*settings\.editMode && settings\.editOnSelect/
+  );
+  assert.match(
+    gridScript,
+    /controls\.editing\.addEventListener\("change",[\s\S]*?grid\.isReadOnly = !event\.target\.checked/
+  );
+  assert.match(
+    gridScript,
+    /controls\.editMode\.addEventListener\("change",[\s\S]*?grid\.setEditMode\(true\)[\s\S]*?grid\.setEditMode\(false\)/
+  );
+  assert.match(
+    gridScript,
+    /new URL\([\s\S]*window\.FABUI_DEMO_LOCALE_BASE_URL[\s\S]*document\.baseURI/
+  );
+  assert.match(
     grid2Script,
     /createCheckBox\("selectionRangeInput", "selectionRangeLabel"\)/
   );
+  assert.match(
+    grid2Script,
+    /createCheckBox\("editOnSelectInput", "editOnSelectLabel"\)/
+  );
   [
-    /grid-toolbar\.js\?v=20260723-selection-range-v1/,
+    /grid-toolbar\.js\?v=20260728-edit-mode-toggle-v2/,
     /grid-data\.js\?v=20260721-initial-filter-rules-v1/,
-    /grid-locales\.js\?v=20260723-selection-range-v1/,
-    /grid2-components\.js\?v=20260725-remove-mono-variants-v1/,
-    /grid\.js\?v=20260725-remove-mono-variants-v1/
+    /grid-locales\.js\?v=20260728-edit-mode-toggle-v2/,
+    /grid2-components\.js\?v=20260728-edit-mode-toggle-v2/,
+    /grid\.js\?v=20260804-grid-event-layout-v2/
   ].forEach(function(pattern) {
     assert.match(devGridHtml, pattern);
     assert.match(buildGridHtml, pattern);
   });
+});
+
+test('The Dev Grid showcases nested merged Header columns', function() {
+  assert.match(devGridHtml, /window\.FABGRID_DEMO_HEADER_GROUPS = true/);
+  assert.doesNotMatch(buildGridHtml, /FABGRID_DEMO_HEADER_GROUPS/);
+  assert.match(gridScript, /headerKey:\s*"specification"/);
+  assert.match(gridScript, /binding:\s*"w"/);
+  assert.match(gridScript, /binding:\s*"h"/);
+  assert.match(gridScript, /binding:\s*"l"/);
+  assert.match(gridScript, /cssClass:\s*"demo-spec-dimension-cell"/);
+  assert.match(grid2Css, /\.fg-cell\.demo-spec-dimension-cell/);
+  assert.match(gridScript, /getDemoLeafColumns\(columns\)/);
 });
 
 test('The Windows 7 Demo remembers only supported themes', function() {
@@ -503,7 +553,7 @@ test('Every build-mode Demo loads dist FabUI and the shared control enhancer', f
     }
     assert.match(
       html,
-      /<link\s+rel="stylesheet"\s+href="\.\.\/dist\/fabui\.css\?v=20260722-theme-css-split-v1"\s*\/?>/,
+      /<link\s+rel="stylesheet"\s+href="\.\.\/dist\/fabui\.css\?v=[^"]+"\s*\/?>/,
       name
     );
     assert.match(
@@ -553,7 +603,7 @@ test('Every webpage stylesheet reference uses the FabUI dist filename', function
   }).forEach(function(item) {
     assert.match(
       item.source,
-      /\.\.\/dist\/fabui\.css\?v=20260722-theme-css-split-v1/,
+      /\.\.\/dist\/fabui\.css\?v=[^"'();\s]+/,
       item.name
     );
   });
@@ -725,7 +775,7 @@ test('Both EditBox Demos expose custom button examples', function() {
     assert.match(html, /id="edit-left-button"/);
     assert.match(html, /id="edit-spinner-true"/);
     assert.match(html, /id="edit-time-seconds"/);
-    assert.match(html, /editbox-demo\.js\?v=20260725-editbox-themes-v1/);
+    assert.match(html, /editbox-demo\.js\?v=20260729-color-palette-layout-v2/);
   });
   assert.match(
     script,

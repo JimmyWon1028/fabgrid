@@ -25,11 +25,9 @@ test('PropertyGrid exposes the documented EasyUI-compatible defaults', function(
   assert.deepEqual(fabui.PropertyGrid.defaults.data, []);
 });
 
-test('PropertyGrid publishes all required locale packs', function() {
-  assert.deepEqual(Object.keys(fabui.PropertyGrid.locales), ['en', 'zh-TW', 'zh-CN']);
+test('PropertyGrid core publishes English locale only', function() {
+  assert.deepEqual(Object.keys(fabui.PropertyGrid.locales), ['en']);
   assert.equal(fabui.PropertyGrid.locales.en.name, 'Name');
-  assert.equal(fabui.PropertyGrid.locales['zh-TW'].value, '值');
-  assert.equal(fabui.PropertyGrid.locales['zh-CN'].propertyGrid, '属性表');
 });
 
 test('PropertyGrid normalizes supported themes and alias', function() {

@@ -23,30 +23,6 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
       nextYearText: 'Next year',
       weeks: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
       months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    },
-    'zh-TW': {
-      openCalendarText: '開啟日曆',
-      currentText: '今天',
-      currentMonthText: '當月',
-      closeText: '關閉',
-      okText: '確定',
-      yearText: '年份',
-      previousYearText: '上一年',
-      nextYearText: '下一年',
-      weeks: ['日', '一', '二', '三', '四', '五', '六'],
-      months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
-    },
-    'zh-CN': {
-      openCalendarText: '打开日历',
-      currentText: '今天',
-      currentMonthText: '当月',
-      closeText: '关闭',
-      okText: '确定',
-      yearText: '年份',
-      previousYearText: '上一年',
-      nextYearText: '下一年',
-      weeks: ['日', '一', '二', '三', '四', '五', '六'],
-      months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
     }
   };
 
@@ -76,7 +52,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     formatter: null,
     parser: null,
     mask: '9999/99/99',
-    autoUnmask: true,
+    autoUnmask: false,
     maskValueIncludesLiterals: null,
     onSelect: null,
     onChange: null,
@@ -162,8 +138,12 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
   function normalizeLocale(name) {
     name = String(name || 'en').trim().replace(/_/g, '-');
     if (localePacks[name]) return name;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 
@@ -194,6 +174,14 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     this._explicitMask = Object.prototype.hasOwnProperty.call(userOptions, 'mask');
     this._initialValue = Object.prototype.hasOwnProperty.call(userOptions, 'value') ? userOptions.value : source.value;
     this._options = assign({}, DateBox.defaults, readElementOptions(source), userOptions);
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'autoUnmask')) {
+      this._options.autoUnmask =
+        userOptions.maskValueIncludesLiterals === false ||
+        userOptions.maskIncludesLiterals === false ||
+        userOptions.maskLiteralsInValue === false;
+    } else {
+      this._options.autoUnmask = userOptions.autoUnmask === true;
+    }
     this._editorDefinition = editorDefinitions[this._options.editorType] || editorDefinition;
     locale = localePacks[normalizeLocale(this._options.locale)];
     this._options.locale = normalizeLocale(this._options.locale);
@@ -221,6 +209,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     });
     textOptions = assign({}, userOptions, {
       cls: ((userOptions.cls || '') + ' fui-datebox').trim(),
+      charcase: '',
       icons: icons,
       onChange: null
     });

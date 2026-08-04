@@ -88,16 +88,15 @@ function buildThemeOutput(options) {
   const sourceFiles = fs.readdirSync(sourceThemeDir, { withFileTypes: true })
     .filter(function(entry) {
       return entry.isFile() &&
-        /^fabgrid\..+\.css$/i.test(entry.name) &&
-        entry.name !== 'fabgrid.default.css';
+        /^fabgrid\..+\.css$/i.test(entry.name);
     })
     .map(function(entry) {
       return entry.name;
     })
     .sort();
 
-  if (sourceFiles.length !== 16) {
-    throw new Error('Theme build requires exactly 16 non-default theme source files.');
+  if (sourceFiles.length !== 17 || sourceFiles.indexOf('fabgrid.default.css') < 0) {
+    throw new Error('Theme build requires all 17 theme source files, including Default.');
   }
 
   if (options.clean === true) {

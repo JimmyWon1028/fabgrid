@@ -57,7 +57,7 @@
   .fui-window-mask,
   .fui-messager-host,
   .fg-root
-) :is(
+) :where(
   [class^='fui-'],
   [class*=' fui-'],
   [class^='fg-'],
@@ -1548,6 +1548,14 @@
   cursor: default;
 }
 
+:root .fg-header-group-cell {
+  border-bottom: 1px dotted var(--fg-border);
+}
+
+:root .fg-header-group-title {
+  width: 100%;
+}
+
 :root .fg-root.fg-column-dragging .fg-header-cell {
   cursor: grabbing;
 }
@@ -1955,7 +1963,7 @@
   display: flex;
   align-items: center;
   overflow: hidden;
-  padding: 0 10px;
+  padding: 0 7px;
   border-right: 1px dotted var(--fg-border);
   background-color: #efefef;
   background-image: linear-gradient(rgba(255, 255, 255, 20%), rgb(0 0 0 / 6%));
@@ -2436,6 +2444,7 @@
 :root .fg-color-text {
   min-width: 0;
   overflow: hidden;
+  color: var(--fg-cell-text);
   text-overflow: ellipsis;
 }
 
@@ -2769,6 +2778,13 @@
   color: #111827;
   font: inherit;
   outline: none;
+}
+
+:root .fg-editor-multiline {
+  overflow: auto;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  resize: none;
 }
 
 :root .fg-editor-datebox,
@@ -4900,6 +4916,10 @@
   box-shadow: 0 0 3px 0 var(--fui-control-border, #95b8e7);
 }
 
+:root .fui-textbox-focused .fui-textbox-text {
+  background-color: var(--fui-control-focus-bg, transparent);
+}
+
 :root .fui-textbox-disabled,
 :root .fui-textbox-label-disabled {
   opacity: 0.6;
@@ -5508,17 +5528,14 @@
 :root .fui-colorbox-panel {
   position: fixed;
   z-index: 11000;
-  display: flex;
-  gap: 6px;
+  display: block;
   box-sizing: border-box;
-  min-height: 190px;
-  max-height: 238px;
-  padding: 6px;
+  width: 162px;
+  padding: 0;
   overflow: hidden;
   border: 1px solid var(--fui-control-border, #95b8e7);
   background: var(--fui-panel-bg, #fff);
   color: var(--fui-panel-text, #000);
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
   touch-action: none;
 }
 
@@ -5528,122 +5545,33 @@
 
 :root .fui-colorbox-palette {
   display: grid;
-  flex: 0 0 202px;
-  grid-template-columns: repeat(10, 18px);
+  grid-template-columns: repeat(8, 20px);
   grid-auto-rows: 20px;
-  align-content: start;
-  gap: 2px;
+  grid-auto-flow: row;
+  gap: 0;
+  width: 160px;
+  height: 160px;
 }
 
 :root .fui-colorbox-swatch {
-  width: 18px;
+  box-sizing: border-box;
+  width: 20px;
   height: 20px;
   margin: 0;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.65);
+  border: 1px solid var(--fui-panel-bg, #fff);
   border-radius: 0;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
   cursor: pointer;
 }
 
 :root .fui-colorbox-swatch:hover,
 :root .fui-colorbox-swatch:focus-visible {
   border-color: var(--fui-control-focus, #2563eb);
-  outline: 1px solid var(--fui-panel-bg, #fff);
+  outline: none;
 }
 
 :root .fui-colorbox-swatch-selected {
   border-color: var(--fui-control-selected, #2563eb);
-  outline: 1px solid var(--fui-control-selected, #2563eb);
-}
-
-:root .fui-colorbox-controls {
-  display: grid;
-  flex: 1 0 194px;
-  grid-template-columns: minmax(156px, 1fr) 18px;
-  grid-template-rows: 150px 18px;
-  gap: 5px;
-  min-width: 194px;
-}
-
-:root .fui-colorbox-sv,
-:root .fui-colorbox-hue,
-:root .fui-colorbox-alpha {
-  position: relative;
-  cursor: crosshair;
-  user-select: none;
-}
-
-:root .fui-colorbox-sv {
-  background-image:
-    linear-gradient(to top, #000, transparent),
-    linear-gradient(to right, #fff, rgba(255, 255, 255, 0));
-}
-
-:root .fui-colorbox-hue {
-  background: linear-gradient(
-    to bottom,
-    #f00 0%,
-    #ff0 16.67%,
-    #0f0 33.33%,
-    #0ff 50%,
-    #00f 66.67%,
-    #f0f 83.33%,
-    #f00 100%
-  );
-}
-
-:root .fui-colorbox-alpha {
-  grid-column: 1;
-  overflow: hidden;
-  background-color: #fff;
-  background-image:
-    linear-gradient(45deg, #cbd5e1 25%, transparent 25%),
-    linear-gradient(-45deg, #cbd5e1 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #cbd5e1 75%),
-    linear-gradient(-45deg, transparent 75%, #cbd5e1 75%);
-  background-position: 0 0, 0 5px, 5px -5px, -5px 0;
-  background-size: 10px 10px;
-}
-
-:root .fui-colorbox-alpha-fill {
-  position: absolute;
-  inset: 0;
-}
-
-:root .fui-colorbox-marker {
-  position: absolute;
-  z-index: 1;
-  box-sizing: border-box;
-  width: 10px;
-  height: 10px;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9);
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-}
-
-:root .fui-colorbox-hue-marker {
-  left: 50%;
-  width: 22px;
-  height: 8px;
-  border-radius: 4px;
-}
-
-:root .fui-colorbox-alpha-marker {
-  top: 50%;
-  width: 8px;
-  height: 22px;
-  border-radius: 4px;
-}
-
-@media (max-width: 480px) {
-  :root .fui-colorbox-panel {
-    width: 218px !important;
-    max-height: calc(100vh - 12px);
-    flex-wrap: wrap;
-  }
 }
 
 
@@ -7134,6 +7062,21 @@
   cursor: default;
 }
 
+:root .fui-tree-fit-width {
+  overflow-x: hidden;
+}
+
+:root .fui-tree-fit-width .fui-tree-item,
+:root .fui-tree-fit-width .fui-tree-node {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+:root .fui-tree-fit-width .fui-tree-title {
+  flex: 1 1 auto;
+}
+
 :root .fui-tree-node:hover {
   border-color: transparent;
   background: var(--fui-tree-hover-bg);
@@ -7360,6 +7303,11 @@
 :root .fui-tree-drop-append {
   border-color: var(--fui-tree-drag-indicator);
   background: color-mix(in srgb, var(--fui-tree-drag-indicator) 18%, transparent);
+}
+
+:root .fui-tree-external-drop-active {
+  outline: 1px dashed var(--fui-tree-drag-indicator, var(--fg-border-strong, #95b8e7));
+  outline-offset: -2px;
 }
 
 :root .fui-tree {

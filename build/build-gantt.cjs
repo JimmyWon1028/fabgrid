@@ -44,7 +44,7 @@ function createBrowserBundle(source) {
     '  throw new Error("Load fabui.js before fabui.gantt.js.");\n' +
     '}\n' +
     source + '\n' +
-    'global.fabui.Gantt = createGanttFactory(global.fabui);\n' +
+    'global.fabui.Gantt = global.fabui.registerLocaleTarget("Gantt", createGanttFactory(global.fabui));\n' +
     '}(typeof window !== "undefined" ? window : this));\n';
 }
 
@@ -57,7 +57,7 @@ function verifyOutput() {
     throw new Error('FabUI core bundle must not contain Gantt.');
   }
   if (browser.indexOf('Load fabui.js before fabui.gantt.js.') < 0 ||
-      browser.indexOf('global.fabui.Gantt = createGanttFactory(global.fabui)') < 0) {
+      browser.indexOf('registerLocaleTarget("Gantt", createGanttFactory(global.fabui))') < 0) {
     throw new Error('FabUI Gantt browser bundle dependency contract is incomplete.');
   }
 }

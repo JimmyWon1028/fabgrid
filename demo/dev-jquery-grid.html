@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>FabGrid jQuery Dev Demo</title>
     <link rel="stylesheet" href="../src/fabui.css?v=20260722-filter-icon-clear-v1" />
-  <script src="./js/theme-loader.js?v=20260725-editbox-themes-v1"></script>
+  <script src="./js/theme-loader.js?v=20260731-tree-icons-v1"></script>
     <link
       rel="stylesheet"
       href="./style/my.icon.css?v=20260713-demo-style-folder-v1"
@@ -70,22 +70,14 @@
     <script src="./js/grid-locales.js?v=20260721-initial-filter-rules-v1"></script>
     <script src="./js/grid-query.js?v=20260722-remote-op-symbol-v1"></script>
     <script type="module">
-      import fabui from "../src/fabui.js?v=20260725-remove-mono-variants-v1";
+      import fabui from "../src/fabui.js?v=20260728-locale-packs-v1";
       import { createFabGridJQuery } from "../packages/fabgrid-jquery/src/fabgrid-jquery.js?v=20260722-filter-mode-v1";
 
       window.fabui = fabui;
       createFabGridJQuery(window.jQuery, fabui);
       await import("./js/grid-jquery.js?v=20260722-filter-mode-v1");
-      await import(
-        "../src/locales/fabgrid-locale.zh-TW.js?v=20260716-excel-filter-escape-v1"
-      );
-      await import(
-        "../src/locales/fabgrid-locale.zh-CN.js?v=20260716-excel-filter-escape-v1"
-      );
-      await import(
-        "../src/locales/fabgrid-locale.en.js?v=20260716-excel-filter-escape-v1"
-      );
-      await import("./js/grid.js?v=20260725-remove-mono-variants-v1");
+      window.FABUI_DEMO_LOCALE_BASE_URL = "../src/locales/";
+      await import("./js/grid.js?v=20260728-locale-packs-v2");
     </script>
     <script type="module" src="./js/dev-controls.js?v=20260721-initial-filter-rules-v1"></script>
 </body>

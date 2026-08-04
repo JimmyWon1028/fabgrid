@@ -9,6 +9,7 @@ const nativeControlCss = readFileSync(
 );
 const fabuiCss = readFileSync(new URL('src/fabui.css', root), 'utf8');
 const iconCss = readFileSync(new URL('src/fabui.icon.css', root), 'utf8');
+const gridCss = readFileSync(new URL('src/grid/fabgrid.css', root), 'utf8');
 
 const coreCssFiles = [
   'src/button/button.css',
@@ -157,6 +158,24 @@ test('FabUI core native control classes receive shared normalization', function(
   assert.doesNotMatch(
     nativeControlCss,
     /\):is\(:hover,\s*:focus,\s*:focus-visible,\s*:active,\s*:disabled,\s*:checked\)/
+  );
+});
+
+test('FabUI descendant normalization allows external icon classes to override it', function() {
+  assert.match(
+    nativeControlCss,
+    /:root\s+:where\([\s\S]*?\)\s+:where\(\s*\[class\^='fui-'\]/
+  );
+  assert.doesNotMatch(
+    nativeControlCss,
+    /:root\s+:where\([\s\S]*?\)\s+:is\(\s*\[class\^='fui-'\]/
+  );
+});
+
+test('FabGrid custom editor icons preserve external background images', function() {
+  assert.doesNotMatch(
+    gridCss,
+    /:root\s+\.fg-editor-trigger-custom\s*\{[^}]*background(?:-image)?\s*:\s*none/
   );
 });
 

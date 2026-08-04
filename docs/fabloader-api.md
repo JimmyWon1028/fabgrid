@@ -264,7 +264,7 @@ fabLoader
 
 ### catch(callback)
 
-處理前方佇列步驟的載入錯誤、timeout、取消或 callback 例外：
+處理前方 `run()`／`done()` callback 的例外：
 
 ```js
 fabLoader
@@ -278,6 +278,10 @@ fabLoader
 ```
 
 建議將 `catch()` 放在載入鏈的最後。
+
+`style()`、`script()`、`module()`、`vue()` 與 `react()` 的載入錯誤、
+timeout 或取消只會輸出至 `console.error`，不會進入 `catch()`，後續
+佇列步驟仍會繼續執行。
 
 ### queue()
 
@@ -773,16 +777,18 @@ fabLoader.loadHtml('./part.html').catch(function(error) {
 });
 ```
 
-佇列方法使用鏈尾 `.catch()`：
+佇列載入方法遇到錯誤時會輸出至 `console.error`，並繼續後面的步驟：
 
 ```js
 fabLoader
-  .style('./app.css')
+  .style('./missing.css')
   .script('./app.js')
-  .catch(function(error) {
-    console.error(error);
+  .done(function() {
+    startApplication();
   });
 ```
+
+鏈尾 `.catch()` 僅處理 `run()`／`done()` callback 拋出的例外。
 
 常見錯誤：
 
@@ -793,13 +799,23 @@ fabLoader
 | `AbortError` | 載入被 `cancel()` 或快取清理取消。 |
 | `Error` | 網路、HTTP、script、CSS、圖片、XML 或 optional runtime 載入失敗。 |
 
-直接方法的部分參數錯誤可能在建立 Promise 前同步拋出。若希望所有
-錯誤都進入同一個 `.catch()`，可把直接方法放入 `run()`／`wait()`
-佇列中。
+直接方法的部分參數錯誤可能在建立 Promise 前同步拋出。
 
 ## Build
 
-一般 Loader build：
+包含 fabDom 的完整 fabLoader build：
+
+```sh
+npm run build:fabloader
+```
+
+只保留壓縮版：
+
+```sh
+npm run build:fabloader -- min
+```
+
+不包含 fabDom 的純 Loader build：
 
 ```sh
 npm run build:loader
@@ -816,5 +832,5 @@ npm run build:loader
 npm run build:loader -- min
 ```
 
-fabLoader 不產生 ESM 發佈檔，也不納入 FabUI core 或
-`build:all`。
+兩種模式使用相同輸出檔名，最後執行的模式會覆蓋前一種。fabLoader
+不產生 ESM 發佈檔，也不納入 FabUI core 或 `build:all`。

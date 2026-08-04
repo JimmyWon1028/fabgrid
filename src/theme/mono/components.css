@@ -207,6 +207,11 @@
   background-position: center;
 }
 
+:root .fui-tree .fui-tree-node-loading .fui-tree-icon::before {
+  background-image: url('./images/loading.svg');
+  background-position: center;
+}
+
 :root .fui-tree.fui-tree-lines .fui-tree-indent-line::before {
   background-image: url('./images/tree-line.svg');
   background-position: center;

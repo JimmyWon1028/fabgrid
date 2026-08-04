@@ -36,7 +36,7 @@ var panel = new fabui.Panel('#customerPanel', {
 | `minHeight` / `maxHeight` | `null` | 尺寸限制。 |
 | `left` / `top` | `null` | 指定位置；設定後 Panel 使用 absolute positioning。 |
 | `cls` | `''` | 加到 Panel 外框的自訂 class。 |
-| `headerCls` / `bodyCls` | `''` | Header／body 的自訂 class。 |
+| `headerCls` / `bodyCls` | `''` | Header／body 的自訂 class；可用空白分隔多個 class。 |
 | `style` | `null` | 套用到 Panel 外框的 inline style object。 |
 | `fit` | `false` | 填滿父容器。 |
 | `border` | `true` | 是否顯示外框。 |

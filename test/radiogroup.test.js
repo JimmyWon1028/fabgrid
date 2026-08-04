@@ -59,14 +59,12 @@ test('RadioGroup normalizes direction, labels and themes', function() {
   assert.equal(normalizeRadioGroupTheme('unknown'), 'default');
 });
 
-test('RadioGroup publishes all required locale packs', function() {
+test('RadioGroup core publishes English locale only', function() {
   assert.deepEqual(
     Object.keys(fabui.RadioGroup.locales),
-    ['en', 'zh-TW', 'zh-CN']
+    ['en']
   );
   assert.equal(fabui.RadioGroup.locales.en.group, 'Radio group');
-  assert.equal(fabui.RadioGroup.locales['zh-TW'].group, '單選群組');
-  assert.equal(fabui.RadioGroup.locales['zh-CN'].group, '单选组');
 });
 
 test('RadioGroup factory exposes official and FabUI lifecycle methods', function() {

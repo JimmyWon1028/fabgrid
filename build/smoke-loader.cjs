@@ -97,6 +97,7 @@ function verifyResult(result) {
     'domPublished',
     'configDefaults',
     'queuePassed',
+    'queueContinuedAfterLoadError',
     'scriptDeduplicated',
     'cssDeduplicated',
     'cssApplied',

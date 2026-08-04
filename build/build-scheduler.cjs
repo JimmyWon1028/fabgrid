@@ -61,7 +61,7 @@ function verifyOutput() {
     path.join(distDir, 'fabui.scheduler.js'),
     'utf8'
   );
-  if (browser.indexOf('global.fabui.Scheduler = createSchedulerFactory') < 0) {
+  if (browser.indexOf('registerLocaleTarget("Scheduler", createSchedulerFactory') < 0) {
     throw new Error('Scheduler browser global attachment is missing.');
   }
   if (browser.indexOf('Load fabui.* first') < 0) {
@@ -93,7 +93,7 @@ const browserSource = banner('browser global') +
   "  throw new Error('FabUI Scheduler requires FabUI core. Load fabui.* first.');\n" +
   '}\n' +
   moduleSource + '\n' +
-  'global.fabui.Scheduler = createSchedulerFactory(global.fabui);\n' +
+  'global.fabui.Scheduler = global.fabui.registerLocaleTarget("Scheduler", createSchedulerFactory(global.fabui));\n' +
   'global.fabui.Scheduler.version = ' + JSON.stringify(buildVersion) + ';\n' +
   '}(typeof window !== "undefined" ? window : this));\n';
 const cssSource = banner('styles') + fs.readFileSync(

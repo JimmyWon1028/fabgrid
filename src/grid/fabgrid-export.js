@@ -244,8 +244,10 @@ export function installFabGridExport(FabGrid, context) {
     var self = this;
     var outputName = filename || 'fabgrid.xlsx';
     if (this.busy) return Promise.resolve(false);
+    if (this.emit('excelExporting', { filename: outputName }) === false) {
+      return Promise.resolve(false);
+    }
     this.setBusy(true, this.options.exportBusyText || this.getText('exportBusyText'));
-    this.emit('excelExporting', { filename: outputName });
     return new Promise(function(resolve, reject) {
       requestAnimationFrame(function() {
         setTimeout(function() {

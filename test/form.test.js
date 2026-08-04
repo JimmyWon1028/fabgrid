@@ -26,8 +26,8 @@ test('Form exposes the official EasyUI-compatible defaults', function() {
   assert.equal(fabui.Form.defaults.locale, 'en');
   assert.equal(fabui.Form.defaults.theme, 'inherit');
   assert.equal(fabui.Form.themes.length, 17);
-  assert.equal(fabui.Form.locales['zh-TW'].valueMissing, '此欄位為必填。');
-  assert.equal(fabui.Form.locales['zh-CN'].valueMissing, '此字段为必填项。');
+  assert.deepEqual(Object.keys(fabui.Form.locales), ['en']);
+  assert.equal(fabui.Form.locales.en.valueMissing, 'This field is required.');
 });
 
 test('Form factory publishes the official API and FabUI lifecycle methods', function() {
@@ -118,8 +118,7 @@ test('Form source integrates native fields, FabUI controls and XHR lifecycle', f
   assert.match(css, /--fui-form-validation-tip-text,\s*#111827/);
   assert.match(source, /validity\.valueMissing/);
   assert.match(source, /typeMismatchEmail/);
-  assert.match(source, /此欄位為必填。/);
-  assert.match(source, /此字段为必填项。/);
+  assert.doesNotMatch(source, /此欄位為必填。|此字段为必填项。/);
   assert.match(source, /\.fui-radiobutton-control, \.fui-radiogroup/);
   assert.match(source, /container\.classList\.add\('fui-form-invalid-control'\)/);
   assert.doesNotMatch(

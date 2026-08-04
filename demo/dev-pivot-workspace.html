@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabUI PivotWorkspace 開發版</title>
   <link rel="stylesheet" href="../src/fabui.css?v=20260722-filter-active-theme-v1">
-  <script src="./js/theme-loader.js?v=20260725-editbox-themes-v1"></script>
+  <script src="./js/theme-loader.js?v=20260731-tree-icons-v1"></script>
   <style>
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -82,12 +82,21 @@
   </main>
 
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260725-remove-mono-variants-v1';
+    import fabui from '../src/fabui.js?v=20260728-locale-packs-v1';
 
     window.fabui = fabui;
-    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260717-pivot-workspace-v3');
-    await import('../src/locales/fabgrid-locale.zh-CN.js?v=20260717-pivot-workspace-v3');
-    await import('../src/locales/fabgrid-locale.en.js?v=20260717-pivot-workspace-v3');
+    await import('../src/locales/fabui-locale.zh-TW.js?v=20260728-locale-packs-v1');
+
+    async function loadLocale(locale) {
+      if (locale === 'en') {
+        fabui.setLocale('en');
+      } else if (fabui.getLocales().indexOf(locale) < 0) {
+        await import('../src/locales/fabui-locale.' + locale +
+          '.js?v=20260728-locale-packs-v1');
+      } else {
+        fabui.setLocale(locale);
+      }
+    }
 
     const regions = [
       { name: '北區', factor: 1.3 },
@@ -360,7 +369,8 @@
       workspace.layout = event.target.value;
       updateStats();
     });
-    document.getElementById('localeSelect').addEventListener('change', function(event) {
+    document.getElementById('localeSelect').addEventListener('change', async function(event) {
+      await loadLocale(event.target.value);
       workspace.setLocale(event.target.value);
       applyDemoLocale(event.target.value);
     });

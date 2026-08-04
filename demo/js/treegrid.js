@@ -13,7 +13,7 @@
   var quickSearchMode = 'or';
   var columns = [
     { binding: 'name', header: '組織／團隊', width: 280, minWidth: 170 },
-    { binding: 'nodeId', header: '代碼', width: 100, align: 'center', readOnly: true },
+    { binding: 'nodeId', header: '代碼', width: 100, align: 'center', isReadOnly: true },
     { binding: 'nodeType', header: '類型', width: 90, align: 'center' },
     { binding: 'owner', header: '負責人', width: 110 },
     { binding: 'status', header: '狀態', width: 100, align: 'center' },
@@ -87,7 +87,8 @@
   grid.collapseGroupsToLevel(1);
   updateStats('已展開第一層');
 
-  grid.on('groupCollapsedChanged', function(event) {
+  grid.on('groupCollapsedChanged', function(sender, event) {
+    event = event || sender;
     if (!event.tree) {
       return;
     }
@@ -98,7 +99,8 @@
     updateStats();
   });
 
-  grid.on('treeContextMenuAction', function(event) {
+  grid.on('treeContextMenuAction', function(sender, event) {
+    event = event || sender;
     updateStats(event.collapsed ? '已疊合所有節點' : '已展開所有節點');
   });
 
@@ -108,13 +110,15 @@
     updateStats('已清除所有搜尋條件');
   });
 
-  grid.on('filterModeChanged', function(event) {
+  grid.on('filterModeChanged', function(sender, event) {
+    event = event || sender;
     if (searchRowToggle) {
       searchRowToggle.checked = Array.isArray(event.filterMode) && event.filterMode[0] === 'searchRow';
     }
   });
 
-  grid.on('rowHeaderModeChanged', function(event) {
+  grid.on('rowHeaderModeChanged', function(sender, event) {
+    event = event || sender;
     if (rowHeaderMode) {
       rowHeaderMode.value =
         event.mode === true ? 'true' : event.mode === 'cell' ? 'cell' : 'false';

@@ -394,10 +394,10 @@ export function installFabGridDrag(FabGrid, context) {
     args = targetGrid.createRowDragEventArgs(state, target, 'drop');
     args.result = result;
     args.role = sourceGrid === targetGrid ? 'both' : 'target';
-    targetGrid.emit('draggedRow', args);
+    targetGrid.emit('draggedRow', Object.assign({}, args));
     if (sourceGrid !== targetGrid) {
       args.role = 'source';
-      sourceGrid.emit('draggedRow', args);
+      sourceGrid.emit('draggedRow', Object.assign({}, args));
     }
     return true;
   };

@@ -69,8 +69,7 @@ test('Messager source composes Window and Button without another dialog renderer
   assert.doesNotMatch(source, /options\.fn\(value\);\s*options\.fn\(value\);/);
 });
 
-test('Messager publishes English, Traditional Chinese and Simplified Chinese labels', function() {
+test('Messager core publishes English labels only', function() {
+  assert.deepEqual(Object.keys(fabui.Messager.locales), ['en']);
   assert.equal(fabui.Messager.locales.en.ok, 'Ok');
-  assert.equal(fabui.Messager.locales['zh-TW'].cancel, '取消');
-  assert.equal(fabui.Messager.locales['zh-CN'].confirm, '确认');
 });

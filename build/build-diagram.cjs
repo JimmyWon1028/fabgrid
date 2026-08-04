@@ -50,7 +50,7 @@ function createBrowserBundle(source) {
     '  throw new Error("Load fabui.js before fabui.diagram.js.");\n' +
     '}\n' +
     source + '\n' +
-    'global.fabui.Diagram = createDiagramFactory(\n' +
+    'global.fabui.Diagram = global.fabui.registerLocaleTarget("Diagram", createDiagramFactory(\n' +
     '  global.fabui.Control,\n' +
     '  global.fabui.Control._registerControl,\n' +
     '  global.fabui.Control._unregisterControl,\n' +
@@ -58,7 +58,7 @@ function createBrowserBundle(source) {
     '  global.fabui.EditBox,\n' +
     '  global.fabui.Menu,\n' +
     '  global.fabui.Tabs\n' +
-    ');\n' +
+    '));\n' +
     '}(typeof window !== "undefined" ? window : this));\n';
 }
 
@@ -69,7 +69,7 @@ function verifyOutput() {
     throw new Error('FabUI core bundle must not contain Diagram.');
   }
   if (browser.indexOf('Load fabui.js before fabui.diagram.js.') < 0 ||
-      browser.indexOf('global.fabui.Diagram = createDiagramFactory') < 0) {
+      browser.indexOf('registerLocaleTarget("Diagram", createDiagramFactory') < 0) {
     throw new Error('Diagram browser bundle dependency contract is incomplete.');
   }
   [

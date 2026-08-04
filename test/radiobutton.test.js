@@ -30,14 +30,12 @@ test('RadioButton exposes the official EasyUI-compatible defaults', function() {
   assert.equal(fabui.RadioButton.defaults.labelAlign, 'left');
 });
 
-test('RadioButton publishes all required locale packs', function() {
+test('RadioButton core publishes English locale only', function() {
   assert.deepEqual(
     Object.keys(fabui.RadioButton.locales),
-    ['en', 'zh-TW', 'zh-CN']
+    ['en']
   );
   assert.equal(fabui.RadioButton.locales.en.radiobutton, 'Radio button');
-  assert.equal(fabui.RadioButton.locales['zh-TW'].radiobutton, '選項按鈕');
-  assert.equal(fabui.RadioButton.locales['zh-CN'].radiobutton, '单选按钮');
 });
 
 test('RadioButton normalizes themes, label position and label alignment', function() {

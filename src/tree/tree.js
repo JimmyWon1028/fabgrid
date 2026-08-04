@@ -189,6 +189,8 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
     onlyLeafCheck: false,
     lines: false,
     dnd: false,
+    fitWidth: false,
+    externalDropTargets: null,
     data: null,
     queryParams: {},
     formatter: null,
@@ -220,6 +222,10 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
     onDragLeave: null,
     onBeforeDrop: null,
     onDrop: null,
+    onExternalDragOver: null,
+    onExternalDragLeave: null,
+    onBeforeExternalDrop: null,
+    onExternalDrop: null,
     onBeforeEdit: null,
     onAfterEdit: null,
     onCancelEdit: null
@@ -233,24 +239,6 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
       uncheck: 'Uncheck {text}',
       loading: 'Loading',
       edit: 'Edit {text}'
-    },
-    'zh-TW': {
-      tree: '樹狀清單',
-      expand: '展開{text}',
-      collapse: '收合{text}',
-      check: '勾選{text}',
-      uncheck: '取消勾選{text}',
-      loading: '載入中',
-      edit: '編輯{text}'
-    },
-    'zh-CN': {
-      tree: '树状列表',
-      expand: '展开{text}',
-      collapse: '收起{text}',
-      check: '勾选{text}',
-      uncheck: '取消勾选{text}',
-      loading: '加载中',
-      edit: '编辑{text}'
     }
   };
 
@@ -316,6 +304,7 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
     this._dragNode = null;
     this._dragTarget = null;
     this._dragPoint = null;
+    this._externalDropRecords = [];
     this._destroyed = false;
     this._loadSequence = 0;
     this._themeSource = this.hostElement.parentElement || document.body;
@@ -358,7 +347,15 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
     if (value) result.url = value;
     value = host.getAttribute('aria-label');
     if (value) result.ariaLabel = value;
-    ['animate', 'checkbox', 'cascadeCheck', 'onlyLeafCheck', 'lines', 'dnd'].forEach(function(name) {
+    [
+      'animate',
+      'checkbox',
+      'cascadeCheck',
+      'onlyLeafCheck',
+      'lines',
+      'dnd',
+      'fitWidth'
+    ].forEach(function(name) {
       var attribute = host.getAttribute('data-' + name.replace(/[A-Z]/g, function(letter) {
         return '-' + letter.toLowerCase();
       }));
@@ -374,6 +371,7 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
     this._options.onlyLeafCheck = treeBoolean(this._options.onlyLeafCheck, false);
     this._options.lines = treeBoolean(this._options.lines, false);
     this._options.dnd = treeBoolean(this._options.dnd, false);
+    this._options.fitWidth = treeBoolean(this._options.fitWidth, false);
     this._options.locale = normalizeTreeLocale(this._options.locale);
     this._options.method = String(this._options.method || 'post').toLowerCase();
   };
@@ -390,6 +388,7 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
     this.hostElement.classList.add('fui-tree');
     this.hostElement.classList.toggle('fui-tree-animate', this._options.animate);
     this.hostElement.classList.toggle('fui-tree-lines', this._options.lines);
+    this.hostElement.classList.toggle('fui-tree-fit-width', this._options.fitWidth);
     this.hostElement.setAttribute('role', 'tree');
     this.hostElement.setAttribute(
       'aria-label',
@@ -408,6 +407,112 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
     this.addEventListener(this.hostElement, 'dragleave', this._handleDragLeave.bind(this));
     this.addEventListener(this.hostElement, 'drop', this._handleDrop.bind(this));
     this.addEventListener(this.hostElement, 'dragend', this._handleDragEnd.bind(this));
+    this._bindExternalDropTargets();
+  };
+
+  FabTree.prototype._bindExternalDropTargets = function() {
+    var self = this;
+    var targets = this._options.externalDropTargets;
+    if (targets == null) return;
+    if (!Array.isArray(targets)) targets = [targets];
+    targets.forEach(function(definition) {
+      var descriptor = definition && typeof definition === 'object' &&
+        !definition.nodeType ? definition : { target: definition };
+      var element = resolveTreeElement(descriptor.target || descriptor.element);
+      var activeCls = String(
+        descriptor.activeCls || 'fui-tree-external-drop-active'
+      ).trim();
+      var record;
+      if (!element) return;
+      record = {
+        element: element,
+        descriptor: descriptor,
+        activeCls: activeCls
+      };
+      self._externalDropRecords.push(record);
+      self.addEventListener(element, 'dragover', function(event) {
+        if (!self._dragNode) return;
+        event.preventDefault();
+        self._clearDropState();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+        activeCls.split(/\s+/).forEach(function(className) {
+          if (className) element.classList.add(className);
+        });
+        if (typeof descriptor.onDragOver === 'function') {
+          descriptor.onDragOver.call(self, self._dragNode, event, element);
+        }
+        self._invoke('onExternalDragOver', element, self._dragNode, event);
+        self._emit('externaldragover', {
+          target: element,
+          source: self._dragNode,
+          originalEvent: event
+        });
+      });
+      self.addEventListener(element, 'dragleave', function(event) {
+        if (element.contains(event.relatedTarget)) return;
+        self._clearExternalDropRecord(record);
+        if (!self._dragNode) return;
+        if (typeof descriptor.onDragLeave === 'function') {
+          descriptor.onDragLeave.call(self, self._dragNode, event, element);
+        }
+        self._invoke('onExternalDragLeave', element, self._dragNode, event);
+        self._emit('externaldragleave', {
+          target: element,
+          source: self._dragNode,
+          originalEvent: event
+        });
+      });
+      self.addEventListener(element, 'drop', function(event) {
+        var source = self._dragNode;
+        var allowed;
+        if (!source) return;
+        event.preventDefault();
+        self._clearExternalDropRecord(record);
+        allowed = typeof descriptor.onBeforeDrop !== 'function' ||
+          descriptor.onBeforeDrop.call(self, source, event, element) !== false;
+        if (allowed) {
+          allowed = self._invoke(
+            'onBeforeExternalDrop',
+            element,
+            source,
+            event
+          ) !== false;
+        }
+        if (
+          allowed &&
+          !self._emit('beforeexternaldrop', {
+            target: element,
+            source: source,
+            originalEvent: event
+          }, true)
+        ) {
+          allowed = false;
+        }
+        if (!allowed) return;
+        if (typeof descriptor.onDrop === 'function') {
+          descriptor.onDrop.call(self, source, event, element);
+        }
+        self._invoke('onExternalDrop', element, source, event);
+        self._emit('externaldrop', {
+          target: element,
+          source: source,
+          originalEvent: event
+        });
+      });
+    });
+  };
+
+  FabTree.prototype._clearExternalDropRecord = function(record) {
+    if (!record || !record.element) return;
+    String(record.activeCls || '').split(/\s+/).forEach(function(className) {
+      if (className) record.element.classList.remove(className);
+    });
+  };
+
+  FabTree.prototype._clearExternalDropState = function() {
+    this._externalDropRecords.forEach(function(record) {
+      this._clearExternalDropRecord(record);
+    }, this);
   };
 
   FabTree.prototype._rowFromTarget = function(target) {
@@ -583,6 +688,7 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
     this.hostElement.classList.toggle('fui-tree-animate', this._options.animate);
     this.hostElement.classList.toggle('fui-tree-lines', this._options.lines);
     this.hostElement.classList.toggle('fui-tree-dnd', this._options.dnd);
+    this.hostElement.classList.toggle('fui-tree-fit-width', this._options.fitWidth);
     this.hostElement.appendChild(this._renderList(this._roots, 1));
     if (activeId != null) {
       this._selectedNode = this.find(activeId) || null;
@@ -851,6 +957,7 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
     var node = this._dragNode;
     if (node && node.target) node.target.classList.remove('fui-tree-node-dragging');
     this._clearDropState();
+    this._clearExternalDropState();
     this._dragNode = null;
     if (node) {
       this._invoke('onStopDrag', node);
@@ -1035,6 +1142,7 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
     this._normalizeOptions();
     this.hostElement.classList.toggle('fui-tree-animate', this._options.animate);
     this.hostElement.classList.toggle('fui-tree-lines', this._options.lines);
+    this.hostElement.classList.toggle('fui-tree-fit-width', this._options.fitWidth);
     this.setTheme(this._options.theme);
     return this.render();
   };
@@ -1475,6 +1583,7 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
     if (this._destroyed) return;
     this._destroyed = true;
     this._loadSequence += 1;
+    this._clearExternalDropState();
     this.removeEventListener();
     this.hostElement.innerHTML = this._original.html;
     restoreTreeAttribute(this.hostElement, 'class', this._original.className);
@@ -1486,6 +1595,7 @@ export function createTreeFactory(Control, registerControl, unregisterControl) {
     delete this.hostElement.__fabuiTree;
     this._roots = [];
     this._selectedNode = null;
+    this._externalDropRecords = [];
     this._listeners = {};
   };
 

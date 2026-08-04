@@ -86,7 +86,7 @@ function createBrowserBundle(source) {
     '  throw new Error("Load fabui.js before fabui.htmleditor.js.");\n' +
     '}\n' +
     source + '\n' +
-    'global.fabui.HtmlEditor = createHtmlEditorFactory(global.fabui);\n' +
+    'global.fabui.HtmlEditor = global.fabui.registerLocaleTarget("HtmlEditor", createHtmlEditorFactory(global.fabui));\n' +
     'global.fabui.HtmlEditor.version = ' + JSON.stringify(buildVersion) + ';\n' +
     '}(typeof window !== "undefined" ? window : this));\n';
 }
@@ -106,7 +106,7 @@ function verifyOutput() {
       (minOnly ?
         !/\.fabui\.HtmlEditor=/.test(javascript) :
         javascript.indexOf(
-          'global.fabui.HtmlEditor = createHtmlEditorFactory'
+          'registerLocaleTarget("HtmlEditor", createHtmlEditorFactory'
         ) < 0)) {
     throw new Error('HtmlEditor browser global attachment is incomplete.');
   }

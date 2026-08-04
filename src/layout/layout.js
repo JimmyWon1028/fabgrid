@@ -185,34 +185,18 @@ export function createLayoutFactory(Control, registerControl, unregisterControl,
       expandSouth: 'Expand south',
       expandEast: 'Expand east',
       expandWest: 'Expand west'
-    },
-    'zh-TW': {
-      collapseNorth: '收合上方區域',
-      collapseSouth: '收合下方區域',
-      collapseEast: '收合右方區域',
-      collapseWest: '收合左方區域',
-      expandNorth: '展開上方區域',
-      expandSouth: '展開下方區域',
-      expandEast: '展開右方區域',
-      expandWest: '展開左方區域'
-    },
-    'zh-CN': {
-      collapseNorth: '收合上方区域',
-      collapseSouth: '收合下方区域',
-      collapseEast: '收合右方区域',
-      collapseWest: '收合左方区域',
-      expandNorth: '展开上方区域',
-      expandSouth: '展开下方区域',
-      expandEast: '展开右方区域',
-      expandWest: '展开左方区域'
     }
   };
 
   function normalizeLocale(value) {
     value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 

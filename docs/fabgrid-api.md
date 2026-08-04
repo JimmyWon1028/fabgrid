@@ -30,7 +30,7 @@ FabGrid 高度跟隨 host element，不強制設定最小高度；可使用固�
 
 ### 載入主題
 
-Default 配色已包含在 `fabui.css`。其他主題必須在所有 FabUI 與附加元件 CSS 之後載入：
+Default 配色已包含在 `fabui.css`；theme build 也會產生可選用的 `dist/theme/fabui.default.{css,min.css}`。其他主題必須在所有 FabUI 與附加元件 CSS 之後載入：
 
 ```html
 <link rel="stylesheet" href="./dist/fabui.css">
@@ -51,6 +51,10 @@ Default 配色已包含在 `fabui.css`。其他主題必須在所有 FabUI 與�
 | `fabui.version` | 發佈日期版本，格式為 `YYYY.M.D`。 |
 | `fabui.setConfig(options)` | 合併 FabUI 全域設定；目前支援 `request.credentials`。 |
 | `fabui.getConfig()` | 回傳目前全域設定的獨立副本。 |
+| `fabui.setLocale(locale)` | 切換已載入的全域顯示語言並更新既有控件；未載入時回退英文。 |
+| `fabui.getLocale()` | 回傳目前全域顯示語言。 |
+| `fabui.getLocales()` | 回傳已載入語言名稱陣列。 |
+| `fabui.addLocale(locale, pack)` | 註冊完整 FabUI 語言包並立即設為全域顯示語言。 |
 | `fabui.Button` | 支援 icon、plain、disabled、toggle、group 與多尺寸的按鈕；詳見 [Button API](./button-api.md)。 |
 | `fabui.Calendar` | 與 DatePopup 共用 renderer 的獨立月曆；詳見 [Calendar API](./calendar-api.md)。 |
 | `fabui.CheckBox` | 原生表單相容的核取方塊、label 位置、尺寸與狀態 API；詳見 [CheckBox API](./checkbox-api.md)。 |
@@ -82,7 +86,37 @@ Default 配色已包含在 `fabui.css`。其他主題必須在所有 FabUI 與�
 | `fabui.Clipboard.copy(str)` | 將文字複製到系統剪貼簿，回傳 `Promise<boolean>`。 |
 | `fabui.Control` | Control registry 與受管理的 DOM listener；詳見 [Control API](./control-api.md)。 |
 | `fabui.editorDefinitions` | FabGrid 與 `fabui.EditBox` 共用的 editor 定義。 |
-| `fabui.FabGridLocales` | 已載入的 FabGrid locale registry。 |
+| `fabui.FabGridLocales` | 已載入的 FabGrid locale registry；core 初始只有 `en`。 |
+
+### 全域語言
+
+FabUI core 與獨立附加元件預設內建英文。`en`、繁中、簡中語言檔集中於
+`dist/locales/`，需要時才在 FabUI core 之後載入；英文檔可明確切回內建英文：
+
+```html
+<script src="./dist/fabui.min.js"></script>
+<script src="./dist/locales/fabui-locale.zh-TW.min.js"></script>
+```
+
+語言包載入完成時會呼叫 `fabui.addLocale()`，自動設為該語言，並對已建立
+且支援語系的控件呼叫 `setLocale()`。之後載入 Diagram、Gantt、Scheduler
+或 HtmlEditor 等獨立元件時，也會自動取得已載入的語言資料。
+
+語言檔也會像 jQuery EasyUI locale 一樣，直接覆蓋已載入元件的英文預設
+文字。使用 `fabLoader` 時只需載入目標語言檔：
+
+```js
+fabLoader.script('./dist/locales/fabui-locale.zh-TW.min.js');
+```
+
+語言檔首次載入完成後會直接切換顯示語言，不需要另外呼叫切換 API。
+fabLoader 維持獨立的通用 script 快取，不會辨識或處理 FabUI 語言。
+
+載入 `fabui-locale.en.min.js` 會以相同覆蓋方式切回英文。可用
+`fabui.getLocale()`、`fabui.getLocales()` 查詢目前語言與已載入語言。
+
+`zh-Hant`、`zh_Hant_TW` 會正規化為 `zh-TW`；`zh-Hans`、`zh_CN` 會正規化
+為 `zh-CN`。若對應語言包尚未載入，顯示語言維持英文。
 
 ### 全域設定
 
@@ -107,15 +141,15 @@ fabui.setConfig({
 | 選項 | 型別 | 預設值 | 說明 |
 | --- | --- | --- | --- |
 | `itemsSource` | `Array<object>` | `[]` | 本機資料來源。 |
-| `columns` | `Array<Column>` | `[]` | 欄位定義。 |
+| `columns` | `Array<Column \| ColumnGroup>` | `[]` | 欄位定義；群組可用巢狀 `columns` 建立多列合併 Header。 |
 | `rowHeight` | `number` | `32` | 每列固定高度；非正數或非有限數字回復為預設值。 |
 | `columnMinWidth` | `number` | `20` | Column 未指定 `minWidth` 時的全域最小欄寬，套用於初始欄寬、拖曳調寬與 AutoFit。 |
-| `headerHeight` | `number` | `32` | 欄位標題高度。 |
+| `headerHeight` | `number` | `32` | 每一層欄位標題列的高度。 |
 | `overscanRows` | `number` | `8` | 垂直虛擬化預先渲染列數；正規化為非負整數。 |
 | `fastScrollOverscanRows` | `number` | `64` | 快速捲動時額外渲染列數。 |
 | `overscanColumns` | `number` | `3` | 水平虛擬化預先渲染欄數；正規化為非負整數。 |
-| `frozenColumns` | `number` | `0` | 左側凍結欄數；正規化為非負整數並依可見欄數 clamp。 |
-| `frozenRightColumns` | `number` | `0` | 右側凍結欄數；正規化為非負整數並避免與左側凍結欄重疊。 |
+| `frozenColumns` | `number` | `0` | 左側凍結欄範圍；hidden 欄位也計入指定數量，但不會產生可見的凍結 cell。 |
+| `frozenRightColumns` | `number` | `0` | 右側凍結欄範圍；hidden 欄位也計入指定數量，並避免與左側凍結範圍重疊。 |
 | `showRowHeaders` | `boolean \| 'numbers' \| 'none' \| 'cell'` | `true` | 顯示左側列號欄；`false`／`'none'` 隱藏，`'cell'` 只保留窄列頭 cell。 |
 | `showRowHeaderMenu` | `boolean` | `false` | 是否在 Header cell 右鍵選單顯示「列號」子選單；預設隱藏，設為 `false` 不會改變目前列號欄狀態。 |
 | `showFullscreenMenu` | `boolean` | `false` | 是否在 Header cell 右鍵選單顯示 Grid 全螢幕選項；不影響 `toggleFullscreen()` API。 |
@@ -131,7 +165,7 @@ fabui.setConfig({
 | `highlightActiveRow` | `boolean` | `true` | 顯示 active cell 所在列的背景；設為 `false` 時只保留 active cell／range，不影響多選列。 |
 | `activeCellBorder` | `number` | `1` | Active cell 與 cell editor 邊框寬度，單位為 px；設為 `0` 可隱藏邊框。 |
 | `stopNavigation` | `boolean` | `false` | 暫停使用者的鍵盤導覽、cell／row 點選、滑鼠滾輪、觸控與捲軸操作；不限制選取、捲動與資料更新 API。可於 runtime 直接指定。 |
-| `allowSorting` | `boolean` | `true` | 是否允許點擊標題排序。 |
+| `allowSorting` | `boolean` | `true` | 是否允許點擊標題排序；排序可將垂直位置回到第一列。已完整可見的 Header 會保留水平位置，部分被凍結區或右側邊界遮住時只做最小幅度調整，讓該欄完整可見。 |
 | `allowMultiSorting` | `boolean` | `true` | 是否允許以 `Shift + 點擊` 或 `toggleSort(colIndex, true)` 建立多欄排序；設為 `false` 時只保留目前操作的單一排序欄。 |
 | `allowFiltering` | `boolean` | `true` | 舊版相容入口。`false` 等同 `filterMode: false`；`true` 等同 `filterMode: ['excel', 'searchRow']`。新程式請直接使用 `filterMode`。 |
 | `allowEditing` | `boolean` | `true` | 是否允許編輯。 |
@@ -257,7 +291,7 @@ var tree = new fabui.FabGrid('#tree', {
 若程式直接新增或替換 `children`，呼叫 `refreshTree()` 重新建立可視列。可用收合事件實作 lazy loading：
 
 ```js
-grid.on('groupCollapsedChanged', function(e) {
+grid.on('groupCollapsedChanged', function(g, e) {
   if (!e.tree || e.collapsed || e.item.children.length !== 1 || !e.item.children[0].loading) return;
   e.item.children = loadChildren(e.item);
   grid.refreshTree();
@@ -269,6 +303,28 @@ Lazy loading 節點需先放一筆 `{ loading: true }` placeholder，讓核心�
 TreeGrid 範例：`demo/dev-treegrid.html` 與 `demo/treegrid.html`。Grid 重排與跨 Grid 移動：`demo/dev-grid-grid.html` 與 `demo/grid-grid.html`。Grid／TreeGrid 拖放：`demo/dev-grid-treegrid.html` 與 `demo/grid-treegrid.html`。
 
 ## 3. 欄位設定（`Column`）
+
+### 合併欄位標題（`ColumnGroup`）
+
+欄位定義包含巢狀 `columns` 時，該節點會成為合併 Header；`header` 是群組文字，`align` 控制群組文字對齊。巢狀層數不限：
+
+```js
+const columns = [
+  {
+    header: '規格',
+    align: 'center',
+    columns: [
+      { binding: 'w', width: 45, header: '寬', align: 'right' },
+      { binding: 'h', width: 45, header: '高', align: 'right' },
+      { binding: 'l', width: 45, header: '深', align: 'right' }
+    ]
+  }
+];
+```
+
+`grid.columns`、`visibleColumns`、`getColumn()`、排序、篩選、欄寬、顯示切換與匯出仍只操作實際資料欄位，不會把群組節點當成 Column。未放在群組內的欄位會自動向下合併至最深的 Header 列；Search Row 顯示於所有 Header 列下方。
+
+隱藏子欄後，群組範圍會依剩餘可見子欄重算；子欄全部隱藏時不顯示該群組。群組 Header 本身不排序、不篩選也不提供 resize handle。啟用 Column drag 時，只能在相同直屬群組內重排，避免破壞合併範圍。
 
 ```js
 const columns = [
@@ -292,23 +348,51 @@ const columns = [
 | `header` | `string` | 顯示於欄位標題的文字。 |
 | `width` / `minWidth` | `number` | 欄寬與最小欄寬；`width` 預設為 `120`，`minWidth` 未指定時使用 Grid `columnMinWidth`（預設 `20`）。 |
 | `align` | `'left' \| 'center' \| 'right'` | 標題、內容與 editor 都沿用此對齊。 |
-| `dataType` | `'string' \| 'number' \| 'time' \| 'date' \| 'boolean'` | 排序、解析與 editor 的資料型別。`time` 會自動使用 time editor。 |
+| `dataType` | `'string' \| 'number' \| 'date' \| 'boolean'` | 排序、解析與資料值型別。`number` 本機排序會先移除字串值的半形千位逗號與空白，再依實際數值排序。時間值使用 `dataType: 'string'` 搭配 `editor: 'time'`。 |
 | `visible` | `boolean` | 是否顯示；資料仍會保留。 |
-| `readOnly` | `boolean` | 讓該欄不可編輯。 |
+| `isReadOnly` | `boolean` | 讓該欄不可編輯，預設為 `false`。只要 Grid 或 Column 為唯讀，該 cell 就不能開始編輯。 |
+| `isRequired` | `boolean` | 是否為必填欄位，預設為 `false`；設為 `true` 時，`null`、`undefined`、空字串與純空白會自動產生 required validation error。 |
 | `allowSorting` | `boolean` | 是否允許該欄排序，預設為 `true`；設為 `false` 時不觸發排序事件或遠端查詢。 |
+| `multiLine` | `boolean` | 是否讓文字型 cell editor 使用可承載換行內容的 `<textarea>`，預設為 `false`。可輸入或貼入多行值，但不改變既有鍵盤操作與 cell 單行顯示。 |
+| `cssClass` | `string \| null` | 套用到此欄所有資料 cell 的 CSS class；可包含多個 class，不套用到 Header，預設為 `null`。 |
 | `formatter` | `(value, item, column) => string` | cell 顯示格式化函式。 |
 | `cellTemplate` | `string \| ((ctx, cell) => string \| null)` | 產生 body cell HTML；預設為 `null`。函式也可直接修改 `cell` 並回傳 `null`。 |
 | `footer` / `footerFormatter` | `string \| function` | 自訂 footer 文字或格式化。 |
 | `aggregate` | `'sum' \| 'avg' \| 'average' \| 'count' \| 'min' \| 'max' \| function` | Footer 與群組列的聚合計算。 |
-| `editor` | `string \| object` | `text`、`number`、`time`、`date`、`combo` 或 `color`；舊 `*box` 名稱保留為相容別名。 |
+| `editor` | `string \| object` | `text`、`number`、`time`、`date`、`combo` 或 `color`；舊 `*box` 名稱保留為相容別名。字串與 object 寫法都可搭配 Column `charcase`。 |
+| `charcase` | `string` | 可設為 `upper` 或 `lower`，套用於 `text`、`combo`、`color` editor；`date`、`time`、`number` 不套用。只轉換 ASCII 英文字母，中文、數字、空白及符號維持原值。 |
 | `thousandsSeparator` | `boolean` | number 顯示千分位。 |
 | `precision` | `number` | number 顯示與提交時的小數位。 |
 | `mask` | `string` | 文字／時間／日期遮罩；支援 `9`、`A`、`*`。Time 預設 `99:99`，也支援 `99:99:99`。 |
 | `maskValueIncludesLiterals` | `boolean` | 資料值是否保留 `/` 等遮罩字元。 |
-| `autoUnmask` | `boolean` | Time／Date editor 預設為 `true`；複製與資料輸出時移除遮罩字面值。明確設為 `false` 時保留遮罩。 |
-| `validate` | `(args) => ValidationResult \| Promise<ValidationResult>` | 同步或非同步驗證。 |
+| `autoUnmask` | `boolean` | 所有 editor 類型預設為 `false`；複製與資料輸出時保留遮罩字面值。明確設為 `true` 時移除遮罩。 |
+| `validate` | `(args) => ValidationResult \| Promise<ValidationResult>` | 同步或非同步驗證；本機唯一值可呼叫 `args.isDuplicate(options?)`。 |
 
-`validate` 回傳 `null`、`false` 或空字串表示通過；回傳字串或 `{ message }` 表示失敗。驗證失敗項目存放於 `grid.invalidItems`。
+`isRequired: true` 的內建必填驗證會先執行，錯誤以 `type: 'required'` 存入 `grid.invalidItems`；數值 `0` 與 boolean `false` 都是有效值。通過必填驗證後才執行 `validate`。`validate` 回傳 `null`、`false` 或空字串表示通過；回傳字串或 `{ message }` 表示失敗。所有驗證失敗項目都存放於 `grid.invalidItems`，值修正後會自動移除對應錯誤。資料列刪除或資料來源被取代後，該列的同步／非同步錯誤會自動移除；排序、篩選、分頁及欄位顯示或順序改變時，保留項目的 `rowIndex`／`rowNumber`／`colIndex`／`colNumber` 會同步更新。
+
+`validate(args)` 的 `args.isDuplicate(options?)` 會使用目前 Column binding 與準備寫入的新值，檢查完整本機資料來源並自動排除目前資料列。`null`、`undefined`、空字串與純空白永遠不視為重複；非空白字串會先移除前後空白再比較。預設區分大小寫，傳入 `{ ignoreCase: true }` 可忽略大小寫。支援 Array、CollectionView、`observeItemsSource`、巢狀 binding 與 TreeGrid：
+
+```js
+column.validate = function(args) {
+  return args.isDuplicate({ ignoreCase: true })
+    ? '此欄位不可重複'
+    : null;
+};
+```
+
+`cssClass` 可在 Grid 初始化前直接放入 Column definition：
+
+```js
+const columns = [
+  {
+    binding: 'amount',
+    header: '金額',
+    cssClass: 'amount-cell amount-emphasis'
+  }
+];
+```
+
+此 class 只套用 body 資料 cell；Header 樣式請使用 `setHeaderCellStyle()` 或 `formatItem`。
 
 ### Cell template
 
@@ -351,11 +435,15 @@ grid.columns[idx].cellTemplate = (ctx, cell) => {
 
 ### 資料與欄位
 
+所有公開方法的數字欄位參數都對應完整 `grid.columns` index，包含隱藏欄位；十進位整數字串（例如 `"1"`）視為相同 index，不再依方法混用 `visibleColumns` index。欄位 `binding`／`name`／`header` 必須以字母開頭，因此不會和數字字串衝突。需要操作畫面 cell 的方法若指定隱藏欄位會回傳 `false`，`getCellData()`／`setCellData()` 則可直接讀寫隱藏欄位。
+
 | 方法 | 說明 |
 | --- | --- |
 | `setItemsSource(rows)` | 替換本機資料來源並重新建立 view。 |
+| `clearSort()` | 一次清除所有單欄／多欄排序；成功回傳 `true`，目前沒有排序時回傳 `false`。本機與 CollectionView 立即恢復原始順序；遠端模式回到第 1 頁並自動重新載入。 |
+| `getSortState()` | 取得安全的排序狀態快照，包含 `active` 與 `sortStates`；每個排序項目包含 `columnIndex`、`visibleColumnIndex`、`binding`、數字 `direction`、字串 `order` 及 `sortIndex`。 |
 | `setColumns(columns)` | 替換欄位集合。 |
-| `setColumnVisible(column, visible)` | 顯示／隱藏指定欄；`column` 可為索引或該 Grid 的 Column object，不接受 binding 字串。成功回傳 `true`。 |
+| `setColumnVisible(column, visible)` | 顯示／隱藏指定欄；數字或十進位整數字串 `column` 為完整 `grid.columns` index，也可傳入該 Grid 的 Column object，不接受 binding 字串。成功回傳 `true`。 |
 | `setHeaderCellStyle(binding, style)` | 以欄位 `binding` 設定 Header cell style object；保留原樣式，同名 property 由傳入樣式覆蓋。傳入 `null` 清除，成功回傳 `true`。 |
 | `autoSizeColumn(column)` | 依 header、目前 view、群組 aggregate 與可見 footer 自動調整指定欄寬；成功回傳新寬度。 |
 | `setRowGroups(groups)` | 設定 1 至 3 階群組設定。 |
@@ -374,15 +462,31 @@ grid.columns[idx].cellTemplate = (ctx, cell) => {
 | `collapseGroupsToLevel(level)` | 將指定階層及以下的父節點收合；`0` 只保留根節點。 |
 | `expandAllTreeNodes()` | 展開所有 TreeGrid 節點。 |
 | `refreshTree()` | 子節點陣列直接變動後重新建立可視樹列。 |
-| `getColumn(indexOrName)` | 依索引、`binding`、`header` 或 `name` 取得欄位。 |
-| `getCellData(row, col)` | 讀取目前 view 的 cell 值。 |
-| `setCellData(row, col, value)` | 寫入目前 view 的 cell 值；成功回傳 `true`。 |
+| `getColumn(indexOrName)` | 依完整 `grid.columns` index（含十進位整數字串）、`binding`、`header` 或 `name` 取得欄位。 |
+| `getCellData(row, col)` | 依完整 `grid.columns` index 讀取目前 view 的 cell 值，包含隱藏欄位。 |
+| `setCellData(row, col, value)` | 依完整 `grid.columns` index 寫入目前 view 的 cell 值，包含隱藏欄位；成功回傳 `true`。 |
+| `toggleSort(col, multiSort?)` | 依完整 `grid.columns` index 切換排序；隱藏或不存在的欄位回傳 `false`。 |
+| `beginUpdate()` | 暫停後續 View 更新；可巢狀呼叫，期間資料與一般事件仍照常更新。 |
+| `endUpdate(shouldInvalidate?)` | 結束一層批次更新；最外層結束時只執行一次累積的更新。`shouldInvalidate` 預設為 `true`，傳入 `false` 時不自動更新畫面。 |
+| `deferUpdate(callback)` | 以 `beginUpdate()`／`endUpdate()` 執行 callback；callback 發生例外時仍會恢復更新，並將例外繼續拋出。 |
 | `refresh()` | 重新計算版面與渲染。 |
 | `invalidate()` | 在下一個 animation frame 重新渲染。 |
+| `on(name, handler)` | 註冊 Grid 事件；handler 固定接收 `(grid, eventArgs)`。 |
+| `off(name, handler)` | 解除以 `on()` 註冊的 Grid 事件。 |
 | `addEventListener(target, type, fn, capture?, passive?)` | 以 Wijmo-compatible Control API 綁定 DOM event；Grid 會管理 listener，並在 `dispose()` 自動解除。 |
 | `removeEventListener(target?, type?, fn?, capture?)` | 移除符合條件的 managed DOM listeners，回傳移除數量；不傳參數時全部移除。 |
-| `hitTest(point, y?)` | 以 `MouseEvent`、HTMLElement、Point 或 page 座標取得 cell 的 `panel`、`cellType`、`row`、`col`、`viewCol`、`column`、`range` 與 `target`；`col` 對應 `grid.columns`，Search Row 另有 `isSearchRow: true`。 |
+| `hitTest(point, y?)` | 以 `MouseEvent`、HTMLElement、Point 或 page 座標取得 cell 的 `panel`、`cellType`、`row`、`col`、`viewCol`、`column`、`range`、`mergedRange` 與 `target`；`col` 對應 `grid.columns`，群組／跨列 Header 會回傳 `mergedRange`，Search Row 另有 `isSearchRow: true`。 |
 | `dispose()` | 移除 DOM 與事件；元件不再可用。 |
+
+`isUpdating` 是唯讀 boolean，位於 `beginUpdate()` 與最外層 `endUpdate()` 之間時為 `true`。大量修改欄位或 options 時可使用：
+
+```js
+grid.deferUpdate(() => {
+  grid.setColumns(columns);
+  grid.setItemsSource(rows);
+  grid.setFrozenColumns(2);
+});
+```
 
 `setHeaderCellStyle()` 只比對實際 `binding`，不以 `header` 或 `name` 代替。Style 支援 camelCase、kebab-case 與 CSS custom property；FabGrid 會先套用原本的 Header 樣式，再疊加指定樣式，同名 property 以指定值為準。方法會複製傳入 object，後續修改原 object 不會改變已設定樣式。
 
@@ -461,14 +565,15 @@ var grid = new fabui.FabGrid('#grid', {
 | `clearFilter()` | 清除 predicate、全域搜尋、Search Row 與 Excel-like 欄位篩選，並觸發 `filterChanged`。 |
 | `setFilterRules(rules)` | 在 Grid 建立後一次取代所有 `filterRules`，同步 Search Row input 與運算符，並只觸發一次篩選更新；`remote: true` 時保留自訂 `op` 並重新載入。 |
 | `getFilterRules()` | 取得目前實際生效、下一次會送給後端的 rules 陣列；包含 Search Row 最新 input 值，並回傳可安全修改的副本。 |
+| `getFilterState()` | 取得安全的完整篩選狀態快照，包含 `active`、目前 `filterMode`、`filterPredicateActive`、Quick Search、`filterRules`、Search Row 值／運算符及 Excel-like filters；不直接暴露 predicate 函式。 |
 | `setSearch(text)` | 設定全域搜尋字串。 |
-| `setColumnSearch(column, value)` | 設定單欄搜尋值；目前模式不是 `'searchRow'` 時回傳 `false`。 |
-| `setColumnSearchOperator(column, operator)` | 設定欄位運算子，例如 `starts`、`contains`、`gte`、`eq`；目前模式不是 `'searchRow'` 時回傳 `false`。 |
+| `setColumnSearch(column, value)` | 設定單欄搜尋值；數字 `column` 為完整 `grid.columns` index，目前模式不是 `'searchRow'` 時回傳 `false`。 |
+| `setColumnSearchOperator(column, operator)` | 設定欄位運算子，例如 `starts`、`contains`、`gte`、`eq`；數字 `column` 為完整 `grid.columns` index，目前模式不是 `'searchRow'` 時回傳 `false`。 |
 | `clearColumnSearch()` | 清除所有欄位搜尋。 |
 | `clearSearchConditions(source)` | 清除全域與欄位搜尋，並觸發 `searchCleared`。 |
-| `setExcelFilter(column, filter)` | 目前模式為 `'excel'` 時設定 Excel-like 值篩選，格式為 `{ type: 'values', values: [...] }`；其他模式回傳 `false`。 |
-| `getExcelFilter(column)` | 取得指定欄位 Excel-like filter 的副本；未設定時回傳 `null`。 |
-| `clearExcelFilter(column)` | 清除指定欄位 Excel-like filter。 |
+| `setExcelFilter(column, filter)` | 目前模式為 `'excel'` 時設定 Excel-like 值篩選，格式為 `{ type: 'values', values: [...] }`；數字 `column` 為完整 `grid.columns` index，其他模式回傳 `false`。 |
+| `getExcelFilter(column)` | 依完整 `grid.columns` index 或欄位名稱取得 Excel-like filter 副本；未設定時回傳 `null`。 |
+| `clearExcelFilter(column)` | 依完整 `grid.columns` index 或欄位名稱清除 Excel-like filter。 |
 | `clearExcelFilters(source?)` | 清除全部 Excel-like filters。 |
 
 Excel-like 篩選 popup 會掛載到頁面 popup layer，以 fixed position 對齊 Header filter icon，因此可以超出 Grid 高度。它會比較 Header 上方與下方的 viewport 可用空間，自動決定開啟方向與高度；候選值超出空間時只捲動 popup 內的值清單，不會增加 Grid 高度。這項行為不需要額外 option。
@@ -497,12 +602,13 @@ Search input 聚焦時按 `↓`，焦點會移到目前 selected row 的同欄 a
 | `setPageSize(pageSize)` | 改變 page size 並回到第一頁。 |
 | `selectPage(pageNumber, pageSize)` | 同時設定頁碼與 page size。 |
 | `getPager()` | 取得 `.fg-pager` 外層 DOM element。 |
-| `select(row, col?)` | 設定 active cell；省略 `col` 時使用第一個可見欄。Row 或 Column index 不在目前可用範圍時回傳 `false` 且不做任何動作，不會自動 clamp 到第 0 列或最後一列。若目標列未完整顯示，會自動捲動並盡量將該列對齊 Grid 可視區第一列。 |
-| `selectRange(row, col, row2, col2)` | 在 `CellRange` 模式設定連續矩形範圍；前兩個座標為 anchor，後兩個座標為 active cell。 |
-| `selectRow(row, col?)` | 選取一列。 |
+| `select(row, col?)` | 設定 active cell；明確傳入的 `col` 對應完整 `grid.columns` index 並計入隱藏欄位，可直接和 `formatItem` 的 `e.col`、`editRange.col` 比較；省略 `col` 時使用第一個可見欄。指定隱藏欄位，或 Row／Column index 不在目前可用範圍時，回傳 `false` 且不做任何動作，不會自動 clamp 到第 0 列或最後一列。若目標列未完整顯示，會自動捲動並盡量將該列對齊 Grid 可視區第一列。 |
+| `startEditing(fullEdit?, row?, col?, focus?, event?)` | Wijmo-compatible 呼叫方式；`startEditing(false)` 會編輯目前 active cell。省略 row／col 時使用目前 selection；數字 `col` 對應完整 `grid.columns` index，也接受 Column `name`／`binding`／`header`。`focus` 預設為 `true`；傳入 `false` 時建立 editor 但不移動焦點。隱藏、唯讀或不存在的 cell 回傳 `false`。既有 `startEditing(row, col, options?)` 的 `col` 也使用完整 index。 |
+| `selectRange(row, col, row2, col2)` | 在 `CellRange` 模式設定連續矩形範圍；兩個 `col` 都使用完整 `grid.columns` index，前兩個座標為 anchor，後兩個座標為 active cell。 |
+| `selectRow(row, col?)` | 選取一列；指定 `col` 時使用完整 `grid.columns` index。 |
 | `unselectRow(row?)` | 取消指定 selected row；單選模式可省略 `row` 以取消目前 selected row，成功後 `selectedRows`／`selectedItems` 為空，排序、篩選或 refresh 後仍保持未選取。多選模式則取消指定或最後操作列的勾選。Active cell 不屬於此方法的行為契約。 |
 | `selectAll()` | 將 active cell 移至第一個 cell 並觸發選取事件。 |
-| `scrollIntoView(row, col, options?)` | 捲動指定 cell 至可見範圍。 |
+| `scrollIntoView(row, col, options?)` | 依完整 `grid.columns` index 捲動指定 cell 至可見範圍；隱藏欄位回傳 `false`。 |
 | `validateRow(row)` | 驗證 `itemsSource` 的指定列，回傳 `Promise<boolean>`。 |
 | `getSelectedText()` | 取得目前 cell 或 CellRange 的 TSV 文字；合成群組列會被排除。 |
 | `copySelection()` | 將目前選取內容寫入系統剪貼簿，成功開始複製時回傳 `true`。 |
@@ -625,14 +731,17 @@ CSV 與 Excel 都以目前 Grid view 為資料來源。Excel 預設保留完整�
 
 ## 5. 事件
 
-使用 `grid.on(name, handler)` 註冊事件；handler 回傳 `false` 可取消支援取消的事件。
+所有 Grid 事件 callback 統一使用 `(grid, eventArgs)`。Constructor option、`grid.on()` 與 Wijmo-compatible `addHandler()` 使用完全相同的參數契約；每個 `eventArgs` 都固定包含 `grid`、`type` 與 `cancel`，且 `eventArgs.grid === grid`。
+
+支援取消的事件可設定 `eventArgs.cancel = true` 或由 handler 回傳 `false`；完成後事件不接受取消。
 
 ```js
-grid.on('selectionChanged', function(e) {
+grid.on('selectionChanged', function(g, e) {
+  console.log(g === e.grid); // true
   console.log(e.activeRow, e.activeCol, e.range);
 });
 
-grid.on('cellEditEnding', function(e) {
+grid.on('cellEditEnding', function(g, e) {
   if (e.value === 'blocked') return false;
 });
 ```
@@ -643,10 +752,10 @@ grid.on('cellEditEnding', function(e) {
 | `loadingRows` / `loadedRows` | 本機資料載入流程前／後。 |
 | `beforeLoad` / `loadSuccess` / `loadError` | 遠端載入前、成功或失敗。 |
 | `pageChanging` / `pageChanged` | 分頁變更前／後。 |
-| `selectionChanging` / `selectionChanged` | Active cell 或 cell range 變更；參數包含 `row`、`col`、`activeRow`、`activeCol`、`anchorRow`、`anchorCol` 與正規化後的 `range`。 |
+| `selectionChanging` / `selectionChanged` | Active cell 或 cell range 變更；固定包含 `row`、`col`、`row2`、`col2`、anchor／active 座標、`range`、對應的 `view*` 座標，以及列勾選用的 `changedRow`、`selected`、`allRows`。`col` 系列使用完整 `grid.columns` index，`view*` 使用可見欄 index；不適用的 `changedRow`／`selected` 為 `null`，一般 cell 選取的 `allRows` 為 `false`。 |
 | `selectedRowChanged` | Selected row 改變或資料來源更新時觸發；`reason` 為 `'selection'` 或 `'itemsSource'`，並包含目前與先前的 row index／data item。同一 row 只切換 active column 不觸發。 |
 | `sortingColumn` / `sortedColumn` | 排序前／後；`sortingColumn` handler 回傳 `false` 可取消本機或遠端排序，取消時不會送出遠端查詢。 |
-| `cellEditEnding` / `cellEditEnded` | cell 編輯提交前／後。 |
+| `cellEditEnding` / `cellEditEnded` | cell 編輯提交前／後；`e.col` 對應完整 `grid.columns` index 並計入隱藏欄位，`e.viewCol` 為目前 `visibleColumns` index。 |
 | `resizingColumn` / `resizedColumn` | 拖曳欄寬期間／完成後。 |
 | `autoSizingColumn` / `autoSizedColumn` | AutoFit 套用欄寬前／後；前者可取消或調整 `e.width`。 |
 | `filterModeChanged` | `setFilterMode()` 改變設定後；`e.filterMode` 為正規化後的模式、`e.activeMode` 為目前模式或 `null`，`e.clearedFilter` 表示是否清除原模式的欄位條件。 |
@@ -654,13 +763,20 @@ grid.on('cellEditEnding', function(e) {
 | `draggingRow` | Row drag 開始或進入新落點時；可回傳 `false` 取消，`e.phase` 為 `'start'` 或 `'over'`。 |
 | `draggedRow` | Row drop 完成後；包含 `e.sourceGrid`、`e.targetGrid`、`e.item`、`e.targetItem`、`e.position`。 |
 | `groupCollapsedChanging` / `groupCollapsedChanged` | 群組或 TreeGrid 節點收合前／後；TreeGrid event args 會包含 `tree: true`、`row`、`item`、`level`、`collapsed`。 |
+| `updatingLayout` / `updatedLayout` | 版面更新前／後；`updatingLayout` 可回傳 `false` 取消該次 layout 與 render，且不觸發 `updatedLayout`、`updatedView` 或對應完成事件。 |
 | `viewportChanged` | 可視 row、column 範圍或 render cell 數變動。 |
 | `columnVisibilityChanged` | 欄位顯示狀態變更。 |
 | `filterChanged` | Filter 條件套用完成後觸發；`setFilter()`、全域搜尋、Search Row、Excel-like 篩選、模式切換與所有清除 filter 操作都會觸發。 |
 | `gotFocus` / `lostFocus` | 焦點從 Grid 外進入／從 Grid 內離開時觸發；Grid 內部切換焦點不觸發。 |
 | `formatItem` | Grid cell element 完成預設內容與格式後觸發；可使用 `formatItem.addHandler((g, e) => {})` 修改 Header、Footer、資料 cell 或列頭 DOM。 |
 | `searchCleared` | 呼叫 `clearSearchConditions()`。 |
-| `excelExporting` / `excelExported` / `excelExportFailed` | Excel 匯出流程。 |
+| `excelExporting` / `excelExported` / `excelExportFailed` | Excel 匯出流程；`excelExporting` 可回傳 `false` 取消，且不會進入 busy 狀態或下載檔案。 |
+
+`cellEditStarting` 是 `beginningEdit` 的相容別名，兩者共用同一個 Event object；`cellCopied` 是 `copiedCell` 的相容別名。新程式應優先使用 `beginningEdit` 與 `copiedCell`。
+
+同一個動作的前置與完成事件各自取得獨立的 event args object。Handler 若保留前置事件的 `e` 供非同步流程或除錯使用，其 `e.type`、`e.grid` 與其他欄位不會被後續完成事件改寫；同一事件內的各個 handler 仍共用該次派送的 args，並可依事件契約修改 `e.value`、`e.width` 或 `e.cancel`。
+
+所有 FabGrid 公開事件參數中的 `e.col`／`e.col2`／`e.activeCol`／`e.anchorCol` 都使用完整 `grid.columns` 索引並計入隱藏欄位；需要可見欄索引時使用對應的 `viewCol` 欄位。`formatItem` 原本即遵循此規則，clipboard 與編輯事件也一致。
 
 所有公開 Grid 事件都可以直接在 constructor options 定義，callback 簽名為 `(grid, eventArgs)`。例如 `selectionChanged`：
 
@@ -689,7 +805,7 @@ const grid = new fabui.FabGrid('#grid', {
 `filterChanged` 會在目前 filter 套用並 refresh 後觸發：
 
 ```js
-grid.on('filterChanged', function(e) {
+grid.on('filterChanged', function(g, e) {
   console.log(e.source, e.active, e.cleared, e.viewRowCount);
 });
 ```
@@ -757,7 +873,7 @@ if (r instanceof fabui.FabGrid.Row && !(r instanceof fabui.FabGrid.GroupRow)) {
 
 ## 6. 遠端資料協定
 
-`remote: true` 時，FabGrid 可使用 `url` 或 `loader(params)`。`loader` 優先於 `url`。
+`remote: true` 時，FabGrid 可使用 `url` 或 `loader(params)`。`loader` 優先於 `url`。`itemsSource` 可傳入 Array 或 `fabui.collections.CollectionView`；遠端 rows 會更新 Grid 的 Array 資料來源，或更新同一個 CollectionView instance 的 `sourceCollection`。CollectionView 模式可讓共用 Chart 自動收到 `collectionChanged`，且不會再次套用已由後端處理的 Grid filter／sort。
 
 ```js
 var grid = new fabui.FabGrid('#grid', {
@@ -815,6 +931,7 @@ var grid = new fabui.FabGrid('#grid', {
 | `selectedItems` / `selectedRows` | 已選取的資料項目與 Row instance 陣列。 |
 | `selectedRanges` | 目前 cell selection range；`Cell` 模式為單一 cell，`CellRange` 為正規化後的矩形範圍。 |
 | `activeCell` | 目前 active cell。 |
+| `editRange` | 唯讀的目前編輯範圍；編輯中回傳單一 cell 的 `{ row, col, row2, col2 }` 快照，`col`／`col2` 對應 `grid.columns` 並計入隱藏欄位，未編輯時為 `null`。 |
 | `activeEditor` | 目前 editor；未編輯時為空。 |
 | `invalidItems` | 驗證失敗的 cell 資訊。 |
 | `scrollPosition` / `scrollSize` | 捲動位置與可捲動尺寸。 |
@@ -822,6 +939,15 @@ var grid = new fabui.FabGrid('#grid', {
 | `isReadOnly` | 唯讀狀態。 |
 
 ## 8. 編輯器範例
+
+可用 `editRange` 判斷指定 cell 是否正在編輯：
+
+```js
+const rng = g.editRange;
+if (rng && rng.row === irow && rng.col === icol) {
+  // The target cell is being edited.
+}
+```
 
 ```js
 var columns = [
@@ -843,12 +969,10 @@ var columns = [
   {
     binding: 'startedAt',
     header: '開始時間',
-    dataType: 'time',
-    editor: {
-      type: 'time',
-      mask: '99:99:99',
-      spinner: true
-    }
+    dataType: 'string',
+    mask: '99:99:99',
+    autoUnmask: true,
+    editor: 'time'
   },
   {
     binding: 'status',
@@ -869,8 +993,7 @@ var columns = [
     header: '顏色',
     editor: {
       type: 'color',
-      showAlpha: true,
-      palette: ['#ff0000', '#00ff00', '#0000ff']
+      palette: ['#ff0000', '#00ff00', '#0000ff', '']
     }
   }
 ];
@@ -878,16 +1001,19 @@ var columns = [
 
 - `text`：一般文字輸入。
 - `number`：數字預設靠右，支援千分位、`min`／`max`、前後綴與 `precision`。`editor.spinner` 預設為 `false`；設為 `true`／`'right'` 時在右側顯示上下箭頭，設為 `'left'` 時顯示於左側，並以 `increment` 控制每次增減值。
-- `time`：預設使用 `99:99` 與 `autoUnmask: true`，也支援 `99:99:99`；分秒限制為 `00`–`59`，只有完整 `24:00`／`24:00:00` 可作為上限。可選 Spinner 依游標所在時、分或秒段落增減。
+- 時間欄使用 `dataType: 'string'` 搭配 `editor: 'time'`；`time` 是 editor type，不是 `dataType`。`dataType: 'date'` 則會自動選擇 Date editor。
+- `editor: 'date'` 同時支援 `dataType: 'string'` 與 `dataType: 'date'`。字串日期必須明確設定 `editor: 'date'`；Date 值可省略 `editor`，也可明確寫出。
+- `mask`、`autoUnmask` 與遮罩字面值設定屬於 Column option，即使省略 `editor` 也有效；舊版放在 `editor` 內的寫法會在初始化時正規化到 Column。
+- `time`：預設使用 `99:99` 與 `autoUnmask: false`，也支援 `99:99:99`；分秒限制為 `00`–`59`，只有完整 `24:00`／`24:00:00` 可作為上限。可選 Spinner 依游標所在時、分或秒段落增減。
 - `date`：日期面板與日期遮罩；`mask: '9999/99'` 或 `'9999-99'` 時改用年份／月份選擇 popup。
-- `combo`：可編輯下拉選項；可配合 `editable: false` 停用文字輸入，或用 `limitToList` 限制為清單項目。
-- `color`：色票與 HSV 顏色面板；支援 `#RGB`、`#RGBA`、`#RRGGBB`、`#RRGGBBAA` 與標準 CSS 顏色名稱。名稱不分大小寫，可直接預覽並保留原輸入文字，例如 `red` 提交後仍為 `red`；hex 短格式仍會正規化，例如 `#f00` 成為 `#ff0000`。`palette` 可自訂色票，`showAlpha: false` 可隱藏透明度控制。
+- `combo`：可編輯下拉選項；可配合 `editable: false` 停用文字輸入，或用 `limitToList` 限制為清單項目。Column `charcase` 會套用到輸入、選取後的顯示文字與提交比對，但不改變清單資料本身。
+- `color`：預設顯示 63 色加清除色彩的 8×8 精簡色盤；支援 `#RGB`、`#RGBA`、`#RRGGBB`、`#RRGGBBAA` 與標準 CSS 顏色名稱。名稱不分大小寫，可直接預覽並保留原輸入文字，例如 `red` 提交後仍為 `red`；hex 短格式仍會正規化，例如 `#f00` 成為 `#ff0000`。`palette` 可自訂色票，空字串項目代表清除色彩。
 
-雙擊 cell、按 `Enter` 或 `F2` 可開始編輯；`Enter` / `Tab` 提交並移至下一個可編輯欄，`Escape` 取消。連續編輯移出可視區時只捲動所需列數，active editor 會保持在可視區頂部或底部邊界，不會跳到第一列。
+雙擊 cell、按 `Enter` 或 `F2` 可開始編輯。只要 cell 正在編輯，`Enter` 都會提交並向右尋找下一個可編輯 cell；目前列找不到時，接續到下一列第一個可編輯 cell。`Shift+Enter` 則向左尋找，並可從列首回到上一列最後一個可編輯 cell。此行為不受 `editOnSelect` 影響。`editOnSelect: true` 時，`Tab`／`Shift+Tab` 也會向右／向左尋找且可跨列，上下方向鍵維持跨列連續編輯。`editOnSelect: false` 且允許編輯時，在 active cell 直接輸入可用字元會自動開始編輯並取代原內容；Tab／Shift+Tab 只提交並結束目前編輯，未由 Spinner 或已開啟 Popup 接管的方向鍵保留輸入框原生字元游標移動。`Escape` 一律取消。文字 Column 設定 `multiLine: true` 時 editor 使用 `<textarea>`，可以承載輸入或貼入的多行值，並沿用上述 Enter 導覽契約。此設定不改變 cell 的單行顯示與固定列高。FabGrid 只保留一個 active cell，active editor 必須與該 cell 相同；滑鼠單純離開 edit cell 時維持編輯不變，只有點擊或程式選取其他 cell 時才取消目前編輯，且不提交尚未完成的值。使用鍵盤讓焦點離開 Grid 時，`text`、`number`、`time`、`date`、`combo`、`color` editor 仍會提交目前值。連續編輯移出可視區時只捲動所需列數，active editor 會保持在可視區頂部或底部邊界，不會跳到第一列。
 
-FabGrid 與 `fabui.EditBox` 共用 editor definitions 與主要 options。Icon descriptor 統一為 `{ iconCls, title, ariaLabel, text, width, align, keepFocus, onClick }`；舊欄位名稱只保留相容。
+FabGrid 與 `fabui.EditBox` 共用 editor definitions 與主要 options。Icon descriptor 統一為 `{ iconCls, title, ariaLabel, text, width, align, keepFocus, onClick }`；舊欄位名稱只保留相容。`iconCls` 可使用外部普通 CSS class 定義 `background` 或 `background-image`，不需要加上 `:root` 或 `!important`。
 
-日期、清單與顏色 editor／Search Row 分別共用 DatePopup、ComboPopup 與 ColorPopup。完整 options 請見 [EditBox API](./editbox-api.md)。
+日期、清單與顏色 editor／Search Row 分別共用 DatePopup、ComboPopup 與 ColorPopup。Grid 的 `color` cell editor 點選色票或清除色彩後會立即關閉 popup。完整 options 請見 [EditBox API](./editbox-api.md)。
 
 Number cell editor 的 `spinner`、`increment`、`iconWidth`、`min`、`max` 與 `precision` 也直接沿用 `fabui.EditBox` 的共用 number definition。啟用 Spinner 時，`ArrowUp`／`ArrowDown` 會增減目前數值，不會提交並移到上一列或下一列；未啟用時維持原本的 Grid 垂直移動行為。Search Row 不顯示 Spinner，以保留搜尋列既有的方向鍵導覽。
 
@@ -898,10 +1024,9 @@ Date editor 設定 `showLunar: true` 時，cell editor 與同欄 Search Row 的�
 ```js
 {
   binding: 'date',
-  editor: {
-    type: 'date',
-    showLunar: true
-  }
+  dataType: 'date',
+  editor: 'date',
+  showLunar: true
 }
 ```
 

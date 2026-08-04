@@ -124,14 +124,6 @@ export function createFileBoxFactory(Control, registerControl, unregisterControl
     en: {
       chooseFile: 'Choose File',
       fileBox: 'File upload'
-    },
-    'zh-TW': {
-      chooseFile: '選擇檔案',
-      fileBox: '檔案上傳'
-    },
-    'zh-CN': {
-      chooseFile: '选择文件',
-      fileBox: '文件上传'
     }
   };
 

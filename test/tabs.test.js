@@ -42,11 +42,9 @@ test('Tabs normalizes supported themes and aliases', function() {
   assert.equal(normalizeTabsTheme('unknown'), 'default');
 });
 
-test('Tabs publishes all required locale packs', function() {
-  assert.deepEqual(Object.keys(fabui.Tabs.locales), ['en', 'zh-TW', 'zh-CN']);
+test('Tabs core publishes English locale only', function() {
+  assert.deepEqual(Object.keys(fabui.Tabs.locales), ['en']);
   assert.equal(fabui.Tabs.locales.en.previous, 'Previous tabs');
-  assert.equal(fabui.Tabs.locales['zh-TW'].next, '下一組頁籤');
-  assert.equal(fabui.Tabs.locales['zh-CN'].close, '关闭 {title}');
 });
 
 test('Tabs factory returns a public control class', function() {
@@ -102,6 +100,23 @@ test('Tabs keeps tab and panel ARIA ids synchronized', function() {
     source,
     /if \(options\.id\) panel\.id = String\(options\.id\);[\s\S]*?this\._createRecord\(panel, options\)/
   );
+});
+
+test('Tabs renders trusted HTML titles and uses visible text for close labels', function() {
+  var source = readFileSync(new URL('../src/tabs/tabs.js', import.meta.url), 'utf8');
+  assert.match(
+    source,
+    /title\.innerHTML = record\.options\.title == null \? '' : String\(record\.options\.title\);/
+  );
+  assert.match(
+    source,
+    /titleText = title\.textContent == null \? '' : title\.textContent\.trim\(\);/
+  );
+  assert.match(
+    source,
+    /close\.setAttribute\('aria-label', formatText\(this\._getText\('close'\), \{ title: titleText \}\)\);/
+  );
+  assert.doesNotMatch(source, /title\.textContent = record\.options\.title/);
 });
 
 test('Tabs reorder helper moves one record and rejects unchanged indexes', function() {

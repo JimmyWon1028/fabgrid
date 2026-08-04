@@ -348,15 +348,18 @@ test('PivotChart synchronizes visible Grid cells without changing group state', 
   var scrolled = null;
   var chartSelection = null;
   var expandCount = 0;
+  var visibleColumns = [{ binding: '__pivot_row_0' }].concat(leafColumns);
+  var hiddenColumn = { binding: '__hidden', visible: false };
   var grid = {
     selection: { row: 0, col: 1 },
     view: leafRows,
-    visibleColumns: [{ binding: '__pivot_row_0' }].concat(leafColumns),
+    columns: [hiddenColumn].concat(visibleColumns),
+    visibleColumns: visibleColumns,
     expandAll: function() {
       expandCount += 1;
     },
     select: function(row, col) {
-      this.selection = { row: row, col: col };
+      this.selection = { row: row, col: this.visibleColumns.indexOf(this.columns[col]) };
       selected = { row: row, col: col };
     },
     scrollIntoView: function(row, col) {
@@ -379,8 +382,8 @@ test('PivotChart synchronizes visible Grid cells without changing group state', 
     selection: { pointIndex: 1, seriesIndex: 0 }
   });
 
-  assert.deepEqual(selected, { row: 1, col: 1 });
-  assert.deepEqual(scrolled, selected);
+  assert.deepEqual(selected, { row: 1, col: 2 });
+  assert.deepEqual(scrolled, { row: 1, col: 1 });
   assert.equal(expandCount, 0);
   chart._handleGridSelectionChanged();
   assert.deepEqual(chartSelection, { pointIndex: 1, seriesIndex: 0 });

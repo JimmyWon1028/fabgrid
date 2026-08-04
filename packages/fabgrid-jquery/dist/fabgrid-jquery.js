@@ -64,7 +64,7 @@ var GRID_EVENTS = [
   'rowHeaderModeChanged',
   'scrollPositionChanged',
   'searchCleared',
-  'searchRowVisibilityChanged',
+  'filterModeChanged',
   'selectionChanged',
   'selectionChanging',
   'sortedColumn',
@@ -83,6 +83,7 @@ var SETTER_METHODS = {
   editMode: 'setEditMode',
   frozenColumns: 'setFrozenColumns',
   frozenRightColumns: 'setFrozenRightColumns',
+  filterMode: 'setFilterMode',
   headerDisplayMode: 'setHeaderDisplayMode',
   itemsSource: 'setItemsSource',
   locale: 'setLocale',
@@ -92,8 +93,7 @@ var SETTER_METHODS = {
   rowHeaderWidth: 'setRowHeaderWidth',
   rowGroups: 'setRowGroups',
   showFooter: 'setShowFooter',
-  showRowHeaders: 'setShowRowHeaders',
-  showSearchRow: 'setShowSearchRow'
+  showRowHeaders: 'setShowRowHeaders'
 };
 
 function toJQueryEventName(value) {

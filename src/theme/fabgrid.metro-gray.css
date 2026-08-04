@@ -1,6 +1,6 @@
 /*! FabGrid theme metro-gray | performance-first data grid */
 @import './metro-gray/tabs.css?v=20260724-native-elements-v2';
-@import './metro-gray/components.css?v=20260725-editbox-themes-v1';
+@import './metro-gray/components.css?v=20260731-tree-icons-v1';
 :root .fg-root,
 :root .fui-tabs {
   --fg-border: #dedede;

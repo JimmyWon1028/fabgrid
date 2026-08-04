@@ -197,3 +197,8 @@
   border-color: var(--fui-button-border-hover);
   background: var(--fui-button-bg-hover);
 }
+
+.grid2-demo .fg-cell.demo-spec-dimension-cell {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}

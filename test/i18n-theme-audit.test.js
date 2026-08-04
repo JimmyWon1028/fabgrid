@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 
-import fabui from '../src/fabui.js';
+import fabui from '../src/fabui.js?v=20260728-locale-packs-v1';
 
 var locales = ['en', 'zh-TW', 'zh-CN'];
+var localePackPromise;
 var themes = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
@@ -41,7 +43,142 @@ function assertLocalePack(componentName, component) {
   });
 }
 
-test('Every localized public component publishes complete en, zh-TW and zh-CN packs', function() {
+function loadLocalePacks() {
+  if (!localePackPromise) {
+    globalThis.fabui = fabui;
+    localePackPromise = import('../src/locales/fabui-locale.zh-TW.js')
+      .then(function() {
+        return import('../src/locales/fabui-locale.zh-CN.js');
+      })
+      .then(function() {
+        return import('../src/locales/fabui-locale.en.js');
+      });
+  }
+  return localePackPromise;
+}
+
+function loadStandaloneLocalePack(locale) {
+  var registration;
+  var context = {};
+  context.window = context;
+  context.fabui = {
+    addLocale: function(name, pack) {
+      registration = { name: name, pack: pack };
+    }
+  };
+  runInNewContext(
+    readFileSync(
+      new URL('../src/locales/fabui-locale.' + locale + '.js', import.meta.url),
+      'utf8'
+    ),
+    context
+  );
+  assert.equal(registration.name, locale);
+  return registration.pack;
+}
+
+function getLocaleLeafPaths(value, prefix, result) {
+  var key;
+  result = result || [];
+  prefix = prefix || '';
+  if (Array.isArray(value)) {
+    result.push(prefix);
+    return result;
+  }
+  if (value && typeof value === 'object') {
+    for (key in value) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
+        getLocaleLeafPaths(value[key], prefix ? prefix + '.' + key : key, result);
+      }
+    }
+    return result;
+  }
+  result.push(prefix);
+  return result;
+}
+
+test('English locale pack contains the same complete message structure as Chinese packs', function() {
+  var english = loadStandaloneLocalePack('en');
+  var englishPaths = getLocaleLeafPaths(english).sort();
+  var traditionalPaths = getLocaleLeafPaths(
+    loadStandaloneLocalePack('zh-TW')
+  ).sort();
+  var simplifiedPaths = getLocaleLeafPaths(
+    loadStandaloneLocalePack('zh-CN')
+  ).sort();
+
+  assert.ok(englishPaths.length > 0);
+  assert.deepEqual(englishPaths, traditionalPaths);
+  assert.deepEqual(englishPaths, simplifiedPaths);
+});
+
+test('Loading a locale pack overwrites loaded component English defaults', function() {
+  var registration;
+  var context = {};
+  context.window = context;
+  context.fabui = {
+    addLocale: function(name, pack) {
+      registration = { name: name, pack: pack };
+    },
+    Accordion: {
+      locales: {
+        en: {
+          untitled: 'Untitled',
+          expand: 'Expand {title}',
+          collapse: 'Collapse {title}'
+        }
+      }
+    },
+    chart: {
+      Chart: {
+        locales: {
+          en: { emptyText: 'No data', value: 'Value', percent: 'Percent' }
+        }
+      },
+      Pie: {
+        locales: {
+          en: { emptyText: 'No data', value: 'Value', percent: 'Percent' }
+        }
+      }
+    }
+  };
+  runInNewContext(
+    readFileSync(
+      new URL('../src/locales/fabui-locale.zh-TW.js', import.meta.url),
+      'utf8'
+    ),
+    context
+  );
+
+  assert.equal(registration.name, 'zh-TW');
+  assert.equal(context.fabui.Accordion.locales.en.untitled, '未命名');
+  assert.equal(context.fabui.chart.Chart.locales.en.emptyText, '沒有資料');
+  assert.equal(context.fabui.chart.Pie.locales.en.emptyText, '沒有資料');
+});
+
+test('FabUI core publishes English locale only', function() {
+  [
+    'Calendar', 'CheckBox', 'CheckGroup', 'Diagram', 'EditBox', 'FileBox',
+    'Form', 'Layout', 'Menu', 'Panel', 'PropertyGrid', 'RadioButton',
+    'RadioGroup', 'SwitchButton', 'Tabs', 'Tree', 'Window'
+  ].forEach(function(name) {
+    assert.deepEqual(Object.keys(fabui[name].locales), ['en'], name);
+  });
+  assert.deepEqual(Object.keys(fabui.chart.Chart.locales), ['en']);
+  assert.deepEqual(Object.keys(fabui.chart.Pie.locales), ['en']);
+  assert.deepEqual(Object.keys(fabui.Messager.locales), ['en']);
+  assert.deepEqual(fabui.getLocales(), ['en']);
+  fabui.setLocale('zh-TW');
+  assert.equal(fabui.getLocale(), 'en');
+});
+
+test('On-demand locale packs register all messages and set the global locale', async function() {
+  await loadLocalePacks();
+  await Promise.all([
+    import('../src/fabui.gantt.js?v=20260728-locale-packs-v1'),
+    import('../src/fabui.scheduler.js?v=20260728-locale-packs-v1'),
+    import('../src/fabui.htmleditor.js?v=20260728-locale-packs-v1')
+  ]);
   [
     'Calendar', 'CheckBox', 'CheckGroup', 'Diagram', 'EditBox', 'FileBox',
     'Form', 'Layout', 'Menu', 'Panel', 'PropertyGrid', 'RadioButton',
@@ -52,9 +189,19 @@ test('Every localized public component publishes complete en, zh-TW and zh-CN pa
   assertLocalePack('Chart', fabui.chart.Chart);
   assertLocalePack('Pie', fabui.chart.Pie);
   assertLocalePack('Messager', fabui.Messager);
+  assertLocalePack('Gantt', fabui.Gantt);
+  assertLocalePack('Scheduler', fabui.Scheduler);
+  assertLocalePack('HtmlEditor', fabui.HtmlEditor);
+  assert.deepEqual(fabui.getLocales(), locales);
+  assert.equal(fabui.getLocale(), 'en');
+  assert.equal(fabui.Form.locales['zh-TW'].valueMissing, '此欄位為必填。');
+  assert.equal(fabui.Form.locales['zh-CN'].valueMissing, '此字段为必填项。');
+  assert.equal(fabui.Diagram.locales['zh-TW'].snapSize, '吸附間距');
+  assert.equal(fabui.Diagram.locales['zh-CN'].snapSize, '吸附间距');
 });
 
-test('Localized public components normalize Traditional and Simplified Chinese aliases', function() {
+test('Loaded public components normalize Traditional and Simplified Chinese aliases', async function() {
+  await loadLocalePacks();
   [
     fabui.Calendar,
     fabui.chart.Chart,

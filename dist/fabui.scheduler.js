@@ -48,72 +48,6 @@ var SCHEDULER_LOCALES = {
     selectEvent: 'Select {title}',
     resizeEvent: 'Resize {title}',
     editEventAria: 'Edit {title}'
-  },
-  'zh-TW': {
-    today: '今天',
-    previous: '上一個',
-    next: '下一個',
-    allDay: '全天',
-    noEvents: '沒有行程',
-    event: '行程',
-    newEvent: '新增行程',
-    editEvent: '編輯行程',
-    title: '標題',
-    description: '說明',
-    start: '開始',
-    end: '結束',
-    date: '日期',
-    time: '時間',
-    save: '儲存',
-    cancel: '取消',
-    remove: '刪除',
-    untitled: '（無標題）',
-    eventRow: '行程',
-    more: '另有 {count} 個',
-    day: '日',
-    workWeek: '工作週',
-    week: '週',
-    month: '月',
-    year: '年',
-    agenda: '議程',
-    timeline: '時間軸',
-    invalidRange: '結束時間必須晚於開始時間。',
-    selectEvent: '選取「{title}」',
-    resizeEvent: '調整「{title}」時間',
-    editEventAria: '編輯「{title}」'
-  },
-  'zh-CN': {
-    today: '今天',
-    previous: '上一个',
-    next: '下一个',
-    allDay: '全天',
-    noEvents: '没有日程',
-    event: '日程',
-    newEvent: '新增日程',
-    editEvent: '编辑日程',
-    title: '标题',
-    description: '说明',
-    start: '开始',
-    end: '结束',
-    date: '日期',
-    time: '时间',
-    save: '保存',
-    cancel: '取消',
-    remove: '删除',
-    untitled: '（无标题）',
-    eventRow: '日程',
-    more: '另有 {count} 个',
-    day: '日',
-    workWeek: '工作周',
-    week: '周',
-    month: '月',
-    year: '年',
-    agenda: '议程',
-    timeline: '时间轴',
-    invalidRange: '结束时间必须晚于开始时间。',
-    selectEvent: '选择“{title}”',
-    resizeEvent: '调整“{title}”时间',
-    editEventAria: '编辑“{title}”'
   }
 };
 
@@ -144,9 +78,11 @@ function resolveSchedulerElement(element) {
 function normalizeSchedulerLocale(value) {
   value = String(value || 'en').trim().replace(/_/g, '-');
   if (SCHEDULER_LOCALES[value]) return value;
-  if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
+  if (/^zh-(?:tw|hant)(?:-|$)/i.test(value) && SCHEDULER_LOCALES['zh-TW']) {
+    return 'zh-TW';
+  }
   if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) {
-    return 'zh-CN';
+    return SCHEDULER_LOCALES['zh-CN'] ? 'zh-CN' : 'en';
   }
   return 'en';
 }
@@ -2085,6 +2021,6 @@ function createSchedulerFactory(fabui) {
   return Scheduler;
 }
 
-global.fabui.Scheduler = createSchedulerFactory(global.fabui);
-global.fabui.Scheduler.version = "2026.7.27";
+global.fabui.Scheduler = global.fabui.registerLocaleTarget("Scheduler", createSchedulerFactory(global.fabui));
+global.fabui.Scheduler.version = "2026.7.30";
 }(typeof window !== "undefined" ? window : this));

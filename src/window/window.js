@@ -150,30 +150,18 @@ export function createWindowFactory(Control, registerControl, unregisterControl)
       minimize: 'Minimize',
       maximize: 'Maximize',
       restore: 'Restore'
-    },
-    'zh-TW': {
-      close: '關閉',
-      collapse: '收合',
-      expand: '展開',
-      minimize: '最小化',
-      maximize: '最大化',
-      restore: '還原'
-    },
-    'zh-CN': {
-      close: '关闭',
-      collapse: '收合',
-      expand: '展开',
-      minimize: '最小化',
-      maximize: '最大化',
-      restore: '还原'
     }
   };
 
   function normalizeLocale(value) {
     value = String(value || 'en').trim().replace(/_/g, '-');
     if (localePacks[value]) return value;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(value)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(value) || /^zh$/i.test(value)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 

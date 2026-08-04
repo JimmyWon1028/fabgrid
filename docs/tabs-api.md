@@ -58,7 +58,7 @@ Markup 可使用 `title`、`closable`／`data-closable`、`disabled`／`data-dis
 
 | Option | 預設值 | 說明 |
 | --- | --- | --- |
-| `title` | locale 未命名文字 | Tab 標題。 |
+| `title` | locale 未命名文字 | Tab 標題，可使用可信任的 HTML 字串。 |
 | `content` | `null` | HTML 字串或 DOM element。 |
 | `href` | `''` | 第一次選取時載入遠端內容。 |
 | `cache` | `true` | `false` 時每次選取重新載入。 |
@@ -71,6 +71,18 @@ Markup 可使用 `title`、`closable`／`data-closable`、`disabled`／`data-dis
 | `tabWidth` | `null` | 覆寫該頁籤寬度。 |
 | `tools` | `[]` | Tab strip mini tools array 或 selector。 |
 | `style` | `null` | 套用到 tab panel 的 inline style object。 |
+
+Tabs 會保留 `title` 的原始 HTML 字串供 API 與事件使用，並將標籤渲染在
+頁籤標題中。例如舊 ERP 表單可直接使用：
+
+```js
+{
+  title: '<span data-i18n="主資料"></span>'
+}
+```
+
+`title` 會以 HTML 插入頁面，只能傳入應用程式控制的可信任內容；關閉按鈕的
+無障礙名稱則使用渲染後的純文字。
 
 Header tool 與 tab tool descriptor 使用 `{ iconCls, text, title, ariaLabel, handler }` 或 `onClick`。Icon class 必須在 `src/fabui.icon.css` 定義。
 

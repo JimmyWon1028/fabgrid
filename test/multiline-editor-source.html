@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FabGrid Multiline Editor Source Test</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260727-multiline-v1">
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+    }
+
+    #grid {
+      width: 640px;
+      height: 180px;
+    }
+  </style>
+</head>
+<body>
+  <div id="grid"></div>
+  <script type="module">
+    import { fabui } from '../src/fabui.js?v=20260727-multiline-v1';
+
+    window.grid = new fabui.FabGrid('#grid', {
+      itemsSource: [
+        {
+          name: 'Alpha',
+          code: 'A-001',
+          notes: 'Line one',
+          status: 'Ready'
+        }
+      ],
+      columns: [
+        {
+          binding: 'name',
+          header: 'Name',
+          isReadOnly: true
+        },
+        {
+          binding: 'code',
+          header: 'Code'
+        },
+        {
+          binding: 'notes',
+          header: 'Notes',
+          multiLine: true,
+          width: 260
+        },
+        {
+          binding: 'status',
+          header: 'Status'
+        }
+      ]
+    });
+  </script>
+</body>
+</html>

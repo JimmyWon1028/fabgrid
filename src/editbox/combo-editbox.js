@@ -12,9 +12,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
   var editorDefinition = editorDefinitions.combo || editorDefinitions.combobox || null;
 
   var localePacks = {
-    en: { openListText: 'Open list' },
-    'zh-TW': { openListText: '開啟清單' },
-    'zh-CN': { openListText: '打开列表' }
+    en: { openListText: 'Open list' }
   };
 
   var comboDefaults = {
@@ -123,8 +121,12 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
   function normalizeLocale(name) {
     name = String(name || 'en').trim().replace(/_/g, '-');
     if (localePacks[name]) return name;
-    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) return 'zh-TW';
-    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) return 'zh-CN';
+    if (/^zh-(?:tw|hant)(?:-|$)/i.test(name)) {
+      return localePacks['zh-TW'] ? 'zh-TW' : 'en';
+    }
+    if (/^zh-(?:cn|hans)(?:-|$)/i.test(name) || /^zh$/i.test(name)) {
+      return localePacks['zh-CN'] ? 'zh-CN' : 'en';
+    }
     return 'en';
   }
 
@@ -457,6 +459,11 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
     } else {
       this.setValues(this._values);
     }
+  };
+
+  ComboBox.prototype.fix = function() {
+    this._fixInput();
+    return this;
   };
 
   ComboBox.prototype._renderPanel = function() {

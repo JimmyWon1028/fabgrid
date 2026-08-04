@@ -12,21 +12,11 @@ export function createTimeBoxFactory(TextBox, editorDefinitions) {
       increaseValueText: 'Increase value',
       decreaseValueText: 'Decrease value',
       invalidTimeText: 'Please enter a valid time.'
-    },
-    'zh-TW': {
-      increaseValueText: '增加數值',
-      decreaseValueText: '減少數值',
-      invalidTimeText: '請輸入有效時間。'
-    },
-    'zh-CN': {
-      increaseValueText: '增加数值',
-      decreaseValueText: '减少数值',
-      invalidTimeText: '请输入有效时间。'
     }
   };
   var timeDefaults = {
     mask: '99:99',
-    autoUnmask: true,
+    autoUnmask: false,
     spinner: false,
     iconWidth: 28,
     locale: 'en',
@@ -118,6 +108,7 @@ export function createTimeBoxFactory(TextBox, editorDefinitions) {
       cls: 'fui-timebox' + (options.cls ? ' ' + options.cls : ''),
       value: '',
       type: 'text',
+      charcase: '',
       multiline: false,
       onChange: null
     });

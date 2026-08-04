@@ -237,6 +237,14 @@
   cursor: default;
 }
 
+:root .fg-header-group-cell {
+  border-bottom: 1px dotted var(--fg-border);
+}
+
+:root .fg-header-group-title {
+  width: 100%;
+}
+
 :root .fg-root.fg-column-dragging .fg-header-cell {
   cursor: grabbing;
 }
@@ -644,7 +652,7 @@
   display: flex;
   align-items: center;
   overflow: hidden;
-  padding: 0 10px;
+  padding: 0 7px;
   border-right: 1px dotted var(--fg-border);
   background-color: #efefef;
   background-image: linear-gradient(rgba(255, 255, 255, 20%), rgb(0 0 0 / 6%));
@@ -1125,6 +1133,7 @@
 :root .fg-color-text {
   min-width: 0;
   overflow: hidden;
+  color: var(--fg-cell-text);
   text-overflow: ellipsis;
 }
 
@@ -1460,6 +1469,13 @@
   outline: none;
 }
 
+:root .fg-editor-multiline {
+  overflow: auto;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  resize: none;
+}
+
 :root .fg-editor-datebox,
 :root .fg-editor-combobox,
 :root .fg-editor-color,
@@ -1525,10 +1541,6 @@
 
 :root .fg-editor-trigger-combobox,
 :root .fg-editor-trigger-color {
-  background-image: none;
-}
-
-:root .fg-editor-trigger-custom {
   background-image: none;
 }
 

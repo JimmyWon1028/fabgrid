@@ -46,6 +46,15 @@ test('Panel default extractor returns body content when present', function() {
   );
 });
 
+test('Panel accepts multiple bodyCls class tokens', function() {
+  var source = readFileSync(new URL('../src/panel/panel.js', import.meta.url), 'utf8');
+  assert.match(source, /String\(this\.options\.bodyCls\)\.trim\(\)\.split\(\/\\s\+\/\)/);
+  assert.doesNotMatch(
+    source,
+    /classList\.add\(this\.options\.bodyCls\)/
+  );
+});
+
 test('Panel state changes use shared reduced-motion aware transitions', function() {
   var source = readFileSync(new URL('../src/panel/panel.js', import.meta.url), 'utf8');
   var css = readFileSync(new URL('../src/panel/panel.css', import.meta.url), 'utf8');

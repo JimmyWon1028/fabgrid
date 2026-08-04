@@ -55,7 +55,7 @@
   .fui-window-mask,
   .fui-messager-host,
   .fg-root
-) :is(
+) :where(
   [class^='fui-'],
   [class*=' fui-'],
   [class^='fg-'],

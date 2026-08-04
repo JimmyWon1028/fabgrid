@@ -576,7 +576,8 @@ const app = new Vue({
     handleInitialized: function (grid) {
       var self = this;
       this.grid = grid;
-      this.viewportHandler = function (args) {
+      this.viewportHandler = function (grid, args) {
+        args = args || grid;
         self.updateStats(args);
       };
       this.excelExportingHandler = function () {
@@ -944,7 +945,7 @@ function createColumns(count, openLookupPopup, locale) {
       minWidth: 72,
       align: "center",
       dataType: "string",
-      readOnly: true,
+      isReadOnly: true,
     },
     {
       binding: "name",
@@ -952,7 +953,7 @@ function createColumns(count, openLookupPopup, locale) {
       width: 88,
       minWidth: 88,
       dataType: "string",
-      readOnly: true,
+      isReadOnly: true,
     },
     {
       binding: "dlvno",
@@ -979,7 +980,7 @@ function createColumns(count, openLookupPopup, locale) {
       minWidth: 56,
       align: "center",
       dataType: "string",
-      readOnly: true,
+      isReadOnly: true,
     },
     {
       binding: "date",
@@ -1032,7 +1033,7 @@ function createColumns(count, openLookupPopup, locale) {
       width: 112,
       minWidth: 92,
       dataType: "string",
-      editor: { type: "color", showAlpha: true },
+      editor: { type: "color" },
     },
     {
       binding: "dlvdt",

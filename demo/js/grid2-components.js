@@ -498,6 +498,7 @@ export function createGrid2FabuiDemo(fabui) {
   createCheckBox("remoteInput", "remoteLabel");
   createCheckBox("multiSelectInput", "multiSelectLabel");
   createCheckBox("editModeInput", "editModeLabel");
+  createCheckBox("editOnSelectInput", "editOnSelectLabel");
   createCheckBox("selectionRangeInput", "selectionRangeLabel");
 
   function syncFullscreenState() {

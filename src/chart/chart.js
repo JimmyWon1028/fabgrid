@@ -56,9 +56,7 @@ export function createChartFactory() {
     'rgba(250, 220, 140, .72)'
   ];
   var DEFAULT_MESSAGES = {
-    en: { emptyText: 'No data', value: 'Value', percent: 'Percent' },
-    'zh-TW': { emptyText: '沒有資料', value: '數值', percent: '百分比' },
-    'zh-CN': { emptyText: '没有数据', value: '数值', percent: '百分比' }
+    en: { emptyText: 'No data', value: 'Value', percent: 'Percent' }
   };
 
   function Chart(element, options) {
@@ -614,8 +612,10 @@ export function createChartFactory() {
     return { categories: categories, series: series, pieLegend: [] };
   }
   function resolveChartLocale(value) {
+    var normalized;
     value = String(value || 'en').trim().replace(/_/g, '-');
-    return DEFAULT_MESSAGES[value] ? value : normalizeChartLocale(value);
+    normalized = DEFAULT_MESSAGES[value] ? value : normalizeChartLocale(value);
+    return DEFAULT_MESSAGES[normalized] ? normalized : 'en';
   }
   function getBoundValue(item, binding) {
     var key;

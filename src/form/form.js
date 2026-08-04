@@ -230,32 +230,6 @@ export function createFormFactory(Control, registerControl, unregisterControl, E
       stepMismatch: 'Please enter a valid value.',
       badInput: 'Please enter a valid value.',
       invalid: 'Please enter a valid value.'
-    },
-    'zh-TW': {
-      valueMissing: '此欄位為必填。',
-      typeMismatchEmail: '請輸入有效的電子郵件地址。',
-      typeMismatchURL: '請輸入有效的網址。',
-      patternMismatch: '請依照要求的格式輸入。',
-      tooShort: '請至少輸入 {minLength} 個字元。',
-      tooLong: '請勿超過 {maxLength} 個字元。',
-      rangeUnderflow: '請輸入大於或等於 {min} 的值。',
-      rangeOverflow: '請輸入小於或等於 {max} 的值。',
-      stepMismatch: '請輸入有效值。',
-      badInput: '請輸入有效值。',
-      invalid: '請輸入有效值。'
-    },
-    'zh-CN': {
-      valueMissing: '此字段为必填项。',
-      typeMismatchEmail: '请输入有效的电子邮件地址。',
-      typeMismatchURL: '请输入有效的网址。',
-      patternMismatch: '请按照要求的格式输入。',
-      tooShort: '请至少输入 {minLength} 个字符。',
-      tooLong: '请勿超过 {maxLength} 个字符。',
-      rangeUnderflow: '请输入大于或等于 {min} 的值。',
-      rangeOverflow: '请输入小于或等于 {max} 的值。',
-      stepMismatch: '请输入有效值。',
-      badInput: '请输入有效值。',
-      invalid: '请输入有效值。'
     }
   };
 

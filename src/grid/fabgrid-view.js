@@ -218,25 +218,43 @@ export function installFabGridView(FabGrid, context) {
 
   FabGrid.prototype.updateLayout = function() {
     var i;
+    var j;
     var left = 0;
     var visibleColumns = [];
+    var groups = this._columnHeaderGroups || [];
+    var group;
+    var leaf;
     var frozenCount;
     var frozenRightCount;
+    var frozenSourceEnd;
+    var frozenRightSourceStart;
 
+    if (this.emit('updatingLayout', {}) === false) {
+      return false;
+    }
     normalizeGridOptions(this.options);
     this.options.stopNavigation = this._stopNavigation === true;
-    this.emit('updatingLayout', {});
+    frozenSourceEnd = Math.min(
+      normalizeNonNegativeInteger(this.options.frozenColumns, 0),
+      this.columns.length
+    );
+    frozenRightSourceStart = Math.max(
+      frozenSourceEnd,
+      this.columns.length - normalizeNonNegativeInteger(this.options.frozenRightColumns, 0)
+    );
+    frozenCount = 0;
+    frozenRightCount = 0;
     for (i = 0; i < this.columns.length; i += 1) {
       if (this.columns[i].visible !== false) {
         visibleColumns.push(this.columns[i]);
+        if (i < frozenSourceEnd) {
+          frozenCount += 1;
+        } else if (i >= frozenRightSourceStart) {
+          frozenRightCount += 1;
+        }
       }
     }
     this.visibleColumns = visibleColumns;
-    frozenCount = Math.min(normalizeNonNegativeInteger(this.options.frozenColumns, 0), visibleColumns.length);
-    frozenRightCount = Math.min(
-      normalizeNonNegativeInteger(this.options.frozenRightColumns, 0),
-      Math.max(0, visibleColumns.length - frozenCount)
-    );
     this._frozenColumns = frozenCount;
     this._frozenRightColumns = frozenRightCount;
     this.columnOffsets = [];
@@ -248,6 +266,31 @@ export function installFabGridView(FabGrid, context) {
       left += visibleColumns[i]._width;
     }
 
+    this._visibleColumnHeaderDepth = 1;
+    for (i = 0; i < visibleColumns.length; i += 1) {
+      this._visibleColumnHeaderDepth = Math.max(
+        this._visibleColumnHeaderDepth,
+        toNumber(visibleColumns[i]._headerDepth, 0) + 1
+      );
+    }
+    for (i = 0; i < groups.length; i += 1) {
+      group = groups[i];
+      group._visibleViewStart = -1;
+      group._visibleViewEnd = -1;
+      for (j = 0; j < group._leaves.length; j += 1) {
+        leaf = group._leaves[j];
+        if (leaf.visible === false || leaf._viewIndex == null) {
+          continue;
+        }
+        if (group._visibleViewStart < 0 || leaf._viewIndex < group._visibleViewStart) {
+          group._visibleViewStart = leaf._viewIndex;
+        }
+        if (leaf._viewIndex > group._visibleViewEnd) {
+          group._visibleViewEnd = leaf._viewIndex;
+        }
+      }
+    }
+
     this.totalWidth = left;
     this.scrollableColumnEnd = Math.max(frozenCount, visibleColumns.length - frozenRightCount);
     this.frozenWidth = frozenCount > 0 ? visibleColumns[frozenCount - 1]._left + visibleColumns[frozenCount - 1]._width : 0;
@@ -255,7 +298,11 @@ export function installFabGridView(FabGrid, context) {
     this.frozenRightWidth = frozenRightCount > 0 ? this.totalWidth - this.frozenRightStartLeft : 0;
     this.scrollableWidth = Math.max(0, this.totalWidth - this.frozenWidth - this.frozenRightWidth);
     this._layoutReadyForRender = true;
+    if (typeof this.refreshInvalidItemRows === 'function') {
+      this.refreshInvalidItemRows();
+    }
     this.emit('updatedLayout', {});
+    return true;
   };
 
   FabGrid.prototype.resetScroll = function() {
@@ -273,6 +320,10 @@ export function installFabGridView(FabGrid, context) {
 
   FabGrid.prototype.scheduleRender = function() {
     var self = this;
+    if (this.isUpdating) {
+      this._updatePendingInvalidate = true;
+      return;
+    }
     if (this.raf || this.disposed) {
       return;
     }
@@ -398,6 +449,28 @@ export function installFabGridView(FabGrid, context) {
     this.frozenRightLayer.style.transform = '';
     this.rowHeaderLayer.style.transform = '';
     this.selectionLayer.style.transform = '';
+  };
+
+  FabGrid.prototype.reconcileVerticalScrollAfterContentResize = function(metrics, totalHeight) {
+    var maxScrollTop;
+    var scrollTop;
+    if (!this.bodyScroll || !metrics) {
+      return false;
+    }
+    maxScrollTop = Math.max(
+      0,
+      toNumber(totalHeight, 0) - Math.max(0, toNumber(metrics.contentHeight, 0))
+    );
+    scrollTop = Math.min(this.bodyScroll.scrollTop, maxScrollTop);
+    if (scrollTop !== this.bodyScroll.scrollTop) {
+      this.bodyScroll.scrollTop = scrollTop;
+    }
+    if (scrollTop === metrics.scrollTop) {
+      return false;
+    }
+    metrics.scrollTop = scrollTop;
+    this.resetFixedPaneScrollOffset();
+    return true;
   };
 
   FabGrid.prototype.updateVerticalScrollbar = function(metrics, totalHeight, bodyPaneBottom) {
@@ -756,24 +829,36 @@ export function installFabGridView(FabGrid, context) {
     var headerHeight;
     var paginationHeight;
     var renderStaticColumns;
+    var sizeLayerHeight;
+    var contentHeightChanged;
 
     if (this.disposed) {
       return;
     }
+    if (this.isUpdating) {
+      this._updatePendingRender = true;
+      if (skipLayout !== true) {
+        this._updatePendingSkipLayout = false;
+      }
+      return;
+    }
 
-    this.captureActiveHeaderSearchFocus();
     if (this.emit('updatingView', {}) === false) {
       return;
     }
-    this.resetFixedPaneScrollOffset();
     if (skipLayout === true) {
       this._layoutReadyForRender = false;
     } else if (this._layoutReadyForRender) {
       this._layoutReadyForRender = false;
     } else {
-      this.updateLayout();
+      if (this.updateLayout() === false) {
+        this._layoutReadyForRender = false;
+        return false;
+      }
       this._layoutReadyForRender = false;
     }
+    this.captureActiveHeaderSearchFocus();
+    this.resetFixedPaneScrollOffset();
     this.syncHeaderLayout();
     footerHeight = this.getFooterHeight();
     paginationHeight = this.getPaginationHeight();
@@ -811,7 +896,14 @@ export function installFabGridView(FabGrid, context) {
       this.scrollableWidth,
       this.frozenRightWidth
     ) + 'px';
-    this.sizeLayer.style.height = (totalHeight + footerHeight) + 'px';
+    sizeLayerHeight = (totalHeight + footerHeight) + 'px';
+    contentHeightChanged = this.sizeLayer.style.height !== sizeLayerHeight;
+    this.sizeLayer.style.height = sizeLayerHeight;
+    // Clamp before the browser dispatches its delayed scroll event after resizing.
+    if (contentHeightChanged && this.reconcileVerticalScrollAfterContentResize(metrics, totalHeight)) {
+      rowRange = this.getRowRange(metrics);
+      this.rowRange = rowRange;
+    }
     this.rowHeaderTop.style.width = rowHeaderWidth + 'px';
     this.rowHeaderTop.style.height = this.getHeaderHeight() + 'px';
     this.rowHeaderTop.style.display = rowHeaderWidth > 0 ? 'flex' : 'none';
@@ -918,6 +1010,7 @@ export function installFabGridView(FabGrid, context) {
       totalRows: this.view.length
     });
     this.restoreHeaderSearchFocus();
+    return true;
   };
 
   FabGrid.prototype.getViewportMetrics = function() {
@@ -1230,6 +1323,22 @@ export function installFabGridView(FabGrid, context) {
     this.headerFrozenRight.innerHTML = '';
     this.headerCanvas.innerHTML = '';
 
+    this.renderHeaderGroups(frozenFragment, 0, this.frozenColumns, 0, 'left');
+    this.renderHeaderGroups(
+      scrollFragment,
+      this.frozenColumns,
+      this.scrollableColumnEnd,
+      this.frozenWidth,
+      'scroll'
+    );
+    this.renderHeaderGroups(
+      frozenRightFragment,
+      this.scrollableColumnEnd,
+      this.visibleColumns.length,
+      this.frozenRightStartLeft,
+      'right'
+    );
+
     for (i = 0; i < this.frozenColumns; i += 1) {
       col = this.visibleColumns[i];
       frozenFragment.appendChild(this.createHeaderCell(col, col._left, 'left', textMeasureContext));
@@ -1253,6 +1362,72 @@ export function installFabGridView(FabGrid, context) {
     this.headerFrozen.appendChild(frozenFragment);
     this.headerFrozenRight.appendChild(frozenRightFragment);
     this.headerCanvas.appendChild(scrollFragment);
+  };
+
+  FabGrid.prototype.renderHeaderGroups = function(fragment, paneStart, paneEnd, paneOffset, pane) {
+    var groups = this._columnHeaderGroups || [];
+    var group;
+    var start;
+    var end;
+    var first;
+    var last;
+    var i;
+    if (paneStart >= paneEnd) {
+      return;
+    }
+    for (i = 0; i < groups.length; i += 1) {
+      group = groups[i];
+      start = Math.max(paneStart, group._visibleViewStart);
+      end = Math.min(paneEnd - 1, group._visibleViewEnd);
+      if (start < 0 || end < start) {
+        continue;
+      }
+      first = this.visibleColumns[start];
+      last = this.visibleColumns[end];
+      fragment.appendChild(this.createHeaderGroupCell(
+        group,
+        first._left - paneOffset,
+        last._left + last._width - first._left,
+        pane,
+        start,
+        end
+      ));
+    }
+  };
+
+  FabGrid.prototype.createHeaderGroupCell = function(group, left, width, pane, viewStart, viewEnd) {
+    var cell = document.createElement('div');
+    var title = document.createElement('span');
+    var label = document.createElement('span');
+    var firstColumn = this.visibleColumns[viewStart];
+    var lastColumn = this.visibleColumns[viewEnd];
+    var headerText = group.header == null ? '' : String(group.header);
+    cell.className = 'fg-header-cell fg-header-group-cell';
+    this.decorateFrozenDividerCell(
+      cell,
+      pane === 'right' ? viewStart : viewEnd,
+      pane
+    );
+    if (group.align) {
+      cell.className += ' fg-header-align-' + group.align;
+    }
+    cell.style.left = left + 'px';
+    cell.style.top = toNumber(group._headerDepth, 0) * this.getHeaderRowHeight() + 'px';
+    cell.style.width = width + 'px';
+    cell.style.height = this.getHeaderRowHeight() + 'px';
+    cell.setAttribute('data-header-row', toNumber(group._headerDepth, 0));
+    cell.setAttribute('data-view-col-start', viewStart);
+    cell.setAttribute('data-view-col-end', viewEnd);
+    cell.setAttribute('data-col-start', firstColumn ? firstColumn._index : -1);
+    cell.setAttribute('data-col-end', lastColumn ? lastColumn._index : -1);
+    cell.setAttribute('data-frozen', pane === 'left' || pane === 'right' ? '1' : '0');
+    title.className = 'fg-header-title fg-header-group-title';
+    title.style.height = this.getHeaderRowHeight() + 'px';
+    label.className = 'fg-header-label';
+    label.textContent = headerText;
+    title.appendChild(label);
+    cell.appendChild(title);
+    return cell;
   };
 
   FabGrid.prototype.renderVisibleRows = function() {
@@ -1512,6 +1687,8 @@ export function installFabGridView(FabGrid, context) {
     var headerText = this.getHeaderCellText(column);
     var headerTextWidth;
     var headerContentWidth;
+    var headerDepth = toNumber(column._headerDepth, 0);
+    var titleHeight = this.getColumnHeaderTitleHeight(column);
 
     cell.className = 'fg-header-cell';
     this.decorateFrozenDividerCell(cell, column._viewIndex, frozen || 'scroll');
@@ -1519,9 +1696,12 @@ export function installFabGridView(FabGrid, context) {
       cell.className += ' fg-header-align-' + column.align;
     }
     cell.style.left = left + 'px';
+    cell.style.top = headerDepth * this.getHeaderRowHeight() + 'px';
     cell.style.width = column._width + 'px';
-    cell.style.height = this.getHeaderHeight() + 'px';
+    cell.style.height = titleHeight + this.getSearchRowHeight() + 'px';
     cell.setAttribute('data-col', column._viewIndex);
+    cell.setAttribute('data-header-row', headerDepth);
+    cell.setAttribute('data-header-title-height', titleHeight);
     cell.setAttribute('data-frozen', frozen ? '1' : '0');
     title.className = 'fg-header-title' +
       (getActiveFilterMode(this.options) ? ' fg-header-title-filterable' : '') +
@@ -1536,7 +1716,7 @@ export function installFabGridView(FabGrid, context) {
         }
       }
     }
-    title.style.height = this.getHeaderTitleHeight() + 'px';
+    title.style.height = titleHeight + 'px';
     label.className = 'fg-header-label';
     label.textContent = headerText;
     sortWrap.className = 'fg-sort-wrap' + (sortDirection ? '' : ' fg-sort-wrap-none');
@@ -1909,6 +2089,9 @@ export function installFabGridView(FabGrid, context) {
     }
     if (column.align) {
       cell.className += ' fg-align-' + column.align;
+    }
+    if (column.cssClass) {
+      cell.className = trimText(cell.className + ' ' + trimText(column.cssClass));
     }
     if (column.color) {
       cell.style.color = column.color;

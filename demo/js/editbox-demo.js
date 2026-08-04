@@ -140,8 +140,7 @@
     boxes.color = new fabui.EditBox('#edit-color', {
       editor: 'color',
       width: 280,
-      locale: 'zh-TW',
-      showAlpha: true
+      locale: 'zh-TW'
     });
 
     render = function() {

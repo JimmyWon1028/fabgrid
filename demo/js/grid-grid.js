@@ -31,8 +31,9 @@
     rightCount.textContent = rightGrid.source.length + ' 筆';
   }
 
-  function handleDraggedRow(event) {
+  function handleDraggedRow(sender, event) {
     var targetText;
+    event = event || sender;
     if (event.role === 'source') {
       return;
     }

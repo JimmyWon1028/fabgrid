@@ -236,61 +236,13 @@ test('Diagram exposes the documented overview defaults', function() {
   });
 });
 
-test('Diagram publishes complete locales and all themes', function() {
-  assert.deepEqual(Object.keys(fabui.Diagram.locales), ['en', 'zh-TW', 'zh-CN']);
-  assert.deepEqual(
-    Object.keys(fabui.Diagram.locales['zh-TW']),
-    Object.keys(fabui.Diagram.locales.en)
-  );
-  assert.deepEqual(
-    Object.keys(fabui.Diagram.locales['zh-CN']),
-    Object.keys(fabui.Diagram.locales.en)
-  );
-  assert.equal(fabui.Diagram.locales['zh-TW'].toolbox, '工具箱');
-  assert.equal(fabui.Diagram.locales['zh-TW'].resizeToolbox, '調整工具箱寬度');
-  assert.equal(
-    fabui.Diagram.locales['zh-TW'].dragToolbox,
-    '拖曳以浮動或停靠工具箱'
-  );
-  assert.equal(
-    fabui.Diagram.locales['zh-TW'].dragProperties,
-    '拖曳以浮動或停靠屬性'
-  );
-  assert.equal(fabui.Diagram.locales['zh-TW'].clearPage, '清除頁面');
-  assert.equal(fabui.Diagram.locales['zh-TW'].downloadJson, '下載');
-  assert.equal(fabui.Diagram.locales['zh-TW'].loadJson, '載入');
-  assert.equal(fabui.Diagram.locales['zh-TW'].readOnly, '唯讀');
-  assert.equal(fabui.Diagram.locales['zh-TW'].hyperlink, '超連結');
-  assert.equal(fabui.Diagram.locales['zh-TW'].hyperlinkTrigger, '觸發方式');
-  assert.equal(fabui.Diagram.locales['zh-TW'].hyperlinkSingleClick, '單擊觸發');
-  assert.equal(fabui.Diagram.locales['zh-TW'].hyperlinkDoubleClick, '雙擊觸發');
+test('Diagram core publishes English locale and all themes', function() {
+  assert.deepEqual(Object.keys(fabui.Diagram.locales), ['en']);
   assert.equal(fabui.Diagram.locales.en.fontSize, 'Font size');
-  assert.equal(fabui.Diagram.locales['zh-TW'].textStyle, '文字樣式');
-  assert.equal(fabui.Diagram.locales['zh-TW'].strikethrough, '刪除線');
-  assert.equal(fabui.Diagram.locales['zh-CN'].underline, '下划线');
   assert.equal(fabui.Diagram.locales.en.fit, 'Fit');
-  assert.equal(fabui.Diagram.locales['zh-TW'].fit, '符合');
-  assert.equal(fabui.Diagram.locales['zh-CN'].fit, '适合');
-  assert.equal(fabui.Diagram.locales['zh-TW'].presentation, '投影片展示');
-  assert.equal(
-    fabui.Diagram.locales['zh-TW'].exitPresentation,
-    '離開投影片展示'
-  );
-  assert.equal(fabui.Diagram.locales['zh-TW'].dfdDataFlow, '資料流');
   assert.equal(fabui.Diagram.locales.en.dfdSCurve, 'S Curve');
-  assert.equal(fabui.Diagram.locales['zh-TW'].dfdSCurve, 'S 弧線');
-  assert.equal(fabui.Diagram.locales['zh-CN'].dfdSCurve, 'S 弧线');
   assert.equal(fabui.Diagram.locales.en.connectStraight, 'Straight connector');
-  assert.equal(fabui.Diagram.locales['zh-TW'].connectOrthogonal, '直角線');
-  assert.equal(fabui.Diagram.locales['zh-CN'].connectCurved, '弧线');
-  assert.equal(fabui.Diagram.locales['zh-TW'].connectSCurve, 'S 線');
-  assert.equal(fabui.Diagram.locales['zh-TW'].orgChart, '組織圖');
-  assert.equal(fabui.Diagram.locales['zh-TW'].arrowDirection, '箭頭');
-  assert.equal(fabui.Diagram.locales['zh-TW'].arrowBoth, '雙向箭頭');
   assert.equal(fabui.Diagram.locales.en.snapSize, 'Snap Size');
-  assert.equal(fabui.Diagram.locales['zh-TW'].snapSize, '吸附間距');
-  assert.equal(fabui.Diagram.locales['zh-CN'].snapSize, '吸附间距');
-  assert.equal(fabui.Diagram.locales['zh-CN'].properties, '属性');
   assert.equal(fabui.Diagram.themes.length, 17);
   assert.equal(normalizeDiagramTheme('pepper'), 'pepper-grinder');
   assert.equal(normalizeDiagramTheme(' BLACK '), 'black');
@@ -1786,8 +1738,6 @@ test('Diagram source composes FabUI controls and manages pointer listeners by in
   assert.match(source, /state\.dockTab = this\._sameSideDockTab/);
   assert.match(source, /state\.dockMode = this\.options\.sameSideDockMode/);
   assert.match(source, /snapSize: 'Snap Size'/);
-  assert.match(source, /snapSize: '吸附間距'/);
-  assert.match(source, /snapSize: '吸附间距'/);
   assert.match(
     source,
     /this\._paperPropertyField\([\s\S]*this\.messages\.snapSize,[\s\S]*'gridSize',[\s\S]*'number'/
@@ -2035,7 +1985,7 @@ test('Diagram is wired into future browser and CSS builds', function() {
   assert.doesNotMatch(build, /global\.fabui\.Diagram/);
   assert.match(
     diagramBuild,
-    /global\.fabui\.Diagram = createDiagramFactory/
+    /global\.fabui\.Diagram = global\.fabui\.registerLocaleTarget\("Diagram", createDiagramFactory/
   );
   assert.match(diagramBuild, /Load fabui\.js before fabui\.diagram\.js\./);
   assert.doesNotMatch(diagramBuild, /global\.fabui\.Window/);

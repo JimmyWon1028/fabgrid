@@ -637,10 +637,11 @@ export function installFabGridTree(FabGrid, context) {
     }
     this.clampSelection();
     this.render();
-    args.row = nextRow;
-    args.rowIndex = nextRow;
-    args.collapsed = this.isTreeItemCollapsed(item);
-    this.emit('groupCollapsedChanged', args);
+    this.emit('groupCollapsedChanged', Object.assign({}, args, {
+      row: nextRow,
+      rowIndex: nextRow,
+      collapsed: this.isTreeItemCollapsed(item)
+    }));
     return true;
   };
 

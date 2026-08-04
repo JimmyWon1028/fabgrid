@@ -1,5 +1,5 @@
 // Grid demo entry.
-(function () {
+(async function () {
   "use strict";
 
   // ---------------------------------------------------------------------------
@@ -19,7 +19,13 @@
     throw new Error("FabGrid demo toolbar is not loaded.");
   }
   var DEMO_QUERY = window.FabGridDemoQuery;
+  var DEMO_LOCALE_BASE_URL = new URL(
+    window.FABUI_DEMO_LOCALE_BASE_URL || "../src/locales/",
+    document.baseURI
+  ).href;
+  var loadedFabuiLocales = {};
   var DEMO_COLUMN_COUNT = window.FabGridDemoData.columnCount;
+  var DEMO_HEADER_GROUPS = window.FABGRID_DEMO_HEADER_GROUPS === true;
   var DEMO_ROW_HEADER_WIDTH = 50;
   var DEMO_SETTINGS_KEY =
     window.FABGRID_DEMO_SETTINGS_KEY ||
@@ -37,6 +43,7 @@
     rowGroupMode: "none",
     multiSelectRows: false,
     editMode: false,
+    editOnSelect: false,
     selectionMode: "Cell",
   };
   var DEMO_LOCALES = window.FabGridDemoLocales;
@@ -91,6 +98,9 @@
     ],
   };
   var rows = window.FabGridDemoData.rows;
+  if (DEMO_HEADER_GROUPS) {
+    addSpecificationValues(rows);
+  }
   var columns = createColumns(DEMO_COLUMN_COUNT);
   var gridShell = document.querySelector(".grid-shell");
   var fullscreenButton = document.getElementById("fullscreenButton");
@@ -114,7 +124,8 @@
     remote: document.getElementById("remoteInput"),
     groupRows: document.getElementById("groupRowsInput"),
     multiSelect: document.getElementById("multiSelectInput"),
-    editMode: document.getElementById("editModeInput"),
+    editing: document.getElementById("editModeInput"),
+    editMode: document.getElementById("editOnSelectInput"),
     selectionRange: document.getElementById("selectionRangeInput"),
     demoFilter: document.getElementById("demoFilterInput"),
     demoFilterMode: document.getElementById("demoFilterMode"),
@@ -131,7 +142,8 @@
     remote: document.getElementById("remoteLabel"),
     groupRows: document.getElementById("groupRowsLabel"),
     multiSelect: document.getElementById("multiSelectLabel"),
-    editMode: document.getElementById("editModeLabel"),
+    editing: document.getElementById("editModeLabel"),
+    editMode: document.getElementById("editOnSelectLabel"),
     selectionRange: document.getElementById("selectionRangeLabel"),
     demoResultCount: document.getElementById("demoResultCount"),
     demoFilter: document.getElementById("demoFilterLabel"),
@@ -161,10 +173,11 @@
   // Application bootstrap
   // ---------------------------------------------------------------------------
 
-  function initializeDemo() {
+  async function initializeDemo() {
     populateThemeOptions();
 
     demoSettings = loadDemoSettings();
+    await loadFabuiLocale(demoSettings.locale);
     applyDemoSettingsToControls(demoSettings);
     applyDemoLocale(demoSettings.locale);
     applyColumnHeaderLocale(columns, demoSettings.locale);
@@ -223,7 +236,7 @@
       allowSorting: true,
       allowDragging: "Columns",
       allowEditing: settings.editMode,
-      editOnSelect: settings.editMode,
+      editOnSelect: settings.editMode && settings.editOnSelect,
       allowResizing: true,
       alternatingRowStep: 1,
       headerToggleKey: "f4",
@@ -275,20 +288,24 @@
 
   // Keep grid events separate from toolbar DOM events for easier maintenance.
   function bindGridEvents() {
-    grid.on("viewportChanged", updateViewportStats);
+    grid.on("viewportChanged", function (sender, event) {
+      updateViewportStats(event || sender);
+    });
     grid.on("searchCleared", function () {
       setDemoFilterValue("");
       grid.setFilter(null);
       saveCurrentDemoSettings();
     });
-    grid.on("filterModeChanged", function (event) {
+    grid.on("filterModeChanged", function (sender, event) {
+      event = event || sender;
       demoSettings.filterMode = event.filterMode === false
         ? false
         : event.filterMode.slice();
       controls.filtering.checked = event.filterMode !== false;
       saveCurrentDemoSettings();
     });
-    grid.on("rowHeaderModeChanged", function (event) {
+    grid.on("rowHeaderModeChanged", function (sender, event) {
+      event = event || sender;
       controls.rowHeaders.value =
         event.mode === true ? "true" : event.mode === "cell" ? "cell" : "false";
       saveCurrentDemoSettings();
@@ -366,10 +383,25 @@
       grid.setMultiSelectRows(event.target.checked);
       saveCurrentDemoSettings();
     });
-    controls.editMode.addEventListener("change", function (event) {
-      grid.setEditMode(event.target.checked);
+    controls.editing.addEventListener("change", function (event) {
+      grid.isReadOnly = !event.target.checked;
+      if (!event.target.checked && controls.editMode) {
+        controls.editMode.checked = false;
+      }
       saveCurrentDemoSettings();
     });
+    if (controls.editMode) {
+      controls.editMode.addEventListener("change", function (event) {
+        if (event.target.checked) {
+          controls.editing.checked = true;
+          grid.setEditMode(true);
+        } else {
+          grid.setEditMode(false);
+          grid.isReadOnly = !controls.editing.checked;
+        }
+        saveCurrentDemoSettings();
+      });
+    }
     if (controls.selectionRange) {
       controls.selectionRange.addEventListener("change", function (event) {
         grid.selectionMode = event.target.checked ? "CellRange" : "Cell";
@@ -464,17 +496,38 @@
     labels.fullscreen.setAttribute("aria-pressed", active ? "true" : "false");
   }
 
-  function handleLanguageChange(event) {
+  async function handleLanguageChange(event) {
     var locale = normalizeLocaleSetting(
       event.target.value,
       DEFAULT_DEMO_SETTINGS.locale
     );
-    grid.setLocale(locale);
+    if (!await loadFabuiLocale(locale) && grid && grid.setLocale) {
+      grid.setLocale(locale);
+    }
     applyDemoLocale(locale);
     applyGridColumnHeaderLocale(grid, locale);
     refreshDemoRowGroups();
     saveCurrentDemoSettings();
     refreshViewportStats();
+  }
+
+  async function loadFabuiLocale(locale) {
+    locale = normalizeLocaleSetting(locale, "en");
+    if (typeof fabui.setLocale !== "function") {
+      return false;
+    }
+    if (!loadedFabuiLocales[locale]) {
+      await import(
+        DEMO_LOCALE_BASE_URL +
+          "fabui-locale." +
+          locale +
+          ".js?v=20260728-complete-en-locale-v3"
+      );
+      loadedFabuiLocales[locale] = true;
+      return true;
+    }
+    fabui.setLocale(locale);
+    return true;
   }
 
   function handleDataModeChange() {
@@ -504,7 +557,7 @@
         minWidth: 72,
         align: "center",
         dataType: "string",
-        readOnly: true,
+        isReadOnly: true,
       },
       {
         binding: "name",
@@ -512,7 +565,7 @@
         width: 88,
         minWidth: 88,
         dataType: "string",
-        readOnly: true,
+        isReadOnly: true,
       },
       {
         binding: "dlvno",
@@ -544,7 +597,7 @@
         minWidth: 56,
         align: "center",
         dataType: "string",
-        readOnly: true,
+        isReadOnly: true,
       },
       {
         binding: "date",
@@ -552,9 +605,6 @@
         width: 113.5,
         minWidth: 92,
         dataType: "date",
-        editor: {
-          type: "date",
-        },
         mask: "9999-99-99",
       },
       {
@@ -610,7 +660,6 @@
         dataType: "string",
         editor: {
           type: "color",
-          showAlpha: true,
         },
       },
       {
@@ -619,7 +668,6 @@
         width: 120,
         dataType: "string",
         editor: "date",
-        readOnly: false,
         mask: "9999/99/99",
         autoUnmask: true,
       },
@@ -718,7 +766,45 @@
       },
     ];
     var i;
-    for (i = columns.length + 1; i <= count; i += 1) {
+    var leafCount;
+    if (DEMO_HEADER_GROUPS) {
+      columns.splice(2, 0, {
+        headerKey: "specification",
+        header: "規格",
+        align: "center",
+        columns: [
+          {
+            binding: "w",
+            width: 45,
+            header: "寬",
+            isRequired: false,
+            align: "right",
+            dataType: "number",
+            cssClass: "demo-spec-dimension-cell",
+          },
+          {
+            binding: "h",
+            width: 45,
+            header: "高",
+            isRequired: false,
+            align: "right",
+            dataType: "number",
+            cssClass: "demo-spec-dimension-cell",
+          },
+          {
+            binding: "l",
+            width: 45,
+            header: "深",
+            isRequired: false,
+            align: "right",
+            dataType: "number",
+            cssClass: "demo-spec-dimension-cell",
+          },
+        ],
+      });
+    }
+    leafCount = getDemoLeafColumns(columns).length;
+    for (i = leafCount + 1; i <= count; i += 1) {
       columns.push({
         binding: "col" + pad(i),
         header: "欄位 " + i,
@@ -730,6 +816,35 @@
       });
     }
     return columns;
+  }
+
+  function addSpecificationValues(targetRows) {
+    var i;
+    var row;
+    for (i = 0; i < targetRows.length; i += 1) {
+      row = targetRows[i];
+      row.w = 1134 + ((i * 37) % 500);
+      row.h = 266 + ((i * 13) % 120);
+      row.l = 172 + ((i * 17) % 90);
+    }
+  }
+
+  function getDemoLeafColumns(targetColumns) {
+    var result = [];
+    var i;
+    var column;
+    if (!targetColumns) {
+      return result;
+    }
+    for (i = 0; i < targetColumns.length; i += 1) {
+      column = targetColumns[i];
+      if (column && Array.isArray(column.columns)) {
+        result = result.concat(getDemoLeafColumns(column.columns));
+      } else if (column) {
+        result.push(column);
+      }
+    }
+    return result;
   }
 
   function pad(value) {
@@ -1137,7 +1252,10 @@
         ? controls.groupRows.value
         : DEFAULT_DEMO_SETTINGS.rowGroupMode,
       multiSelectRows: controls.multiSelect.checked,
-      editMode: controls.editMode.checked,
+      editMode: controls.editing.checked,
+      editOnSelect: controls.editMode
+        ? controls.editMode.checked
+        : DEFAULT_DEMO_SETTINGS.editOnSelect,
       selectionMode: controls.selectionRange
         ? grid.selectionMode
         : demoSettings.selectionMode,
@@ -1176,7 +1294,10 @@
       controls.groupRows.value = settings.rowGroupMode;
     }
     controls.multiSelect.checked = settings.multiSelectRows;
-    controls.editMode.checked = settings.editMode;
+    controls.editing.checked = settings.editMode;
+    if (controls.editMode) {
+      controls.editMode.checked = settings.editMode && settings.editOnSelect;
+    }
     if (controls.selectionRange) {
       controls.selectionRange.checked = settings.selectionMode === "CellRange";
     }
@@ -1232,6 +1353,15 @@
         settings.editMode,
         DEFAULT_DEMO_SETTINGS.editMode
       ),
+      editOnSelect:
+        normalizeBooleanSetting(
+          settings.editMode,
+          DEFAULT_DEMO_SETTINGS.editMode
+        ) &&
+        normalizeBooleanSetting(
+          settings.editOnSelect,
+          DEFAULT_DEMO_SETTINGS.editOnSelect
+        ),
       selectionMode: normalizeSelectionModeSetting(
         settings.selectionMode,
         DEFAULT_DEMO_SETTINGS.selectionMode
@@ -1469,10 +1599,11 @@
   }
 
   function getDemoColumnHeader(binding) {
+    var leafColumns = getDemoLeafColumns(columns);
     var i;
-    for (i = 0; i < columns.length; i += 1) {
-      if (columns[i].binding === binding) {
-        return columns[i].header;
+    for (i = 0; i < leafColumns.length; i += 1) {
+      if (leafColumns[i].binding === binding) {
+        return leafColumns[i].header;
       }
     }
     return String(binding);
@@ -1549,7 +1680,10 @@
     }
     updateGroupRowsOptions();
     labels.multiSelect.textContent = getDemoText("multiSelect");
-    labels.editMode.textContent = getDemoText("editMode");
+    labels.editing.textContent = getDemoText("editMode");
+    if (labels.editMode) {
+      labels.editMode.textContent = getDemoText("editOnSelect");
+    }
     if (labels.selectionRange) {
       labels.selectionRange.textContent = getDemoText("selectionRange");
     }
@@ -1577,7 +1711,10 @@
 
   function applyGridColumnHeaderLocale(targetGrid, locale) {
     applyColumnHeaderLocale(columns, locale);
-    applyColumnHeaderLocale(targetGrid.columns, locale);
+    applyColumnHeaderLocale(
+      targetGrid._columnHeaderTree || targetGrid.columns,
+      locale
+    );
     applyWorkflowComboboxData(targetGrid.columns, locale);
     applyLookupIconLocale(columns, locale);
     applyLookupIconLocale(targetGrid.columns, locale);
@@ -1596,6 +1733,7 @@
     if (!targetColumns) {
       return;
     }
+    targetColumns = getDemoLeafColumns(targetColumns);
     for (i = 0; i < targetColumns.length; i += 1) {
       column = targetColumns[i];
       if (!column || column.binding !== "stus") {
@@ -1621,6 +1759,7 @@
     if (!targetColumns) {
       return;
     }
+    targetColumns = getDemoLeafColumns(targetColumns);
     for (i = 0; i < targetColumns.length; i += 1) {
       column = targetColumns[i];
       if (!column || column.binding !== "cusno") {
@@ -1651,13 +1790,24 @@
     for (i = 0; i < targetColumns.length; i += 1) {
       column = targetColumns[i];
       column.header = getColumnHeaderText(column, locale);
+      if (column && Array.isArray(column.columns)) {
+        applyColumnHeaderLocale(column.columns, locale);
+      }
     }
   }
 
   function getColumnHeaderText(column, locale) {
     var headers = getDemoLocalePack(locale).columnHeaders || {};
+    var headerKey =
+      column && column.headerKey ? String(column.headerKey) : "";
     var binding = column && column.binding ? String(column.binding) : "";
     var index;
+    if (
+      headerKey &&
+      Object.prototype.hasOwnProperty.call(headers, headerKey)
+    ) {
+      return headers[headerKey];
+    }
     if (Object.prototype.hasOwnProperty.call(headers, binding)) {
       return headers[binding];
     }
@@ -1681,7 +1831,8 @@
 
   function updateDatasetSummary() {
     if (stats.datasetSummary) {
-      stats.datasetSummary.textContent = rows.length + " x " + columns.length;
+      stats.datasetSummary.textContent =
+        rows.length + " x " + getDemoLeafColumns(columns).length;
     }
   }
 
@@ -1712,7 +1863,7 @@
       "-" +
       Math.max(e.columnStart, e.columnEnd - 1) +
       " / " +
-      columns.length;
+      getDemoLeafColumns(columns).length;
     stats.cellCount.textContent =
       getDemoText("renderedCells") + ": " + e.renderedCells;
     updateDemoResultCount();
@@ -1793,6 +1944,7 @@
       .filter(function (term) {
         return term !== "";
       });
+    var leafColumns = getDemoLeafColumns(columns);
     if (!terms.length) {
       grid.setFilter(null);
       return;
@@ -1801,7 +1953,7 @@
       return terms[demoFilterMode === "and" ? "every" : "some"](function (
         term
       ) {
-        return columns.some(function (column) {
+        return leafColumns.some(function (column) {
           var actual = getDemoFilterBindingValue(item, column.binding);
           return (
             String(actual == null ? "" : actual)
@@ -1864,5 +2016,5 @@
     if (controls.demoFilter) controls.demoFilter.focus();
   }
 
-  initializeDemo();
+  await initializeDemo();
 })();
