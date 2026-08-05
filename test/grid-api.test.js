@@ -337,6 +337,23 @@ test('Grid batch update waits for the outer endUpdate and refreshes once', funct
   assert.equal(refreshCount, 1);
 });
 
+test('invalidate marks every footer aggregate dirty before scheduling render', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var scheduled = 0;
+
+  grid._updateCount = 0;
+  grid._footerAggregateCache = [{ value: 10 }];
+  grid._footerAggregateCacheDirty = false;
+  grid.scheduleRender = function() { scheduled += 1; };
+
+  grid.invalidate();
+
+  assert.deepEqual(grid._footerAggregateCache, []);
+  assert.equal(grid._footerAggregateCacheDirty, true);
+  assert.equal(scheduled, 1);
+});
+
 test('Grid batch update preserves render layout needs and supports endUpdate false', function() {
   var FabGrid = createFabGridFactory({});
   var grid = Object.create(FabGrid.prototype);
@@ -1830,12 +1847,17 @@ test('layout and Excel export starting events cancel their actions', async funct
   };
   var visibilityColumn = { binding: 'value', visible: true };
   var visibilityGrid = Object.create(FabGrid.prototype);
+  var autoSizeColumn = { binding: 'amount', width: 10, _width: 30 };
+  var autoSizeGrid = Object.create(FabGrid.prototype);
+  var resizeColumn = { binding: 'quantity', width: 10, _width: 30 };
+  var resizeGrid = Object.create(FabGrid.prototype);
   var busyCalls = 0;
   var exportGrid = {
     busy: false,
     emit: function(name, args) {
       assert.equal(name, 'excelExporting');
       assert.equal(args.filename, 'cancel.xlsx');
+      assert.equal(args.sheetName, 'Sheet1');
       return false;
     },
     setBusy: function() {
@@ -1858,6 +1880,38 @@ test('layout and Excel export starting events cancel their actions', async funct
   };
   assert.equal(visibilityGrid.setColumnVisible('0', false), false);
   assert.equal(visibilityColumn.visible, true);
+
+  autoSizeGrid.options = { columnMinWidth: 20, showFooter: false };
+  autoSizeGrid.columns = [autoSizeColumn];
+  autoSizeGrid.getAutoSizeColumnWidth = function() { return 90; };
+  autoSizeGrid.emit = function() { return true; };
+  autoSizeGrid.updateLayout = function() { return false; };
+  autoSizeGrid.render = function() {
+    assert.fail('A canceled AutoFit must not render the view.');
+  };
+  assert.equal(autoSizeGrid.autoSizeColumn(autoSizeColumn), false);
+  assert.equal(autoSizeColumn.width, 10);
+  assert.equal(autoSizeColumn._width, 30);
+
+  resizeGrid.options = { columnMinWidth: 20 };
+  resizeGrid.resizeState = {
+    column: resizeColumn,
+    startX: 0,
+    startWidth: 30,
+    hasResized: false
+  };
+  resizeGrid.updateCellRangeDrag = function() { return false; };
+  resizeGrid.emit = function() { return true; };
+  resizeGrid.updateLayout = function() { return false; };
+  resizeGrid.render = function() {
+    assert.fail('A canceled resize must not render the view.');
+  };
+  resizeGrid.handlePointerMove({
+    clientX: 20,
+    preventDefault: function() {}
+  });
+  assert.equal(resizeColumn.width, 10);
+  assert.equal(resizeColumn._width, 30);
 
   assert.equal(await FabGrid.prototype.exportExcel.call(exportGrid, 'cancel.xlsx'), false);
   assert.equal(busyCalls, 0);
@@ -1892,6 +1946,22 @@ test('event pipelines keep event argument objects isolated by event type', funct
   assert.notEqual(received.copying, received.copyingCell);
   assert.notEqual(received.copyingCell, received.copied);
   assert.notEqual(received.copied, received.copiedCell);
+});
+
+test('refresh stops when updatingView cancels rendering', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var events = [];
+
+  grid.disposed = false;
+  grid._updateCount = 0;
+  grid.emit = function(name) {
+    events.push(name);
+    return name !== 'updatingView';
+  };
+
+  assert.equal(grid.refresh(), false);
+  assert.deepEqual(events, ['refreshing', 'updatingView']);
 });
 
 test('selection before and after events retain their own argument objects', function() {
@@ -2188,6 +2258,145 @@ test('new built-in remote loads abort the previous fetch signal', function() {
   assert.equal(signals[1].aborted, true);
 });
 
+test('remote Search Row loads in background without blocking the grid', function() {
+  var FabGrid = createFabGridFactory({});
+  var css = readFileSync(new URL('../src/grid/fabgrid.css', import.meta.url), 'utf8');
+  var classState = {};
+  var grid = {
+    options: { loadMsg: null },
+    busy: false,
+    _remoteLoadingBlocking: false,
+    root: {
+      setAttribute: function(name, value) {
+        assert.equal(name, 'aria-busy');
+        this.ariaBusy = value;
+      }
+    },
+    remoteLoadText: { textContent: '' },
+    remoteLoadMask: {
+      classList: {
+        toggle: function(name, active) {
+          classState[name] = active;
+        }
+      },
+      style: { display: 'none' }
+    },
+    getText: function() { return 'Loading...'; }
+  };
+
+  FabGrid.prototype.setRemoteLoading.call(grid, true, true);
+
+  assert.equal(grid.remoteLoading, true);
+  assert.equal(grid.remoteLoadingBackground, true);
+  assert.equal(grid.busy, false);
+  assert.equal(grid.root.ariaBusy, 'true');
+  assert.equal(grid.remoteLoadMask.style.display, 'flex');
+  assert.equal(classState['fg-remote-load-background'], true);
+
+  grid.busy = true;
+  FabGrid.prototype.setRemoteLoading.call(grid, false);
+
+  assert.equal(grid.remoteLoading, false);
+  assert.equal(grid.remoteLoadingBackground, false);
+  assert.equal(grid.busy, true);
+  assert.equal(grid.root.ariaBusy, 'true');
+  assert.equal(grid.remoteLoadMask.style.display, 'none');
+  assert.equal(classState['fg-remote-load-background'], false);
+
+  grid.busy = false;
+  FabGrid.prototype.setRemoteLoading.call(grid, true, false);
+  assert.equal(grid.busy, true);
+  assert.equal(grid._remoteLoadingBlocking, true);
+  FabGrid.prototype.setRemoteLoading.call(grid, false);
+  assert.equal(grid.busy, false);
+  assert.equal(grid.root.ariaBusy, 'false');
+  assert.match(css, /\.fg-remote-load-mask\s*\{[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s);
+  assert.match(css, /\.fg-remote-load-mask\.fg-remote-load-background\s*\{[^}]*pointer-events:\s*none;/s);
+});
+
+test('Search Row filter changes request background remote loading', function() {
+  var FabGrid = createFabGridFactory({});
+  var loadOptions;
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.options = {
+    remote: true,
+    pageNumber: 2,
+    pager: { pageNumber: 2 },
+    filterMode: ['searchRow']
+  };
+  grid.columnSearchValues = { code: 'A' };
+  grid.columnSearchOperators = {};
+  grid.excelFilters = {};
+  grid.filterPredicate = null;
+  grid.searchText = '';
+  grid.view = [];
+  grid.syncCollectionViewFilter = function() {};
+  grid.applyView = function() {};
+  grid.syncSelectionFromCollectionView = function() {};
+  grid.resetVerticalScroll = function() {};
+  grid.refresh = function() {};
+  grid.emit = function() { return true; };
+  grid.load = function(params, options) {
+    loadOptions = options;
+  };
+
+  FabGrid.prototype.applyFilterChange.call(grid, false, 'headerSearch');
+
+  assert.equal(grid.options.pageNumber, 1);
+  assert.equal(grid.options.pager.pageNumber, 1);
+  assert.deepEqual(loadOptions, { background: true });
+});
+
+test('a newer background Search Row load abandons an unresolved custom loader result', async function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var pending = [];
+  var loaded = [];
+  var loadingStates = [];
+
+  grid.options = {
+    remote: true,
+    loader: function() {
+      return new Promise(function(resolve) {
+        pending.push(resolve);
+      });
+    },
+    url: null,
+    pageNumber: 1,
+    pageSize: 50
+  };
+  grid.disposed = false;
+  grid._remoteLoadSeq = 0;
+  grid._remoteLoadController = null;
+  grid.emit = function() { return true; };
+  grid.getRemoteSortParams = function() { return {}; };
+  grid.getRemoteFilterParams = function() { return {}; };
+  grid.setRemoteLoading = function(value, background) {
+    loadingStates.push({ value: value, background: background === true });
+  };
+  grid.loadRemoteData = function(data) {
+    loaded.push(data);
+  };
+
+  var firstLoad = grid.load(undefined, { background: true });
+  var secondLoad = grid.load(undefined, { background: true });
+
+  assert.equal(pending.length, 2);
+  pending[0]({ rows: [{ id: 'old' }] });
+  assert.equal(await firstLoad, false);
+  assert.deepEqual(loaded, []);
+
+  pending[1]({ rows: [{ id: 'new' }] });
+  assert.equal(await secondLoad, true);
+  assert.deepEqual(loaded, [{ rows: [{ id: 'new' }] }]);
+  assert.deepEqual(loadingStates, [
+    { value: true, background: true },
+    { value: true, background: true },
+    { value: false, background: false }
+  ]);
+});
+
 test('format item exposes FabUI cell types, panels and row data items', function() {
   var FabGrid = createFabGridFactory({});
   var grid = Object.create(FabGrid.prototype);
@@ -2452,10 +2661,11 @@ test('scheduled scroll renders reuse the current layout', function() {
   assert.equal(grid.raf, 0);
 });
 
-test('vertical-only scroll renders reuse static header and footer columns', function() {
+test('vertical-only scroll reuses static columns unless the footer aggregate is dirty', function() {
   var FabGrid = createFabGridFactory({});
   var grid = {
-    columnRange: { start: 3, end: 12 }
+    columnRange: { start: 3, end: 12 },
+    _footerAggregateCacheDirty: false
   };
 
   assert.equal(
@@ -2470,6 +2680,10 @@ test('vertical-only scroll renders reuse static header and footer columns', func
     FabGrid.prototype.shouldRenderStaticColumns.call(grid, false, { start: 3, end: 12 }),
     true
   );
+  assert.equal(FabGrid.prototype.shouldRenderFooterColumns.call(grid, false), false);
+  grid._footerAggregateCacheDirty = true;
+  assert.equal(FabGrid.prototype.shouldRenderFooterColumns.call(grid, false), true);
+  assert.equal(FabGrid.prototype.shouldRenderFooterColumns.call(grid, true), true);
 });
 
 test('scroll-linked header distance uses refreshed scroll metrics after columns shrink', function() {
@@ -2588,7 +2802,7 @@ test('active cell border defaults to one pixel', function() {
   assert.equal(applyCount, 2);
 });
 
-test('columns use columnMinWidth unless they define their own minimum width', function() {
+test('columns default width to columnMinWidth and ignore legacy minWidth', function() {
   var FabGrid = createFabGridFactory({});
   var grid = {
     options: { columnMinWidth: 24 },
@@ -2598,14 +2812,17 @@ test('columns use columnMinWidth unless they define their own minimum width', fu
   };
 
   FabGrid.prototype.setColumns.call(grid, [
+    { binding: 'default' },
     { binding: 'compact', width: 10 },
-    { binding: 'custom', width: 10, minWidth: 30 }
+    { binding: 'legacy', width: 10, minWidth: 30 }
   ], true);
 
-  assert.equal(grid.columns[0].minWidth, 24);
+  assert.equal(grid.columns[0].width, 24);
   assert.equal(grid.columns[0]._width, 24);
-  assert.equal(grid.columns[1].minWidth, 30);
-  assert.equal(grid.columns[1]._width, 30);
+  assert.equal(grid.columns[1]._width, 10);
+  assert.equal(Object.prototype.hasOwnProperty.call(grid.columns[1], 'minWidth'), false);
+  assert.equal(grid.columns[2]._width, 10);
+  assert.equal(Object.prototype.hasOwnProperty.call(grid.columns[2], 'minWidth'), false);
 });
 
 test('Time uses string data while Date editor supports string and Date data types', function() {
@@ -2866,6 +3083,8 @@ test('cell edit events expose full and visible column indexes', function() {
   };
   grid.editor = { value: 'after', style: {} };
   grid._suppressObservedItemChange = 0;
+  grid._footerAggregateCache = [{ value: 1 }];
+  grid._footerAggregateCacheDirty = false;
   grid.validateCellValue = function() { return null; };
   grid.clearCellValidationError = function() {};
   grid.emit = function(name, args) {
@@ -2884,6 +3103,8 @@ test('cell edit events expose full and visible column indexes', function() {
   assert.equal(endingArgs.viewCol, 0);
   assert.equal(endedArgs.col, 1);
   assert.equal(endedArgs.viewCol, 0);
+  assert.deepEqual(grid._footerAggregateCache, []);
+  assert.equal(grid._footerAggregateCacheDirty, true);
 });
 
 test('cell-related public event args include hidden columns in col indexes', function() {
@@ -4194,6 +4415,30 @@ test('public data and range APIs use full column indexes with hidden columns', f
   assert.equal(grid.setColumnVisible('serial', false), false);
 });
 
+test('treeColumn treats numbers and decimal integer strings as full column indexes', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var hidden = { binding: 'internal', visible: false };
+  var first = { binding: 'first', visible: true };
+  var second = { binding: 'second', visible: true };
+
+  grid.columns = [hidden, first, second];
+  grid.visibleColumns = [first, second];
+  grid.options = { treeColumn: 1 };
+
+  assert.equal(grid.getTreeColumnIndex(), 0);
+  grid.options.treeColumn = '1';
+  assert.equal(grid.getTreeColumnIndex(), 0);
+  grid.options.treeColumn = 2;
+  assert.equal(grid.getTreeColumnIndex(), 1);
+  grid.options.treeColumn = '2';
+  assert.equal(grid.getTreeColumnIndex(), 1);
+  grid.options.treeColumn = 0;
+  assert.equal(grid.getTreeColumnIndex(), -1);
+  grid.options.treeColumn = '0';
+  assert.equal(grid.getTreeColumnIndex(), -1);
+});
+
 test('scrollIntoView API remains available while stopNavigation is enabled', function() {
   var FabGrid = createFabGridFactory({});
   var renderCount = 0;
@@ -4302,14 +4547,19 @@ test('unselectRow clears a checked row without toggling an unchecked row on', fu
   assert.equal(grid.isItemSelected(first), false);
   assert.equal(renderCount, 1);
   assert.deepEqual(events.map(function(entry) { return entry[0]; }), [
+    'selectionChanging',
+    'rowSelectionChanging',
     'selectionChanged',
     'rowSelectionChanged'
   ]);
-  assert.equal(events[0][1].row, 0);
-  assert.equal(events[0][1].col, 0);
   assert.equal(events[0][1].changedRow, 0);
   assert.equal(events[0][1].selected, false);
   assert.deepEqual(events[1][1], { row: 0, selected: false });
+  assert.equal(events[2][1].row, 0);
+  assert.equal(events[2][1].col, 0);
+  assert.equal(events[2][1].changedRow, 0);
+  assert.equal(events[2][1].selected, false);
+  assert.deepEqual(events[3][1], { row: 0, selected: false });
 
   assert.equal(grid.unselectRow(1), false);
   assert.equal(grid.isRowSelected(1), false);
@@ -4362,16 +4612,19 @@ test('unselectRow clears a single selected row and keeps it cleared across selec
   assert.deepEqual(grid.selection, { row: 0, col: 0 });
   assert.equal(renderCount, 1);
   assert.deepEqual(events.map(function(entry) { return entry[0]; }), [
+    'selectionChanging',
     'rowSelectionChanging',
     'selectionChanged',
     'rowSelectionChanged'
   ]);
-  assert.deepEqual(events[0][1], { row: null, previousRow: 0, selected: false });
-  assert.equal(events[1][1].row, 0);
-  assert.equal(events[1][1].col, 0);
-  assert.equal(events[1][1].changedRow, 0);
-  assert.equal(events[1][1].selected, false);
-  assert.deepEqual(events[2][1], { row: null, previousRow: 0, selected: false });
+  assert.equal(events[0][1].changedRow, 0);
+  assert.equal(events[0][1].selected, false);
+  assert.deepEqual(events[1][1], { row: null, previousRow: 0, selected: false });
+  assert.equal(events[2][1].row, 0);
+  assert.equal(events[2][1].col, 0);
+  assert.equal(events[2][1].changedRow, 0);
+  assert.equal(events[2][1].selected, false);
+  assert.deepEqual(events[3][1], { row: null, previousRow: 0, selected: false });
 
   grid.clampSelection();
   assert.equal(grid.rowSelection, null);
@@ -4391,6 +4644,106 @@ test('unselectRow clears a single selected row and keeps it cleared across selec
   assert.equal(grid._rowSelectionCleared, false);
   assert.deepEqual(grid.selectedItems, [second]);
   assert.deepEqual(grid.selectedRows, [rows[1]]);
+});
+
+test('row selection changes honor both cancellable event stages', function() {
+  var FabGrid = createFabGridFactory({});
+  var first = { id: 1 };
+  var second = { id: 2 };
+  var blockedEvent = 'selectionChanging';
+  var events = [];
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.options = { multiSelectRows: false };
+  grid.view = [first, second];
+  grid.dataView = grid.view;
+  grid.columns = [{ binding: 'id', _index: 0 }];
+  grid.visibleColumns = grid.columns;
+  grid.selection = { row: 0, col: 0 };
+  grid.selectionAnchor = { row: 0, col: 0 };
+  grid.rowSelection = 0;
+  grid.selectedRowMap = {};
+  grid.selectedItemRefs = [];
+  grid._selectedItemSet = new WeakSet();
+  grid.isRowGroup = function() { return false; };
+  grid.isRowGroupFooter = function() { return false; };
+  grid.cancelEditingForSelection = function() {};
+  grid.render = function() {};
+  grid.emit = function(name) {
+    events.push(name);
+    return name !== blockedEvent;
+  };
+
+  assert.equal(grid.selectRow(1, 0), false);
+  assert.deepEqual(grid.selection, { row: 0, col: 0 });
+  assert.deepEqual(events, ['selectionChanging']);
+
+  events = [];
+  blockedEvent = 'rowSelectionChanging';
+  assert.equal(grid.selectRow(1, 0), false);
+  assert.deepEqual(grid.selection, { row: 0, col: 0 });
+  assert.deepEqual(events, ['selectionChanging', 'rowSelectionChanging']);
+
+  grid.options.multiSelectRows = true;
+  grid.rowSelection = null;
+  events = [];
+  assert.equal(grid.toggleRowSelection(0, 0), false);
+  assert.equal(grid.isItemSelected(first), false);
+  assert.deepEqual(events, ['selectionChanging', 'rowSelectionChanging']);
+
+  grid.setItemSelectionState(first, true);
+  grid.rebuildSelectedRowMap();
+  events = [];
+  assert.equal(grid.unselectRow(0), false);
+  assert.equal(grid.isItemSelected(first), true);
+  assert.deepEqual(events, ['selectionChanging', 'rowSelectionChanging']);
+
+  events = [];
+  assert.equal(grid.setAllRowsSelected(true), false);
+  assert.deepEqual(grid.selectedItems, [first]);
+  assert.deepEqual(events, ['selectionChanging', 'rowSelectionChanging']);
+});
+
+test('select all rows raises complete selection event pairs', function() {
+  var FabGrid = createFabGridFactory({});
+  var first = { id: 1 };
+  var second = { id: 2 };
+  var events = [];
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.options = { multiSelectRows: true };
+  grid.view = [first, second];
+  grid.dataView = grid.view;
+  grid.columns = [{ binding: 'id', _index: 0 }];
+  grid.visibleColumns = grid.columns;
+  grid.selection = { row: 0, col: 0 };
+  grid.selectionAnchor = { row: 0, col: 0 };
+  grid.rowSelection = null;
+  grid.selectedRowMap = {};
+  grid.selectedItemRefs = [];
+  grid._selectedItemSet = new WeakSet();
+  grid.isRowGroup = function() { return false; };
+  grid.isRowGroupFooter = function() { return false; };
+  grid.emit = function(name, args) {
+    events.push([name, args]);
+    return true;
+  };
+  grid.render = function() {};
+
+  assert.equal(grid.setAllRowsSelected(true), true);
+  assert.deepEqual(events.map(function(entry) { return entry[0]; }), [
+    'selectionChanging',
+    'rowSelectionChanging',
+    'selectionChanged',
+    'rowSelectionChanged'
+  ]);
+  assert.equal(events[0][1].allRows, true);
+  assert.equal(events[0][1].selected, true);
+  assert.deepEqual(events[1][1], { row: null, selected: true, allRows: true });
+  assert.equal(events[2][1].allRows, true);
+  assert.equal(events[2][1].selected, true);
+  assert.notEqual(events[0][1], events[2][1]);
+  assert.notEqual(events[1][1], events[3][1]);
 });
 
 test('number cell editor spinner uses the shared definition and keeps editing active', function() {
@@ -4574,6 +4927,56 @@ test('cell templates support Wijmo-compatible function and string contracts', fu
   assert.equal(functionContext.text, '4,200');
 });
 
+test('CellMaker.makeLink creates a Wijmo-compatible link template', function() {
+  var FabGrid = createFabGridFactory({});
+  var anchor;
+  var appended;
+  var prevented = false;
+  var clickedContext;
+  var ctx = {
+    item: { id: 7, name: 'Alpha' },
+    text: 'Alpha'
+  };
+  var cell = {
+    ownerDocument: {
+      createElement: function(tagName) {
+        assert.equal(tagName, 'a');
+        anchor = {};
+        return anchor;
+      }
+    },
+    textContent: 'old',
+    appendChild: function(child) {
+      appended = child;
+    }
+  };
+  var template = FabGrid.CellMaker.makeLink({
+    text: '<b>${item.name}</b>',
+    href: '/orders/${item.id}',
+    title: '${text}',
+    cssClass: 'order-link',
+    click: function(event, linkContext) {
+      clickedContext = linkContext;
+    }
+  });
+
+  assert.equal(template(ctx, cell), null);
+  assert.equal(cell.textContent, '');
+  assert.equal(appended, anchor);
+  assert.equal(anchor.className, 'fg-cell-maker order-link');
+  assert.equal(anchor.href, '/orders/7');
+  assert.equal(anchor.title, 'Alpha');
+  assert.equal(anchor.innerHTML, '<b>Alpha</b>');
+
+  anchor.onclick({
+    preventDefault: function() {
+      prevented = true;
+    }
+  });
+  assert.equal(prevented, true);
+  assert.equal(clickedContext, ctx);
+});
+
 test('runtime cellTemplate assignment invalidates the grid', function() {
   var FabGrid = createFabGridFactory({});
   var grid = Object.create(FabGrid.prototype);
@@ -4755,14 +5158,91 @@ test('cell range row selection spans every visible column and keeps the active c
   grid.render = function() {};
 
   assert.equal(grid.selectCellRangeRows(1, 3), true);
+  assert.deepEqual(grid._getRowHeaderSelectionRange(), { row: 1, col: 0, row2: 3, col2: 2 });
   assert.deepEqual(grid.selectionAnchor, { row: 1, col: 2 });
   assert.deepEqual(grid.selection, { row: 3, col: 0 });
   assert.deepEqual(grid.getSelectionRange(), { row: 1, col: 0, row2: 3, col2: 2 });
 
   assert.equal(grid.extendCellRangeRowSelection(0), true);
+  assert.deepEqual(grid._getRowHeaderSelectionRange(), { row: 0, col: 0, row2: 1, col2: 2 });
   assert.deepEqual(grid.selectionAnchor, { row: 1, col: 2 });
   assert.deepEqual(grid.selection, { row: 0, col: 0 });
   assert.deepEqual(grid.getSelectionRange(), { row: 0, col: 0, row2: 1, col2: 2 });
+});
+
+test('row header selection copies the whole visible row in Cell mode and clears on cell selection', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var hidden = { binding: 'hidden', visible: false };
+  var first = { binding: 'first', visible: true };
+  var second = { binding: 'second', visible: true };
+
+  grid.options = { selectionMode: 'Cell', multiSelectRows: false };
+  grid.view = [
+    { hidden: 'H1', first: 'A1', second: 'B1' },
+    { hidden: 'H2', first: 'A2', second: 'B2' }
+  ];
+  grid.columns = [hidden, first, second];
+  grid.visibleColumns = [first, second];
+  grid.selection = { row: 0, col: 0 };
+  grid.selectionAnchor = { row: 0, col: 0 };
+  grid.rowSelection = 0;
+  grid.emit = function() { return true; };
+  grid.render = function() {};
+  grid.cancelEditingForSelection = function() {};
+  grid.raiseRowSelectionChanged = function() {};
+  grid.isRowGroup = function() { return false; };
+  grid.isRowGroupFooter = function() { return false; };
+  grid.getCellData = function(row, col) {
+    return grid.view[row][grid.columns[col].binding];
+  };
+
+  grid._selectVisibleRow(1, 0, true);
+
+  assert.deepEqual(grid._getRowHeaderSelectionRange(), { row: 1, col: 0, row2: 1, col2: 1 });
+  assert.equal(grid._isRowHeaderCellSelected(1), true);
+  assert.equal(grid.getSelectedText(), 'A2\tB2');
+
+  assert.equal(grid._selectVisibleCell(0, 1), true);
+  assert.equal(grid._getRowHeaderSelectionRange(), null);
+  assert.equal(grid._isRowHeaderCellSelected(1), false);
+  assert.equal(grid.getSelectedText(), 'B1');
+});
+
+test('clicking a RowHeader starts whole-row selection in Cell mode', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var root = createFakeElement(['fg-root']);
+  var rowHeader = createFakeElement(['fg-row-header-cell'], { 'data-row': 1 });
+  var selected = null;
+  var focused = 0;
+
+  root.className = 'fg-root';
+  root.ownerDocument = {};
+  root.focus = function() { focused += 1; };
+  rowHeader.className = 'fg-row-header-cell';
+  rowHeader.parentNode = root;
+  grid.root = root;
+  grid.options = {};
+  grid.view = [{}, {}];
+  grid.selection = { row: 0, col: 1 };
+  grid.busy = false;
+  grid.suppressClick = false;
+  grid.isRowGroup = function() { return false; };
+  grid.isRowGroupFooter = function() { return false; };
+  grid.isCellRangeSelectionMode = function() { return false; };
+  grid._selectVisibleRow = function(row, col, wholeRow) {
+    selected = { row: row, col: col, wholeRow: wholeRow };
+  };
+
+  FabGrid.prototype.handleClick.call(grid, {
+    target: rowHeader,
+    preventDefault: function() {},
+    stopPropagation: function() {}
+  });
+
+  assert.deepEqual(selected, { row: 1, col: 1, wholeRow: true });
+  assert.equal(focused, 1);
 });
 
 test('cell range row header drag starts a whole-row range interaction', function() {
@@ -4810,6 +5290,7 @@ test('cell range row header drag starts a whole-row range interaction', function
 
 test('cell range appearance uses row selection fill and activeCellBorder', function() {
   var css = readFileSync(new URL('../src/grid/fabgrid.css', import.meta.url), 'utf8');
+  var viewSource = readFileSync(new URL('../src/grid/fabgrid-view.js', import.meta.url), 'utf8');
 
   assert.match(css, /\.fg-cell\.fg-range-top\s*\{[^}]*border-top:\s*var\(--fg-active-cell-border\) solid var\(--fg-range-border\)/s);
   assert.match(css, /\.fg-cell\.fg-range-bottom\s*\{[^}]*border-bottom:\s*var\(--fg-active-cell-border\) solid var\(--fg-range-border\)/s);
@@ -4822,6 +5303,9 @@ test('cell range appearance uses row selection fill and activeCellBorder', funct
       '\\.fg-root \\.fg-cell\\.fg-range-selected\\.fg-selected\\.fg-range-' + side +
       '::before\\s*\\{[^}]*border-' + side + ':\\s*0', 's'));
   });
+  assert.doesNotMatch(css, /\.fg-row-header-cell\.fg-row-header-selected/);
+  assert.doesNotMatch(viewSource, /fg-row-header-selected/);
+  assert.match(viewSource, /createRowHeaderCell[\s\S]*?_isRowHeaderCellSelected[\s\S]*?aria-selected/);
 });
 
 test('Grid root follows a host shorter than the former default height', function() {
@@ -4842,12 +5326,251 @@ test('column footer uses the same horizontal padding as body cells', function() 
   assert.match(footerCellRule[1], /padding:\s*0 7px;/);
 });
 
+test('multiple footer rows support keys, labels and panel cell updates', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var column = { _index: 0, binding: 'amount', footer: 5 };
+
+  grid.options = {
+    showFooter: true,
+    footerHeight: 28,
+    footerLabel: '',
+    footerRows: [
+      { key: 'hours', label: '時' },
+      { key: 'value', label: '值' }
+    ]
+  };
+  grid.columns = [column];
+  grid.view = [];
+  grid.dataView = [];
+  grid._footerCellValues = [];
+  grid._footerRowLabels = [];
+  grid.columnFooters = createGridPanel(grid, CellType.ColumnFooter);
+  grid.bottomLeftCells = createGridPanel(grid, CellType.BottomLeft);
+
+  assert.equal(grid.getFooterHeight(), 56);
+  assert.deepEqual(grid.getFooterRows().map(function(row) { return row.label; }), ['時', '值']);
+  assert.equal(grid.getFooterCellValue('hours', column), 5);
+  assert.equal(grid.columnFooters.setCellData('hours', 0, 12, false), true);
+  assert.equal(grid.columnFooters.setCellData('value', 0, 3000, false), true);
+  assert.equal(grid.columnFooters.getCellData(0, 0, false), 12);
+  assert.equal(grid.columnFooters.getCellData(1, 0, false), 3000);
+  assert.equal(grid.columnFooters.getCellData(1, 0, true), '3,000');
+  assert.equal(grid.bottomLeftCells.getCellData(0, 0, false), '時');
+  assert.equal(grid.bottomLeftCells.getCellData(1, 0, false), '值');
+  assert.equal(grid.bottomLeftCells.setCellData('value', 0, '金額', false), true);
+  assert.equal(grid.getFooterRowLabel(1), '金額');
+  assert.equal(grid.columnFooters.rows.length, 2);
+});
+
+test('numeric footer cells align right while footerFormatter remains authoritative', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var originalDocument = globalThis.document;
+  var column = { _index: 0, _viewIndex: 0, _width: 100, binding: 'amount', align: 'center' };
+  var cell;
+
+  globalThis.document = {
+    createElement: function() {
+      return {
+        className: '',
+        style: {},
+        attributes: {},
+        setAttribute: function(name, value) { this.attributes[name] = value; },
+        appendChild: function(child) { this.child = child; }
+      };
+    }
+  };
+  try {
+    grid.options = {
+      showFooter: true,
+      footerHeight: 32,
+      footerRows: [{ key: 'total', label: '合計' }]
+    };
+    grid.columns = [column];
+    grid.view = [];
+    grid.dataView = [];
+    grid._footerCellValues = [{ 0: 1234567 }];
+    grid.columnFooters = createGridPanel(grid, CellType.ColumnFooter);
+    grid.decorateFrozenDividerCell = function() {};
+    grid.raiseFormatItem = function() {};
+    grid.createFormatItemEventArgs = function() { return {}; };
+
+    cell = grid.createFooterCell(column, 0, 'scroll', 0);
+    assert.equal(cell.style.textAlign, 'right');
+    assert.equal(cell.style.justifyContent, 'flex-end');
+    assert.equal(cell.child.textContent, '1,234,567');
+
+    column.footerFormatter = function(value) { return '$' + value; };
+    assert.equal(grid.getFooterCellText(0, column), '$1234567');
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
+test('legacy footer options keep a single footer row', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var column = { _index: 0, binding: 'amount', footer: 5 };
+
+  grid.options = { showFooter: true, footerHeight: 32, footerLabel: '合計' };
+  grid.columns = [column];
+  grid.view = [];
+  grid.dataView = [];
+
+  assert.equal(grid.getFooterRowCount(), 1);
+  assert.equal(grid.getFooterHeight(), 32);
+  assert.equal(grid.getFooterRowLabel(0), '合計');
+  assert.equal(grid.getFooterCellValue(column), 5);
+});
+
+test('footer aggregates reuse cached values until applyView rebuilds the data view', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var calls = 0;
+  var column = {
+    _index: 0,
+    binding: 'amount',
+    aggregate: function(args) {
+      calls += 1;
+      return args.rows.reduce(function(total, item) {
+        return total + args.getValue(item);
+      }, 0);
+    }
+  };
+
+  grid._footerAggregateCache = [];
+  grid.columns = [column];
+  grid.source = [{ amount: 2 }, { amount: 3 }];
+  grid.view = grid.source.slice();
+  grid.dataView = grid.view;
+  grid._collectionView = null;
+  grid.options = { remote: false, pagination: false, filterMode: false };
+  grid.filterPredicate = null;
+  grid.searchText = '';
+  grid.hasColumnSearch = false;
+  grid.columnSearchValues = {};
+  grid.columnSearchOperators = {};
+  grid.excelFilters = {};
+  grid.getSortStates = function() { return []; };
+  grid.captureSelectionState = function() { return {}; };
+  grid.isTreeGrid = function() { return false; };
+  grid.createGroupedView = function(rows) { return rows; };
+  grid.refreshInvalidItemRows = function() {};
+  grid.restoreSelectionState = function() {};
+  grid.clampSelection = function() {};
+  grid.syncEditingWithView = function() {};
+
+  assert.equal(grid.getFooterCellValue(column), 5);
+  assert.equal(grid.getFooterCellValue(column), 5);
+  assert.equal(calls, 1);
+
+  grid.source[1].amount = 8;
+  grid.applyView();
+
+  assert.equal(grid.getFooterCellValue(column), 10);
+  assert.equal(calls, 2);
+});
+
+test('setCellData marks footer aggregates dirty even when CollectionView defers its refresh', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var item = { amount: 5 };
+  var column = { _index: 0, binding: 'amount', dataType: 'number' };
+
+  grid.view = [item];
+  grid.columns = [column];
+  grid._suppressObservedItemChange = 0;
+  grid._footerAggregateCache = [{ value: 5 }];
+  grid._footerAggregateCacheDirty = false;
+  grid.isRowGroup = function() { return false; };
+  grid.isRowGroupFooter = function() { return false; };
+  grid.refreshCollectionView = function() { return true; };
+
+  assert.equal(grid.setCellData(0, 0, 8), true);
+  assert.equal(item.amount, 8);
+  assert.deepEqual(grid._footerAggregateCache, []);
+  assert.equal(grid._footerAggregateCacheDirty, true);
+});
+
+test('refreshFooter invalidates aggregate cache and redraws only the footer', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var renderedRange = null;
+  var fullRenderCalls = 0;
+
+  grid._footerAggregateCache = [{ value: 10 }];
+  grid.disposed = false;
+  grid._updateCount = 0;
+  grid.footerFrozen = {};
+  grid.footerFrozenRight = {};
+  grid.footerCanvas = {};
+  grid.columnRange = { start: 1, end: 3 };
+  grid.renderFooter = function(range) { renderedRange = range; };
+  grid.render = function() { fullRenderCalls += 1; };
+
+  assert.equal(grid.refreshFooter(), true);
+  assert.deepEqual(grid._footerAggregateCache, []);
+  assert.equal(renderedRange, grid.columnRange);
+  assert.equal(fullRenderCalls, 0);
+});
+
+test('column footer callbacks remain uncached', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var calls = 0;
+  var column = {
+    _index: 0,
+    aggregate: 'sum',
+    footer: function() {
+      calls += 1;
+      return calls;
+    }
+  };
+
+  grid.view = [];
+
+  assert.equal(grid.getFooterCellValue(column), 1);
+  assert.equal(grid.getFooterCellValue(column), 2);
+  assert.equal(calls, 2);
+});
+
 test('color cell keeps its value text at the normal cell text color', function() {
   var css = readFileSync(new URL('../src/grid/fabgrid.css', import.meta.url), 'utf8');
   var colorTextRule = css.match(/:root \.fg-color-text\s*\{([^}]+)\}/);
 
   assert.ok(colorTextRule);
   assert.match(colorTextRule[1], /color:\s*var\(--fg-cell-text\)/);
+});
+
+test('top-left Search Row fixed cells have no built-in double-click action', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var cleared = 0;
+  var prevented = 0;
+  var stopped = 0;
+
+  grid.options = {
+    allowEditing: true,
+    allowResizing: true,
+    filterMode: ['searchRow']
+  };
+  grid._stopNavigation = false;
+  grid.busy = false;
+  grid.pendingCellDblClick = null;
+  grid.clearSearchConditions = function() { cleared += 1; };
+
+  ['fg-row-header-top', 'fg-selection-top'].forEach(function(className) {
+    FabGrid.prototype.handleDblClick.call(grid, {
+      target: { nodeType: 1, className: className, parentNode: null },
+      preventDefault: function() { prevented += 1; },
+      stopPropagation: function() { stopped += 1; }
+    });
+  });
+
+  assert.equal(cleared, 0);
+  assert.equal(prevented, 0);
+  assert.equal(stopped, 0);
 });
 
 test('cell range pointer tracking recognizes a double click on the same cell', function() {
@@ -5135,6 +5858,7 @@ test('grid popup opens from the column header row only', function() {
 
 test('TreeGrid popup opens from every tree column data cell', function() {
   var FabGrid = createFabGridFactory({});
+  var treeColumn = { binding: 'name' };
   var shown = [];
   var prevented = 0;
   var stopped = 0;
@@ -5156,7 +5880,8 @@ test('TreeGrid popup opens from every tree column data cell', function() {
   };
   var grid = {
     options: { childItemsPath: 'children', treeColumn: 0 },
-    visibleColumns: [{ binding: 'name' }],
+    columns: [treeColumn],
+    visibleColumns: [treeColumn],
     _treeRowInfos: [{ item: { name: 'Leaf' }, hasChildren: false, collapsed: false }],
     getTreeColumnIndex: FabGrid.prototype.getTreeColumnIndex,
     getTreeRowInfo: FabGrid.prototype.getTreeRowInfo,
@@ -5357,6 +6082,30 @@ test('column drag cannot cross an immediate Header group boundary', function() {
 
   assert.equal(grid.columnDragState.target, null);
   assert.equal(appliedTarget, null);
+});
+
+test('column drag synchronizes full indexes and keeps Footer values with their columns', function() {
+  var FabGrid = createFabGridFactory({});
+  var first = { binding: 'first', _index: 0 };
+  var second = { binding: 'second', _index: 1 };
+  var third = { binding: 'third', _index: 2 };
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.columns = [first, second, third];
+  grid.visibleColumns = grid.columns.slice();
+  grid.selection = { row: 0, col: 0 };
+  grid.selectionAnchor = { row: 0, col: 0 };
+  grid._footerCellValues = [{ 0: 'First footer', 2: 'Third footer' }];
+  grid.updateLayout = function() {
+    this.visibleColumns = this.columns.slice();
+    return true;
+  };
+  grid.render = function() {};
+
+  assert.equal(grid.moveColumnBefore(first, null), true);
+  assert.deepEqual(grid.columns, [second, third, first]);
+  assert.deepEqual(grid.columns.map(function(column) { return column._index; }), [0, 1, 2]);
+  assert.deepEqual(grid._footerCellValues, [{ 1: 'Third footer', 2: 'First footer' }]);
 });
 
 test('header sort reveals a partially covered scrollable column beside frozen columns', function() {

@@ -234,7 +234,9 @@ test('PivotEngine supports date grouping and descending dimension order', functi
     showColumnTotals: 'None'
   });
 
-  assert.deepEqual(engine.pivotView.rowEntries.map(function(entry) { return entry.path[0]; }), [
+  assert.deepEqual(engine.pivotView.rowEntries.filter(function(entry) {
+    return entry.path.length;
+  }).map(function(entry) { return entry.path[0]; }), [
     '2026 Q3',
     '2026 Q1'
   ]);
@@ -289,6 +291,81 @@ test('PivotEngine viewDefinition can be serialized and restored', function() {
   assert.deepEqual(restored.getField('Region').filter, { values: ['North'] });
   assert.equal(restored.getField('Region').sortDirection, -1);
   assert.equal(getCell(restored, [], [], 'Sales'), 30);
+});
+
+test('PivotEngine serializes and restores text fields combined from multiple source fields', function() {
+  var rows = [
+    { customerCode: 'C001', customerName: 'Alpha', amount: 10 },
+    { customerCode: 'C002', customerName: 'Beta', amount: 20 }
+  ];
+  var engine = new PivotEngine({
+    itemsSource: rows,
+    fields: [
+      { key: 'code', binding: 'customerCode', header: 'Code' },
+      { key: 'name', binding: 'customerName', header: 'Name' },
+      {
+        key: 'customer',
+        header: 'Customer',
+        dataType: 'string',
+        combineFields: ['code', 'name'],
+        combineSeparator: ' '
+      },
+      { key: 'amount', binding: 'amount', header: 'Amount', dataType: 'number' }
+    ],
+    rowFields: ['customer'],
+    valueFields: ['amount']
+  });
+  var definition = JSON.parse(JSON.stringify(engine.viewDefinition));
+  var restored = new PivotEngine({ itemsSource: rows });
+
+  assert.deepEqual(engine.pivotView.rowEntries.filter(function(entry) {
+    return entry.path.length;
+  }).map(function(entry) { return entry.path[0]; }), [
+    'C001 Alpha',
+    'C002 Beta'
+  ]);
+  assert.deepEqual(definition.fields.find(function(field) { return field.key === 'customer'; }).combineFields, [
+    'code',
+    'name'
+  ]);
+  restored.viewDefinition = definition;
+  assert.equal(restored.getField('customer').dataType, 'string');
+  assert.equal(restored.getField('customer').combineSeparator, ' ');
+  assert.deepEqual(restored.pivotView.rowEntries.filter(function(entry) {
+    return entry.path.length;
+  }).map(function(entry) { return entry.path[0]; }), [
+    'C001 Alpha',
+    'C002 Beta'
+  ]);
+});
+
+test('PivotEngine rejects direct and indirect combineFields cycles', function() {
+  assert.throws(function() {
+    return new PivotEngine({
+      itemsSource: [{ name: 'Alpha', amount: 10 }],
+      fields: [
+        { key: 'name', binding: 'name' },
+        { key: 'direct', combineFields: ['direct', 'name'] },
+        { key: 'amount', binding: 'amount', dataType: 'number' }
+      ],
+      rowFields: ['direct'],
+      valueFields: ['amount']
+    });
+  }, /circular reference at "direct"/);
+
+  assert.throws(function() {
+    return new PivotEngine({
+      itemsSource: [{ name: 'Alpha', amount: 10 }],
+      fields: [
+        { key: 'name', binding: 'name' },
+        { key: 'first', combineFields: ['second', 'name'] },
+        { key: 'second', combineFields: ['first', 'name'] },
+        { key: 'amount', binding: 'amount', dataType: 'number' }
+      ],
+      rowFields: ['first'],
+      valueFields: ['amount']
+    });
+  }, /circular reference at "first"/);
 });
 
 test('PivotEngine restores serialized Date filter values by value', function() {

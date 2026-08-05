@@ -9,10 +9,10 @@ import {
   normalizeRemoteData,
   normalizeRemoteCredentials,
   setByBinding
-} from './fabgrid-data.js?v=20260804-grid-event-layout-v2';
-import { installFabGridExport } from './fabgrid-export.js?v=20260804-grid-public-api-v1';
+} from './fabgrid-data.js?v=20260805-remote-search-background-v1';
+import { installFabGridExport } from './fabgrid-export.js?v=20260804-excel-workbook-v1';
 import { installFabGridDrag } from './fabgrid-drag.js?v=20260804-grid-event-layout-v2';
-import { installFabGridTree } from './fabgrid-tree.js?v=20260804-grid-event-layout-v2';
+import { installFabGridTree } from './fabgrid-tree.js?v=20260804-grid-column-rollback-v4';
 import {
   applyMask,
   countMaskCharactersBeforeCaret,
@@ -26,10 +26,10 @@ import {
   isMaskValueIncludingLiterals
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
-import { installFabGridView } from './fabgrid-view.js?v=20260804-grid-event-layout-v2';
+import { installFabGridView } from './fabgrid-view.js?v=20260805-grid-pivot-audit-fixes-v1';
 import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260804-grid-public-api-v1';
-import { installFabGridSelection } from './fabgrid-selection.js?v=20260804-grid-event-layout-v2';
-import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260804-grid-event-layout-v2';
+import { installFabGridSelection } from './fabgrid-selection.js?v=20260805-grid-pivot-audit-fixes-v1';
+import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260804-footer-aggregate-cache-v3';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
 import { DatePopup } from '../editbox/date-popup.js?v=20260725-remove-mono-variants-v1';
@@ -168,6 +168,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     showFooter: false,
     footerHeight: 32,
     footerLabel: '',
+    footerRows: null,
     multiSelectRows: false,
     selectionCheckboxWidth: 44,
     allowSorting: true,
@@ -476,6 +477,8 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.dataView = [];
     this.paginationTotal = 0;
     this.remoteLoading = false;
+    this.remoteLoadingBackground = false;
+    this._remoteLoadingBlocking = false;
     this._remoteLoadSeq = 0;
     this._remoteLoadController = null;
     this.rowGroupState = createDictionary();
@@ -510,6 +513,10 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.useScrollLinkedHorizontal = supportsScrollLinkedHorizontal();
     this.rowRange = { start: 0, end: 0 };
     this.columnRange = { start: 0, end: 0 };
+    this._footerAggregateCache = [];
+    this._footerAggregateCacheDirty = true;
+    this._footerCellValues = [];
+    this._footerRowLabels = [];
     this.renderContentHeight = 0;
     this._layoutReadyForRender = false;
     this.scrollState = {
@@ -521,6 +528,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.renderedScrollTop = 0;
     this.selection = { row: 0, col: 0 };
     this.selectionAnchor = { row: 0, col: 0 };
+    this._rowHeaderSelection = null;
     this.cellRangeDragState = null;
     this.cellRangeAutoScrollRaf = 0;
     this.suppressCellRangeClick = false;
@@ -1362,8 +1370,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     var col = mergeOptions({
       binding: '',
       header: '',
-      width: 120,
-      minWidth: grid.options.columnMinWidth,
+      width: grid.options.columnMinWidth,
       align: '',
       dataType: 'string',
       visible: true,
@@ -1390,6 +1397,9 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (Object.prototype.hasOwnProperty.call(col, 'isVisible')) {
       delete col.isVisible;
     }
+    if (Object.prototype.hasOwnProperty.call(col, 'minWidth')) {
+      delete col.minWidth;
+    }
     col.multiLine = col.multiLine === true;
     col.charcase = editorDefinitions.text && typeof editorDefinitions.text.normalizeCharcase === 'function' ?
       editorDefinitions.text.normalizeCharcase(col.charcase) : '';
@@ -1398,7 +1408,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     col.editor = normalizeEditorConfig(col.editor, col);
     normalizeColumnMaskOptions(col, definition);
     col._index = grid.columns.length;
-    col._width = Math.max(1, toNumber(col.width, 120), toNumber(col.minWidth, grid.options.columnMinWidth));
+    col._width = Math.max(1, toNumber(col.width, grid.options.columnMinWidth));
     defineColumnInternalProperty(col, '_headerParent', parent);
     defineColumnInternalProperty(col, '_headerDepth', depth);
     grid.columns.push(col);
@@ -1479,6 +1489,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       this.excelFilterValueCache = previousExcelFilterValueCache;
       return false;
     }
+    this._footerCellValues = [];
     if (!silent) {
       this.refresh();
     }
@@ -1849,6 +1860,9 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   };
 
   FabGrid.prototype.invalidate = function() {
+    if (typeof this._invalidateFooterAggregateCache === 'function') {
+      this._invalidateFooterAggregateCache();
+    }
     if (this.isUpdating) {
       this._updatePendingInvalidate = true;
       return;
@@ -1953,6 +1967,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       'fg-row-header-top',
       'fg-selection-top',
       'fg-footer-cell',
+      'fg-footer-row-header-cell',
       'fg-footer-row-header',
       'fg-footer-selection'
     ], this.root);
@@ -1987,10 +2002,13 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       info.col = 0;
     } else if (cell.classList.contains('fg-footer-cell')) {
       info.panel = this.columnFooters;
-      info.row = 0;
-    } else if (cell.classList.contains('fg-footer-row-header') || cell.classList.contains('fg-footer-selection')) {
+      row = parseInt(cell.getAttribute('data-row'), 10);
+      info.row = isFiniteNumber(row) ? row : 0;
+    } else if (cell.classList.contains('fg-footer-row-header-cell') ||
+        cell.classList.contains('fg-footer-row-header') || cell.classList.contains('fg-footer-selection')) {
       info.panel = this.bottomLeftCells;
-      info.row = 0;
+      row = parseInt(cell.getAttribute('data-row'), 10);
+      info.row = isFiniteNumber(row) ? row : 0;
       info.col = 0;
     } else {
       info.panel = this.cells;
@@ -2202,7 +2220,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (!this.busyOverlay) {
       return;
     }
-    this.root.setAttribute('aria-busy', this.busy ? 'true' : 'false');
+    this.root.setAttribute('aria-busy', this.busy || this.remoteLoading ? 'true' : 'false');
     if (this.busyText) {
       this.busyText.textContent = text || this.options.exportBusyText || this.getText('workingText');
     }

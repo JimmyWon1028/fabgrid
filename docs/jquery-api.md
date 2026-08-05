@@ -2,7 +2,7 @@
 
 `fabgrid-jquery` 是 `fabui.FabGrid` 的薄型 jQuery adapter。它只負責 instance、方法、option、事件與生命週期轉接，不參與 cell rendering 或 virtualization。
 
-> 狀態：jQuery wrapper 目前暫緩維護，不納入 `build`、`build all` 或預設發佈。原始碼與獨立 build script 保留，只有明確需要時才單獨編譯。
+> 狀態：jQuery wrapper 維持獨立 bundle，不納入一般 `build`，但會由 `build all` 執行其獨立 build script，也可單獨編譯。
 
 ## 單獨編譯
 

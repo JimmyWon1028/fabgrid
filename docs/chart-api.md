@@ -145,7 +145,7 @@ animation.animate();
 | `rendered` | `{ chart }` | Chart、legend、footer 與 selection 繪製完成後。 |
 | `selectionChanged` | `{ chart, selection }` | 使用者點擊 Chart mark 並變更 selection 時。 |
 
-相容層仍接受原有的 `type`、`title`、`categories`、`colors` 與 `series[].data`。
+相容層仍接受原有的 `type`、`title`、`categories`、`colors` 與 `series[].data`。未指定 `itemsSource` 時，Chart 會直接使用 `categories` 與 `series[].data`；明確傳入空 Array 則表示目前沒有綁定資料。
 
 `observeData` 預設為 `true`，Chart 會偵測綁定欄位的內容變動並自動刷新；`dataRefreshInterval` 預設為 120ms。首次顯示及每次 `refresh()` 預設播放動畫，可用 `animation: false` 關閉。
 

@@ -8,7 +8,7 @@
   "style": "dist/fabui.css",
   "scripts": {
     "build": "node build/build.cjs",
-    "build:all": "npm run build && npm run build:lite && npm run build:diagram && npm run build:gantt && npm run build:scheduler && npm run build:htmleditor && npm run build:locale",
+    "build:all": "npm run build && npm run build:lite && npm run build:diagram && npm run build:gantt && npm run build:scheduler && npm run build:htmleditor && npm run build:locale && npm run build:vue && npm run build:jquery && npm run build:fabui-jquery",
     "build:fabloader": "node build/build-loader.cjs fabdom",
     "build:loader": "node build/build-loader.cjs",
     "build:locale": "node build/build-locale.cjs",

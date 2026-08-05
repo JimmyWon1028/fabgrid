@@ -12,6 +12,12 @@ const distDir = process.env.FABUI_PACKAGE_DIST_DIR ?
 const wrapperDistDir = process.env.FABUI_DIST_DIR ?
   path.join(path.resolve(process.env.FABUI_DIST_DIR), 'wrapper') :
   path.join(root, 'dist', 'wrapper');
+const outputName = 'fabgrid-vue2.min.js';
+const staleOutputNames = [
+  'fabgrid-vue.js',
+  'fabgrid-vue.min.js',
+  'fabgrid-vue2.js'
+];
 const source = fs.readFileSync(sourceFile, 'utf8');
 const browserSource = source
   .replace(/export function ([A-Za-z_$][\w$]*)/g, 'function $1');
@@ -28,18 +34,21 @@ const minifiedBrowserEntry = esbuild.transformSync(browserEntry, {
 fs.rmSync(distDir, { recursive: true, force: true });
 fs.mkdirSync(distDir, { recursive: true });
 fs.mkdirSync(wrapperDistDir, { recursive: true });
-fs.writeFileSync(path.join(distDir, 'fabgrid-vue.js'), browserEntry);
-fs.writeFileSync(path.join(distDir, 'fabgrid-vue.min.js'), minifiedBrowserEntry);
-fs.copyFileSync(vueRuntimeFile, path.join(wrapperDistDir, 'vue.min.js'));
-fs.writeFileSync(path.join(wrapperDistDir, 'fabgrid-vue.js'), browserEntry);
-fs.writeFileSync(path.join(wrapperDistDir, 'fabgrid-vue.min.js'), minifiedBrowserEntry);
-['fabgrid-vue.js', 'fabgrid-vue.min.js'].forEach(function(name) {
-  if (!fs.existsSync(path.join(distDir, name)) || !fs.statSync(path.join(distDir, name)).size) throw new Error('Missing Vue wrapper output: ' + name);
+staleOutputNames.forEach(function(name) {
+  fs.rmSync(path.join(wrapperDistDir, name), { force: true });
 });
-['vue.min.js', 'fabgrid-vue.js', 'fabgrid-vue.min.js'].forEach(function(name) {
+fs.writeFileSync(path.join(distDir, outputName), minifiedBrowserEntry);
+fs.copyFileSync(vueRuntimeFile, path.join(wrapperDistDir, 'vue.min.js'));
+fs.writeFileSync(path.join(wrapperDistDir, outputName), minifiedBrowserEntry);
+[outputName].forEach(function(name) {
+  if (!fs.existsSync(path.join(distDir, name)) || !fs.statSync(path.join(distDir, name)).size) {
+    throw new Error('Missing Vue wrapper output: ' + name);
+  }
+});
+['vue.min.js', outputName].forEach(function(name) {
   if (!fs.existsSync(path.join(wrapperDistDir, name)) || !fs.statSync(path.join(wrapperDistDir, name)).size) {
     throw new Error('Missing shared Vue wrapper output: ' + name);
   }
 });
 
-console.log('Built FabGrid Vue 2 wrapper bundles.');
+console.log('Built minified FabGrid Vue 2 wrapper bundle.');

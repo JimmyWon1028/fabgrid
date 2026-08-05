@@ -2,7 +2,7 @@
 
 `fabgrid-vue` 是 FabGrid pure JavaScript core 的 Vue 2 Options API wrapper。Wrapper 只管理 component lifecycle、props 與 events；cell rendering、virtualization、sorting、editing 與 selection 仍由 FabGrid core 執行。
 
-> 狀態：Vue 2 wrapper 目前暫緩維護，不納入 `build`、`build all` 或預設發佈。原始碼與獨立 build script 保留，只有明確需要時才單獨編譯。
+> 狀態：Vue 2 wrapper 維持獨立 bundle，不納入一般 `build`，但會由 `build all` 執行其獨立 build script，也可單獨編譯。
 
 完整 Options API 範例請參考 [`demo/js/grid-vue2.vue`](../demo/js/grid-vue2.vue)。大型唯讀資料可使用 `Object.freeze(rows)`，避免 Vue 2 建立深層 observer；更新時替換整個 array reference。
 
@@ -14,10 +14,8 @@ npm run build:vue
 
 此命令只產生 browser global 檔案：
 
-- `packages/fabgrid-vue/dist/fabgrid-vue.js`
-- `packages/fabgrid-vue/dist/fabgrid-vue.min.js`
-- `dist/wrapper/fabgrid-vue.js`
-- `dist/wrapper/fabgrid-vue.min.js`
+- `packages/fabgrid-vue/dist/fabgrid-vue2.min.js`
+- `dist/wrapper/fabgrid-vue2.min.js`
 - `dist/wrapper/vue.min.js`
 
 這個獨立命令會改寫上述 wrapper 輸出，但不重建 FabUI core。
@@ -40,7 +38,7 @@ Browser global 依序載入 Vue、FabUI 與 wrapper：
 <link rel="stylesheet" href="./dist/fabui.css">
 <script src="https://cdn.jsdelivr.net/npm/vue@2.7.16/dist/vue.min.js"></script>
 <script src="./dist/fabui.min.js"></script>
-<script src="./dist/wrapper/fabgrid-vue.min.js"></script>
+<script src="./dist/wrapper/fabgrid-vue2.min.js"></script>
 ```
 
 Browser bundle 會自動執行 `Vue.use(fabuiVue)`。
@@ -110,7 +108,7 @@ JSON API 由底層 `control` 呼叫：`control.getJson(options)`、`control.expo
 
 ## FabGridColumn
 
-宣告式欄位支援 `binding`、`header`、`width`、`minWidth`、`align`、`dataType`、`format`、`isReadOnly`、`visible`、`editor`、`formatter`、`cellTemplate`。`cellTemplate` 可傳入 String 或 Function；function 簽名為 `(ctx, cell)`，由 core 負責 rendering。
+宣告式欄位支援 `binding`、`header`、`width`、`align`、`dataType`、`format`、`isReadOnly`、`visible`、`editor`、`formatter`、`cellTemplate`。`cellTemplate` 可傳入 String 或 Function；function 簽名為 `(ctx, cell)`，由 core 負責 rendering。
 
 若同時提供 `columns` prop 與 `FabGridColumn`，以 `columns` prop 為準。Wrapper 不提供 Vue cell slot，避免 Vue 接管大量 virtualized cells。
 

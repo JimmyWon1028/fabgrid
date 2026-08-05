@@ -162,7 +162,10 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     this._dragSourceArea = null;
     this._dragTargetArea = null;
     this._dragTargetIndex = Infinity;
+    this._dragTargetMode = null;
+    this._dragTargetFieldKey = null;
     this._dropIndicator = null;
+    this._mergeTarget = null;
     this._aggregateMenuFieldKey = null;
     this._sortMenuFieldKey = null;
     this._filterMenuFieldKey = null;
@@ -478,6 +481,78 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     }
     this._applyAreas(areas, targetArea);
     return true;
+  };
+
+  PivotPanel.prototype.mergeFields = function(sourceReference, targetReference, targetArea) {
+    var source = this._engine && this._engine.getField(sourceReference);
+    var target = this._engine && this._engine.getField(targetReference);
+    var definitions;
+    var definition;
+    var areas = {};
+    var parts = [];
+    var usedParts = Object.create(null);
+    var sourceIndex;
+    var targetIndex;
+    var insertIndex;
+    var keyBase;
+    var key;
+    var suffix = 2;
+    var i;
+    if (!source || !target || source === target || !this.areaLists[targetArea]) {
+      return false;
+    }
+    [target, source].forEach(function(field) {
+      var fieldParts = field.combineFields && field.combineFields.length ? field.combineFields : [field.key];
+      fieldParts.forEach(function(fieldKey) {
+        if (!usedParts[fieldKey]) {
+          usedParts[fieldKey] = true;
+          parts.push(fieldKey);
+        }
+      });
+    });
+    if (parts.length < 2) {
+      return false;
+    }
+    definitions = this._engine.fields.slice();
+    keyBase = target.key + '_' + source.key + '_combined';
+    key = keyBase;
+    while (this._engine.getField(key)) {
+      key = keyBase + '_' + suffix;
+      suffix += 1;
+    }
+    definition = {
+      key: key,
+      header: target.header + ' + ' + source.header,
+      dataType: 'string',
+      aggregate: 'Count',
+      combineFields: parts,
+      combineSeparator: ' ',
+      width: Math.max(target.width || 0, source.width || 0, 132)
+    };
+    definitions.push(definition);
+    for (i = 0; i < areaDefinitions.length; i += 1) {
+      areas[areaDefinitions[i].name] = this._getAreaKeys(areaDefinitions[i].name);
+    }
+    if (targetArea !== 'fields') {
+      targetIndex = areas[targetArea].indexOf(target.key);
+      sourceIndex = areas[targetArea].indexOf(source.key);
+      insertIndex = targetIndex;
+      if (sourceIndex >= 0 && sourceIndex < targetIndex) {
+        insertIndex -= 1;
+      }
+    }
+    for (i = 0; i < areaDefinitions.length; i += 1) {
+      areas[areaDefinitions[i].name] = areas[areaDefinitions[i].name].filter(function(fieldKey) {
+        return fieldKey !== source.key && fieldKey !== target.key;
+      });
+    }
+    this._engine.setFields(definitions, true);
+    if (targetArea !== 'fields') {
+      insertIndex = Math.max(0, Math.min(areas[targetArea].length, insertIndex));
+      areas[targetArea].splice(insertIndex, 0, key);
+    }
+    this._applyAreas(areas, 'fields');
+    return this._engine.getField(key);
   };
 
   PivotPanel.prototype.removeField = function(fieldReference, area) {
@@ -999,7 +1074,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     }
     event.preventDefault();
     area = list.getAttribute('data-area');
-    this._showDropIndicator(list, area, event.clientY);
+    this._showDropIndicator(list, area, event.clientY, event.target);
     list.classList.add('fg-pivot-panel-drop-active');
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'move';
@@ -1016,55 +1091,84 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     }
   };
 
-  PivotPanel.prototype._showDropIndicator = function(list, area, clientY) {
+  PivotPanel.prototype._showDropIndicator = function(list, area, clientY, eventTarget) {
     var items;
     var candidates = [];
     var indicator;
-    var anchor = null;
+    var target = null;
+    var mode = 'after';
     var index;
     var rect;
     var i;
     this._clearDropIndicator();
     this._dragTargetArea = area;
-    if (area === 'fields') {
-      this._dragTargetIndex = Infinity;
-      return Infinity;
-    }
     items = list.querySelectorAll('[data-area-item="' + area + '"]');
     for (i = 0; i < items.length; i += 1) {
       if (items[i].getAttribute('data-field-key') !== this._dragFieldKey) {
         candidates.push(items[i]);
       }
     }
+    target = closestWithAttribute(eventTarget, 'data-field-key', list);
+    if (!target || candidates.indexOf(target) < 0) {
+      target = null;
+    }
     index = candidates.length;
-    for (i = 0; i < candidates.length; i += 1) {
-      rect = candidates[i].getBoundingClientRect();
-      if (clientY < rect.top + rect.height / 2) {
-        index = i;
-        anchor = candidates[i];
-        break;
+    if (!target) {
+      for (i = 0; i < candidates.length; i += 1) {
+        rect = candidates[i].getBoundingClientRect();
+        if (clientY <= rect.top + rect.height) {
+          target = candidates[i];
+          break;
+        }
       }
+    }
+    if (target) {
+      index = candidates.indexOf(target);
+      rect = target.getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 3) {
+        mode = 'before';
+      } else if (clientY > rect.top + rect.height * 2 / 3) {
+        mode = 'after';
+        index += 1;
+      } else {
+        mode = 'merge';
+      }
+    }
+    this._dragTargetMode = mode;
+    this._dragTargetFieldKey = target ? target.getAttribute('data-field-key') : null;
+    this._dragTargetIndex = index;
+    if (mode === 'merge' && target) {
+      target.classList.add('fg-pivot-panel-merge-target');
+      this._mergeTarget = target;
+      return index;
     }
     indicator = document.createElement('div');
     indicator.className = 'fg-pivot-panel-insert-line';
     indicator.setAttribute('aria-hidden', 'true');
-    if (anchor) {
-      list.insertBefore(indicator, anchor);
+    if (target && mode === 'before') {
+      list.insertBefore(indicator, target);
+    } else if (target && target.nextSibling) {
+      list.insertBefore(indicator, target.nextSibling);
     } else {
       list.appendChild(indicator);
     }
     this._dropIndicator = indicator;
-    this._dragTargetIndex = index;
     return index;
   };
 
   PivotPanel.prototype._clearDropIndicator = function() {
+    if (this._mergeTarget && this._mergeTarget.classList) {
+      this._mergeTarget.classList.remove('fg-pivot-panel-merge-target');
+    }
     if (this._dropIndicator && this._dropIndicator.parentNode) {
       this._dropIndicator.parentNode.removeChild(this._dropIndicator);
     }
+    this._mergeTarget = null;
     this._dropIndicator = null;
     this._dragTargetArea = null;
     this._dragTargetIndex = Infinity;
+    this._dragTargetMode = null;
+    this._dragTargetFieldKey = null;
   };
 
   PivotPanel.prototype._handleDrop = function(event) {
@@ -1078,9 +1182,13 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     area = list.getAttribute('data-area');
     if (area !== 'fields') {
       index = this._dragTargetArea === area ? this._dragTargetIndex :
-        this._showDropIndicator(list, area, event.clientY);
+        this._showDropIndicator(list, area, event.clientY, event.target);
     }
-    this.moveField(this._dragFieldKey, area, index);
+    if (this._dragTargetMode === 'merge' && this._dragTargetFieldKey) {
+      this.mergeFields(this._dragFieldKey, this._dragTargetFieldKey, area);
+    } else {
+      this.moveField(this._dragFieldKey, area, index);
+    }
     this._clearDragState();
   };
 
@@ -1139,7 +1247,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
       return;
     }
     area = list.getAttribute('data-area');
-    this._showDropIndicator(list, area, event.clientY);
+    this._showDropIndicator(list, area, event.clientY, target);
     list.classList.add('fg-pivot-panel-drop-active');
   };
 
@@ -1153,7 +1261,11 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     if (event.type !== 'pointercancel' && this._dragTargetArea) {
       area = this._dragTargetArea;
       index = area === 'fields' ? Infinity : this._dragTargetIndex;
-      this.moveField(this._dragFieldKey, area, index);
+      if (this._dragTargetMode === 'merge' && this._dragTargetFieldKey) {
+        this.mergeFields(this._dragFieldKey, this._dragTargetFieldKey, area);
+      } else {
+        this.moveField(this._dragFieldKey, area, index);
+      }
     }
     this._clearDragState();
   };

@@ -108,7 +108,7 @@ function buildThemeOutput(options) {
     const source = path.join(sourceThemeDir, file);
     const outputName = file.replace(/^fabgrid\./i, 'fabui.');
     const output = path.join(outputThemeDir, outputName);
-    const css = bundleThemeCss(source, sourceThemeDir);
+    const css = bundleThemeCss(source, sourceThemeDir).trimEnd() + '\n';
     if (/\.fg-theme-[A-Za-z0-9-]+/.test(css)) {
       throw new Error('Theme output must use fixed component selectors: ' + file);
     }

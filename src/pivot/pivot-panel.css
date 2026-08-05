@@ -1,5 +1,6 @@
 :root .fg-root.fg-pivot-panel {
   display: flex;
+  height: 100%;
   flex-direction: column;
   min-width: 260px;
   min-height: 420px;
@@ -13,8 +14,9 @@
 
 :root .fg-pivot-panel-header {
   display: flex;
-  flex: 0 0 38%;
-  min-height: 150px;
+  flex: 0 0 50%;
+  min-height: 0;
+  overflow: hidden;
   flex-direction: column;
   border-bottom: 1px solid var(--fg-border-strong);
 }
@@ -24,6 +26,7 @@
   flex: 1 1 auto;
   min-height: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
 }
 
 :root .fg-pivot-panel-section {
@@ -63,6 +66,9 @@
 
 :root .fg-pivot-panel-fields {
   display: grid;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   align-content: start;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -283,6 +289,13 @@
 
 :root .fg-pivot-panel-dragging {
   opacity: .45;
+}
+
+:root .fg-pivot-panel-field.fg-pivot-panel-merge-target,
+:root .fg-pivot-panel-item.fg-pivot-panel-merge-target {
+  border-color: var(--fg-selected-border);
+  background: var(--fg-selected-bg);
+  box-shadow: inset 0 0 0 2px var(--fg-selected-border);
 }
 
 :root .fg-pivot-panel-insert-line {

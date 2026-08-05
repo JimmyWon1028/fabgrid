@@ -184,6 +184,10 @@ export function PivotField(engine, binding, header, options) {
   });
   this.filter = options.filter || null;
   this.groupBy = options.groupBy || null;
+  this.combineFields = Array.isArray(options.combineFields) ? options.combineFields.map(function(field) {
+    return String(field || '');
+  }).filter(Boolean) : [];
+  this.combineSeparator = options.combineSeparator == null ? ' ' : String(options.combineSeparator);
   this.getValue = typeof options.getValue === 'function' ? options.getValue :
     (typeof options.calculate === 'function' ? options.calculate : null);
   this.calculate = this.getValue;
@@ -194,8 +198,35 @@ export function PivotField(engine, binding, header, options) {
   this.visible = options.visible !== false;
 }
 
-PivotField.prototype.getItemValue = function(item) {
-  var value = this.getValue ? this.getValue(item) : getPivotBindingValue(item, this.binding);
+PivotField.prototype.getItemValue = function(item, resolvingFields) {
+  var values;
+  var value;
+  var field;
+  var i;
+  if (this.combineFields.length && this.engine) {
+    resolvingFields = Array.isArray(resolvingFields) ? resolvingFields : [];
+    if (resolvingFields.indexOf(this) >= 0) {
+      throw new TypeError('Pivot combineFields contains a circular reference at "' + this.key + '".');
+    }
+    resolvingFields.push(this);
+    values = [];
+    try {
+      for (i = 0; i < this.combineFields.length; i += 1) {
+        field = this.engine.getField(this.combineFields[i]);
+        if (!field) {
+          continue;
+        }
+        value = field.getItemValue(item, resolvingFields);
+        if (value != null && value !== '') {
+          values.push(String(value));
+        }
+      }
+    } finally {
+      resolvingFields.pop();
+    }
+    return values.join(this.combineSeparator);
+  }
+  value = this.getValue ? this.getValue(item) : getPivotBindingValue(item, this.binding);
   return getGroupedValue(value, this.groupBy);
 };
 
@@ -433,6 +464,8 @@ function copyDefinitionField(field) {
     descending: field.descending,
     filter: filter,
     groupBy: typeof field.groupBy === 'string' ? field.groupBy : null,
+    combineFields: field.combineFields.slice(),
+    combineSeparator: field.combineSeparator,
     weightBinding: field.weightBinding,
     showAs: field.showAs,
     width: field.width,

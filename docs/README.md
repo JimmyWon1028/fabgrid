@@ -62,7 +62,7 @@
 
 ## Wrapper
 
-Wrapper 不納入預設 build 或 `build:all`，只在明確需要時以各自的獨立命令編譯。
+Wrapper 不納入一般 `build`，但會由 `build:all` 依序執行各自的獨立命令編譯。
 
 - [Vue 2 Wrapper](./vue-api.md)
 - [FabGrid jQuery Wrapper](./jquery-api.md)

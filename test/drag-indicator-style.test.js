@@ -25,6 +25,21 @@ test('PivotPanel field insertion indicator uses the shared semi-transparent opac
     pivotCss,
     /\.fg-pivot-panel-insert-line\s*\{[\s\S]*?opacity:\s*var\(--fg-drag-indicator-opacity,\s*0\.55\);[\s\S]*?\}/
   );
+  assert.match(
+    pivotCss,
+    /\.fg-pivot-panel-field\.fg-pivot-panel-merge-target,[\s\S]*?box-shadow:\s*inset 0 0 0 2px var\(--fg-selected-border\);[\s\S]*?\}/
+  );
+});
+
+test('PivotPanel gives Fields half of the available height with vertical scrolling', function() {
+  assert.match(
+    pivotCss,
+    /\.fg-pivot-panel-header\s*\{[\s\S]*?flex:\s*0 0 50%;[\s\S]*?min-height:\s*0;[\s\S]*?overflow:\s*hidden;[\s\S]*?\}/
+  );
+  assert.match(
+    pivotCss,
+    /\.fg-pivot-panel-fields\s*\{[\s\S]*?min-height:\s*0;[\s\S]*?overflow-x:\s*hidden;[\s\S]*?overflow-y:\s*auto;[\s\S]*?\}/
+  );
 });
 
 test('Build-mode drag demos keep insertion indicators semi-transparent without rebuilding dist', function() {

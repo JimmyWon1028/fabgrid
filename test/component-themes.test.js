@@ -35,6 +35,25 @@ test('Every FabGrid theme defines the CellRange palette variables', function() {
   });
 });
 
+test('Selection checkbox pane stays transparent below data rows in every theme', function() {
+  var coreCss = readFileSync(new URL('../src/grid/fabgrid.css', import.meta.url), 'utf8');
+  var paneRule = coreCss.match(/:root \.fg-selection-pane\s*\{([^}]+)\}/);
+
+  assert.ok(paneRule);
+  assert.match(paneRule[1], /background:\s*transparent/);
+  assert.doesNotMatch(paneRule[1], /border-right/);
+  themes.filter(function(theme) {
+    return theme !== 'default';
+  }).forEach(function(theme) {
+    var css = readFileSync(
+      new URL('../src/theme/fabgrid.' + theme + '.css', import.meta.url),
+      'utf8'
+    );
+
+    assert.doesNotMatch(css, /\.fg-selection-pane/, theme);
+  });
+});
+
 test('Every FabUI theme defines the new component palette variables', function() {
   themes.forEach(function(theme) {
     var css = readFileSync(

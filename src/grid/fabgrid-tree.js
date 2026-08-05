@@ -502,10 +502,7 @@ export function installFabGridTree(FabGrid, context) {
     if (value == null || value === '') {
       return 0;
     }
-    if (typeof value === 'number') {
-      return Math.max(0, Math.min(this.visibleColumns.length - 1, Math.floor(value)));
-    }
-    column = typeof value === 'object' ? value : this.getColumn(value);
+    column = typeof value === 'object' ? value : FabGrid.prototype.getColumn.call(this, value);
     return column ? this.visibleColumns.indexOf(column) : 0;
   };
 

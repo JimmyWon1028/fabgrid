@@ -898,9 +898,10 @@ export function installFabGridData(FabGrid, context) {
     return true;
   };
 
-  FabGrid.prototype.load = function(params) {
+  FabGrid.prototype.load = function(params, loadOptions) {
     var self = this;
     var loader = this.options.loader;
+    var background = loadOptions && loadOptions.background === true;
     var controller = null;
     var request;
     var seq;
@@ -923,7 +924,7 @@ export function installFabGridData(FabGrid, context) {
     this._remoteLoadSeq += 1;
     seq = this._remoteLoadSeq;
     this.cancelRemoteLoad();
-    this.setRemoteLoading(true);
+    this.setRemoteLoading(true, background);
     try {
       if (typeof loader === 'function') {
         result = loader.call(this, request);
@@ -1123,14 +1124,22 @@ export function installFabGridData(FabGrid, context) {
     return this.load();
   };
 
-  FabGrid.prototype.setRemoteLoading = function(value) {
+  FabGrid.prototype.setRemoteLoading = function(value, background) {
+    var wasBlocking = this._remoteLoadingBlocking === true;
     this.remoteLoading = value === true;
-    this.busy = this.remoteLoading;
-    this.root.setAttribute('aria-busy', this.remoteLoading ? 'true' : 'false');
+    this.remoteLoadingBackground = this.remoteLoading && background === true;
+    this._remoteLoadingBlocking = this.remoteLoading && !this.remoteLoadingBackground;
+    if (this._remoteLoadingBlocking) {
+      this.busy = true;
+    } else if (wasBlocking) {
+      this.busy = false;
+    }
+    this.root.setAttribute('aria-busy', this.remoteLoading || this.busy ? 'true' : 'false');
     if (this.remoteLoadText) {
       this.remoteLoadText.textContent = this.options.loadMsg || this.getText('loadMsg');
     }
     if (this.remoteLoadMask) {
+      this.remoteLoadMask.classList.toggle('fg-remote-load-background', this.remoteLoadingBackground);
       this.remoteLoadMask.style.display = this.remoteLoading ? 'flex' : 'none';
     }
   };
@@ -1583,7 +1592,12 @@ export function installFabGridData(FabGrid, context) {
       });
     }
     if (this.options.remote === true) {
-      this.load();
+      this.load(undefined, {
+        background: source === 'headerSearch' ||
+          source === 'setColumnSearch' ||
+          source === 'setColumnSearchOperator' ||
+          source === 'clearColumnSearch'
+      });
     }
   };
 
@@ -1728,6 +1742,9 @@ export function installFabGridData(FabGrid, context) {
       this.view = this.createGroupedView(rows);
     }
     this._rowCollection = null;
+    if (typeof this._invalidateFooterAggregateCache === 'function') {
+      this._invalidateFooterAggregateCache();
+    }
     this.refreshInvalidItemRows();
     this.restoreSelectionState(selectionState);
     this.clampSelection();

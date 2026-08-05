@@ -129,6 +129,24 @@ test('Chart source demo follows the filtered FabGrid view', function() {
   assert.doesNotMatch(source, /selectionSource\s*:/);
 });
 
+test('Chart preserves a null itemsSource for compatible categories and series data', function() {
+  var namespace = createChartNamespace();
+  var fakeChart = Object.create(namespace.Chart.prototype);
+  var emptyRows = [];
+
+  fakeChart.options = {
+    categories: ['Q1', 'Q2'],
+    series: [{ name: 'Sales', data: [10, 20] }]
+  };
+  fakeChart.bindItemsSource(null, false);
+  assert.equal(fakeChart.options.itemsSource, null);
+  assert.deepEqual(fakeChart.options.categories, ['Q1', 'Q2']);
+  assert.deepEqual(fakeChart.options.series[0].data, [10, 20]);
+
+  fakeChart.bindItemsSource(emptyRows, false);
+  assert.equal(fakeChart.options.itemsSource, emptyRows);
+});
+
 test('Chart follows CollectionView items and current position', function() {
   var namespace = createChartNamespace();
   var rows = [{ id: 1 }, { id: 2 }, { id: 3 }];

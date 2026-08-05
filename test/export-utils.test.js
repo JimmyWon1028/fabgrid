@@ -3,13 +3,16 @@ import assert from 'node:assert/strict';
 import {
   cssColorToExcelColor,
   createExcelCell,
+  createExcelNamespace,
   createXlsxFiles,
+  createXlsxWorkbookFiles,
   createZip,
   csvEscape,
   getExcelColumnName,
   getXmlSpaceAttribute,
   mergeExcelStyle,
   normalizeExcelAlign,
+  normalizeExcelSheetName,
   normalizeExcelStyle,
   normalizeJsonRows,
   readJsonSource,
@@ -46,6 +49,59 @@ test('XLSX package contains all required workbook files', function() {
   assert.match(files[7].content, /<worksheet/);
 });
 
+test('Excel sheet names are sanitized and limited to 31 characters', function() {
+  assert.equal(normalizeExcelSheetName("'會計/科目:*?[]\\'"), '會計_科目______');
+  assert.equal(normalizeExcelSheetName(''), 'Sheet1');
+  assert.equal(normalizeExcelSheetName('123456789012345678901234567890123'), '1234567890123456789012345678901');
+  assert.equal(normalizeExcelSheetName("123456789012345678901234567890'xx"), '123456789012345678901234567890');
+});
+
+test('XLSX workbook supports custom and duplicate sheet names', function() {
+  var columns = [{ binding: 'name', header: '名稱', width: 120 }];
+  var files = createXlsxWorkbookFiles([
+    { name: '資料&明細', columns: columns, rows: [{ name: '第一筆' }], options: {} },
+    { name: '資料&明細', columns: columns, rows: [{ name: '第二筆' }], options: {} }
+  ]);
+  var workbook = files.find(function(file) { return file.name === 'xl/workbook.xml'; }).content;
+  var relationships = files.find(function(file) { return file.name === 'xl/_rels/workbook.xml.rels'; }).content;
+
+  assert.ok(files.some(function(file) { return file.name === 'xl/worksheets/sheet2.xml'; }));
+  assert.match(workbook, /name="資料&amp;明細"/);
+  assert.match(workbook, /name="資料&amp;明細 \(2\)"/);
+  assert.match(relationships, /Id="rId2"[^>]+Target="worksheets\/sheet2\.xml"/);
+  assert.match(relationships, /Id="rId3"[^>]+Target="styles\.xml"/);
+});
+
+test('fabui Excel namespace creates a multi-sheet workbook Blob from Grids', function() {
+  function createGrid(value) {
+    var columns = [{ binding: 'name', header: '名稱', width: 120 }];
+    return {
+      columns: columns,
+      visibleColumns: columns,
+      frozenColumns: 0,
+      options: {},
+      _getExcelExportRows: function() { return [{ name: value }]; },
+      _isExcelExportRowHidden: function() { return false; },
+      isRowGroup: function() { return false; },
+      isRowGroupFooter: function() { return false; },
+      getExcelFrozenColumnCount: function() { return 0; },
+      getHeaderDisplayMode: function() { return 'header'; },
+      getFooterHeight: function() { return 0; }
+    };
+  }
+  var Excel = createExcelNamespace();
+  var blob = Excel.getBlob({
+    sheets: [
+      { name: '第一頁', grid: createGrid('A') },
+      { name: '第二頁', grid: createGrid('B'), visibleOnly: true }
+    ]
+  });
+
+  assert.equal(blob.type, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  assert.ok(blob.size > 0);
+  assert.throws(function() { Excel.getBlob({ sheets: [] }); }, /at least one sheet/);
+});
+
 test('XLSX header row follows the current header display mode', function() {
   var columns = [{ binding: 'orderNumber', header: '訂單編號', width: 120 }];
   var headerFiles = createXlsxFiles(columns, [], { headerDisplayMode: 'header' });
@@ -55,6 +111,25 @@ test('XLSX header row follows the current header display mode', function() {
   assert.doesNotMatch(headerFiles[7].content, />orderNumber</);
   assert.match(bindingFiles[7].content, />orderNumber</);
   assert.doesNotMatch(bindingFiles[7].content, />訂單編號</);
+});
+
+test('XLSX export includes every configured footer row', function() {
+  var columns = [{ binding: 'amount', header: '金額', width: 120 }];
+  var grid = {
+    getFooterCellText: function(row) {
+      return row === 0 ? '12' : '3000';
+    }
+  };
+  var files = createXlsxFiles(columns, [], {
+    includeFooter: true,
+    footerRowCount: 2,
+    grid: grid
+  });
+  var sheetXml = files[7].content;
+
+  assert.match(sheetXml, /<dimension ref="A1:A3"\/>/);
+  assert.match(sheetXml, /<row r="2"><c r="A2"[^>]*>.*>12</);
+  assert.match(sheetXml, /<row r="3"><c r="A3"[^>]*>.*>3000</);
 });
 
 test('XLSX rows can retain data while remaining hidden', function() {

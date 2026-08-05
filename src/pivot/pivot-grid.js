@@ -9,6 +9,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
   var baseCreateDom = FabGrid.prototype.createDom;
   var baseDispose = FabGrid.prototype.dispose;
   var baseGetHeaderHeight = FabGrid.prototype.getHeaderHeight;
+  var baseGetHeaderTitleHeight = FabGrid.prototype.getHeaderTitleHeight;
   var baseHandleClick = FabGrid.prototype.handleClick;
   var baseHandleContextMenu = FabGrid.prototype.handleContextMenu;
   var baseHandleDblClick = FabGrid.prototype.handleDblClick;
@@ -176,6 +177,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
     this._pivotContext = null;
     this._pivotDetailGrid = null;
     this._pivotUpdatedHandler = this._handlePivotUpdated.bind(this);
+    this._pivotResizedColumnHandler = this._handlePivotColumnResized.bind(this);
     baseOptions.itemsSource = [];
     baseOptions.columns = [];
     baseOptions.allowEditing = false;
@@ -192,6 +194,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
     baseOptions.copyHeaders = sourceOptions.copyHeaders || 'All';
     baseOptions.selectionMode = sourceOptions.selectionMode || 'CellRange';
     FabGrid.call(this, element, baseOptions);
+    this.resizedColumn.addHandler(this._pivotResizedColumnHandler, this);
     this._pivotConstructing = false;
     if (engine) {
       this.setPivotEngine(engine);
@@ -286,6 +289,53 @@ export function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
 
   PivotGrid.prototype._handlePivotUpdated = function() {
     this._applyPivotView(false);
+  };
+
+  PivotGrid.prototype._handlePivotColumnResized = function(sender, args) {
+    var column = args && args.column;
+    var field = column && (column._pivotRowField ||
+      (column._pivotDataColumn && column._pivotDataColumn.valueField));
+    var width = Number(column && column.width);
+    var changedColumns = [];
+    var candidate;
+    var candidateField;
+    var i;
+    if (!field || !isFinite(width) || width <= 0 || !this._pivotEngine) {
+      return false;
+    }
+    for (i = 0; i < this.columns.length; i += 1) {
+      candidate = this.columns[i];
+      candidateField = candidate._pivotRowField ||
+        (candidate._pivotDataColumn && candidate._pivotDataColumn.valueField);
+      if (candidateField && candidate !== column &&
+          (candidateField === field || candidateField.key === field.key) &&
+          candidate.width !== width) {
+        changedColumns.push({
+          column: candidate,
+          width: candidate.width,
+          calculatedWidth: candidate._width
+        });
+        candidate.width = width;
+        candidate._width = width;
+      }
+    }
+    if (changedColumns.length && this.updateLayout() === false) {
+      for (i = 0; i < changedColumns.length; i += 1) {
+        changedColumns[i].column.width = changedColumns[i].width;
+        changedColumns[i].column._width = changedColumns[i].calculatedWidth;
+      }
+      return false;
+    }
+    if (changedColumns.length) {
+      this.render();
+    }
+    field.width = width;
+    this._pivotEngine.emit('viewDefinitionChanged', {
+      property: 'width',
+      field: field,
+      width: width
+    });
+    return true;
   };
 
   PivotGrid.prototype._applyPivotView = function(silent) {
@@ -434,8 +484,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
       columns.push({
         binding: '__pivot_row_' + i,
         header: this.options.showRowFieldHeaders === false ? '' : field.header,
-        width: field.width,
-        minWidth: 72,
+        width: field.width == null ? 72 : field.width,
         align: field.align || 'left',
         dataType: field.dataType,
         isReadOnly: true,
@@ -450,8 +499,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
       columns.push({
         binding: dataColumn.binding,
         header: field.header,
-        width: field.width,
-        minWidth: 72,
+        width: field.width == null ? 72 : field.width,
         align: field.align || 'right',
         dataType: field.dataType || 'number',
         format: field.format,
@@ -550,6 +598,9 @@ export function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
   };
 
   PivotGrid.prototype.getHeaderTitleHeight = function() {
+    if (!this._pivotView) {
+      return baseGetHeaderTitleHeight.call(this);
+    }
     return this.getHeaderHeight();
   };
 
@@ -1254,6 +1305,9 @@ export function createPivotGridFactory(FabGrid, PivotEngine, CellType) {
 
   PivotGrid.prototype.dispose = function() {
     this.hideDetail();
+    if (this.resizedColumn) {
+      this.resizedColumn.removeHandler(this._pivotResizedColumnHandler, this);
+    }
     if (this._pivotEngine && this._pivotEngine.updatedView) {
       this._pivotEngine.updatedView.removeHandler(this._pivotUpdatedHandler, this);
     }

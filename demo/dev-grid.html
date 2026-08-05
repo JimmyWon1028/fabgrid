@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>FabGrid Dev Grid Demo</title>
-    <link rel="stylesheet" href="../src/fabui.css?v=20260803-external-editor-icon-v1" />
+    <link rel="stylesheet" href="../src/fabui.css?v=20260805-cell-maker-link-v1" />
     <script src="./js/theme-loader.js?v=20260731-tree-icons-v1"></script>
     <link
       rel="stylesheet"
@@ -76,7 +76,7 @@
     <script src="./js/grid-locales.js?v=20260728-edit-mode-toggle-v2"></script>
     <script src="./js/grid-query.js?v=20260722-remote-op-symbol-v1"></script>
     <script type="module">
-      import fabui from "../src/fabui.js?v=20260804-grid-event-layout-v2";
+      import fabui from "../src/fabui.js?v=20260805-grid-pivot-audit-fixes-v1";
       import { createGrid2FabuiDemo } from "./js/grid2-components.js?v=20260728-edit-mode-toggle-v2";
 
       window.fabui = fabui;
@@ -84,7 +84,7 @@
       window.FABGRID_DEMO_HEADER_GROUPS = true;
       const grid2Components = createGrid2FabuiDemo(fabui);
 
-      await import("./js/grid.js?v=20260804-grid-event-layout-v2");
+      await import("./js/grid.js?v=20260804-grid-column-rollback-v4");
       grid2Components.complete();
     </script>
     <script type="module" src="./js/dev-controls.js?v=20260721-initial-filter-rules-v1"></script>

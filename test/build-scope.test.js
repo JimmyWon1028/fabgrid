@@ -301,7 +301,10 @@ test('build command contract supports comma-separated scopes', function() {
   assert.match(agents, /`build fabui,htmleditor min`/);
   assert.match(agents, /`build locale`/);
   assert.match(agents, /`build locale min`/);
-  assert.match(packageJson.scripts['build:all'], /npm run build:locale$/);
+  assert.match(
+    packageJson.scripts['build:all'],
+    /npm run build:locale && npm run build:vue && npm run build:jquery && npm run build:fabui-jquery$/
+  );
   assert.match(agents, /`build htmleditor min`/);
   assert.match(agents, /`build fabloader`/);
   assert.match(agents, /`build fabloader min`/);

@@ -87,6 +87,20 @@ export function xmlEscape(value) {
     .replace(/'/g, '&apos;');
 }
 
+export function normalizeExcelSheetName(value) {
+  var name = value == null ? '' : String(value).trim();
+  name = name.replace(/[\\\/?*\[\]:]/g, '_').replace(/^'+|'+$/g, '');
+  name = name.slice(0, 31).replace(/^'+|'+$/g, '');
+  return name || 'Sheet1';
+}
+
+function normalizeExcelExportOptions(value) {
+  if (typeof value === 'boolean') {
+    return { visibleOnly: value };
+  }
+  return value && typeof value === 'object' ? value : {};
+}
+
 export function cssColorToExcelColor(value) {
   var match;
   var hex;
@@ -144,6 +158,72 @@ export function createExcelCell(row, col, value, type, styleId) {
 function toHexByte(value) {
   var hex = Math.max(0, Math.min(255, Number(value))).toString(16).toUpperCase();
   return hex.length === 1 ? '0' + hex : hex;
+}
+
+function createGridExcelSheet(grid, options) {
+  var visibleOnly;
+  if (!grid || !Array.isArray(grid.columns) || typeof grid._getExcelExportRows !== 'function') {
+    throw new TypeError('FabUI Excel sheet requires a FabGrid instance.');
+  }
+  options = normalizeExcelExportOptions(options);
+  visibleOnly = options.visibleOnly === true;
+  return {
+    name: options.name || options.sheetName || 'Sheet1',
+    columns: visibleOnly ? grid.visibleColumns : grid.columns,
+    rows: grid._getExcelExportRows(),
+    options: {
+      frozenColumns: visibleOnly ? grid.frozenColumns : grid.getExcelFrozenColumnCount(),
+      headerDisplayMode: grid.getHeaderDisplayMode(),
+      grid: grid,
+      formatCell: grid.options.formatCell,
+      excelCellStyle: grid.options.excelCellStyle,
+      includeFooter: grid.getFooterHeight() > 0,
+      footerRowCount: typeof grid.getFooterRowCount === 'function' ? grid.getFooterRowCount() : 1,
+      isRowHidden: function(row, rowIndex) {
+        return grid._isExcelExportRowHidden(row, rowIndex);
+      }
+    }
+  };
+}
+
+function createExcelWorkbookBlob(sheets) {
+  return new Blob([createZip(createXlsxWorkbookFiles(sheets))], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+}
+
+export function createExcelNamespace() {
+  return {
+    getBlob: function(options) {
+      var sheetOptions = options && Array.isArray(options.sheets) ? options.sheets : [];
+      if (!sheetOptions.length) {
+        throw new TypeError('fabui.Excel requires at least one sheet.');
+      }
+      return createExcelWorkbookBlob(sheetOptions.map(function(sheet) {
+        sheet = sheet || {};
+        return createGridExcelSheet(sheet.grid, sheet);
+      }));
+    },
+    export: function(filename, options) {
+      var excel = this;
+      var outputName = filename || 'fabgrid.xlsx';
+      return new Promise(function(resolve, reject) {
+        var run = function() {
+          try {
+            downloadBlob(excel.getBlob(options), outputName);
+            resolve(true);
+          } catch (error) {
+            reject(error);
+          }
+        };
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(function() { setTimeout(run, 0); });
+        } else {
+          setTimeout(run, 0);
+        }
+      });
+    }
+  };
 }
 
 export function installFabGridExport(FabGrid, context) {
@@ -210,24 +290,10 @@ export function installFabGridExport(FabGrid, context) {
     });
   };
 
-  FabGrid.prototype.getExcelBlob = function(visibleOnly) {
-    var columns = visibleOnly === true ? this.visibleColumns : this.columns;
-    var rows = this._getExcelExportRows();
-    var grid = this;
-    var files = createXlsxFiles(columns, rows, {
-      frozenColumns: visibleOnly === true ? this.frozenColumns : this.getExcelFrozenColumnCount(),
-      headerDisplayMode: this.getHeaderDisplayMode(),
-      grid: this,
-      formatCell: this.options.formatCell,
-      excelCellStyle: this.options.excelCellStyle,
-      includeFooter: this.getFooterHeight() > 0,
-      isRowHidden: function(row, rowIndex) {
-        return grid._isExcelExportRowHidden(row, rowIndex);
-      }
-    });
-    return new Blob([createZip(files)], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    });
+  FabGrid.prototype.getExcelBlob = function(options) {
+    return createExcelWorkbookBlob([
+      createGridExcelSheet(this, normalizeExcelExportOptions(options))
+    ]);
   };
 
 
@@ -240,11 +306,13 @@ export function installFabGridExport(FabGrid, context) {
     return sourceIndex < 0 ? 0 : sourceIndex + 1;
   };
 
-  FabGrid.prototype.exportExcel = function(filename, visibleOnly) {
+  FabGrid.prototype.exportExcel = function(filename, options) {
     var self = this;
     var outputName = filename || 'fabgrid.xlsx';
+    var exportOptions = normalizeExcelExportOptions(options);
+    var sheetName = normalizeExcelSheetName(exportOptions.sheetName);
     if (this.busy) return Promise.resolve(false);
-    if (this.emit('excelExporting', { filename: outputName }) === false) {
+    if (this.emit('excelExporting', { filename: outputName, sheetName: sheetName }) === false) {
       return Promise.resolve(false);
     }
     this.setBusy(true, this.options.exportBusyText || this.getText('exportBusyText'));
@@ -253,12 +321,12 @@ export function installFabGridExport(FabGrid, context) {
         setTimeout(function() {
           var blob;
           try {
-            blob = self.getExcelBlob(visibleOnly);
+            blob = self.getExcelBlob(exportOptions);
             downloadBlob(blob, outputName);
-            self.emit('excelExported', { filename: outputName, blob: blob });
+            self.emit('excelExported', { filename: outputName, sheetName: sheetName, blob: blob });
             resolve(true);
           } catch (error) {
-            self.emit('excelExportFailed', { filename: outputName, error: error });
+            self.emit('excelExportFailed', { filename: outputName, sheetName: sheetName, error: error });
             reject(error);
           } finally {
             self.setBusy(false);
@@ -280,11 +348,52 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-export function createXlsxFiles(columns, rows, options) {
+function normalizeWorkbookSheets(sheets) {
+  var usedNames = {};
+  if (!Array.isArray(sheets) || !sheets.length) {
+    throw new TypeError('Excel workbook requires at least one sheet.');
+  }
+  return sheets.map(function(sheet, index) {
+    var baseName = normalizeExcelSheetName(sheet && (sheet.name || sheet.sheetName));
+    var name = baseName;
+    var suffix;
+    var duplicate = 1;
+    while (usedNames[name.toLowerCase()]) {
+      duplicate += 1;
+      suffix = ' (' + duplicate + ')';
+      name = baseName.slice(0, 31 - suffix.length) + suffix;
+    }
+    usedNames[name.toLowerCase()] = true;
+    return {
+      name: name || 'Sheet' + (index + 1),
+      columns: sheet && Array.isArray(sheet.columns) ? sheet.columns : [],
+      rows: sheet && Array.isArray(sheet.rows) ? sheet.rows : [],
+      options: sheet && sheet.options ? sheet.options : {}
+    };
+  });
+}
+
+export function createXlsxWorkbookFiles(sheets) {
   var now = new Date().toISOString();
   var registry = createExcelStyleRegistry();
-  var worksheet = createWorksheetXml(columns, rows, options || {}, registry);
-  return [
+  var normalizedSheets = normalizeWorkbookSheets(sheets);
+  var worksheets = normalizedSheets.map(function(sheet) {
+    return createWorksheetXml(sheet.columns, sheet.rows, sheet.options, registry);
+  });
+  var worksheetOverrides = '';
+  var workbookSheets = '';
+  var worksheetRelationships = '';
+  var files;
+  var i;
+  for (i = 0; i < normalizedSheets.length; i += 1) {
+    worksheetOverrides +=
+      '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+    workbookSheets +=
+      '<sheet name="' + xmlEscape(normalizedSheets[i].name) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>';
+    worksheetRelationships +=
+      '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+  }
+  files = [
     {
       name: '[Content_Types].xml',
       content: '<?xml version="1.0" encoding="UTF-8"?>' +
@@ -294,7 +403,7 @@ export function createXlsxFiles(columns, rows, options) {
         '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>' +
         '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>' +
         '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
-        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+        worksheetOverrides +
         '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
         '</Types>'
     },
@@ -328,26 +437,39 @@ export function createXlsxFiles(columns, rows, options) {
       name: 'xl/workbook.xml',
       content: '<?xml version="1.0" encoding="UTF-8"?>' +
         '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>' +
+        '<sheets>' + workbookSheets + '</sheets>' +
         '</workbook>'
     },
     {
       name: 'xl/_rels/workbook.xml.rels',
       content: '<?xml version="1.0" encoding="UTF-8"?>' +
         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
-        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+        worksheetRelationships +
+        '<Relationship Id="rId' + (normalizedSheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
         '</Relationships>'
     },
     {
       name: 'xl/styles.xml',
       content: createExcelStylesXml(registry)
-    },
-    {
-      name: 'xl/worksheets/sheet1.xml',
-      content: worksheet
     }
   ];
+  for (i = 0; i < normalizedSheets.length; i += 1) {
+    files.push({
+      name: 'xl/worksheets/sheet' + (i + 1) + '.xml',
+      content: worksheets[i]
+    });
+  }
+  return files;
+}
+
+export function createXlsxFiles(columns, rows, options) {
+  options = options || {};
+  return createXlsxWorkbookFiles([{
+    name: options.sheetName,
+    columns: columns,
+    rows: rows,
+    options: options
+  }]);
 }
 
 export function createExcelStyleRegistry() {
@@ -542,12 +664,14 @@ function registerExcelNumberFormat(registry, code) {
 
 export function createWorksheetXml(columns, rows, options, registry) {
   var includeFooter = options.includeFooter === true && options.grid;
+  var footerRowCount = includeFooter ? Math.max(1, exportToNumber(options.footerRowCount, 1)) : 0;
   var dataMaxRow = rows.length + 1;
-  var maxRow = dataMaxRow + (includeFooter ? 1 : 0);
+  var maxRow = dataMaxRow + footerRowCount;
   var maxCol = Math.max(columns.length, 1);
   var xml = [];
   var r;
   var c;
+  var footerRow;
   var row;
   var styleResolver = createExcelStyleResolver(options);
   xml.push('<?xml version="1.0" encoding="UTF-8"?>');
@@ -590,7 +714,9 @@ export function createWorksheetXml(columns, rows, options, registry) {
     xml.push('</row>');
   }
   if (includeFooter) {
-    xml.push(createExcelFooterRowXml(rows.length + 2, columns, options.grid));
+    for (footerRow = 0; footerRow < footerRowCount; footerRow += 1) {
+      xml.push(createExcelFooterRowXml(rows.length + 2 + footerRow, columns, options.grid, footerRow));
+    }
   }
   if (styleResolver.dispose) {
     styleResolver.dispose();
@@ -633,13 +759,13 @@ function createExcelGroupRowXml(rowIndex, group, columns, grid, registry) {
   return xml.join('');
 }
 
-function createExcelFooterRowXml(rowIndex, columns, grid) {
+function createExcelFooterRowXml(rowIndex, columns, grid, footerRowIndex) {
   var xml = [];
   var c;
   var value;
   xml.push('<row r="' + rowIndex + '">');
   for (c = 0; c < columns.length; c += 1) {
-    value = grid.getFooterCellText(columns[c]);
+    value = grid.getFooterCellText(footerRowIndex, columns[c]);
     xml.push(createExcelCell(rowIndex, c + 1, value, 'string', getExcelFooterCellStyle(columns[c])));
   }
   xml.push('</row>');

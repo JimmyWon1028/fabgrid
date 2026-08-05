@@ -48,7 +48,7 @@ Parser 只解析既有 `easyui-*` class 與 `data-options`，不執行 `data-opt
 npm run build:fabui-jquery
 ```
 
-此獨立 Build 只輸出：
+此獨立 Build 會由 `build all` 呼叫，也可單獨執行，且只輸出：
 
 - `packages/fabui-jquery/dist/fabui-jquery.js`
 - `packages/fabui-jquery/dist/fabui-jquery.min.js`

@@ -6,6 +6,7 @@
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
   --fg-cell-text: #000000;
+  --fg-link-text: #337ab7;
   --fg-cell-hover-bg: #eef6ff;
   --fg-row-hover-bg: #edf6ff;
   --fg-row-selected-bg: #ffe68a;
@@ -600,11 +601,7 @@
 :root .fg-footer-row-header {
   left: 0;
   z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
-  padding: 0 6px;
   border-right: 1px dotted var(--fg-border);
   background-color: #efefef;
   background-image: linear-gradient(rgba(255, 255, 255, 20%), rgb(0 0 0 / 6%));
@@ -614,6 +611,22 @@
   line-height: 1;
   white-space: nowrap;
   user-select: none;
+}
+
+:root .fg-footer-row-header-cell {
+  position: absolute;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+:root .fg-footer-row-divider {
+  border-bottom: 1px dotted var(--fg-border);
 }
 
 :root .fg-footer-selection {
@@ -949,8 +962,7 @@
   bottom: var(--fg-scrollbar-gutter-size);
   z-index: 6;
   overflow: hidden;
-  border-right: 1px dotted var(--fg-border);
-  background: #ffffff;
+  background: transparent;
   pointer-events: none;
 }
 
@@ -1007,6 +1019,30 @@
   text-overflow: ellipsis;
   pointer-events: auto;
   user-select: none;
+}
+
+:root .fg-cell .fg-cell-maker {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  align-items: center;
+  overflow: hidden;
+  color: var(--fg-link-text);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+:root .fg-cell .fg-cell-maker:hover {
+  text-decoration: underline;
+}
+
+:root .fg-cell.fg-selected .fg-cell-maker,
+:root .fg-cell.fg-range-selected .fg-cell-maker,
+:root .fg-cell.fg-row-selected .fg-cell-maker {
+  color: inherit;
 }
 
 :root .fg-row-draggable {
@@ -1221,7 +1257,6 @@
   background: var(--fg-row-selected-bg);
 }
 
-:root .fg-root .fg-selection-pane,
 :root .fg-root .fg-selection-cell,
 :root .fg-root .fg-selection-cell.fg-row-even,
 :root .fg-root .fg-selection-cell.fg-row-alt,
@@ -1959,6 +1994,15 @@
   background: rgba(204, 204, 204, 0.3);
   pointer-events: auto;
   cursor: wait;
+}
+
+:root .fg-remote-load-mask.fg-remote-load-background {
+  background: transparent;
+  pointer-events: none;
+}
+
+:root .fg-remote-load-background .fg-remote-load-panel {
+  pointer-events: none;
 }
 
 :root .fg-remote-load-panel {

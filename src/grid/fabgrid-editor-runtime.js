@@ -1803,6 +1803,9 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       } finally {
         this._suppressObservedItemChange -= 1;
       }
+      if (typeof this._invalidateFooterAggregateCache === 'function') {
+        this._invalidateFooterAggregateCache();
+      }
       if (isPromiseLike(args.validationError)) {
         this.setPendingCellValidation(item, column, args.validationError, args.value, edit.row, edit.col);
       } else if (args.validationError) {

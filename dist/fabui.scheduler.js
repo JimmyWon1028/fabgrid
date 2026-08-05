@@ -2022,5 +2022,5 @@ function createSchedulerFactory(fabui) {
 }
 
 global.fabui.Scheduler = global.fabui.registerLocaleTarget("Scheduler", createSchedulerFactory(global.fabui));
-global.fabui.Scheduler.version = "2026.7.30";
+global.fabui.Scheduler.version = "2026.8.5";
 }(typeof window !== "undefined" ? window : this));

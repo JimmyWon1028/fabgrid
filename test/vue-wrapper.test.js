@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { createFabGridVue, createGridOptions, normalizeColumnProps, toKebabCase } from '../packages/fabgrid-vue/src/fabgrid-vue.js';
 
 test('Vue wrapper converts core event names to kebab case', function() {
@@ -31,9 +35,9 @@ test('Vue wrapper forwards filter changed events', function() {
   assert.equal(emitted[0].args.cleared, true);
 });
 
-test('Vue wrapper normalizes declarative column props', function() {
+test('Vue wrapper normalizes declarative column props without minWidth', function() {
   var cellTemplate = function(ctx) { return ctx.text; };
-  assert.deepEqual(normalizeColumnProps({ binding: 'amount', width: 120, visible: true, cellTemplate: cellTemplate, ignored: 'x' }), {
+  assert.deepEqual(normalizeColumnProps({ binding: 'amount', width: 120, minWidth: 30, visible: true, cellTemplate: cellTemplate, ignored: 'x' }), {
     binding: 'amount', width: 120, visible: true, cellTemplate: cellTemplate
   });
 });
@@ -122,4 +126,31 @@ test('Vue wrapper removes event handlers and disposes the core control', functio
   assert.equal(removed, 1);
   assert.equal(disposed, 1);
   assert.equal(vm.control, null);
+});
+
+test('Vue 2 wrapper build emits only the versioned minified browser file', function() {
+  var tempRoot = mkdtempSync(path.join(tmpdir(), 'fabgrid-vue2-build-'));
+  var packageDist = path.join(tempRoot, 'package');
+  var sharedDist = path.join(tempRoot, 'shared');
+  var result;
+
+  try {
+    result = spawnSync(process.execPath, ['build/build-vue.cjs'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: Object.assign({}, process.env, {
+        FABUI_PACKAGE_DIST_DIR: packageDist,
+        FABUI_DIST_DIR: sharedDist
+      })
+    });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.deepEqual(readdirSync(packageDist).sort(), ['fabgrid-vue2.min.js']);
+    assert.deepEqual(readdirSync(path.join(sharedDist, 'wrapper')).sort(), [
+      'fabgrid-vue2.min.js',
+      'vue.min.js'
+    ]);
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
 });

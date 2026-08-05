@@ -66,12 +66,25 @@ export function createGridPanel(grid, cellType) {
     cellType: cellType,
     getCellData: function(row, col, formatted) {
       return grid.getPanelCellData(panel, row, col, formatted === true);
+    },
+    setCellData: function(row, col, value, refresh) {
+      if (cellType === CellType.ColumnFooter && typeof grid.setFooterCellData === 'function') {
+        return grid.setFooterCellData(row, col, value, refresh);
+      }
+      if (cellType === CellType.BottomLeft && typeof grid.setFooterRowLabel === 'function') {
+        return grid.setFooterRowLabel(row, value, refresh);
+      }
+      return false;
     }
   };
 
   Object.defineProperties(panel, {
     rows: {
       get: function() {
+        if ((cellType === CellType.ColumnFooter || cellType === CellType.BottomLeft) &&
+            typeof grid.getFooterRows === 'function') {
+          return grid.getFooterRows();
+        }
         return grid.rows;
       }
     },

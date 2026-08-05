@@ -143,7 +143,7 @@ fabui.setConfig({
 | `itemsSource` | `Array<object>` | `[]` | 本機資料來源。 |
 | `columns` | `Array<Column \| ColumnGroup>` | `[]` | 欄位定義；群組可用巢狀 `columns` 建立多列合併 Header。 |
 | `rowHeight` | `number` | `32` | 每列固定高度；非正數或非有限數字回復為預設值。 |
-| `columnMinWidth` | `number` | `20` | Column 未指定 `minWidth` 時的全域最小欄寬，套用於初始欄寬、拖曳調寬與 AutoFit。 |
+| `columnMinWidth` | `number` | `20` | Column 未指定 `width` 時的預設欄寬，也是拖曳調寬與 AutoFit 的全域下限。 |
 | `headerHeight` | `number` | `32` | 每一層欄位標題列的高度。 |
 | `overscanRows` | `number` | `8` | 垂直虛擬化預先渲染列數；正規化為非負整數。 |
 | `fastScrollOverscanRows` | `number` | `64` | 快速捲動時額外渲染列數。 |
@@ -157,8 +157,9 @@ fabui.setConfig({
 | `rowHeaderHeader` | `string` | `''` | 左上角列頭標題文字。 |
 | `showColumnChooser` | `boolean` | `true` | 顯示左上角欄位選擇器；popup 可按 `Escape` 或點擊 popup 外部關閉。 |
 | `showFooter` | `boolean` | `false` | 顯示 footer aggregate 列。 |
-| `footerHeight` | `number` | `32` | Footer 高度。 |
-| `footerLabel` | `string` | `''` | Footer 左側列頭文字。 |
+| `footerHeight` | `number` | `32` | 每一列 Footer 的高度。 |
+| `footerLabel` | `string` | `''` | 未設定 `footerRows` 時，單列 Footer 左側的列頭文字。 |
+| `footerRows` | `Array<{ key, label, values? }>` | `null` | 定義多列 Footer；`key` 可供 Footer API 定位列，`label` 顯示於左側列頭，`values` 可用完整欄位 index 或 binding 提供初始值。未設定時維持一列；數字值預設靠右並顯示千位分隔。 |
 | `multiSelectRows` | `boolean` | `false` | 加入多選列 checkbox 欄。 |
 | `selectionCheckboxWidth` | `number` | `44` | 多選列 checkbox 欄寬。 |
 | `selectionMode` | `'Cell' \| 'CellRange'` | `'Cell'` | `Cell` 選取單一 active cell；`CellRange` 可用滑鼠拖曳、列號整列拖曳、`Shift + Click` 或 `Shift + 方向鍵`選取連續矩形範圍。可由 `fabui.FabGrid.SelectionMode` 取得常數。 |
@@ -181,7 +182,7 @@ fabui.setConfig({
 | `headerDisplayMode` | `'header' \| 'binding'` | `'header'` | 標題顯示欄位標題或 binding。 |
 | `headerToggleKey` | `string \| false` | `false` | 切換標題顯示模式的快捷鍵，例如 `'F4'`。 |
 | `alternatingRowStep` | `false \| number` | `1` | 交替列背景的分段列數；`false` 關閉，正整數 `1`、`2`、`3`…分別每 1、2、3…列切換一次背景。 |
-| `autoClipboard` | `boolean` | `true` | 是否攔截 `Ctrl/Cmd + C` 並複製目前 cell 或 CellRange。 |
+| `autoClipboard` | `boolean` | `true` | 是否攔截 `Ctrl/Cmd + C` 並複製目前 cell、CellRange 或 RowHeader 整列選取。 |
 | `syncScrollRender` | `boolean` | `true` | 捲動時同步更新可視內容；設為 `false` 時改由 animation frame 排程。 |
 | `itemFormatter` | `(cells, row, col, cell) => void` | `null` | Body cell 建立後的輕量格式化 callback；新程式優先使用 `formatItem` 或 `cellTemplate`。 |
 | `exportBusyText` | `string \| null` | `null` | Excel 匯出期間顯示的忙碌文字。 |
@@ -190,7 +191,7 @@ fabui.setConfig({
 | `observeItemsSource` | `boolean` | `false` | 以 Proxy 觀察直接修改的資料列；同一同步批次的多次 mutation 會合併為一次 view refresh。 |
 | `rowGroups` | `Array<object>` | `[]` | 1 至 3 階列群組設定；TreeGrid 模式不套用。 |
 | `childItemsPath` | `string \| function` | `null` | 指定子節點陣列的 binding path 或 callback；設定後啟用 TreeGrid。 |
-| `treeColumn` | `number \| string \| Column` | `null` | 顯示階層箭頭與縮排的欄位；預設為第一個可見欄。 |
+| `treeColumn` | `number \| string \| Column` | `null` | 顯示階層箭頭與縮排的欄位；數字及十進位整數字串使用完整 `grid.columns` index，也可傳入 binding／name／header 或 Column object；預設為第一個可見欄。 |
 | `treeIndent` | `number` | `20` | 每一階 TreeGrid 縮排寬度，單位為 px。 |
 
 ### 分頁與遠端資料
@@ -328,7 +329,7 @@ const columns = [
 
 ```js
 const columns = [
-  { binding: 'id', header: '編號', width: 72, minWidth: 56, align: 'center', dataType: 'number' },
+  { binding: 'id', header: '編號', width: 72, align: 'center', dataType: 'number' },
   {
     binding: 'amount',
     header: '金額',
@@ -346,7 +347,7 @@ const columns = [
 | --- | --- | --- |
 | `binding` | `string` | 對應資料欄位，可使用安全的巢狀路徑。 |
 | `header` | `string` | 顯示於欄位標題的文字。 |
-| `width` / `minWidth` | `number` | 欄寬與最小欄寬；`width` 預設為 `120`，`minWidth` 未指定時使用 Grid `columnMinWidth`（預設 `20`）。 |
+| `width` | `number` | 欄寬；未設定時使用 Grid `columnMinWidth`（預設 `20`）。明確設定的初始 `width` 可小於 `columnMinWidth`；Column 不提供 `minWidth`。 |
 | `align` | `'left' \| 'center' \| 'right'` | 標題、內容與 editor 都沿用此對齊。 |
 | `dataType` | `'string' \| 'number' \| 'date' \| 'boolean'` | 排序、解析與資料值型別。`number` 本機排序會先移除字串值的半形千位逗號與空白，再依實際數值排序。時間值使用 `dataType: 'string'` 搭配 `editor: 'time'`。 |
 | `visible` | `boolean` | 是否顯示；資料仍會保留。 |
@@ -367,6 +368,8 @@ const columns = [
 | `maskValueIncludesLiterals` | `boolean` | 資料值是否保留 `/` 等遮罩字元。 |
 | `autoUnmask` | `boolean` | 所有 editor 類型預設為 `false`；複製與資料輸出時保留遮罩字面值。明確設為 `true` 時移除遮罩。 |
 | `validate` | `(args) => ValidationResult \| Promise<ValidationResult>` | 同步或非同步驗證；本機唯一值可呼叫 `args.isDuplicate(options?)`。 |
+
+Footer aggregate 會依目前 `dataView` 快取；cell 編輯提交、`setCellData()`、資料來源更新、排序、篩選、分頁或遠端載入完成後會標記為 dirty，下一次 render 只額外重畫 Footer，不必連帶重建 Header。一般選取及資料未變更的重畫沿用快取。自訂 aggregate 若依賴 Grid 以外的狀態，請在狀態改變後呼叫 `refreshFooter()`；`column.footer` callback 不使用此快取。
 
 `isRequired: true` 的內建必填驗證會先執行，錯誤以 `type: 'required'` 存入 `grid.invalidItems`；數值 `0` 與 boolean `false` 都是有效值。通過必填驗證後才執行 `validate`。`validate` 回傳 `null`、`false` 或空字串表示通過；回傳字串或 `{ message }` 表示失敗。所有驗證失敗項目都存放於 `grid.invalidItems`，值修正後會自動移除對應錯誤。資料列刪除或資料來源被取代後，該列的同步／非同步錯誤會自動移除；排序、篩選、分頁及欄位顯示或順序改變時，保留項目的 `rowIndex`／`rowNumber`／`colIndex`／`colNumber` 會同步更新。
 
@@ -422,6 +425,19 @@ grid.columns[idx].cellTemplate =
 
 Runtime 指派會自動 invalidate Grid。Template 回傳內容會以 HTML 插入；不得直接插入未經處理的不可信資料。Function template 效能較好，也不需要 CSP 的 `unsafe-eval`；String template 需要允許動態函式編譯。
 
+需要可點擊的連結 cell 時，可使用 Wijmo-compatible `FabGrid.CellMaker.makeLink(options)`。`text`、`href` 與 `title` 可使用 template string 或 callback；`click(event, ctx)` 會在取消連結預設動作後執行：
+
+```js
+column.cellTemplate = fabui.FabGrid.CellMaker.makeLink({
+  text: '<b>${item.orderNo}</b>',
+  click: function(event, ctx) {
+    openOrder(ctx.item.id);
+  }
+});
+```
+
+連結會建立為 `<a class="fg-cell-maker">`，使用 Grid 的 `--fg-link-text` 顏色；選取 cell 時文字顏色改為繼承選取狀態。
+
 Function callback 執行前，FabGrid 會保存 cell 原本的 inline style。Callback 中直接指定 `cell.style = customStyle` 時，FabGrid 會把變更過的視覺樣式疊加回原樣式，並保護定位與尺寸屬性；指定 `cell.style = null` 時，callback 後會還原成原本的 Grid style。因此不需要自行保存或串接 `cell.style.cssText`。
 
 ```js
@@ -470,7 +486,7 @@ grid.columns[idx].cellTemplate = (ctx, cell) => {
 | `endUpdate(shouldInvalidate?)` | 結束一層批次更新；最外層結束時只執行一次累積的更新。`shouldInvalidate` 預設為 `true`，傳入 `false` 時不自動更新畫面。 |
 | `deferUpdate(callback)` | 以 `beginUpdate()`／`endUpdate()` 執行 callback；callback 發生例外時仍會恢復更新，並將例外繼續拋出。 |
 | `refresh()` | 重新計算版面與渲染。 |
-| `invalidate()` | 在下一個 animation frame 重新渲染。 |
+| `invalidate()` | 標記 Footer aggregate dirty，並在下一個 animation frame 重新渲染；可涵蓋公式直接更新其他唯讀 cell 的情況。 |
 | `on(name, handler)` | 註冊 Grid 事件；handler 固定接收 `(grid, eventArgs)`。 |
 | `off(name, handler)` | 解除以 `on()` 註冊的 Grid 事件。 |
 | `addEventListener(target, type, fn, capture?, passive?)` | 以 Wijmo-compatible Control API 綁定 DOM event；Grid 會管理 listener，並在 `dispose()` 自動解除。 |
@@ -509,6 +525,11 @@ grid.setHeaderCellStyle('orderNo', null);
 | `setRowHeaderWidth(width)` | Runtime 設定列號欄寬度並自動重新計算 layout 與 refresh；負數會限制為 `0`。 |
 | `setShowRowHeaders(value)` | 切換列號欄。 |
 | `setShowFooter(value)` | 切換 footer aggregate 列。 |
+| `getFooterRows()` / `getFooterRowCount()` | 取得 Footer 列定義快照或列數。 |
+| `getFooterCellData(row, column, formatted)` | 以列 index／`key` 與完整欄位 index／Column／binding 取得 Footer 值。 |
+| `setFooterCellData(row, column, value, refresh?)` | 寫入指定 Footer cell；`refresh` 預設為 `true`，批次寫入時可傳 `false` 後再呼叫 `refreshFooter()`。`columnFooters.getCellData()`／`setCellData()` 亦提供相同 panel 操作。 |
+| `getFooterRowLabel(row)` / `setFooterRowLabel(row, label, refresh?)` | 讀寫指定 Footer 左側列頭文字；`bottomLeftCells` panel 亦可讀寫。 |
+| `refreshFooter()` | 清除 Footer aggregate 快取並立即重畫 Footer；自訂 aggregate 依賴 Grid 外部狀態時可手動呼叫。 |
 | `setAllowFiltering(value)` | 舊版相容方法。`false` 委派至 `setFilterMode(false)`；`true` 委派至預設的兩種模式。 |
 | `setFilterMode(mode)` | 設定可用模式與目前模式；規則與 `filterMode` option 相同。回傳是否有實際改變。 |
 | `getFilterMode()` | 回傳目前 `filterMode` 的副本，關閉時回傳 `false`。 |
@@ -610,7 +631,7 @@ Search input 聚焦時按 `↓`，焦點會移到目前 selected row 的同欄 a
 | `selectAll()` | 將 active cell 移至第一個 cell 並觸發選取事件。 |
 | `scrollIntoView(row, col, options?)` | 依完整 `grid.columns` index 捲動指定 cell 至可見範圍；隱藏欄位回傳 `false`。 |
 | `validateRow(row)` | 驗證 `itemsSource` 的指定列，回傳 `Promise<boolean>`。 |
-| `getSelectedText()` | 取得目前 cell 或 CellRange 的 TSV 文字；合成群組列會被排除。 |
+| `getSelectedText()` | 取得目前 cell、CellRange 或 RowHeader 整列選取的 TSV 文字；整列只包含可見欄位，合成群組列會被排除。 |
 | `copySelection()` | 將目前選取內容寫入系統剪貼簿，成功開始複製時回傳 `true`。 |
 | `getClipString()` | Wijmo-compatible alias；回傳值等同 `getSelectedText()`。 |
 | `setClipString(text)` | 將文字寫入目前 active cell；回傳值等同 `setCellData()`。 |
@@ -656,10 +677,12 @@ if (grid.hitTest(e).isSearchRow) {
 
 `selectionMode: 'Cell'` 維持單一 active cell；`highlightActiveRow` 只控制 active row 背景，預設為 `true`。設為 `false` 不會清除 active cell，也不會影響 `multiSelectRows` 已勾選的資料列。
 
+在 `Cell` 與 `CellRange` 模式點擊左側 RowHeader，都會建立整列選取。RowHeader 維持原本外觀，資料 cell 使用整列範圍背景及外框；`Ctrl/Cmd + C` 依目前可見欄位順序輸出 Tab 分隔文字，不包含欄位標題及隱藏欄位。點擊一般資料 cell 後會清除 RowHeader 整列選取狀態。編輯器開啟時仍由 editor 處理文字選取與複製。
+
 `selectionMode: 'CellRange'` 支援以下操作：
 
 - 在資料 cell 按下滑鼠並拖曳，選取連續矩形範圍。
-- 點擊列號會選取該列所有可見欄位；沿列號上下拖曳會選取連續的整列範圍。
+- 沿列號上下拖曳會選取連續的整列範圍。
 - `Shift + Click` 從既有 anchor 延伸到點擊的 cell。
 - `Shift + 方向鍵` 延伸範圍；一般方向鍵會移動 active cell 並回到單一 cell。
 - `Ctrl/Cmd + C` 複製範圍為 tab／換行分隔文字。
@@ -705,8 +728,8 @@ FabGrid 建立完成後會自動登記，呼叫 `grid.dispose()` 時自動解除
 | `getJson(options?)` | 取得 JSON 字串；預設輸出完整 `itemsSource`。傳入 `{ viewOnly: true }` 時輸出目前 view 並排除 group／group footer 合成列；`space` 與 `replacer` 會傳給 `JSON.stringify()`。 |
 | `exportJson(filename?, options?)` | 下載 JSON，預設檔名為 `fabgrid.json`。 |
 | `importJson(source)` | 匯入 JSON 並透過 `setItemsSource()` 更新 Grid，回傳 `Promise<boolean>`；支援 JSON 字串、Array、`{ rows }`、`{ itemsSource }`、Blob 與 File。 |
-| `getExcelBlob(visibleOnly?)` | 取得 XLSX `Blob`；預設輸出所有欄位，傳入 `true` 時僅輸出可見欄。Excel 標題列會跟隨目前 `headerDisplayMode`。 |
-| `exportExcel(filename?, visibleOnly?)` | 下載 XLSX，回傳 `Promise<boolean>`；預設為 `fabgrid.xlsx`，標題列會跟隨畫面當下顯示的 header 或 binding。 |
+| `getExcelBlob(options?)` | 取得 XLSX `Blob`；`options` 支援 `{ sheetName, visibleOnly }`。為相容舊版也可直接傳入 boolean。 |
+| `exportExcel(filename?, options?)` | 下載 XLSX，回傳 `Promise<boolean>`；`options` 支援 `{ sheetName, visibleOnly }`，預設檔名為 `fabgrid.xlsx`。為相容舊版也可直接傳入 boolean。 |
 
 JSON 匯入／匯出範例：
 
@@ -719,9 +742,34 @@ await grid.importJson(json);
 await grid.importJson(fileInput.files[0]);
 ```
 
+Excel 工作表名稱與多工作表範例：
+
+```js
+grid.exportExcel('會計資料.xlsx', {
+  sheetName: '會計科目',
+  visibleOnly: false
+});
+
+fabui.Excel.export('主檔資料.xlsx', {
+  sheets: [
+    { name: '會計科目', grid: accountGrid },
+    { name: '客戶資料', grid: customerGrid, visibleOnly: true }
+  ]
+});
+
+const blob = fabui.Excel.getBlob({
+  sheets: [
+    { name: '會計科目', grid: accountGrid },
+    { name: '客戶資料', grid: customerGrid }
+  ]
+});
+```
+
+工作表名稱會自動移除 Excel 不允許的字元、限制為 31 個字元；重複名稱會依序加上 ` (2)`、` (3)`。
+
 JSON 使用標準 `JSON.stringify()`／`JSON.parse()`；日期會依 JSON 規格成為字串，循環參照與 `BigInt` 會由 `JSON.stringify()` 拋出錯誤。預設輸出完整 `itemsSource` 是為了保留 TreeGrid 階層與未顯示資料；只有明確指定 `viewOnly: true` 才輸出目前篩選／排序／分頁後的 view。
 
-CSV 與 Excel 都以目前 Grid view 為資料來源。Excel 預設保留完整欄位集合；畫面隱藏的欄位仍包含資料，並在工作表標記為 hidden。只有明確傳入 `visibleOnly === true` 才排除隱藏欄。群組啟用時會保留群組列、aggregate 顯示格式與收合狀態；工作表同時包含凍結窗格、autoFilter 與目前 `headerDisplayMode` 對應的標題。
+CSV 與 Excel 都以目前 Grid view 為資料來源。Excel 預設保留完整欄位集合；畫面隱藏的欄位仍包含資料，並在工作表標記為 hidden。只有明確傳入 `visibleOnly: true` 或相容 boolean `true` 才排除隱藏欄。群組啟用時會保留群組列、aggregate 顯示格式與收合狀態；工作表同時包含凍結窗格、autoFilter 與目前 `headerDisplayMode` 對應的標題。
 
 ### Header Row 右鍵功能表
 
@@ -752,7 +800,7 @@ grid.on('cellEditEnding', function(g, e) {
 | `loadingRows` / `loadedRows` | 本機資料載入流程前／後。 |
 | `beforeLoad` / `loadSuccess` / `loadError` | 遠端載入前、成功或失敗。 |
 | `pageChanging` / `pageChanged` | 分頁變更前／後。 |
-| `selectionChanging` / `selectionChanged` | Active cell 或 cell range 變更；固定包含 `row`、`col`、`row2`、`col2`、anchor／active 座標、`range`、對應的 `view*` 座標，以及列勾選用的 `changedRow`、`selected`、`allRows`。`col` 系列使用完整 `grid.columns` index，`view*` 使用可見欄 index；不適用的 `changedRow`／`selected` 為 `null`，一般 cell 選取的 `allRows` 為 `false`。 |
+| `selectionChanging` / `selectionChanged` | Active cell、cell range 或列選取變更；固定包含 `row`、`col`、`row2`、`col2`、anchor／active 座標、`range`、對應的 `view*` 座標，以及列勾選用的 `changedRow`、`selected`、`allRows`。`col` 系列使用完整 `grid.columns` index，`view*` 使用可見欄 index；不適用的 `changedRow`／`selected` 為 `null`，一般 cell 選取的 `allRows` 為 `false`。列選取、取消與全選會先依序觸發可取消的 `selectionChanging`、`rowSelectionChanging`，任一事件取消時都不改變狀態。 |
 | `selectedRowChanged` | Selected row 改變或資料來源更新時觸發；`reason` 為 `'selection'` 或 `'itemsSource'`，並包含目前與先前的 row index／data item。同一 row 只切換 active column 不觸發。 |
 | `sortingColumn` / `sortedColumn` | 排序前／後；`sortingColumn` handler 回傳 `false` 可取消本機或遠端排序，取消時不會送出遠端查詢。 |
 | `cellEditEnding` / `cellEditEnded` | cell 編輯提交前／後；`e.col` 對應完整 `grid.columns` index 並計入隱藏欄位，`e.viewCol` 為目前 `visibleColumns` index。 |
@@ -840,6 +888,23 @@ grid.selectedRowChanged.addHandler((g, e) => {
 
 `formatItem` 使用 `fabui.CellType` 判斷 panel；數值與 Wijmo `CellType` 相容：`Cell=1`、`ColumnHeader=2`、`RowHeader=3`、`TopLeft=4`、`ColumnFooter=5`、`BottomLeft=6`。
 
+多列 Footer 可直接以列 `key` 寫值；既有 `column.footer` 與 `aggregate` 仍作為第 0 列的相容值來源。
+
+```js
+const grid = new fabui.FabGrid('#grid', {
+  showFooter: true,
+  footerHeight: 32,
+  footerRows: [
+    { key: 'hours', label: '時' },
+    { key: 'value', label: '值' }
+  ]
+});
+
+grid.setFooterCellData('hours', 'workHours', 120, false);
+grid.setFooterCellData('value', 'amount', 3000, false);
+grid.refreshFooter();
+```
+
 ```js
 grid.formatItem.addHandler((g, e) => {
   if (e.panel.cellType === fabui.CellType.ColumnHeader) {
@@ -874,6 +939,8 @@ if (r instanceof fabui.FabGrid.Row && !(r instanceof fabui.FabGrid.GroupRow)) {
 ## 6. 遠端資料協定
 
 `remote: true` 時，FabGrid 可使用 `url` 或 `loader(params)`。`loader` 優先於 `url`。`itemsSource` 可傳入 Array 或 `fabui.collections.CollectionView`；遠端 rows 會更新 Grid 的 Array 資料來源，或更新同一個 CollectionView instance 的 `sourceCollection`。CollectionView 模式可讓共用 Chart 自動收到 `collectionChanged`，且不會再次套用已由後端處理的 Grid filter／sort。
+
+遠端 Search Row 查詢採背景載入：等待回應時保留目前 rows、Grid 與 Search Row 都可繼續操作，只在 Grid 中央顯示非阻擋式 loading 提示。使用者繼續輸入並觸發新查詢時，內建 `url`／Fetch 會中止前一個 request；自訂 `loader` 的實際取消仍由使用者實作，但 FabGrid 會放棄較舊的回應，只套用最後一次查詢結果。初次載入、分頁、排序與其他遠端載入仍使用全 Grid loading mask。
 
 ```js
 var grid = new fabui.FabGrid('#grid', {

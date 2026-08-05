@@ -20,6 +20,7 @@
   --fui-tabs-pill-text: #000000;
   --fui-tabs-drag-indicator: #f27c22;
 }
+
 :root .fui-tabs .fui-tabs-close,
 :root .fui-tabs .fui-tabs-scroll-prev,
 :root .fui-tabs .fui-tabs-scroll-next {

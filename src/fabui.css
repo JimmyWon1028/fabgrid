@@ -10,10 +10,10 @@
 @import './radiogroup/radiogroup.css?v=20260724-native-elements-v2';
 @import './chart/chart.css?v=20260724-native-elements-v2';
 @import './diagram/diagram.css?v=20260721-diagram-focus-outline-v1';
-@import './grid/fabgrid.css?v=20260729-color-cell-text-v1';
+@import './grid/fabgrid.css?v=20260805-cell-maker-link-v1';
 @import './pivot/pivot-chart.css?v=20260724-native-elements-v2';
 @import './pivot/pivot-grid.css?v=20260724-native-elements-v2';
-@import './pivot/pivot-panel.css?v=20260724-native-elements-v2';
+@import './pivot/pivot-panel.css?v=20260804-combine-fields-v1';
 @import './pivot/pivot-slicer.css?v=20260724-native-elements-v2';
 @import './pivot/pivot-workspace.css?v=20260724-native-elements-v2';
 @import './editbox/editbox.css?v=20260730-focus-background-v1';

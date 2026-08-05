@@ -11,7 +11,7 @@ import { createRadioGroupFactory } from './radiogroup/radiogroup.js?v=20260728-l
 import { createFileBoxFactory } from './filebox/filebox.js?v=20260728-locale-packs-v1';
 import { createFormFactory } from './form/form.js?v=20260728-locale-packs-v1';
 import { CollectionView } from './collections/collection-view.js?v=20260727-collection-view-sort-v1';
-import { createChartNamespace } from './chart/chart.js?v=20260728-locale-packs-v1';
+import { createChartNamespace } from './chart/chart.js?v=20260805-chart-compatible-data-v1';
 import { createDiagramFactory } from './diagram/diagram.js?v=20260728-locale-packs-v1';
 import {
   Control,
@@ -21,7 +21,8 @@ import {
 import { Clipboard } from './core/clipboard.js?v=20260724-clipboard-v1';
 import { getConfig, setConfig } from './core/config.js?v=20260723-global-config-v1';
 import { createLocaleManager } from './core/locale.js?v=20260728-locale-packs-v1';
-import { createFabGridFactory } from './grid/fabgrid.js?v=20260804-grid-event-layout-v2';
+import { createFabGridFactory } from './grid/fabgrid.js?v=20260805-grid-pivot-audit-fixes-v1';
+import { createExcelNamespace } from './grid/fabgrid-export.js?v=20260804-excel-workbook-v1';
 import { CellType } from './grid/fabgrid-types.js?v=20260716-row-types-v1';
 import { createLayoutFactory } from './layout/layout.js?v=20260728-locale-packs-v1';
 import { createMenuFactory } from './menu/menu.js?v=20260728-locale-packs-v1';
@@ -40,10 +41,10 @@ import {
   PivotField,
   PivotShowAs,
   PivotShowTotals
-} from './pivot/pivot-engine.js?v=20260725-remove-mono-variants-v1';
+} from './pivot/pivot-engine.js?v=20260805-grid-pivot-audit-fixes-v1';
 import { createPivotChartFactory } from './pivot/pivot-chart.js?v=20260725-remove-mono-variants-v1';
-import { createPivotGridFactory } from './pivot/pivot-grid.js?v=20260725-remove-mono-variants-v1';
-import { createPivotPanelFactory } from './pivot/pivot-panel.js?v=20260724-native-controls-v1';
+import { createPivotGridFactory } from './pivot/pivot-grid.js?v=20260804-persist-field-width-v3';
+import { createPivotPanelFactory } from './pivot/pivot-panel.js?v=20260805-grid-pivot-audit-fixes-v1';
 import { createPivotSlicerFactory } from './pivot/pivot-slicer.js?v=20260724-native-controls-v1';
 import { createPivotWorkspaceFactory } from './pivot/pivot-workspace.js?v=20260725-remove-mono-variants-v1';
 
@@ -112,6 +113,7 @@ var Form = localeManager.registerTarget(
 );
 var FabGridBase = createFabGridFactory(editorDefinitions, getConfig);
 var FabGrid = localeManager.registerTarget('FabGrid', FabGridBase);
+var Excel = createExcelNamespace();
 var chartNamespace = createChartNamespace();
 chartNamespace.Chart = localeManager.registerTarget('Chart', chartNamespace.Chart);
 chartNamespace.Pie = localeManager.registerTarget('Pie', chartNamespace.Pie, 'Chart');
@@ -274,6 +276,7 @@ var fabui = {
   collections: collectionsNamespace,
   Diagram: Diagram,
   EditBox: EditBox,
+  Excel: Excel,
   FileBox: FileBox,
   Form: Form,
   FabGrid: FabGrid,

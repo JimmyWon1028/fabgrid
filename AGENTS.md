@@ -34,11 +34,11 @@
   - `build theme`：執行 `npm run build:theme`，只編譯 `dist/theme/` 下完整 17 組 theme CSS 與圖片依賴，包含 `fabui.default.css` 與 `fabui.default.min.css`，不得重新編譯或刪除其他 `dist/` 輸出；`build theme min` 執行 `npm run build:theme -- min`，只保留 17 組 `.min.css`，包含 `fabui.default.min.css`。
   - `build locale`：執行 `npm run build:locale`，只編譯 `dist/locales/` 下的 `fabui-locale.en.{js,min.js}`、`fabui-locale.zh-TW.{js,min.js}` 與 `fabui-locale.zh-CN.{js,min.js}`，不得重新編譯或刪除其他 `dist/` 輸出；`build locale min` 執行 `npm run build:locale -- min`，只保留三個 `.min.js` 語言檔。
   - `build clear`：只清除 `dist/` 下的所有檔案與資料夾並保留 `dist/` 目錄本身，不得執行任何編譯。
-  - `build all`：依序執行 `npm run build`、`npm run build:lite`、`build diagram`、`npm run build:gantt`、`npm run build:scheduler`、`npm run build:htmleditor`、`npm run build:locale`，編譯以上全部發佈輸出；一般 `build` 已包含 theme，因此不重複執行 `build theme`，也不得額外執行 `build clear`。
+  - `build all`：依序執行 `npm run build`、`npm run build:lite`、`build diagram`、`npm run build:gantt`、`npm run build:scheduler`、`npm run build:htmleditor`、`npm run build:locale`、`npm run build:vue`、`npm run build:jquery`、`npm run build:fabui-jquery`，編譯以上全部發佈輸出與三個 wrapper；一般 `build` 已包含 theme，因此不重複執行 `build theme`，也不得額外執行 `build clear`。
   - 可用半形逗號一次指定多個編譯範圍，格式固定為 `build <scope>,<scope> [min]`，逗號左右不得有空白；例如 `build fabui,htmleditor min` 必須依序編譯 FabUI core 與 HtmlEditor，並對兩個範圍都套用 `min`。可組合的 scope 為 `fabui`、`lite`、`diagram`、`gantt`、`scheduler`、`htmleditor`、`theme`、`locale`，依使用者列出的順序各執行一次；重複 scope 只執行第一次。`all` 與 `clear` 必須單獨使用，不得放入逗號清單，也不得和其他 scope 組合。
   - 所有編譯命令都可在尾端加上 `min`，包含 `build min`、`build lite min`、`build diagram min`、`build gantt min`、`build scheduler min`、`build htmleditor min`、`build fabloader min`、`build loader min`、`build theme min`、`build locale min` 與 `build all min`。加上 `min` 時，只產生並保留該範圍內檔名含 `.min.` 的壓縮版 JS／CSS，不得產生或保留同範圍的非壓縮輸出；`build htmleditor min` 只產生並保留 `dist/fabui.htmleditor.min.js` 與 `dist/fabui.htmleditor.min.css`，`build fabloader min` 與 `build loader min` 都只產生並保留各自模式的 `dist/fabLoader.min.js`；theme 所需圖片依賴仍須保留。`build clear` 不適用 `min`。
 - 所有 build 命令一律不得產生 `.esm.js`、`.esm.min.js` 或其他 ESM 發佈檔；只輸出 browser global JavaScript、壓縮 JavaScript、CSS、壓縮 CSS 與必要 theme／圖片資產。
-- Diagram、Gantt、Scheduler 與 HtmlEditor 必須保持獨立 bundle，不得併入 `fabui.*` core。Vue 2 與 FabGrid jQuery wrapper 目前暫緩，不得納入上述 build 命令。既有 Vue 2 與 FabGrid jQuery wrapper 原始碼及獨立 build script 保留，只有使用者未來明確要求恢復或單獨編譯 wrapper 時才可使用。FabUI jQuery 相容 Wrapper 位於 `packages/fabui-jquery`，只允許以 `npm run build:fabui-jquery` 單獨編譯，不得納入預設 build 或 `build:all`。
+- Diagram、Gantt、Scheduler、HtmlEditor、Vue 2、FabGrid jQuery 與 FabUI jQuery 必須保持獨立 bundle，不得併入 `fabui.*` core。一般 `build` 不編譯 wrapper；`build all` 必須在 locale 之後依序執行 `npm run build:vue`、`npm run build:jquery` 與 `npm run build:fabui-jquery`。三個 wrapper 仍可使用各自的獨立 build 命令。
 - 修改確認完成後，預設啟動開發伺服器，提供本機網址讓使用者自行測試。
 - 所有 `demo/*.html`、共用 Demo 設定與動態產生的 theme selector 都必須以 `default` 作為初始主題；選擇其他 theme 時必須更換外部 Theme CSS 並重新載入頁面，不得以 runtime theme class 動態切換。
 - 若任務需要驗證但使用者沒有要求編譯，優先使用不會改寫 `dist` 的檢查方式；如果現有驗證只能透過 build/smoke 完成，先回報限制並等待使用者指示。
@@ -53,12 +53,14 @@
 - 所有既有與未來新增的 popup 都必須支援按 `Escape` 與點擊 popup 外部關閉；點擊 popup 內部或其 trigger 不得誤關閉。關閉只負責收起 popup，不得隱含套用、清除或提交尚未確認的內容；同時開啟多個 popup 時，點進其中一個也必須關閉其餘 popup。Popup 所需的 document／window listener 只在開啟期間綁定，關閉或 dispose 時必須立即解除。
 - 工作進度記錄放在 `worklogs/YYYY-MM-DD.md`，固定使用 `## 完成進度` 標題，只記錄實際完成的功能、行為修正與問題處理結果。工作日誌不得記錄 README／AGENTS 更新、重新執行任何 `npm run build*`，或測試、benchmark、smoke、瀏覽器操作等驗證過程與結果；功能契約改動時仍須同步更新 README 與本文件，但此同步動作本身不寫入工作日誌。
 - Excel 預設匯出完整欄位集合，隱藏欄位必須保留資料並在工作表標記為 hidden；只有明確傳入 `visibleOnly === true` 時才只匯出可見欄位。
+- FabGrid `getExcelBlob()`／`exportExcel()` 的第二參數支援 `{ sheetName, visibleOnly }`，並保留舊 boolean 寫法；`fabui.Excel.getBlob()`／`fabui.Excel.export()` 以 `sheets: [{ name, grid, visibleOnly }]` 將多個 Grid 匯出為同一 XLSX 的多個工作表。工作表名稱必須處理 Excel 禁用字元與 31 字元上限，重複名稱依序加上數字後綴。
 - FabGrid 欄位顯示切換統一使用 `setColumnVisible(column, visible)`；`column` 只接受 `grid.columns` 的 index 或該 Grid 的 column object。依 `binding` 操作時必須先用 `getColumn(binding)` 取得 column object，不得直接把 binding 字串傳入 `setColumnVisible()`；也不得只修改 `grid.columns[index].visible` 而略過 layout、選取狀態與畫面更新。
 - FabGrid 所有公開方法的數字欄位參數統一使用完整 `grid.columns` index 並計入隱藏欄位，十進位整數字串視為相同 index；Column `binding`／`name`／`header` 必須以字母開頭，避免和數字字串衝突。此規則包含 `getColumn()`、`getCellData()`、`setCellData()`、`toggleSort()`、`select()`、`selectRange()`、`selectRow()`、`scrollIntoView()`、兩種 `startEditing()`、欄位篩選與欄位顯示 API；需要畫面 cell 的方法指定隱藏欄位時回傳 `false`，資料讀寫則仍可操作隱藏欄位。Grid 內部可繼續使用 `visibleColumns` index，但不得直接傳入上述公開方法。
 - FabGrid Column 的 `allowSorting` 預設為 `true`；設為 `false` 時，滑鼠與程式呼叫都不得改變該欄排序狀態、觸發 `sortingColumn`／`sortedColumn` 或送出遠端排序查詢。`sortingColumn` option 必須由排序流程直接呼叫，回傳 `false` 時仍須讓已註冊的 `sortingColumn` event handlers 收到 `e.cancel === true`，但必須取消該次排序與遠端查詢；event handler 回傳 `false` 也必須取消。兩種禁止方式都不受 `remote` 值影響。Grid 全域 `allowSorting` 仍控制所有欄位是否允許以 Header 操作排序。
 - FabGrid `allowMultiSorting` 預設為 `true`；設為 `false` 時，Header 的 `Shift + 點擊` 與程式呼叫 `toggleSort(colIndex, true)` 都必須退回單欄排序，只保留目前操作欄位，`sortingColumn`／`sortedColumn` 的 `e.multiSort` 也必須為 `false`。此規則同時適用本機與遠端排序。
 - FabGrid `columns` 可用巢狀 `columns` 定義多層合併 Header；群組節點只提供 `header`、`align` 與子 `columns`，`grid.columns`／`visibleColumns` 仍保持扁平葉欄位集合。未群組的葉欄位要縱向合併到最深 Header 列，Search Row 位於所有 Header 列下方；隱藏子欄時群組寬度依剩餘可見葉欄重算，全部隱藏時不渲染群組。群組 Header 不得觸發排序、篩選或 resize；Column drag 只能在相同直屬群組內重排。`hitTest()` 對群組與縱向合併 Header 必須回傳 `mergedRange`。
 - FabGrid Column `cssClass` 預設為 `null`；字串可包含一個或多個 CSS class，必須套用到該欄所有 body 資料 cell，但不得套用到 Header。初始化前可直接在 Column definition 設定。
+- FabGrid `FabGrid.CellMaker.makeLink(options)` 必須回傳可直接指定給 Column `cellTemplate` 的 function，建立 `<a class="fg-cell-maker">`；`text`、`href`、`title` 支援 template string 或 callback，`click(event, ctx)` 執行前取消預設導覽。連結預設使用 `--fg-link-text`，選取 cell 時繼承選取文字色。
 - FabGrid `clearSort()` 必須一次清除所有單欄／多欄排序；目前沒有排序時回傳 `false` 且不重新套用 view。成功時回傳 `true`，本機與 CollectionView 立即恢復原始順序；遠端模式回到第 1 頁並只重新載入一次。
 - FabGrid `getSortState()` 必須回傳可安全修改而不影響 Grid 的排序快照，包含 `active` 與 `sortStates`；每筆排序包含原始／可視欄位 index、binding、數字 direction、`asc`／`desc` order 與多欄排序順序。`getFilterState()` 必須回傳完整篩選快照，包含 active mode、`filterPredicateActive`、Quick Search、有效 filter rules、Search Row 值／運算符與 Excel-like filters；不得直接暴露 predicate 函式，所有物件與陣列也不得暴露可直接修改的內部狀態。
 - FabGrid `filterMode: false` 時，Grid 右鍵選單不得顯示「清除篩選」；只要至少啟用一個 filter mode，該項目仍須顯示。列號、匯出與全螢幕等其他選單項目不受影響。
@@ -69,6 +71,7 @@
 - FabGrid `select(row, col?)` 的 `col` 必須對應完整 `grid.columns` index 並計入隱藏欄位；指定隱藏欄位，或 Row／Column index 不在目前可用範圍時，必須回傳 `false` 且不做任何動作。不得將負數、超出範圍或非整數 index clamp 成第 0 列或最後一列，也不得改變 active cell、selected row、事件或畫面。
 - FabGrid 所有公開事件參數中的 `e.col`、`e.col2`、`e.activeCol` 與 `e.anchorCol` 必須對應完整 `grid.columns` index 並計入隱藏欄位；內部可見欄 index 不得直接暴露為上述欄位，需要公開時使用 `e.viewCol`、`e.viewCol2`、`e.viewActiveCol`、`e.viewAnchorCol` 或 `e.viewRange`。`formatItem`、選取、剪貼簿與編輯事件必須遵循同一契約。
 - FabGrid `selectionChanging`／`selectionChanged` 必須固定包含完整 active、anchor、range 與 `view*` 座標，另包含 `changedRow`、`selected`、`allRows`；一般 cell 選取時前兩者為 `null`、`allRows` 為 `false`，列勾選／取消時以 `changedRow` 與 `selected` 表示變更列，全部列操作使用 `allRows: true`。
+- FabGrid 在 `Cell` 與 `CellRange` 模式點擊 RowHeader 都必須建立整列選取；RowHeader 保持原本外觀並設定 `aria-selected="true"`，資料 cell 顯示完整整列範圍。`Ctrl/Cmd + C`、`getSelectedText()` 與 `getClipString()` 必須依畫面順序複製該列所有可見欄位，不含標題與隱藏欄位；點擊一般 cell 後清除 RowHeader 整列選取，editor 開啟時仍只複製 editor 選取文字。
 - FabGrid 事件表只允許公開實際會由目前程式流程觸發的正式事件；尚未實作的相容事件不得先建立 Event object。所有動作前／開始事件都必須實際支援 `e.cancel = true` 或 handler 回傳 `false`，包含 `updatingLayout` 與 `excelExporting`，取消後不得執行對應動作或完成事件。
 - FabGrid 同一動作的前置與完成事件必須使用不同的 event args object；不得因後續 `emit()` 改寫 handler 已保留的前置事件 `e.type`、`e.grid` 或其他欄位。同一事件派送內的 handler 仍共用該次 args，以保留 `e.value`、`e.width` 與 `e.cancel` 等可修改契約。
 - FabGrid `selectedRowChanged` 是不可取消的公開事件，必須支援 constructor option 與 Wijmo-compatible `addHandler()`。selected row 因滑鼠、鍵盤或 API 改變／取消時以 `reason: 'selection'` 觸發；`setItemsSource()`、遠端資料回傳或 `observeItemsSource` mutation 更新資料來源時，即使 row index 相同也以 `reason: 'itemsSource'` 觸發。只改變同一 row 的 active column 不得觸發；更新資料來源前後都沒有 selected row 時也不得觸發。參數必須包含 `row`、`rowIndex`、`dataItem`、`previousRowIndex` 與 `previousDataItem`。
@@ -79,7 +82,10 @@
 - FabGrid 點擊 Header 或呼叫 `toggleSort()` 排序後可以將垂直捲動回到第一列。直接呼叫 `toggleSort()` 必須保留 `bodyScroll.scrollLeft`；點擊 Header 時，已完整可見的非凍結欄也必須保留水平位置，只有該欄部分被凍結區或右側邊界遮住時，才可做最小幅度的水平調整讓整欄可見，不得跳回水平起點。
 - FabGrid `frozenColumns` 與 `frozenRightColumns` 必須依完整欄位順序決定左右凍結範圍；`visible: false` 的 hidden 欄位仍計入指定數量，但不產生可見凍結 cell，也不得讓凍結範圍向後多吃可見欄位。
 - FabGrid scroll render 必須重用已完成的 layout；只有水平可視欄位 range 改變時才重建 Header／Footer，純垂直捲動不得重建 Header、Footer 或 Pager。Row Header、selection 與 body virtualization 仍須跟隨目前 row range 更新，不得因最佳化留下舊 cell。
+- FabGrid Footer aggregate 必須依目前 `dataView` 世代快取；`applyView()`、cell 編輯寫值、`setCellData()` 與 `invalidate()` 後使快取失效並標記 dirty，下一次 render 必須只額外重畫 Footer，不得因純垂直 render 漏掉更新或連帶重建 Header。公式直接更新其他 cell（包含 `isReadOnly` 欄位）後呼叫 `invalidate()` 也必須重算所有 Footer aggregate。一般資料未變更的 render／selection 沿用快取；`refreshFooter()` 清除快取並重畫 Footer，供依賴外部狀態的自訂 aggregate 手動更新。`column.footer` function／固定值不納入 aggregate 快取。
+- FabGrid `footerRows` 定義多列 Footer，`footerHeight` 是每列高度；未設定時必須維持既有單列 `footerLabel`、`column.footer` 與 `aggregate` 行為。Footer API 與 `columnFooters`／`bottomLeftCells` panel 必須同時支援列 index 或 `key`；`formatItem.e.row`、hitTest、AutoFit 與 Excel 匯出都必須保留實際 Footer 列 index。Footer 的有限數字值預設靠右並顯示千位分隔，明確的 `footerFormatter` 仍優先。
 - TreeGrid 收合狀態必須讓既有 collapsed item 陣列與 object-item `WeakSet` 索引保持同步；單筆展開／收合、指定層級收合、全部展開與重建 tree state 後都必須同步更新，不得只更新其中一邊。
+- FabGrid `treeColumn` 的數字與十進位整數字串統一使用完整 `grid.columns` index，包含隱藏欄位；指定隱藏欄時不顯示階層箭頭，也可使用以字母開頭的 binding／name／header 或該 Grid 的 Column object。
 - 修改 Grid 資料熱路徑、排序、搜尋或 virtualization 後，必須執行 `npm run benchmark:grid`。此命令固定使用 20,000×50、共 100 萬資料格，量測 binding scan、全域搜尋、雙欄排序與渲染 cell 上限；時間必須在相同機器與環境比較，虛擬化結果必須遠低於完整資料格數。Benchmark 不得重建 `dist`。
 - Excel 匯出使用目前 grid `view`。群組啟用時必須保留 group row、群組 aggregate 顯示格式與收合狀態。
 - Excel 匯出的標題列必須跟隨目前 `headerDisplayMode`；畫面顯示 binding 時匯出 binding，顯示 header 時匯出 header。
@@ -189,7 +195,7 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 - Diagram 發佈檔固定為 `fabui.diagram.js`、`fabui.diagram.min.js`、`fabui.diagram.css`、`fabui.diagram.min.css`，不得併入 `dist/fabui.*`。
 - 精簡發佈檔固定為 `fabui.lite.js`、`fabui.lite.min.js`、`fabui.lite.css`、`fabui.lite.min.css`；只公開 FabGrid（必須包含 `src/grid/fabgrid-tree.js` 的 TreeGrid 行為）、Chart、`fabui.pivot` 與必要的 Control、editor definitions、locale、theme、popup 依賴，不得納入其他 FabUI 控件 factory 或元件 CSS。`npm run build:lite` 只更新這四個 Lite 檔與其必要圖片，不得清除完整 `dist/fabui.*`。
 - `dist/fabui.min.js` 必須是可用 `<script>` 直接引用的 browser global 壓縮版本。
-- Vue 2 與 FabGrid jQuery wrapper 目前暫緩開發，不列入預設 build、smoke 或發佈輸出；FabUI jQuery 相容 Wrapper 只供明確需要的舊程式相容情境單獨使用。
+- Vue 2、FabGrid jQuery 與 FabUI jQuery wrapper 不列入一般 `build` 或 smoke，但列入 `build all` 發佈輸出，並保留各自的獨立 build 命令。
 - Vue 2 Options API wrapper 位於 `packages/fabgrid-vue`，只負責把 props、events、lifecycle 對應到 pure JS core。
 - Vue wrapper 使用 `fabgrid-vue` 獨立 build，不可併入 FabUI 主 bundle，也不可讓 Vue 接管 cell rendering。
 - jQuery wrapper 位於 `packages/fabgrid-jquery`，使用 `$.fn.fabgrid` 對應 core options、events、methods 與 lifecycle；不得複製 core 行為或讓 jQuery 接管 cell rendering。
@@ -233,7 +239,7 @@ fabgrid-jquery
 - `startEditing()` 必須同時保留 FabGrid 既有 `startEditing(row, col, options?)` 與 Wijmo-compatible `startEditing(fullEdit?, row?, col?, focus?, event?)`。沒有 row／col 時使用目前 active cell；Wijmo overload 明確傳入的數字 `col` 對應完整 `grid.columns` index 並計入隱藏欄位，也接受 Column `name`／`binding`／`header` 字串。隱藏或不存在的目標 cell 回傳 `false`；`focus === false` 時建立 editor 但不得搶走焦點。`fullEdit` 必須傳入編輯狀態與起始事件參數，但 FabGrid 既有鍵盤導覽仍依本專案的 `editOnSelect` 與 Enter／Tab 契約處理。
 - 只要 Cell editor 正在編輯，`Enter`／`Shift+Enter` 會向右／向左移至下一個可編輯 cell；列尾接續下一列第一個可編輯 cell，列首則可回到上一列最後一個可編輯 cell，且不受 `editOnSelect` 影響。`editOnSelect: true` 時，`Tab`／`Shift+Tab` 維持可跨列的向右／向左搜尋，`ArrowUp`／`ArrowDown` 維持同欄連續編輯。上述連續移動不得套用公開 `select()` 的首列對齊行為；active editor 超出可視區後每次只捲動所需列數，並保持在可視區頂部或底部邊界。`editOnSelect: false` 且允許編輯時，在 active cell 輸入可用字元必須自動開始編輯並以該字元取代原值；`Tab`／`Shift+Tab` 只提交並結束編輯，未由 Spinner 或已開啟 Popup 接管的上下左右方向鍵保留 editor 的原生字元游標行為。
 - FabGrid 唯讀 `editRange` 在編輯中回傳目前 cell 的 `{ row, col, row2, col2 }` 快照，其中 `row2 === row`、`col2 === col`，`col`／`col2` 必須對應 `grid.columns` 的原始 index 並計入隱藏欄位，以便直接和 `formatItem` 的 `e.col` 比較；未編輯時回傳 `null`，修改回傳物件不得影響 Grid 內部編輯狀態。Editor 必須等編輯重繪與定位都成功後才顯示；若 `formatItem` 或定位流程發生例外，必須清除編輯狀態並隱藏 editor 與 icon host，不得留下未定位的原生輸入框破壞 Grid 版面。
-- FabGrid 全域 `columnMinWidth` 預設為 `20px`，用於 Column 未指定 `minWidth` 時的最小欄寬；初始欄寬、滑鼠拖曳調寬與 `autoSizeColumn()` 必須共用這個下限，個別 Column 明確設定的 `minWidth` 仍優先。
+- FabGrid Column 不提供 `minWidth`。Column 未設定 `width` 時，初始欄寬使用全域 `columnMinWidth`（預設 `20px`）；明確設定的初始 `width` 可小於此值，滑鼠拖曳調寬與 `autoSizeColumn()` 仍以 `columnMinWidth` 為全域下限。
 - 頁面使用 Default theme 時只載入 `fabui.css`／`fabui.min.css` 或對應 Lite CSS；使用其他 theme 時，必須再於所有 FabUI／附加元件 CSS 後載入一份 `dist/theme/fabui.<theme>.css` 或 `.min.css`。Theme 由頁面載入的 CSS 決定，不從檔名設定元件 class，也不需要呼叫 `setTheme()`；切換 theme 必須更換 CSS 後重新載入頁面。
 - `unselectRow(row)` 用於 `multiSelectRows: true` 取消勾選指定列；若該列未勾選必須不做任何修改，不得如 `toggleRowSelection()` 反向勾選。
 - `alternatingRowStep` 預設為 `1`；`false` 關閉交替列背景，正整數依指定列數為一組切換交替色。
@@ -253,6 +259,8 @@ fabgrid-jquery
 - Header sort 符號下緣必須與文字行框下緣對齊；一般欄位或關閉 filtering 時維持緊鄰欄位文字，窄欄位同時顯示 sort 與 filter icon 時，sort icon 必須移到 filter funnel 左側並維持 `2px` 可視間距，文字不為兩個 icon 預留右側空間並允許在其下方重疊。多欄排序序號維持顯示於符號上方。
 - `filterMode` 是 Search Row 與 Excel-like 欄位篩選的唯一狀態來源；預設為 `['excel', 'searchRow']`，陣列第一項為目前模式，重複項目移除、未知項目忽略，全部無效等同 `false`。切換為 `false` 時必須隱藏兩套欄位篩選 UI、清除兩套欄位條件，但保留右下角 Quick Search。FabGrid constructor 的 `filterRules` 接受 `{ field, op, value }[]` 或 JSON 字串；只有 `filterMode` 包含 `'searchRow'` 時才處理，有效且對應 Grid column 的規則必須在第一次本機 view／遠端 request 前轉成 Search Row 狀態，將 `'searchRow'` 移到陣列第一項、填入 input 並顯示 operator 符號，不得要求使用者再逐欄呼叫 setter。FabGrid 初始化時若 Search Row 已啟用，必須在本機初次 render 或遠端初次 load 結束後聚焦第一個可見欄位的搜尋 input；後續 Header 重繪必須保存目前搜尋 input 的焦點與游標範圍。只有 Search Row 顯示時才套用資料列與搜尋列的方向鍵焦點切換：Search input 聚焦時，無 modifier 的 `ArrowDown` 必須將 active cell 切到目前 selected row 與 Search input 所屬的同一 column，但不得移動 selected row 或啟動 cell editor；若目前 active cell／selected row 已被捲出可視範圍，必須先捲動使其出現。input 隨即失焦並把焦點轉到 Grid，下一次方向鍵才開始 Grid 導航。active cell 位於第一列時，無 modifier 的 `ArrowUp` 必須將焦點交回同一 column 的 Search input。Search input 聚焦時的 `ArrowUp` 保留 input 焦點與既有向上選取行為。已開啟的 Date／Combo／Color popup 優先處理方向鍵。
 - Search Row input 的 `searchDelay` debounce 預設為 `400ms`，本機與 `remote: true` 共用；每次 input 必須取消前一次 timer 並重新計時，設為 `0` 時才可立即套用。
+- Search Row 左側的 RowHeader top cell 與 selection top cell 不得綁定 mouse double-click 動作；雙擊不得清除 Search Row、Quick Search 或觸發遠端查詢。
+- `remote: true` 的 Search Row 查詢必須使用非阻擋式背景 loading，等待期間保留目前 rows 並允許操作 Grid 與繼續輸入，只在 Grid 中央顯示小型 loading 提示。新 Search Row 查詢觸發時，內建 Fetch 必須中止上一個 request；自訂 `loader` 無法由核心強制中止時也必須放棄舊回應，只允許最新查詢更新資料與觸發完成事件。初次載入、分頁、排序與其他遠端載入仍使用全 Grid loading mask。
 - Search Row input 按 `Enter`／`Tab` 必須移到下一個可見欄位的搜尋 input，`Shift+Enter`／`Shift+Tab` 必須移到上一個；目標 input 已有內容時必須全選，空白時維持一般游標。四者都要阻止外層表單預設提交，但不得取消既有 debounce timer、立即套用篩選或送出 `remote: true` 查詢。輸入內容仍只依 `searchDelay` 套用；到達第一個或最後一個可見欄位時維持目前 input。
 - Constructor 收到 `filterRules` 時不得覆寫使用者明確指定的 `filterMode`；若 Search Row 不在可用模式內就忽略規則。遠端 POST 必須將規則 JSON 字串放入 Form Data 的 `filterRules` 欄位，沒有對應顯示 column 的伺服器規則也必須保留。
 - Grid 建立後的 `setFilterRules(rules)` 必須一次取代舊規則、同步 Search Row input 與 operator，並自動觸發一次篩選更新；`remote: true` 必須將已知標準 operator 轉成相容符號送出、保留無對應符號的自訂 `op` 原字串、將頁碼重設為第 1 頁，並只重新送出一次 request。傳入空陣列必須清除 runtime rules 與 Search Row 值。
@@ -267,7 +275,7 @@ fabgrid-jquery
 - 一般 Grid popup 由欄位 Header Row 的右鍵操作開啟，不再由左上角列頭 cell 開啟；Search Row 與一般資料列不觸發此 popup。TreeGrid 樹欄資料 cell 例外，使用同一 popup 容器顯示 TreeGrid 全部展開／全部疊合項目。
 - `en`、`zh-TW`、`zh-CN` locale 與多組 theme。
 - Pivot 類別與列舉只由 `fabui.pivot` namespace 公開，包含 `PivotEngine`、`PivotField`、`PivotPanel`、`PivotGrid`、`PivotChart`、`PivotWorkspace`、`PivotSlicer`、`PivotAggregate`、`PivotShowAs` 與 `PivotShowTotals`；不得在 `fabui` 頂層重複公開。PivotEngine 支援本機 Array、多階 row／column fields、value／filter fields、Sum／Count／Average／WeightedAverage／Min／Max、calculated field、小計／總計、日期 groupBy、ShowAs、viewDefinition 與 detail keys。同步 `refresh()` 必須保持相容；`refreshAsync({ batchSize })` 分批處理並回報 `progress`，`cancelRefresh()` 或新的非同步工作取消舊工作時不得以部分結果取代既有 `pivotView`。Average 只計入有效數值；Date filter 經 JSON 序列化後仍依日期值比對；`setFields()` 必須依穩定 field key 將四個 View 區域重綁到新的 PivotField instance。
-- PivotPanel 沿用 FabGrid theme variables，提供 Fields／Filters／Rows／Columns／Values 區域、欄位勾選與滑鼠／觸控拖放、排序、filter field 多值草稿配置、Rows／Columns 欄位右鍵預設／升冪／降冪排序 popup、數值欄位右鍵 aggregate／ShowAs 設定及 JSON 字串 viewDefinition；所有 popup 必須沿用既有左側 icon 欄、分隔線、緊湊列高、hover／active 與 `Escape`／點擊外部關閉規則。Filters chip 只顯示欄位名稱與操作；內容可由該 chip 的多值篩選 dialog、PivotGrid 左上角或共用同一 Engine 的 PivotSlicer 設定。未按「套用」的 filter 草稿不得寫入 PivotField。Values chip 必須優先清楚顯示欄位名稱，不得放置會壓縮名稱的 inline aggregate select。Filters、Rows、Columns、Values 都不顯示上下移動按鈕，統一以拖曳排序並以插入橫線提示實際落點。Panel、Grid、Chart 與 Slicer 必須共用同一個 PivotEngine，不得在 Demo 複製彙總邏輯。
+- PivotPanel 沿用 FabGrid theme variables，提供 Fields／Filters／Rows／Columns／Values 區域、欄位勾選與滑鼠／觸控拖放、排序、filter field 多值草稿配置、Rows／Columns 欄位右鍵預設／升冪／降冪排序 popup、數值欄位右鍵 aggregate／ShowAs 設定及 JSON 字串 viewDefinition；所有 popup 必須沿用既有左側 icon 欄、分隔線、緊湊列高、hover／active 與 `Escape`／點擊外部關閉規則。Filters chip 只顯示欄位名稱與操作；內容可由該 chip 的多值篩選 dialog、PivotGrid 左上角或共用同一 Engine 的 PivotSlicer 設定。未按「套用」的 filter 草稿不得寫入 PivotField。Values chip 必須優先清楚顯示欄位名稱，不得放置會壓縮名稱的 inline aggregate select。Filters、Rows、Columns、Values 都不顯示上下移動按鈕；拖到目標欄位上方／下方以插入橫線提示落點，拖到中央則高亮目標並建立 `combineFields` 文字組合欄位。組合欄位一律將來源值轉成文字、以一格半形空白連接，使用穩定 key 並完整寫入 `viewDefinition`。Panel、Grid、Chart 與 Slicer 必須共用同一個 PivotEngine，不得在 Demo 複製彙總邏輯。
 - PivotGrid 繼承 FabGrid，固定為唯讀並重用雙向 virtualization、CellRange、clipboard、匯出、Control lifecycle、Grid fullscreen、popup 規則與 theme variables；支援多層欄標頭、固定 row fields、列／欄 subtotal 展開收合、dimension 預設／升冪／降冪三態排序、Pivot 右鍵選單及雙擊明細。Row field 右鍵選單必須以單一「全部展開／全部疊合」狀態項目操作所有列與欄群組，不得顯示單一「展開群組／疊合群組」項目；所有 PivotGrid 右鍵 popup 點擊外部必須立即關閉，點擊 popup 內部不得先關閉而阻斷項目操作，並維持 `Escape` 關閉；Header Cell 右鍵選單必須提供進入／離開 PivotGrid 全螢幕，資料 Cell 選單維持原有功能。列欄位 Header 排序必須依「預設 → 升冪 → 降冪 → 預設」循環，預設狀態保留原始出現順序且不顯示排序符號，從 Grid 變更排序或 aggregate 時必須觸發 `viewDefinitionChanged`。重複的父層 row field 值必須疊合為跨越明細與小計列的單一 cell，展開／收合按鈕放在父層值旁，收合後只保留該群組的小計列。Pivot view 更新、排序或疊合後必須依 row key 與 data-column key 保留邏輯選取，原資料不可見時才 clamp。PivotGrid 預設 Excel 匯出必須保留疊合子欄與明細列資料，並在工作表分別維持 hidden column／hidden row；只有 `visibleOnly === true` 才排除目前不可見欄位，疊合列明細仍須保留為 hidden row。PivotPanel Filters 區的欄位必須依序同步顯示在 PivotGrid 左上角、row field 標頭上方，內容選擇只在 PivotGrid 顯示並寫入同一個 `PivotField.filter`；不得以 `columnFields` 取代 filter field 來源。
 - PivotGrid 列／欄 `＋／−` 必須單次滑鼠點擊立即生效，不得先被 CellRange pointer 流程重繪而需要第二次點擊。
 - PivotChart 預設只顯示 leaf row／column aggregates，避免 subtotal／grand total 重複計算；`showTotals: true` 才納入目前可見的總計。Column／Bar／Line 可顯示多 series，Pie 由 `selectedSeries` 選擇單一 series；Pie 預設使用 Point selection、在扇形內顯示百分比，點擊後必須沿用 `fabui.chart.Chart` 的旋轉與扇形位移動畫。PivotChart 傳入共用同一個 PivotEngine 的 PivotGrid 作為 `selectionSource` 後，必須監聽 Grid `refreshed`，依目前疊合／展開狀態重建圖表：展開群組顯示 leaf aggregates，疊合群組以可見 subtotal 取代隱藏明細，不得重新彙總原始資料；圖形 point 與 Grid 彙總 cell 必須依 Pivot row key 及 data-column binding 雙向同步選取，Pie 由 Grid 反向選取時同步切換 `selectedSeries`。`maxPoints`／`maxSeries` 只限制 SVG 繪製量，不得修改 PivotEngine view。
@@ -402,7 +410,7 @@ Demo 應該顯示有助於觀察效能的 runtime stats：
 1. 資料顯示
    - `itemsSource` 綁定 array。
    - `columns` 明確定義 grid columns。
-   - 支援 `binding`、`header`、`width`、`minWidth`、`align`、`dataType`。
+   - 支援 `binding`、`header`、`width`、`align`、`dataType`。
 
 2. 雙向 virtualization
    - 預設使用固定 `rowHeight`。
@@ -441,7 +449,7 @@ Demo 應該顯示有助於觀察效能的 runtime stats：
 
 7. Column resizing
    - 拖曳 header 邊緣調整欄寬。
-   - 遵守 `minWidth`。
+   - 遵守全域 `columnMinWidth`。
    - resize 後重建 column offset cache。
    - 若 resize 的 column 位於 frozen pane，需要同步更新 frozen pane width。
 
@@ -692,8 +700,8 @@ Wrapper 職責：
 - `control` 保持 non-reactive，透過 component ref 公開底層 FabGrid instance。
 - `columns` prop 優先於 declarative `FabGridColumn`，兩者不可合併。
 - browser wrapper bundle 依賴全域 `Vue` 與 `fabui`。
-- 未來明確恢復 Vue wrapper build 時，完整輸出到 `packages/fabgrid-vue/dist`，並將 `vue.min.js`、browser global `fabgrid-vue.js` 與 `fabgrid-vue.min.js` 同步到 `dist/wrapper`；不得併入 `dist/fabui.*` 主 bundle。
-- Vue Demo 固定使用 `demo/grid-vue2.html`，依序載入 `dist/wrapper/vue.min.js`、`dist/fabui.min.js` 與 `dist/wrapper/fabgrid-vue.min.js` browser global，再由 SystemJS runtime loader 動態載入 `demo/js/grid-vue2.vue`。目前不提供獨立 production HTML；不得恢復已移除的 `demo/vue2-grid-app.html`，除非使用者明確要求新的發布流程。
+- Vue wrapper build 只輸出壓縮版 `packages/fabgrid-vue/dist/fabgrid-vue2.min.js`，並將 `vue.min.js` 與 browser global `fabgrid-vue2.min.js` 同步到 `dist/wrapper`；不得產生未壓縮 wrapper、保留舊 `fabgrid-vue.min.js`，或併入 `dist/fabui.*` 主 bundle。
+- Vue Demo 固定使用 `demo/grid-vue2.html`，依序載入 `dist/wrapper/vue.min.js`、`dist/fabui.min.js` 與 `dist/wrapper/fabgrid-vue2.min.js` browser global，再由 SystemJS runtime loader 動態載入 `demo/js/grid-vue2.vue`。目前不提供獨立 production HTML；不得恢復已移除的 `demo/vue2-grid-app.html`，除非使用者明確要求新的發布流程。
 - Vue Demo 的工具列、欄位 editor、theme、locale、群組、篩選、remote、Popup Grid、匯出與 runtime stats 必須和 `demo/dev-grid.html` 保持同等功能；Vue 只負責 wrapper props、events 與 Demo 狀態，cell rendering 仍由 core 處理。
 - Vue Demo 的 Options API、locale、資料處理與 helper 全部直接放在 `demo/js/grid-vue2.vue`；不得再拆出 `demo/js/grid-vue2-options.js` 或透過 `window.createVue2GridDemoOptions` 組裝元件。
 - `demo/grid-grid-vue2.html` 是專用雙 Grid 拖曳範例，必須沿用 `demo/grid-vue2.html` 的 SystemJS runtime loader 掛載 `demo/js/grid-grid-vue2.vue`，並載入 Vue、FabUI 與 Vue wrapper browser global bundle；上方按鈕透過 wrapper `allowDragging` prop 同步開啟／關閉兩個 Grid 的資料列拖曳，Vue 管理資料與頁面狀態，Grid cell rendering 仍由 core 負責。
@@ -705,14 +713,14 @@ V1 不提供 Vue cell slot、editor slot 或逐 cell component mount，避免 Vu
 ## jQuery Wrapper 筆記
 
 - FabUI jQuery 相容 Wrapper 位於 `packages/fabui-jquery`，公開 Layout、Panel、Tabs、Window／Dialog、Form、EditBox、ValidateBox、FileBox、Button、Menu、MenuButton、Tooltip、Tree、SwitchButton 等 EasyUI 風格 plugin，並在 FabGrid Wrapper 已載入時提供 `datagrid` 相容入口。
-- `npm run build:fabui-jquery` 只輸出 `packages/fabui-jquery/dist/fabui-jquery.{js,min.js}` 與 `dist/wrapper/fabui-jquery.min.js`，不得改寫 `dist/fabui.*` 或納入 `build:all`。
+- `npm run build:fabui-jquery` 只輸出 `packages/fabui-jquery/dist/fabui-jquery.{js,min.js}` 與 `dist/wrapper/fabui-jquery.min.js`，不得改寫 `dist/fabui.*`；`build:all` 透過此獨立命令納入 FabUI jQuery wrapper。
 - `$.parser.parse(context)` 只解析 `easyui-*` class 與安全的 `data-options` 資料，不執行其中的 JavaScript；事件 callback 使用程式式 options。
 - jQuery wrapper 位於 `packages/fabgrid-jquery`，公開 `$.fn.fabgrid`，每個 host element 對應一個 `fabui.FabGrid` instance。
 - 初始化、setter、無回傳值方法與 `destroy` 保持 jQuery chaining；`instance`、option getter 與有回傳值的 core method 回傳實際結果。
 - 重複傳入 options 更新既有 instance，不建立第二個 Grid；具有正式 core setter 的 option 必須優先呼叫 setter。
 - core events 轉為小寫 jQuery events，固定使用 `.fabgrid` namespace；取消狀態必須回傳 core event args。
 - `destroy` 必須解除 wrapper 的 core event handlers、呼叫 `dispose()` 並清除 instance data，不得移除使用者自己的 jQuery events。
-- 未來明確恢復 jQuery wrapper build 時，完整輸出到 `packages/fabgrid-jquery/dist`，browser minified 版本另同步到 `dist/wrapper/fabgrid-jquery.min.js`；不得併入 `dist/fabui.*` 主 bundle。
+- jQuery wrapper build 完整輸出到 `packages/fabgrid-jquery/dist`，browser minified 版本另同步到 `dist/wrapper/fabgrid-jquery.min.js`；不得併入 `dist/fabui.*` 主 bundle。
 - `demo/dev-jquery-grid.html` 是 source-mode 開發 Demo；`demo/grid-jquery.html` 是 build-mode browser global Demo，只引用 `dist` core 與 wrapper bundle。日常修改不得為了 jQuery wrapper 主動 build。
 - jQuery Demo 必須先載入 `demo/js/grid-jquery.js` adapter，再載入共用 `demo/js/grid.js`；初始化、公開方法與事件必須明確經過 `$.fn.fabgrid` 與 jQuery events，不得只在建立後改用 core instance 操作。
 - `demo/js/grid-jquery.js` 只負責 jQuery adapter，不得複製 `demo/js/grid.js` 的資料、Popup、locale、toolbar 或篩選流程；runtime property 可透過 wrapper option／instance getter 讀取，但所有會改變 Grid 狀態的公開操作必須使用 `$host.fabgrid(...)`。
@@ -734,4 +742,4 @@ V1 符合以下條件時可視為成功：
 - 能用 `<script src="./fabui.min.js">` 建立 `fabui.FabGrid` 與其他 FabUI 控件。
 - Demo 頁面使用打包後的 dist 檔案運作。
 - `dispose()` 會移除 listeners，且不留下明顯的殘留行為。
-- 每次使用者明確要求 build 時，依「開發工作流程」定義的 `build`／`build fabui`、`build lite`、`build diagram`、`build gantt`、`build scheduler`、`build htmleditor`、`build fabloader`、`build loader`、`build theme`、`build locale`、`build clear`、`build all`、逗號分隔多範圍或上述命令的 `min` 形式執行對應操作與檢查；逗號左右不得有空白，`min` 必須套用到清單中的每個範圍。Fabloader 與 Loader 都不納入逗號分隔多範圍或 `build all`；Vue 2 與 FabGrid jQuery wrapper 暫緩且不納入 build gate。
+- 每次使用者明確要求 build 時，依「開發工作流程」定義的 `build`／`build fabui`、`build lite`、`build diagram`、`build gantt`、`build scheduler`、`build htmleditor`、`build fabloader`、`build loader`、`build theme`、`build locale`、`build clear`、`build all`、逗號分隔多範圍或上述命令的 `min` 形式執行對應操作與檢查；逗號左右不得有空白，`min` 必須套用到清單中的每個範圍。Fabloader 與 Loader 都不納入逗號分隔多範圍或 `build all`；`build all` 必須包含 Vue 2、FabGrid jQuery 與 FabUI jQuery wrapper。

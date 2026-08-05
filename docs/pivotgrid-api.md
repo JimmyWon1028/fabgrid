@@ -55,11 +55,15 @@ var engine = new fabui.pivot.PivotEngine({
 | `descending` | 向下相容屬性；指定 `true` 為降冪，`false` 為升冪。 |
 | `filter` | Function、允許值 Array，或 `{ values, predicate }`。 |
 | `groupBy` | `Year`、`Quarter`、`Month`、`Day` 或 Function。 |
+| `combineFields` | 依序指定兩個以上的來源 field key，全部轉成文字後合併為單一維度值；直接或間接循環引用會拋出 `TypeError`。 |
+| `combineSeparator` | `combineFields` 的連接文字；PivotPanel 建立的組合欄位固定使用一格半形空白。 |
 | `getValue`／`calculate` | 自訂原始值 getter；calculated field 可不提供 binding。Function 不會寫入 JSON `viewDefinition`。 |
 | `weightBinding`／`getWeight` | `WeightedAverage` 使用的權重 property path 或 getter。 |
 | `showAs` | `PivotShowAs` 值，將完成的 aggregate 轉為百分比、差異或累計。 |
 | `width`、`align` | PivotGrid 欄寬與對齊。 |
 | `visible` | 是否顯示欄位，預設 `true`。 |
+
+拖曳調整 PivotGrid 欄寬時會回寫對應的 `PivotField.width`，因此可由 Engine 的 `viewDefinition` 保存。Value Field 若產生多個 Pivot 資料欄，調整其中一欄會同步相同 Value Field 的所有資料欄寬度。
 
 ### Aggregate 列舉
 
@@ -208,7 +212,7 @@ var panel = new fabui.pivot.PivotPanel('#pivotPanel', {
 });
 ```
 
-PivotPanel 與 PivotGrid 綁定同一個 PivotEngine。使用者可以勾選欄位，或以滑鼠／觸控將欄位拖曳到 Filters、Rows、Columns、Values 區域；每次已確認的變更會重建 Pivot view。四個區域的排列以插入橫線標示實際落點，不顯示上下移動按鈕。
+PivotPanel 與 PivotGrid 綁定同一個 PivotEngine。使用者可以勾選欄位，或以滑鼠／觸控將欄位拖曳到 Filters、Rows、Columns、Values 區域；每次已確認的變更會重建 Pivot view。拖到目標欄位上方或下方會顯示插入橫線，拖到中央會高亮目標並建立「目標 + 來源」的新文字組合欄位。組合欄位使用 `combineFields` 與空白分隔，會包含在 `viewDefinition` 中。
 
 Filters chip 的篩選按鈕會開啟搜尋與多值選取 dialog。勾選內容只更新草稿；按「套用」才寫入 `PivotField.filter`，按「取消」、`Escape` 或點擊外部只關閉 dialog。
 
@@ -225,7 +229,8 @@ Filters chip 的篩選按鈕會開啟搜尋與多值選取 dialog。勾選內容
 
 - 勾選一般欄位加入 Rows；勾選 number 欄位加入 Values。
 - 拖放欄位可在四個區域之間移動並重新排序。
-- Rows、Columns、Values 直接拖曳排序並顯示插入橫線；`×` 從目前區域移除。
+- 拖到目標欄位上方／下方會插入，拖到目標中央會將兩個來源值當成文字合併為新欄位。
+- Rows、Columns、Values 直接拖曳排序並顯示實際落點；`×` 從目前區域移除。
 - Filters 區只在 chip 上顯示欄位名稱與操作，不放置會壓縮名稱的 inline selector。
 - Filter 內容可由 chip 的多值 dialog、PivotGrid 左上角 selector 或共用同一 Engine 的 PivotSlicer 設定。
 - Filters 區的欄位會依順序顯示在 PivotGrid 左上角、row field 標頭上方。
@@ -249,6 +254,7 @@ Filters chip 的篩選按鈕會開啟搜尋與多值選取 dialog。勾選內容
 | `setItemsSource(engine)` | 切換共用 PivotEngine。 |
 | `setLocale(locale, messages?)` | 切換語系與自訂文字。 |
 | `moveField(field, area, index?)` | 將欄位移至 Filters、Rows、Columns 或 Values。 |
+| `mergeFields(source, target, area)` | 建立可序列化的文字組合欄位，並在目標位置取代來源及目標欄位。 |
 | `removeField(field, area?)` | 從指定或目前區域移除欄位。 |
 | `setAggregate(field, aggregate)` | 設定 Value field aggregate。 |
 | `setShowAs(field, showAs)` | 設定 Value field ShowAs。 |

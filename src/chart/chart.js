@@ -136,7 +136,7 @@ export function createChartFactory() {
     var self = this;
     this.unbindItemsSource();
     this.options.itemsSource = isCollectionView(itemsSource) ? itemsSource :
-      (Array.isArray(itemsSource) ? itemsSource : []);
+      (Array.isArray(itemsSource) ? itemsSource : null);
     if (isCollectionView(this.options.itemsSource)) {
       this._collectionView = this.options.itemsSource;
       this._collectionViewChangedHandler = function() {

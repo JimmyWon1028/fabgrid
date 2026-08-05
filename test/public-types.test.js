@@ -4,7 +4,7 @@ import fabui from '../src/fabui.js';
 import {
   createXlsxFiles,
   getExcelColumnName
-} from '../src/grid/fabgrid-export.js?v=20260804-grid-public-api-v1';
+} from '../src/grid/fabgrid-export.js?v=20260804-excel-workbook-v1';
 
 test('FabUI publishes CellType at the top level and Row types through FabGrid', function() {
   assert.equal(fabui.CellType.Cell, 1);
@@ -13,6 +13,11 @@ test('FabUI publishes CellType at the top level and Row types through FabGrid', 
   assert.equal(Object.getPrototypeOf(fabui.FabGrid.GroupRow.prototype), fabui.FabGrid.Row.prototype);
   assert.equal(fabui.FabGrid.CellType, undefined);
   assert.equal(fabui.grid, undefined);
+});
+
+test('FabUI publishes the Excel multi-sheet namespace', function() {
+  assert.equal(typeof fabui.Excel.getBlob, 'function');
+  assert.equal(typeof fabui.Excel.export, 'function');
 });
 
 test('FabUI publishes PivotGrid and its data model', function() {
@@ -30,6 +35,27 @@ test('FabUI publishes PivotGrid and its data model', function() {
   assert.equal(fabui.pivot.PivotShowTotals.Subtotals, 'Subtotals');
   assert.equal(fabui.PivotEngine, undefined);
   assert.equal(fabui.PivotGrid, undefined);
+});
+
+test('PivotGrid header height falls back without recursion while the pivot view is initializing', function() {
+  var grid = Object.create(fabui.pivot.PivotGrid.prototype);
+  grid.options = {
+    headerHeight: 32,
+    rowHeight: 32,
+    filterMode: false
+  };
+  grid._visibleColumnHeaderDepth = 1;
+  grid._pivotView = null;
+
+  assert.equal(grid.getHeaderHeight(), 32);
+  assert.equal(grid.getHeaderTitleHeight(), 32);
+
+  grid._pivotView = {};
+  grid._pivotHeaderLevelCount = 2;
+  grid._pivotHeaderRowHeight = 30;
+
+  assert.equal(grid.getHeaderHeight(), 60);
+  assert.equal(grid.getHeaderTitleHeight(), 60);
 });
 
 test('PivotPanel moves fields between view areas through the shared engine', function() {
@@ -67,6 +93,74 @@ test('PivotPanel moves fields between view areas through the shared engine', fun
   assert.equal(panel.setShowAs('sales', 'PercentOfGrandTotal'), true);
   assert.equal(engine.getField('sales').showAs, 'PercentOfGrandTotal');
   assert.equal(typeof panel.viewDefinition, 'string');
+});
+
+test('PivotPanel merges a dragged field into its target as a serializable text field', function() {
+  var engine = new fabui.pivot.PivotEngine({
+    itemsSource: [{ region: 'North', product: 'A', sales: 10 }],
+    fields: [
+      { key: 'region', binding: 'region', header: 'Region' },
+      { key: 'product', binding: 'product', header: 'Product' },
+      { key: 'sales', binding: 'sales', header: 'Sales', dataType: 'number' }
+    ],
+    rowFields: ['region', 'product'],
+    valueFields: ['sales']
+  });
+  var panel = Object.create(fabui.pivot.PivotPanel.prototype);
+  var combined;
+  var saved;
+
+  panel._engine = engine;
+  panel.areaLists = {
+    fields: {},
+    filterFields: {},
+    rowFields: {},
+    columnFields: {},
+    valueFields: {}
+  };
+  combined = panel.mergeFields('product', 'region', 'rowFields');
+  saved = engine.viewDefinition.fields.find(function(field) { return field.key === combined.key; });
+
+  assert.equal(combined.header, 'Region + Product');
+  assert.equal(combined.dataType, 'string');
+  assert.deepEqual(combined.combineFields, ['region', 'product']);
+  assert.equal(combined.getItemValue(engine.itemsSource[0]), 'North A');
+  assert.deepEqual(engine.rowFields.map(function(field) { return field.key; }), [combined.key]);
+  assert.deepEqual(saved.combineFields, ['region', 'product']);
+  assert.equal(saved.combineSeparator, ' ');
+});
+
+test('PivotPanel preserves function fields and field identity while merging fields', function() {
+  var engine = new fabui.pivot.PivotEngine({
+    itemsSource: [{ region: 'North', product: 'A', quantity: 2, price: 10 }],
+    fields: [
+      { key: 'region', binding: 'region', header: 'Region' },
+      { key: 'product', binding: 'product', header: 'Product' },
+      {
+        key: 'revenue',
+        header: 'Revenue',
+        dataType: 'number',
+        calculate: function(item) { return item.quantity * item.price; }
+      }
+    ],
+    rowFields: ['region', 'product'],
+    valueFields: ['revenue']
+  });
+  var panel = Object.create(fabui.pivot.PivotPanel.prototype);
+  var revenue = engine.getField('revenue');
+
+  panel._engine = engine;
+  panel.areaLists = {
+    fields: {},
+    filterFields: {},
+    rowFields: {},
+    columnFields: {},
+    valueFields: {}
+  };
+  panel.mergeFields('product', 'region', 'rowFields');
+
+  assert.equal(engine.getField('revenue'), revenue);
+  assert.equal(engine.getField('revenue').getItemValue(engine.itemsSource[0]), 20);
 });
 
 test('PivotPanel applies a multi-value filter draft only on confirmation', function() {
@@ -280,7 +374,13 @@ test('PivotPanel drag indicator reports the insertion index without counting the
   };
 
   function createItem(key, top) {
+    var classes = [];
     return {
+      classList: {
+        add: function(name) { classes.push(name); },
+        remove: function(name) { classes = classes.filter(function(item) { return item !== name; }); },
+        contains: function(name) { return classes.indexOf(name) >= 0; }
+      },
       getAttribute: function(name) { return name === 'data-field-key' ? key : null; },
       getBoundingClientRect: function() { return { top: top, height: 30 }; }
     };
@@ -298,15 +398,26 @@ test('PivotPanel drag indicator reports the insertion index without counting the
   panel._dragFieldKey = 'sales';
   panel._dragTargetArea = null;
   panel._dragTargetIndex = Infinity;
+  panel._dragTargetMode = null;
+  panel._dragTargetFieldKey = null;
   panel._dropIndicator = null;
+  panel._mergeTarget = null;
 
   try {
     assert.equal(panel._showDropIndicator(list, 'valueFields', 35), 0);
     assert.equal(insertedBefore, items[1]);
+    assert.equal(panel._dragTargetMode, 'before');
     panel._clearDropIndicator();
     assert.equal(removed !== null, true);
+    assert.equal(panel._showDropIndicator(list, 'valueFields', 45), 0);
+    assert.equal(panel._dragTargetMode, 'merge');
+    assert.equal(panel._dragTargetFieldKey, 'downloads');
+    assert.equal(items[1].classList.contains('fg-pivot-panel-merge-target'), true);
+    panel._clearDropIndicator();
+    assert.equal(items[1].classList.contains('fg-pivot-panel-merge-target'), false);
     assert.equal(panel._showDropIndicator(list, 'valueFields', 88), 2);
     assert.equal(appended, panel._dropIndicator);
+    assert.equal(panel._dragTargetMode, 'after');
   } finally {
     panel._clearDropIndicator();
     globalThis.document = originalDocument;
@@ -708,6 +819,65 @@ test('PivotGrid row field sorting cycles default, ascending, descending, and def
   assert.equal(field.sortDirection, 0);
   assert.equal(refreshCount, 3);
   assert.equal(changedCount, 3);
+});
+
+test('PivotGrid persists resized row and value field widths in the shared engine definition', function() {
+  var engine = new fabui.pivot.PivotEngine({
+    itemsSource: [
+      { region: 'North', product: 'A', sales: 10 },
+      { region: 'North', product: 'B', sales: 20 }
+    ],
+    fields: [
+      { key: 'region', binding: 'region', header: 'Region' },
+      { key: 'product', binding: 'product', header: 'Product' },
+      { key: 'sales', binding: 'sales', header: 'Sales', dataType: 'number' }
+    ],
+    rowFields: ['region'],
+    columnFields: ['product'],
+    valueFields: ['sales']
+  });
+  var regionField = engine.getField('region');
+  var salesField = engine.getField('sales');
+  var grid = Object.create(fabui.pivot.PivotGrid.prototype);
+  var layoutCount = 0;
+  var renderCount = 0;
+  var widthEvent = null;
+
+  grid._pivotEngine = engine;
+  grid.columns = [
+    { width: 146, _width: 146, _pivotRowField: regionField },
+    { width: 168, _width: 168, _pivotDataColumn: { valueField: salesField } },
+    { width: 112, _width: 112, _pivotDataColumn: { valueField: { key: salesField.key } } }
+  ];
+  grid.updateLayout = function() {
+    layoutCount += 1;
+    return true;
+  };
+  grid.render = function() {
+    renderCount += 1;
+  };
+  engine.on('viewDefinitionChanged', function(args) {
+    if (args.property === 'width') widthEvent = args;
+  });
+
+  assert.equal(grid._handlePivotColumnResized(grid, { column: grid.columns[0] }), true);
+  assert.equal(regionField.width, 146);
+  assert.equal(grid._handlePivotColumnResized(grid, { column: grid.columns[1] }), true);
+  assert.equal(salesField.width, 168);
+  assert.equal(grid.columns[2].width, 168);
+  assert.equal(grid.columns[2]._width, 168);
+  assert.equal(layoutCount, 1);
+  assert.equal(renderCount, 1);
+  assert.equal(widthEvent.field, salesField);
+  assert.equal(widthEvent.width, 168);
+  assert.equal(
+    engine.viewDefinition.fields.find(function(field) { return field.key === 'region'; }).width,
+    146
+  );
+  assert.equal(
+    engine.viewDefinition.fields.find(function(field) { return field.key === 'sales'; }).width,
+    168
+  );
 });
 
 test('PivotGrid merges repeated row field values into collapsible group spans', function() {

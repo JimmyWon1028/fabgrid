@@ -48,7 +48,6 @@
 :root .fg-root .fg-body,
 :root .fg-root .fg-frozen-pane,
 :root .fg-root .fg-frozen-pane-right,
-:root .fg-root .fg-selection-pane,
 :root .fg-root .fg-cell,
 :root .fg-root .fg-selection-cell {
   background: #feeebd;

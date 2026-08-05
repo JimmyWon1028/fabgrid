@@ -1317,6 +1317,7 @@
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
   --fg-cell-text: #000000;
+  --fg-link-text: #337ab7;
   --fg-cell-hover-bg: #eef6ff;
   --fg-row-hover-bg: #edf6ff;
   --fg-row-selected-bg: #ffe68a;
@@ -1911,11 +1912,7 @@
 :root .fg-footer-row-header {
   left: 0;
   z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
-  padding: 0 6px;
   border-right: 1px dotted var(--fg-border);
   background-color: #efefef;
   background-image: linear-gradient(rgba(255, 255, 255, 20%), rgb(0 0 0 / 6%));
@@ -1925,6 +1922,22 @@
   line-height: 1;
   white-space: nowrap;
   user-select: none;
+}
+
+:root .fg-footer-row-header-cell {
+  position: absolute;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+:root .fg-footer-row-divider {
+  border-bottom: 1px dotted var(--fg-border);
 }
 
 :root .fg-footer-selection {
@@ -2260,8 +2273,7 @@
   bottom: var(--fg-scrollbar-gutter-size);
   z-index: 6;
   overflow: hidden;
-  border-right: 1px dotted var(--fg-border);
-  background: #ffffff;
+  background: transparent;
   pointer-events: none;
 }
 
@@ -2318,6 +2330,30 @@
   text-overflow: ellipsis;
   pointer-events: auto;
   user-select: none;
+}
+
+:root .fg-cell .fg-cell-maker {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  align-items: center;
+  overflow: hidden;
+  color: var(--fg-link-text);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+:root .fg-cell .fg-cell-maker:hover {
+  text-decoration: underline;
+}
+
+:root .fg-cell.fg-selected .fg-cell-maker,
+:root .fg-cell.fg-range-selected .fg-cell-maker,
+:root .fg-cell.fg-row-selected .fg-cell-maker {
+  color: inherit;
 }
 
 :root .fg-row-draggable {
@@ -2532,7 +2568,6 @@
   background: var(--fg-row-selected-bg);
 }
 
-:root .fg-root .fg-selection-pane,
 :root .fg-root .fg-selection-cell,
 :root .fg-root .fg-selection-cell.fg-row-even,
 :root .fg-root .fg-selection-cell.fg-row-alt,
@@ -2852,10 +2887,6 @@
 
 :root .fg-editor-trigger-combobox,
 :root .fg-editor-trigger-color {
-  background-image: none;
-}
-
-:root .fg-editor-trigger-custom {
   background-image: none;
 }
 
@@ -3276,6 +3307,15 @@
   cursor: wait;
 }
 
+:root .fg-remote-load-mask.fg-remote-load-background {
+  background: transparent;
+  pointer-events: none;
+}
+
+:root .fg-remote-load-background .fg-remote-load-panel {
+  pointer-events: none;
+}
+
 :root .fg-remote-load-panel {
   display: inline-flex;
   align-items: center;
@@ -3526,6 +3566,7 @@
 
 :root .fg-root.fg-pivot-panel {
   display: flex;
+  height: 100%;
   flex-direction: column;
   min-width: 260px;
   min-height: 420px;
@@ -3539,8 +3580,9 @@
 
 :root .fg-pivot-panel-header {
   display: flex;
-  flex: 0 0 38%;
-  min-height: 150px;
+  flex: 0 0 50%;
+  min-height: 0;
+  overflow: hidden;
   flex-direction: column;
   border-bottom: 1px solid var(--fg-border-strong);
 }
@@ -3550,6 +3592,7 @@
   flex: 1 1 auto;
   min-height: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
 }
 
 :root .fg-pivot-panel-section {
@@ -3589,6 +3632,9 @@
 
 :root .fg-pivot-panel-fields {
   display: grid;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   align-content: start;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -3809,6 +3855,13 @@
 
 :root .fg-pivot-panel-dragging {
   opacity: .45;
+}
+
+:root .fg-pivot-panel-field.fg-pivot-panel-merge-target,
+:root .fg-pivot-panel-item.fg-pivot-panel-merge-target {
+  border-color: var(--fg-selected-border);
+  background: var(--fg-selected-bg);
+  box-shadow: inset 0 0 0 2px var(--fg-selected-border);
 }
 
 :root .fg-pivot-panel-insert-line {
