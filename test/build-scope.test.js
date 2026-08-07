@@ -68,6 +68,28 @@ test('all build commands omit ESM output files', function() {
   });
 });
 
+test('clear build removes every dist entry and preserves the directory', function() {
+  var tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fabui-clear-build-'));
+  var distDir = path.join(tempDir, 'dist');
+  var result;
+
+  try {
+    fs.mkdirSync(path.join(distDir, 'nested'), { recursive: true });
+    fs.writeFileSync(path.join(distDir, 'fabui.js'), 'built');
+    fs.writeFileSync(path.join(distDir, 'nested', 'asset.svg'), 'asset');
+    result = spawnSync(process.execPath, ['build/build-clear.cjs'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: Object.assign({}, process.env, { FABUI_DIST_DIR: distDir })
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(fs.existsSync(distDir), true);
+    assert.deepEqual(fs.readdirSync(distDir), []);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test('default build preserves public constructor names and descendant pseudo selectors', function() {
   var tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fabui-core-build-'));
   var result;

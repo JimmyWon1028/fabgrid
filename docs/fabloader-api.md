@@ -1,7 +1,7 @@
 # fabLoader API 操作手冊
 
 `fabLoader` 是獨立的 browser global 資源載入器，不依賴 FabUI 或其他
-套件。目前版本為 `0.12.0`，發佈檔內建小型 jQuery-like DOM helper。
+套件。目前版本為 `0.13.0`，發佈檔內建小型 jQuery-like DOM helper。
 
 主要功能：
 
@@ -9,6 +9,7 @@
 - 循序或平行安排載入工作。
 - 預載單張、陣列或名稱物件格式的圖片。
 - 載入並快取文字、HTML 與 XML。
+- 以可設定的 LRU 上限管理文字快取，並可清除已完成資源紀錄。
 - 將 HTML 掛載到指定元素，並依序執行片段內的 script。
 - 選用 SystemJS 載入 Vue 2 SFC 或 React JSX。
 - 提供 timeout、取消、失敗重試及資源去重。
@@ -79,6 +80,7 @@ fabLoader
 | `getHtml(url, options?)` | `string \| null` | `getText()` 的 HTML 相容名稱。 |
 | `loadXml(url, options?)` | `Promise<XMLDocument>` | 載入文字並解析為新的 XMLDocument。 |
 | `clearTextCache(url?, options?)` | `undefined` | 清除文字、HTML 與 XML 共用原文快取。 |
+| `clearResourceCache(bucket?, url?)` | `number` | 清除已完成的 Script、CSS 與圖片去重紀錄。 |
 | `mountHtml(target, url, options?)` | `Promise<object>` | 將 HTML 掛載到元素並執行 script。 |
 | `cancel(bucket?, url?)` | `number` | 取消符合條件的 pending 載入並回傳數量。 |
 | `dom(target)` | `FabDomCollection` | 建立內建 jQuery-like collection。 |
@@ -109,13 +111,17 @@ fabLoader.setConfig({
   },
   text: {
     timeout: 10000,
-    credentials: 'include'
+    credentials: 'include',
+    maxEntries: 200
   }
 });
 ```
 
 每次呼叫仍可用 options 覆寫該次載入。`setConfig()` 回傳
 `fabLoader`，可以繼續呼叫其他方法。
+
+`text.maxEntries` 是整個文字桶的快取設定，只能透過 `setConfig()`
+修改，不是單次 `loadText()`／`loadHtml()`／`loadXml()` option。
 
 ### getConfig()
 
@@ -142,9 +148,12 @@ var config = fabLoader.getConfig();
 | `image` | `fetchPriority` | `''` |
 | `text` | `timeout` | `30000` |
 | `text` | `credentials` | `'same-origin'` |
+| `text` | `maxEntries` | `100` |
 
 `credentials` 只接受 `'same-origin'`、`'include'` 或 `'omit'`。
 `timeout: 0` 表示不設定 timeout。
+`maxEntries` 只接受非負整數，表示最多保留多少筆已完成的文字／HTML／
+XML 原文；使用 LRU 淘汰，pending 不計入，`0` 表示完成後不保留。
 
 ## 佇列 API
 
@@ -521,6 +530,26 @@ fabLoader.clearTextCache('./part.html', {
 
 若被清除的紀錄仍在載入，該請求也會被取消。
 
+### clearResourceCache(bucket?, url?)
+
+清除指定 URL 的已完成 Script 去重紀錄：
+
+```js
+fabLoader.clearResourceCache('script', './app.js');
+```
+
+清除整個 CSS 桶，或一次清除全部 Script、CSS 與圖片完成紀錄：
+
+```js
+fabLoader.clearResourceCache('css');
+fabLoader.clearResourceCache();
+```
+
+`style` 可作為 `css` 的別名。此方法只清除 `fulfilled` 紀錄並回傳清除
+筆數，不取消 pending，不移除已插入的 `<script>`／`<link>`，也不改變
+已回傳的圖片節點。清除後再次呼叫載入方法會建立新的載入工作。
+文字／HTML／XML 必須使用 `clearTextCache()`。
+
 ## 掛載 HTML
 
 ### mountHtml(target, url, options?)
@@ -551,9 +580,18 @@ Options：
 | `responseUrl` | Fetch 最終回應 URL，包含 redirect 結果。 |
 | `html` | 原始 HTML 文字。 |
 
-片段內的 `src`、`href`、`action` 與 `poster` 相對路徑會以最終
-`responseUrl` 為基準改寫。可執行 script 會依 HTML 原始順序執行；
-前一個外部 script 完成後才執行下一個。
+片段內的 `src`、`href`、`action`、`poster`、`srcset`、`formaction`、
+`object[data]` 與 inline style `url()` 相對路徑會以最終 `responseUrl`
+為基準改寫；`data:`、`blob:`、`javascript:`、`mailto:`、`tel:` 與
+fragment URL 保持不變。可執行 script 會依 HTML 原始順序執行；前一個
+外部 script 完成後才執行下一個。
+
+HTML 下載失敗時 target 保持原狀。HTML 插入後若外部 script 或 inline
+module 載入失敗，Promise 會 reject，已插入的 DOM 不會回復；使用
+`append: true` 時既有內容同樣保留。Classic inline script 在
+`replaceChild()` 時同步執行，因此其 runtime error 由瀏覽器錯誤機制
+處理，不保證 reject `mountHtml()` Promise，也不保證進入回傳該 Promise
+之 `run()`／`done()` 後方的 queue `.catch()`。
 
 HTML 文字不會進行 sanitization。只能掛載可信任內容，尤其是啟用
 script 執行時。
@@ -789,6 +827,11 @@ fabLoader
 ```
 
 鏈尾 `.catch()` 僅處理 `run()`／`done()` callback 拋出的例外。
+
+`mountHtml()` 是直接 Promise API：HTML／外部 script／module 載入失敗
+可由它自己的 `.catch()` 處理；若從 `run()`／`done()` callback 回傳，
+也會進入 queue `.catch()`。Classic inline script 的 runtime error 是
+瀏覽器執行階段事件，不屬於可保證捕捉的 Promise rejection。
 
 常見錯誤：
 

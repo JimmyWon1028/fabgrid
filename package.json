@@ -9,6 +9,7 @@
   "scripts": {
     "build": "node build/build.cjs",
     "build:all": "npm run build && npm run build:lite && npm run build:diagram && npm run build:gantt && npm run build:scheduler && npm run build:htmleditor && npm run build:locale && npm run build:vue && npm run build:jquery && npm run build:fabui-jquery",
+    "build:clear": "node build/build-clear.cjs",
     "build:fabloader": "node build/build-loader.cjs fabdom",
     "build:loader": "node build/build-loader.cjs",
     "build:locale": "node build/build-locale.cjs",
@@ -23,10 +24,12 @@
     "build:fabui-jquery": "node build/build-fabui-jquery.cjs",
     "dev:vue": "python3 -m http.server 4174",
     "benchmark:grid": "node scripts/benchmark-grid.mjs",
+    "benchmark:grid:check": "node scripts/benchmark-grid.mjs --check",
     "test": "node --test test/*.test.js",
     "test:jquery": "node --test test/jquery-wrapper.test.js",
     "smoke": "npm run build && node build/smoke.cjs && node build/smoke-gantt.cjs",
     "smoke:loader": "node build/smoke-loader.cjs",
+    "smoke:grid-performance": "node build/smoke-grid-performance.cjs",
     "smoke:gantt": "node build/smoke-gantt.cjs",
     "smoke:scheduler": "npm run build:scheduler && node build/smoke-scheduler.cjs",
     "serve": "python3 -m http.server 4173"

@@ -4,6 +4,7 @@ import { createFabGridFactory } from '../src/grid/fabgrid.js';
 var ROW_COUNT = 20000;
 var COLUMN_COUNT = 50;
 var RUN_COUNT = 3;
+var CHECK_THRESHOLDS = process.argv.includes('--check');
 
 function createRows() {
   return Array.from({ length: ROW_COUNT }, function(value, rowIndex) {
@@ -103,6 +104,8 @@ var grid = createDataPipelineGrid(rows, columns);
 var bindingChecksum = 0;
 var bindingMs;
 var filterMs;
+var cachedFilterMs;
+var progressiveFilterMs;
 var sortMs;
 var rowRange;
 var columnRange;
@@ -124,6 +127,15 @@ filterMs = measure(function() {
 if (grid.view.length !== 1) {
   throw new Error('Global search benchmark returned an unexpected row count.');
 }
+cachedFilterMs = measure(function() {
+  grid.applyView({ searchOnly: true });
+});
+grid.searchText = 'need';
+grid.applyView({ searchOnly: true });
+grid.searchText = 'needle';
+var progressiveStart = performance.now();
+grid.applyView({ searchOnly: true });
+progressiveFilterMs = performance.now() - progressiveStart;
 
 grid.searchText = '';
 grid.setBenchmarkSortStates([
@@ -164,7 +176,15 @@ if (renderedCellUpperBound >= ROW_COUNT * COLUMN_COUNT) {
   throw new Error('Two-axis virtualization did not bound the rendered cell count.');
 }
 
-console.log(JSON.stringify({
+var thresholds = {
+  bindingScan: Number(process.env.FABGRID_BENCH_BINDING_MAX_MS || 15),
+  globalSearchCold: Number(process.env.FABGRID_BENCH_SEARCH_COLD_MAX_MS || 110),
+  globalSearchCached: Number(process.env.FABGRID_BENCH_SEARCH_CACHED_MAX_MS || 15),
+  globalSearchProgressive: Number(process.env.FABGRID_BENCH_SEARCH_PROGRESSIVE_MAX_MS || 15),
+  twoColumnSort: Number(process.env.FABGRID_BENCH_SORT_MAX_MS || 60),
+  renderedCellUpperBound: Number(process.env.FABGRID_BENCH_RENDERED_CELLS_MAX || 1200)
+};
+var results = {
   dataset: {
     rows: ROW_COUNT,
     columns: COLUMN_COUNT,
@@ -172,7 +192,9 @@ console.log(JSON.stringify({
   },
   medianMs: {
     bindingScan: Number(bindingMs.toFixed(2)),
-    globalSearch: Number(filterMs.toFixed(2)),
+    globalSearchCold: Number(filterMs.toFixed(2)),
+    globalSearchCached: Number(cachedFilterMs.toFixed(2)),
+    globalSearchProgressive: Number(progressiveFilterMs.toFixed(2)),
     twoColumnSort: Number(sortMs.toFixed(2))
   },
   virtualization: {
@@ -180,5 +202,23 @@ console.log(JSON.stringify({
     columnRange: columnRange,
     renderedCellUpperBound: renderedCellUpperBound
   },
-  bindingChecksum: bindingChecksum
-}, null, 2));
+  bindingChecksum: bindingChecksum,
+  thresholds: thresholds
+};
+var failures = [];
+
+Object.keys(thresholds).forEach(function(name) {
+  var actual = name === 'renderedCellUpperBound' ?
+    renderedCellUpperBound :
+    results.medianMs[name];
+  if (actual > thresholds[name]) {
+    failures.push(name + ' ' + actual + ' > ' + thresholds[name]);
+  }
+});
+results.passed = failures.length === 0;
+results.failures = failures;
+console.log(JSON.stringify(results, null, 2));
+
+if (CHECK_THRESHOLDS && failures.length) {
+  process.exitCode = 1;
+}

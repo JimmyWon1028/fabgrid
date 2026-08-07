@@ -10,6 +10,7 @@
     image: Object.create(null),
     text: Object.create(null)
   };
+  var textAccessSequence = 0;
   var defaultConfig = {
     script: {
       timeout: 30000,
@@ -32,7 +33,8 @@
     },
     text: {
       timeout: 30000,
-      credentials: 'same-origin'
+      credentials: 'same-origin',
+      maxEntries: 100
     }
   };
   var config = cloneConfig(defaultConfig);
@@ -80,7 +82,8 @@
       },
       text: {
         timeout: source.text.timeout,
-        credentials: source.text.credentials
+        credentials: source.text.credentials,
+        maxEntries: source.text.maxEntries
       }
     };
   }
@@ -108,6 +111,16 @@
     );
   }
 
+  function normalizeMaxEntries(value) {
+    value = Number(value);
+    if (!Number.isInteger(value) || value < 0) {
+      throw new TypeError(
+        'fabLoader text maxEntries must be a non-negative integer.'
+      );
+    }
+    return value;
+  }
+
   function mergeAttributes(base, override) {
     var attributes = cloneObject(base);
     Object.keys(override || {}).forEach(function(name) {
@@ -116,11 +129,16 @@
     return attributes;
   }
 
-  function mergeBucketOptions(bucket, options) {
+  function mergeBucketOptions(bucket, options, includeCacheOptions) {
     var merged = cloneObject(config[bucket]);
     options = options || {};
     Object.keys(options).forEach(function(name) {
-      if (name !== 'attributes') merged[name] = options[name];
+      if (
+        name !== 'attributes' &&
+        (bucket !== 'text' || name !== 'maxEntries' || includeCacheOptions)
+      ) {
+        merged[name] = options[name];
+      }
     });
     if (bucket === 'script' || bucket === 'css') {
       merged.attributes = mergeAttributes(
@@ -142,7 +160,7 @@
         'fabLoader ' + bucket + ' config must be an object.'
       );
     }
-    next = mergeBucketOptions(bucket, values);
+    next = mergeBucketOptions(bucket, values, true);
     if (bucket === 'script') {
       next.type = String(next.type || '').trim();
       next.async = next.async === true;
@@ -160,8 +178,11 @@
       next.fetchPriority = next.fetchPriority == null ?
         null :
         String(next.fetchPriority);
+    } else if (bucket === 'text') {
+      next.maxEntries = normalizeMaxEntries(next.maxEntries);
     }
     config[bucket] = next;
+    if (bucket === 'text') enforceTextCacheLimit();
   }
 
   function setConfig(options) {
@@ -540,6 +561,28 @@
     });
   }
 
+  function touchTextRecord(record) {
+    textAccessSequence += 1;
+    record.lastAccess = textAccessSequence;
+  }
+
+  function enforceTextCacheLimit() {
+    var fulfilled = Object.keys(records.text).map(function(key) {
+      return records.text[key];
+    }).filter(function(record) {
+      return record.status === 'fulfilled';
+    }).sort(function(left, right) {
+      return left.lastAccess - right.lastAccess;
+    });
+
+    while (fulfilled.length > config.text.maxEntries) {
+      var record = fulfilled.shift();
+      if (records.text[record.key] === record) {
+        delete records.text[record.key];
+      }
+    }
+  }
+
   function loadTextRecord(url, options) {
     var resolvedUrl;
     var effectiveOptions;
@@ -553,7 +596,10 @@
     effectiveOptions = mergeBucketOptions('text', options);
     key = getTextKey(resolvedUrl, effectiveOptions);
     record = records.text[key];
-    if (record) return record.promise;
+    if (record) {
+      if (record.status === 'fulfilled') touchTextRecord(record);
+      return record.promise;
+    }
 
     record = {
       key: key,
@@ -562,6 +608,7 @@
       text: null,
       promise: null,
       status: 'pending',
+      lastAccess: 0,
       cancel: null
     };
     records.text[key] = record;
@@ -584,6 +631,8 @@
         record.status = 'fulfilled';
         record.text = text;
         record.responseUrl = responseUrl || resolvedUrl;
+        touchTextRecord(record);
+        enforceTextCacheLimit();
         if (timer) global.clearTimeout(timer);
         resolve(record);
       }
@@ -649,7 +698,11 @@
     resolvedUrl = resolveUrl(url);
     effectiveOptions = mergeBucketOptions('text', options);
     record = records.text[getTextKey(resolvedUrl, effectiveOptions)];
-    return record && record.text != null ? record.text : null;
+    if (!record || record.status !== 'fulfilled' || record.text == null) {
+      return null;
+    }
+    touchTextRecord(record);
+    return record.text;
   }
 
   function loadXml(url, options) {
@@ -752,6 +805,43 @@
     throw new TypeError('Unknown fabLoader resource bucket: ' + bucket);
   }
 
+  function normalizeResourceCacheBucket(bucket) {
+    bucket = normalizeBucketName(bucket);
+    if (bucket === 'text') {
+      throw new TypeError(
+        'Use clearTextCache() to clear text, HTML or XML records.'
+      );
+    }
+    return bucket;
+  }
+
+  function clearResourceCache(bucket, url) {
+    var buckets = bucket == null ?
+      ['script', 'css', 'image'] :
+      [normalizeResourceCacheBucket(bucket)];
+    var resolvedUrl = null;
+
+    if (url != null) {
+      requireDocument();
+      resolvedUrl = resolveUrl(url);
+    }
+
+    return buckets.reduce(function(count, name) {
+      Object.keys(records[name]).forEach(function(key) {
+        var record = records[name][key];
+        if (
+          record.status !== 'fulfilled' ||
+          (resolvedUrl && record.url !== resolvedUrl)
+        ) {
+          return;
+        }
+        delete records[name][key];
+        count += 1;
+      });
+      return count;
+    }, 0);
+  }
+
   function cancelBucket(bucket, resolvedUrl) {
     var count = 0;
     Object.keys(records[bucket]).forEach(function(key) {
@@ -803,18 +893,119 @@
       !/^(?:data|blob|javascript|mailto|tel):/i.test(value);
   }
 
+  function rewriteUrlValue(value, baseUrl) {
+    if (!shouldRewriteUrl(value)) return value;
+    try {
+      return resolveUrl(value, baseUrl);
+    } catch (error) {
+      return value;
+    }
+  }
+
+  function rewriteSrcset(value, baseUrl) {
+    var candidates = [];
+    var index = 0;
+
+    while (index < value.length) {
+      var url = '';
+      var descriptor = '';
+      var hadTrailingComma = false;
+      var isDataUrl;
+
+      while (index < value.length && /[\s,]/.test(value.charAt(index))) {
+        index += 1;
+      }
+      if (index >= value.length) break;
+
+      isDataUrl = value.slice(index, index + 5).toLowerCase() === 'data:';
+      while (
+        index < value.length &&
+        !/\s/.test(value.charAt(index)) &&
+        (isDataUrl || value.charAt(index) !== ',')
+      ) {
+        url += value.charAt(index);
+        index += 1;
+      }
+      if (!isDataUrl && value.charAt(index) === ',') {
+        index += 1;
+        hadTrailingComma = true;
+      }
+      while (url.charAt(url.length - 1) === ',') {
+        url = url.slice(0, -1);
+        hadTrailingComma = true;
+      }
+
+      if (!hadTrailingComma) {
+        while (index < value.length && /\s/.test(value.charAt(index))) {
+          index += 1;
+        }
+        while (index < value.length && value.charAt(index) !== ',') {
+          descriptor += value.charAt(index);
+          index += 1;
+        }
+        if (value.charAt(index) === ',') index += 1;
+      }
+
+      if (url) {
+        candidates.push(
+          rewriteUrlValue(url, baseUrl) +
+          (descriptor.trim() ? ' ' + descriptor.trim() : '')
+        );
+      }
+    }
+
+    return candidates.length ? candidates.join(', ') : value;
+  }
+
+  function rewriteInlineStyle(value, baseUrl) {
+    return value.replace(
+      /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)/gi,
+      function(match, doubleQuoted, singleQuoted, unquoted) {
+        var url = doubleQuoted != null ?
+          doubleQuoted :
+          (singleQuoted != null ? singleQuoted : unquoted.trim());
+        var rewritten = rewriteUrlValue(url, baseUrl);
+        if (rewritten === url) return match;
+        return 'url("' + rewritten.replace(/"/g, '%22') + '")';
+      }
+    );
+  }
+
   function rewriteRelativeUrls(root, baseUrl) {
     var attributes = ['src', 'href', 'action', 'poster'];
     Array.prototype.forEach.call(root.querySelectorAll('*'), function(element) {
       attributes.forEach(function(name) {
         var value = element.getAttribute(name);
         if (!shouldRewriteUrl(value)) return;
-        try {
-          element.setAttribute(name, resolveUrl(value, baseUrl));
-        } catch (error) {
-          // Keep malformed URLs unchanged so the browser can report them.
-        }
+        element.setAttribute(name, rewriteUrlValue(value, baseUrl));
       });
+      if (element.hasAttribute('srcset')) {
+        element.setAttribute(
+          'srcset',
+          rewriteSrcset(element.getAttribute('srcset'), baseUrl)
+        );
+      }
+      if (element.hasAttribute('formaction')) {
+        element.setAttribute(
+          'formaction',
+          rewriteUrlValue(element.getAttribute('formaction'), baseUrl)
+        );
+      }
+      if (
+        element.tagName === 'OBJECT' &&
+        element.hasAttribute('data')
+      ) {
+        element.setAttribute(
+          'data',
+          rewriteUrlValue(element.getAttribute('data'), baseUrl)
+        );
+      }
+      if (element.hasAttribute('style')) {
+        element.setAttribute(
+          'style',
+          rewriteInlineStyle(element.getAttribute('style'), baseUrl)
+        );
+      }
     });
   }
 
@@ -1119,7 +1310,7 @@
   }
 
   api = {
-    version: '0.12.0',
+    version: '0.13.0',
     dom: global.fabDom,
     useDom: useDom,
     setConfig: setConfig,
@@ -1142,6 +1333,7 @@
     loadHtml: loadHtml,
     getHtml: getHtml,
     clearTextCache: clearTextCache,
+    clearResourceCache: clearResourceCache,
     mountHtml: mountHtml
   };
   global.fabLoader = api;

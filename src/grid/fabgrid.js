@@ -26,10 +26,10 @@ import {
   isMaskValueIncludingLiterals
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
-import { installFabGridView } from './fabgrid-view.js?v=20260805-grid-pivot-audit-fixes-v1';
+import { installFabGridView } from './fabgrid-view.js?v=20260807-scrollbar-bottom-v1';
 import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260804-grid-public-api-v1';
 import { installFabGridSelection } from './fabgrid-selection.js?v=20260805-grid-pivot-audit-fixes-v1';
-import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260804-footer-aggregate-cache-v3';
+import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260807-async-stay-on-invalid-v1';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
 import { DatePopup } from '../editbox/date-popup.js?v=20260725-remove-mono-variants-v1';
@@ -194,7 +194,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     messages: null,
     exportBusyText: null,
     frozenRows: 0,
-    syncScrollRender: true,
+    syncScrollRender: false,
     itemFormatter: null,
     selectionMode: SELECTION_MODE.Cell,
     highlightActiveRow: true,
@@ -491,6 +491,10 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._treeRootCount = 0;
     this.filterPredicate = null;
     this.searchText = '';
+    this._searchResultCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+    this._searchColumnSignature = '';
+    this._progressiveSearchText = '';
+    this._progressiveSearchRows = null;
     this.headerCellStyles = createDictionary();
     this.columnSearchValues = {};
     this.columnSearchOperators = {};
@@ -510,6 +514,8 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.scrollableColumnEnd = 0;
     this.scrollableWidth = 0;
     this.nativeScrollbarGutters = null;
+    this._verticalScrollbarState = null;
+    this._horizontalScrollbarState = null;
     this.useScrollLinkedHorizontal = supportsScrollLinkedHorizontal();
     this.rowRange = { start: 0, end: 0 };
     this.columnRange = { start: 0, end: 0 };
@@ -571,6 +577,8 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._validationItemIds = [];
     this.busy = false;
     this.raf = 0;
+    this._scheduledRenderScrollOnly = null;
+    this._lastScrollRenderStats = null;
     this._resizeObserver = null;
     this.scrollLinkedHorizontalRaf = 0;
     this.disposed = false;
@@ -1014,7 +1022,12 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       return;
     }
     if (this.editing) {
-      this.finishEditing(true, { restoreFocus: false });
+      if (this.finishEditing(true, { restoreFocus: false }) === false) {
+        if (this.editor && typeof this.editor.focus === 'function') {
+          this.editor.focus();
+        }
+        return;
+      }
     }
     this.emit('lostFocus', {
       originalEvent: event,
@@ -1389,6 +1402,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       multiLine: false,
       isReadOnly: false,
       isRequired: false,
+      stayOnInvalid: false,
       allowSorting: true
     }, definition);
     if (Object.prototype.hasOwnProperty.call(col, 'readOnly')) {
@@ -1401,6 +1415,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       delete col.minWidth;
     }
     col.multiLine = col.multiLine === true;
+    col.stayOnInvalid = col.stayOnInvalid === true;
     col.charcase = editorDefinitions.text && typeof editorDefinitions.text.normalizeCharcase === 'function' ?
       editorDefinitions.text.normalizeCharcase(col.charcase) : '';
     col.isReadOnly = col.isReadOnly === true;
@@ -1863,11 +1878,14 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (typeof this._invalidateFooterAggregateCache === 'function') {
       this._invalidateFooterAggregateCache();
     }
+    if (typeof this.invalidateSearchCache === 'function') {
+      this.invalidateSearchCache();
+    }
     if (this.isUpdating) {
       this._updatePendingInvalidate = true;
       return;
     }
-    this.scheduleRender();
+    this.scheduleRender(false);
   };
 
   FabGrid.prototype.beginUpdate = function() {

@@ -1660,7 +1660,9 @@
               invalidTipStyle &&
               invalidTipStyle.display === 'block' &&
               invalidTip.textContent === '日期格式錯誤' &&
-              invalidTipStyle.backgroundColor === 'rgb(255, 248, 214)' &&
+              invalidTipStyle.backgroundColor === 'rgb(255, 255, 204)' &&
+              invalidTipStyle.borderColor === 'rgb(204, 153, 51)' &&
+              invalidTipStyle.fontSize === '14px' &&
               invalidTipRect &&
               invalidCellRect &&
               (invalidTipRect.left >= invalidCellRect.right ||
@@ -1680,6 +1682,11 @@
             grid.finishEditing(false);
             grid.select(0, 5);
             grid.startEditing(0, 5);
+            var invalidEditorStyle = window.getComputedStyle(grid.activeEditor);
+            var invalidEditorReopenWorks = grid.activeEditor.classList.contains('fg-editor-invalid') &&
+              grid.activeEditor.getAttribute('aria-invalid') === 'true' &&
+              invalidEditorStyle.backgroundColor === 'rgb(255, 243, 243)' &&
+              invalidEditorStyle.borderColor === 'rgb(255, 168, 168)';
             grid.activeEditor.value = '20260720';
             grid.finishEditing(true);
             invalidDateCell = document.querySelector('.fg-cell[data-row="0"][data-col="5"]');
@@ -2958,6 +2965,7 @@
                 dateboxInvalidCommitMovesNextCellWorks: dateboxInvalidCommitMovesNextCellWorks,
                 dateboxInvalidCellMarkerWorks: dateboxInvalidCellMarkerWorks,
                 invalidTipWorks: invalidTipWorks,
+                invalidEditorReopenWorks: invalidEditorReopenWorks,
                 dateboxInvalidItemsPropertyWorks: dateboxInvalidItemsPropertyWorks,
                 dateboxValidCommitClearsValidationWorks: dateboxValidCommitClearsValidationWorks,
                 yearMonthInvalidValidationWorks: yearMonthInvalidValidationWorks,

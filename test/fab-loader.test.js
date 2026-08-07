@@ -220,7 +220,7 @@ function createLoaderContext(options) {
 test('fabLoader publishes the standalone resource API', function() {
   var context = createLoaderContext();
 
-  assert.equal(context.fabLoader.version, '0.12.0');
+  assert.equal(context.fabLoader.version, '0.13.0');
   assert.equal(context.fabLoader.dom, context.fabDom);
   assert.equal(context.$, context.fabDom);
   [
@@ -245,6 +245,7 @@ test('fabLoader publishes the standalone resource API', function() {
     'loadHtml',
     'getHtml',
     'clearTextCache',
+    'clearResourceCache',
     'mountHtml'
   ].forEach(function(name) {
     assert.equal(typeof context.fabLoader[name], 'function', name);
@@ -352,7 +353,8 @@ test('fabLoader uses configurable bucket defaults and returns config copies', as
     },
     text: {
       timeout: 30000,
-      credentials: 'same-origin'
+      credentials: 'same-origin',
+      maxEntries: 100
     }
   });
 
@@ -385,7 +387,8 @@ test('fabLoader uses configurable bucket defaults and returns config copies', as
       fetchPriority: 'high'
     },
     text: {
-      credentials: 'include'
+      credentials: 'include',
+      maxEntries: 25
     }
   }), loader);
 
@@ -406,6 +409,7 @@ test('fabLoader uses configurable bucket defaults and returns config copies', as
   assert.equal(image.referrerPolicy, 'no-referrer');
   assert.equal(image.fetchPriority, 'high');
   assert.equal(context.getLastFetchOptions().credentials, 'include');
+  assert.equal(loader.getConfig().text.maxEntries, 25);
 
   assert.throws(function() {
     loader.setConfig({ text: { credentials: 'invalid' } });
@@ -413,6 +417,9 @@ test('fabLoader uses configurable bucket defaults and returns config copies', as
   assert.throws(function() {
     loader.setConfig({ script: { timeout: -1 } });
   }, /timeout must be a non-negative number/);
+  assert.throws(function() {
+    loader.setConfig({ text: { maxEntries: 1.5 } });
+  }, /maxEntries must be a non-negative integer/);
   assert.throws(function() {
     loader.setConfig({ unknown: {} });
   }, /Unknown fabLoader config bucket/);
@@ -461,6 +468,98 @@ test('fabLoader cache keys include resource identity options', async function() 
   assert.equal(loader.getText('../assets/options.txt', {
     credentials: 'include'
   }), null);
+});
+
+test('fabLoader text cache evicts the least recently used completed entry', async function() {
+  var context = createLoaderContext();
+  var loader = context.fabLoader;
+
+  loader.setConfig({ text: { maxEntries: 2 } });
+  context.setFetchText('alpha');
+  await loader.loadText('../assets/alpha.txt');
+  await loader.loadText('../assets/alpha.txt', { maxEntries: 0 });
+  assert.equal(loader.getConfig().text.maxEntries, 2);
+  context.setFetchText('beta');
+  await loader.loadText('../assets/beta.txt');
+  assert.equal(loader.getText('../assets/alpha.txt'), 'alpha');
+
+  context.setFetchText('gamma');
+  await loader.loadText('../assets/gamma.txt');
+  assert.equal(loader.getText('../assets/alpha.txt'), 'alpha');
+  assert.equal(loader.getText('../assets/beta.txt'), null);
+  assert.equal(loader.getText('../assets/gamma.txt'), 'gamma');
+
+  context.setFetchText('beta-reloaded');
+  assert.equal(
+    await loader.loadText('../assets/beta.txt'),
+    'beta-reloaded'
+  );
+  assert.equal(context.getFetchCount(), 4);
+
+  loader.setConfig({ text: { maxEntries: 0 } });
+  context.setFetchText('uncached');
+  await loader.loadText('../assets/uncached.txt');
+  assert.equal(loader.getText('../assets/uncached.txt'), null);
+});
+
+test('fabLoader clears only completed Script CSS and image records', async function() {
+  var context = createLoaderContext();
+  var loader = context.fabLoader;
+
+  await Promise.all([
+    loader.loadScript('../assets/cached.js'),
+    loader.loadCss('../assets/cached.css'),
+    loader.preloadImage('../assets/cached.svg')
+  ]);
+
+  assert.equal(
+    loader.clearResourceCache('script', '../assets/cached.js'),
+    1
+  );
+  await Promise.all([
+    loader.loadScript('../assets/cached.js'),
+    loader.loadCss('../assets/cached.css'),
+    loader.preloadImage('../assets/cached.svg')
+  ]);
+  assert.equal(context.getAppended().filter(function(element) {
+    return element.tagName === 'SCRIPT';
+  }).length, 2);
+  assert.equal(context.getAppended().filter(function(element) {
+    return element.tagName === 'LINK';
+  }).length, 1);
+  assert.equal(context.getImageLoadCount(), 1);
+  assert.equal(loader.clearResourceCache(), 3);
+  assert.throws(function() {
+    loader.clearResourceCache('text');
+  }, /Use clearTextCache/);
+});
+
+test('fabLoader resource cache clearing ignores pending loads', async function() {
+  var context = createLoaderContext({ elementAutoLoad: false });
+  var loader = context.fabLoader;
+  var pending = loader.loadScript('../assets/pending.js');
+
+  assert.equal(loader.clearResourceCache('script'), 0);
+  assert.equal(loader.cancel('script'), 1);
+  await assert.rejects(pending, function(error) {
+    return error.name === 'AbortError';
+  });
+});
+
+test('fabLoader mountHtml rejects invalid targets and HTML load failures', async function() {
+  var context = createLoaderContext();
+  var loader = context.fabLoader;
+
+  await assert.rejects(
+    loader.mountHtml(null, '../parts/card.html'),
+    /A valid mount target is required/
+  );
+
+  context.setFetchStatus(404);
+  await assert.rejects(
+    loader.mountHtml({ nodeType: 1 }, '../parts/missing.html'),
+    /Failed to load text: .* \(404\)/
+  );
 });
 
 test('fabLoader timeout clears a failed resource so it can retry', async function() {
@@ -1092,7 +1191,7 @@ test('loader build excludes fabDom in regular and min-only outputs', function() 
     context = {};
     vm.createContext(context);
     vm.runInContext(minifiedOutput, context);
-    assert.equal(context.fabLoader.version, '0.12.0');
+    assert.equal(context.fabLoader.version, '0.13.0');
     assert.equal(context.fabLoader.dom, undefined);
     assert.equal(context.fabDom, undefined);
     assert.equal(context.$, undefined);
@@ -1170,7 +1269,7 @@ test('fabloader build includes fabDom in regular and min-only outputs', function
 test('the production Diagram Demo loads every external dependency through fabLoader', function() {
   var html = fs.readFileSync('demo/diagram.html', 'utf8');
 
-  assert.match(html, /dist\/fabLoader\.js\?v=20260724-loader-v14/);
+  assert.match(html, /dist\/fabLoader\.js\?v=20260806-loader-v15/);
   assert.doesNotMatch(html, /\.styles\(/);
   assert.doesNotMatch(html, /\.queue\(\)/);
   assert.match(
@@ -1234,7 +1333,7 @@ test('the production Diagram Demo loads every external dependency through fabLoa
 test('the manual CDN page loads Day.js through the chain API', function() {
   var html = fs.readFileSync('test/fab-loader-cdn.html', 'utf8');
 
-  assert.match(html, /dist\/fabLoader\.js\?v=20260724-loader-v14/);
+  assert.match(html, /dist\/fabLoader\.js\?v=20260806-loader-v15/);
   assert.match(
     html,
     /\.script\('https:\/\/cdn\.jsdelivr\.net\/npm\/dayjs@1\.11\.13\/dayjs\.min\.js'\)/
@@ -1262,7 +1361,7 @@ test('demo2 keeps optional Vue and React runtimes local and loads them through f
 
   assert.match(
     html,
-    /<script src="\.\.\/dist\/fabLoader\.js\?v=20260724-loader-v14"><\/script>/
+    /<script src="\.\.\/dist\/fabLoader\.js\?v=20260806-loader-v15"><\/script>/
   );
   assert.match(
     html,

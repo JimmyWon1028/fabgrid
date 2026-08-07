@@ -8,6 +8,9 @@
 <body>
   <div id="fab-loader-css-probe"></div>
   <div id="fab-loader-html-target"></div>
+  <div id="fab-loader-append-target"><span id="append-sentinel"></span></div>
+  <div id="fab-loader-download-failure"><span id="download-sentinel"></span></div>
+  <div id="fab-loader-script-failure"></div>
   <pre id="result">{"passed":false}</pre>
   <script>
     (function() {
@@ -42,6 +45,12 @@
       var xmlText = loader.loadText(xmlUrl);
       var config = loader.getConfig();
       var loadedResources;
+      var clearedScriptRecord = false;
+      var mountChecks = {
+        downloadRejected: false,
+        invalidTargetRejected: false,
+        scriptRejected: false
+      };
 
       Promise.all([
         scriptA,
@@ -62,6 +71,12 @@
         htmlMap
       ]).then(function(resources) {
         loadedResources = resources;
+        clearedScriptRecord = loader.clearResourceCache(
+          'script',
+          '/test/fixtures/fab-loader-script.js'
+        ) === 1;
+        return loader.loadScript('/test/fixtures/fab-loader-script.js');
+      }).then(function() {
         return new Promise(function(resolve, reject) {
           loader.dom('#fab-loader-html-target').load(
             htmlUrl,
@@ -72,6 +87,41 @@
               }
               resolve(result);
             }
+          );
+        });
+      }).then(function() {
+        return loader.mountHtml(
+          '#fab-loader-html-target',
+          htmlUrl
+        );
+      }).then(function() {
+        return loader.mountHtml(
+          '#fab-loader-append-target',
+          htmlUrl,
+          { append: true, executeScripts: false }
+        );
+      }).then(function() {
+        return loader.mountHtml(
+          '#fab-loader-download-failure',
+          '/test/fixtures/missing-fragment.html'
+        ).catch(function(error) {
+          mountChecks.downloadRejected = /Failed to load text/.test(
+            error.message
+          );
+        });
+      }).then(function() {
+        return loader.mountHtml(null, htmlUrl).catch(function(error) {
+          mountChecks.invalidTargetRejected =
+            error instanceof TypeError &&
+            /valid mount target/.test(error.message);
+        });
+      }).then(function() {
+        return loader.mountHtml(
+          '#fab-loader-script-failure',
+          '/test/fixtures/fab-loader-failing-fragment.html'
+        ).catch(function(error) {
+          mountChecks.scriptRejected = /Failed to execute html script/.test(
+            error.message
           );
         });
       }).then(function() {
@@ -121,9 +171,22 @@
         var namedImageA = resources[13].loader;
         var namedImageB = resources[13].loader;
         var waitQueue = loader.queue();
+        var relativeBase = window.location.origin + '/test/fixtures/';
+        var relativeSrcset = document.getElementById(
+          'fab-loader-relative-srcset'
+        );
+        var relativeFormAction = document.getElementById(
+          'fab-loader-relative-formaction'
+        );
+        var relativeObject = document.getElementById(
+          'fab-loader-relative-object'
+        );
+        var relativeStyle = document.getElementById(
+          'fab-loader-relative-style'
+        );
         var result = {
           passed: true,
-          globalPublished: loader.version === '0.12.0',
+          globalPublished: loader.version === '0.13.0',
           waitAlias: loader.wait === loader.run &&
             waitQueue.wait === waitQueue.run,
           domPublished: loader.dom === window.fabDom &&
@@ -132,7 +195,10 @@
             config.css.timeout === 30000 &&
             config.image.timeout === 30000 &&
             config.text.timeout === 30000 &&
-            config.text.credentials === 'same-origin',
+            config.text.credentials === 'same-origin' &&
+            config.text.maxEntries === 100,
+          completedScriptCacheCleared: clearedScriptRecord &&
+            window.fabLoaderStandaloneScriptRuns === 2,
           queuePassed: JSON.stringify(window.fabLoaderQueueOrder) ===
             '["wait","module","after-module","after-missing"]',
           queueContinuedAfterLoadError:
@@ -141,7 +207,7 @@
               window.fabLoaderQueueErrors[0].message
             ),
           scriptDeduplicated: resources[0] === resources[1] &&
-            window.fabLoaderStandaloneScriptRuns === 1,
+            window.fabLoaderStandaloneScriptRuns === 2,
           cssDeduplicated: resources[2] === resources[3],
           cssApplied: getComputedStyle(probe).width === '37px',
           imageDeduplicated: resources[4] !== resources[5] &&
@@ -164,7 +230,39 @@
           xmlParsed: resources[10].documentElement.nodeName === 'catalog',
           xmlTextCached: loader.getText(xmlUrl) === resources[11],
           htmlMounted: Boolean(fragment && target.contains(fragment)),
-          relativeScriptLoaded: window.fabLoaderMountedScriptRuns === 1,
+          repeatedMountReplacesContent:
+            target.querySelectorAll('#fab-loader-fragment').length === 1 &&
+            window.fabLoaderMountedScriptRuns === 2,
+          appendMountPreservesContent:
+            document.getElementById('append-sentinel') &&
+            document.querySelector(
+              '#fab-loader-append-target #fab-loader-fragment'
+            ) &&
+            window.fabLoaderMountedScriptRuns === 2,
+          mountFailuresRejectAndPreserveDom:
+            mountChecks.downloadRejected &&
+            mountChecks.invalidTargetRejected &&
+            mountChecks.scriptRejected &&
+            document.getElementById('download-sentinel') &&
+            document.getElementById('fab-loader-failing-fragment'),
+          extendedRelativeUrls:
+            relativeSrcset.getAttribute('srcset').indexOf(
+              relativeBase + 'relative-a.svg 1x'
+            ) >= 0 &&
+            relativeSrcset.getAttribute('srcset').indexOf(
+              relativeBase + 'relative-b.svg 2x'
+            ) >= 0 &&
+            relativeSrcset.getAttribute('srcset').indexOf(
+              'data:image/svg+xml,%3Csvg%3E%3C/svg%3E 3x'
+            ) >= 0 &&
+            relativeFormAction.getAttribute('formaction') ===
+              relativeBase + 'submit/action' &&
+            relativeObject.getAttribute('data') ===
+              relativeBase + 'relative-object.bin' &&
+            relativeStyle.getAttribute('style').indexOf(
+              relativeBase + 'relative-background.svg'
+            ) >= 0,
+          relativeScriptLoaded: window.fabLoaderMountedScriptRuns === 2,
           scriptsOrdered: JSON.stringify(window.fabLoaderMountOrder) ===
             '["inline-first","external","inline-last"]',
           scriptTouchedDom: fragment &&

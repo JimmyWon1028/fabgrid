@@ -1551,5 +1551,5 @@ function createHtmlEditorFactory(fabui) {
 }
 
 global.fabui.HtmlEditor = global.fabui.registerLocaleTarget("HtmlEditor", createHtmlEditorFactory(global.fabui));
-global.fabui.HtmlEditor.version = "2026.8.5";
+global.fabui.HtmlEditor.version = "2026.8.8";
 }(typeof window !== "undefined" ? window : this));

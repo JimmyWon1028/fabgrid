@@ -93,7 +93,7 @@ Diagram, Gantt, Scheduler, and HtmlEditor are not included in FabUI core. Load f
 
 | Category | Capabilities |
 | --- | --- |
-| Performance | Two-dimensional virtualization with fixed row heights and column widths renders only the visible range. Vertical scrolling reuses the existing layout, Header, Footer, and Pager. Local multi-column sorting prepares each row's sort values in advance. |
+| Performance | Two-dimensional virtualization renders only the visible range. Vertical scrolling reuses overlapping body-cell DOM together with the existing layout, Header, Footer, and Pager, while animation-frame scheduling coalesces consecutive scroll renders within the same frame by default. Quick Search caches repeated results and progressively narrows consecutive queries. Local multi-column sorting prepares each row's sort values in advance. |
 | Data sources | `itemsSource` accepts an Array or `fabui.collections.CollectionView` in both local and `remote: true` modes. Remote rows replace the Array source or update the same CollectionView instance, keeping shared Charts synchronized. Built-in `url` requests can use `credentials: 'include'`; a newer load or `dispose()` aborts an unfinished older Fetch request. |
 | Grid layout | Supports nested `columns` with merged multi-row Headers, multiple keyed Footer rows, left and right frozen column ranges that include hidden columns in their configured counts, row headers, column resizing, column visibility, cached Footer aggregates that recalculate after data view changes, alternating row backgrounds, and fullscreen mode. |
 | Column width | `width` defaults to the Grid `columnMinWidth` (`20px` by default). An explicit initial `width` may be smaller; Column has no `minWidth` property. |
@@ -101,7 +101,7 @@ Diagram, Gantt, Scheduler, and HtmlEditor are not included in FabUI core. Load f
 | Grouping and TreeGrid | Supports one to three grouping levels, subtotals, collapsing, and `childItemsPath` TreeGrid data. |
 | Row drag and drop | Supports reordering within a Grid, moving rows across Grids, and TreeGrid hierarchy changes using `before`, `inside`, and `after`. |
 | Selection and clipboard | Supports Cell, CellRange, the read-only `selectedRow` active row, single-selection `unselectRow()`, `select()` with full `grid.columns` indexes, `selectedRowChanged`, multiple row selection, mouse dragging, whole-row range selection through row headers, Shift extension, keyboard navigation, and TSV copy. Clicking a RowHeader selects the whole row while preserving the RowHeader's original appearance; `Ctrl/Cmd + C` copies every visible column in that row. Every public event `e.col` uses the full `grid.columns` index including hidden columns; `e.viewCol` exposes the visible index when needed. CellRange borders use `activeCellBorder`. `stopNavigation` can pause user selection and scrolling while keeping programmatic APIs available. |
-| Editing and validation | Includes `text`, `number`, `time`, `date`, `combo`, and `color` editors with masks and synchronous or asynchronous validation. The `text`, `combo`, and `color` editors support `charcase: 'upper'` or `'lower'`, converting ASCII English letters while preserving all other characters; `date`, `time`, and `number` are excluded. Grid and EditBox share this definition. The read-only `editRange` reports the currently edited cell or `null`. While a cell is editing, Enter/Shift+Enter moves right/left through editable cells and wraps to the next row's first or previous row's last editable cell, regardless of `editOnSelect`. With `editOnSelect: true`, Tab/Shift+Tab may also continue across rows and vertical arrows continue across rows. With `editOnSelect: false`, typing an accepted character on the active editable cell starts editing and replaces the original value; Tab/Shift+Tab commit and end editing, while unclaimed arrow keys keep their native editor caret behavior. Column `multiLine: true` gives text editors a `<textarea>` that can hold multiline values while cells remain single-line. Column `isReadOnly: true` prevents editing even while the Grid is editable. Column `isRequired` defaults to `false`; when enabled, empty values automatically create a required entry in `invalidItems`. Deleting rows or replacing the data source removes their stale synchronous and asynchronous errors, while row and column layout changes update every retained error index. The editor always stays on the only active cell; moving the pointer outside the edit cell keeps editing unchanged, clicking another cell commits the current value before changing selection, while programmatically selecting another cell still cancels the current edit. A keyboard focus transition out of the Grid also commits the editor, and every EditBox commits when focus leaves the control. Grid and EditBox share the compact 8×8 color palette with 63 colors and a clear-color swatch; selecting either immediately closes the popup. Color cells show the swatch while keeping the value text at the normal cell text color. During continuous editing, moving beyond the visible range scrolls one row at a time and keeps the active editor at the top or bottom boundary. |
+| Editing and validation | Includes `text`, `number`, `time`, `date`, `combo`, and `color` editors with masks and synchronous or asynchronous validation. The `text`, `combo`, and `color` editors support `charcase: 'upper'` or `'lower'`, converting ASCII English letters while preserving all other characters; `date`, `time`, and `number` are excluded. Grid and EditBox share this definition. The read-only `editRange` reports the currently edited cell or `null`. While a cell is editing, Enter/Shift+Enter moves right/left through editable cells and wraps to the next row's first or previous row's last editable cell, regardless of `editOnSelect`. With `editOnSelect: true`, Tab/Shift+Tab may also continue across rows and vertical arrows continue across rows. With `editOnSelect: false`, typing an accepted character on the active editable cell starts editing and replaces the original value; Tab/Shift+Tab commit and end editing, while unclaimed arrow keys keep their native editor caret behavior. Column `multiLine: true` gives text editors a `<textarea>` that can hold multiline values while cells remain single-line. Column `isReadOnly: true` prevents editing even while the Grid is editable. Column `isRequired` defaults to `false`; when enabled, empty values create a required entry in `invalidItems` and keep the editor active. Column `stayOnInvalid: true` keeps that column's other synchronous and asynchronous validation in the editor until it passes or is canceled with Escape; stale Promise results are ignored after input changes or cancellation. With `stayOnInvalid: false`, asynchronous validation keeps its post-commit behavior. Deleting rows or replacing the data source removes their stale synchronous and asynchronous errors, while row and column layout changes update every retained error index. The editor always stays on the only active cell; moving the pointer outside the edit cell keeps editing unchanged, clicking another cell commits the current value before changing selection, while programmatically selecting another cell still cancels the current edit. A keyboard focus transition out of the Grid also commits the editor, and every EditBox commits when focus leaves the control. Grid and EditBox share the compact 8×8 color palette with 63 colors and a clear-color swatch; selecting either immediately closes the popup. Color cells show the swatch while keeping the value text at the normal cell text color. During continuous editing, moving beyond the visible range scrolls one row at a time and keeps the active editor at the top or bottom boundary. |
 | Display customization | Provides Column `cssClass`, formatters, `formatItem`, `cellTemplate`, `FabGrid.CellMaker.makeLink()` link templates, Header styles, Row/GroupRow types, and event APIs. |
 | Import and export | Supports JSON, CSV, and XLSX. Excel exports support custom sheet names and multi-sheet workbooks from multiple Grids while preserving formatting, frozen panes, filters, groups, Footers, and hidden columns. |
 | Popups | Context menus, filters, column choosers, and editor popups close with `Escape` or an outside click. With `filterMode: false`, Clear Filter is hidden. Row Header and fullscreen entries are independently controlled by `showRowHeaderMenu` and `showFullscreenMenu`, both hidden by default. |
@@ -389,11 +389,12 @@ See the [fabLoader API](./docs/fabloader-api.md) for complete usage and paramete
 | `loadHtml(urlOrCollection, options)` | HTML-compatible alias for `loadText()` using the same text cache. Accepts one URL, an array of URLs loaded in parallel, or a name-preserving `{ name: url }` object. |
 | `getHtml(url, options)` | HTML-compatible alias for `getText()` using the same text cache. |
 | `clearTextCache(url?, options?)` | Clears one or all shared text/HTML/XML source-cache entries. Omitting options clears every credentials variant for that URL. |
+| `clearResourceCache(bucket?, url?)` | Clears completed Script, CSS, and image deduplication records without canceling pending work or removing existing DOM. |
 | `mountHtml(target, url, options)` | Loads HTML into a target element and executes its scripts in source order. |
 | `dom(target)` | Returns a jQuery-like collection. `dom(target).load(url, callback)` delegates directly to `mountHtml()`. |
 | `useDom()` | Returns a DOM provider suitable for a local `$`: jQuery when present, otherwise the built-in `fabLoader.dom`. It never changes the existing global `$`. |
 
-Without `setConfig()`, all four loading buckets use a 30-second timeout. Script defaults are `async: false` and `crossorigin="anonymous"`, CSS defaults to `media: "all"`, images default to `crossOrigin: "anonymous"`, and text Fetch defaults to `credentials: "same-origin"`. Override them centrally before the first load:
+Without `setConfig()`, all four loading buckets use a 30-second timeout. Script defaults are `async: false` and `crossorigin="anonymous"`, CSS defaults to `media: "all"`, images default to `crossOrigin: "anonymous"`, and text Fetch defaults to `credentials: "same-origin"`. The text cache retains at most 100 completed entries and evicts the least recently used entry first. Override them centrally before the first load:
 
 ```js
 fabLoader.setConfig({
@@ -411,17 +412,26 @@ fabLoader.setConfig({
   },
   text: {
     timeout: 10000,
-    credentials: 'include'
+    credentials: 'include',
+    maxEntries: 200
   }
 });
 ```
 
-Per-call options can still override settings from the corresponding bucket. Identity-affecting values—including `type`, `async`, attributes, `media`, image request attributes, and credentials—are included in the cache key; timeout is not. Failed, timed-out, or canceled loads remove their records so the same resource can be retried.
+Per-call options can still override request settings from the corresponding bucket; `text.maxEntries` is changed only through `setConfig()`. Identity-affecting values—including `type`, `async`, attributes, `media`, image request attributes, and credentials—are included in the cache key; timeout is not. Failed, timed-out, or canceled loads remove their records so the same resource can be retried. `text.maxEntries` accepts a non-negative integer; `0` retains no completed text/HTML/XML source records, and pending records do not count toward the limit.
 
 ```js
 fabLoader.cancel('text', './data.xml');
 fabLoader.cancel('image');
 fabLoader.cancel();
+```
+
+To let a completed Script, CSS, or image load again, clear its deduplication record. This does not remove an existing `<script>` or `<link>` and does not cancel pending work:
+
+```js
+fabLoader.clearResourceCache('script', './app.js');
+fabLoader.clearResourceCache('css');
+fabLoader.clearResourceCache();
 ```
 
 Every numeric index in an image array is a reusable getter. Each read returns an `<img>` with the same source but a different DOM identity, allowing direct insertion into multiple locations:
@@ -459,7 +469,9 @@ $('#place-b').append(myImage.unlock);
 
 `react(url)` is an optional React JSX queue step. When unused, fabLoader does not depend on React or SystemJS. When called, it checks for an existing `System.import()`, React, and a ReactDOM Client that provides `createRoot()`, then passes the `.jsx` file to the existing SystemJS JSX loader configuration. Demo2 uses a separate `runtime.config.js` for the local systemjs-plugin-babel setup, while the original `systemjs.config.js` remains Vue-only.
 
-By default, `mountHtml()` replaces the target element's contents. Use `append: true` to append instead, or `executeScripts: false` to insert only the HTML. Relative paths in the HTML are resolved against the final response URL.
+By default, `mountHtml()` replaces the target element's contents. Use `append: true` to append instead, or `executeScripts: false` to insert only the HTML. Relative `src`, `href`, `action`, `poster`, `srcset`, `formaction`, `object[data]`, and inline-style `url()` values are resolved against the final response URL.
+
+An HTML download failure leaves the target unchanged. If an external script or module fails after insertion, the Promise rejects but the inserted DOM remains. Runtime errors from classic inline scripts are handled by the browser and are not guaranteed to reject the `mountHtml()` Promise or a Loader queue `.catch()` when returned from `run()` or `done()`.
 
 The built-in DOM helper's `.load()` uses a jQuery-like signature and immediately returns the original collection for chaining. After loading, it calls `callback(responseText, status, result)`, where `status` is `success` or `error` and callback `this` is the current target element. Downloading, caching, timeout handling, and fragment script execution are all delegated to `mountHtml()`:
 
@@ -587,8 +599,11 @@ npm run serve
 | `npm run build:jquery` | Rebuilds the FabGrid jQuery wrapper. |
 | `npm run build:fabui-jquery` | Rebuilds the FabUI jQuery compatibility wrapper. |
 | `npm run build:all` | Rebuilds core, Lite, Diagram, Gantt, Scheduler, HtmlEditor, Locale, and all three wrappers in sequence. |
+| `npm run build:clear` | Removes every file and directory under `dist/` while preserving the empty `dist/` directory. |
 | `npm run build:fabloader` | Rebuilds `fabLoader.*` with the built-in fabDom helper. |
 | `npm run benchmark:grid` | Benchmarks binding, global search, two-column sorting, and two-dimensional virtualization limits with a 20,000×50 dataset without rebuilding `dist`. |
+| `npm run benchmark:grid:check` | Runs the same benchmark and fails when a configured performance threshold is exceeded. |
+| `npm run smoke:grid-performance` | Runs the source-mode Grid in headless Chrome and checks DOM reuse plus browser performance thresholds. |
 | `npm test` | Runs the Node.js automated tests without rebuilding `dist`. |
 
 Add `-- min` after npm arguments for a single build scope to keep only that scope's `.min.js`/`.min.css` output. Theme image assets are preserved.
@@ -596,6 +611,8 @@ Add `-- min` after npm arguments for a single build scope to keep only that scop
 All builds produce only browser-global JavaScript, CSS, minified files, and required image assets. They do not produce `.esm.*` files.
 
 When using Codex, `build <scope>,<scope> [min]` combines `fabui`, `lite`, `diagram`, `gantt`, `scheduler`, `htmleditor`, `theme`, and `locale` in the specified order. For example: `build fabui,htmleditor min`. Do not put spaces around the comma. `all` and `clear` must be used alone.
+
+`build clear` maps to `npm run build:clear`; it only empties `dist/` and recreates the directory without running a compiler.
 
 `build htmleditor min` maps to `npm run build:htmleditor -- min` and only produces and retains `dist/fabui.htmleditor.min.js` and `dist/fabui.htmleditor.min.css`. It does not rebuild FabUI core or any other standalone bundle.
 
@@ -611,7 +628,7 @@ When using Codex, `build <scope>,<scope> [min]` combines `fabui`, `lite`, `diagr
 npm run benchmark:grid
 ```
 
-The benchmark always creates 20,000 rows and 50 columns, totaling one million data cells. It reports median times for binding scans, global search, and two-column sorting, plus the current viewport's row/column ranges and maximum rendered cell count. Compare timing numbers only on the same machine and runtime environment. The virtualized result must remain far below the full one-million-cell count.
+The benchmark always creates 20,000 rows and 50 columns, totaling one million data cells. It reports binding scans, cold/cached/progressive global search, two-column sorting, and the maximum rendered cell count. Use `npm run benchmark:grid:check` for the default threshold gate and `npm run smoke:grid-performance` for a real Chrome regression. Thresholds can be overridden with the `FABGRID_BENCH_*` and `FABGRID_BROWSER_*` environment variables. Compare timing numbers only on the same machine and runtime environment.
 
 ## Source Structure
 

@@ -24,7 +24,7 @@ if (invalidArgs.length) {
 }
 
 function banner(name) {
-  return '/*! fabLoader 0.12.0 | ' + name + ' */\n';
+  return '/*! fabLoader 0.13.0 | ' + name + ' */\n';
 }
 
 function minifyJs(source) {
@@ -50,6 +50,7 @@ function verifyBrowserGlobal(outputFile) {
     output.indexOf('getText') < 0 ||
     output.indexOf('loadXml') < 0 ||
     output.indexOf('clearTextCache') < 0 ||
+    output.indexOf('clearResourceCache') < 0 ||
     output.indexOf('vue') < 0 ||
     output.indexOf('mountHtml') < 0
   ) {

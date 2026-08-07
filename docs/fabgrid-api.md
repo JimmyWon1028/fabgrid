@@ -183,7 +183,7 @@ fabui.setConfig({
 | `headerToggleKey` | `string \| false` | `false` | 切換標題顯示模式的快捷鍵，例如 `'F4'`。 |
 | `alternatingRowStep` | `false \| number` | `1` | 交替列背景的分段列數；`false` 關閉，正整數 `1`、`2`、`3`…分別每 1、2、3…列切換一次背景。 |
 | `autoClipboard` | `boolean` | `true` | 是否攔截 `Ctrl/Cmd + C` 並複製目前 cell、CellRange 或 RowHeader 整列選取。 |
-| `syncScrollRender` | `boolean` | `true` | 捲動時同步更新可視內容；設為 `false` 時改由 animation frame 排程。 |
+| `syncScrollRender` | `boolean` | `false` | 預設由 animation frame 合併捲動渲染以保持絲滑；設為 `true` 時改為在 scroll event 內同步渲染。 |
 | `itemFormatter` | `(cells, row, col, cell) => void` | `null` | Body cell 建立後的輕量格式化 callback；新程式優先使用 `formatItem` 或 `cellTemplate`。 |
 | `exportBusyText` | `string \| null` | `null` | Excel 匯出期間顯示的忙碌文字。 |
 | `locale` | `string \| object` | `null` | Locale 名稱或 locale object。 |
@@ -353,6 +353,7 @@ const columns = [
 | `visible` | `boolean` | 是否顯示；資料仍會保留。 |
 | `isReadOnly` | `boolean` | 讓該欄不可編輯，預設為 `false`。只要 Grid 或 Column 為唯讀，該 cell 就不能開始編輯。 |
 | `isRequired` | `boolean` | 是否為必填欄位，預設為 `false`；設為 `true` 時，`null`、`undefined`、空字串與純空白會自動產生 required validation error。 |
+| `stayOnInvalid` | `boolean` | 此欄的其他同步／非同步驗證是否在通過前保留目前 editor，預設為 `false`；必填錯誤不受此值影響，`isRequired: true` 時固定不能離開。 |
 | `allowSorting` | `boolean` | 是否允許該欄排序，預設為 `true`；設為 `false` 時不觸發排序事件或遠端查詢。 |
 | `multiLine` | `boolean` | 是否讓文字型 cell editor 使用可承載換行內容的 `<textarea>`，預設為 `false`。可輸入或貼入多行值，但不改變既有鍵盤操作與 cell 單行顯示。 |
 | `cssClass` | `string \| null` | 套用到此欄所有資料 cell 的 CSS class；可包含多個 class，不套用到 Header，預設為 `null`。 |
@@ -371,7 +372,9 @@ const columns = [
 
 Footer aggregate 會依目前 `dataView` 快取；cell 編輯提交、`setCellData()`、資料來源更新、排序、篩選、分頁或遠端載入完成後會標記為 dirty，下一次 render 只額外重畫 Footer，不必連帶重建 Header。一般選取及資料未變更的重畫沿用快取。自訂 aggregate 若依賴 Grid 以外的狀態，請在狀態改變後呼叫 `refreshFooter()`；`column.footer` callback 不使用此快取。
 
-`isRequired: true` 的內建必填驗證會先執行，錯誤以 `type: 'required'` 存入 `grid.invalidItems`；數值 `0` 與 boolean `false` 都是有效值。通過必填驗證後才執行 `validate`。`validate` 回傳 `null`、`false` 或空字串表示通過；回傳字串或 `{ message }` 表示失敗。所有驗證失敗項目都存放於 `grid.invalidItems`，值修正後會自動移除對應錯誤。資料列刪除或資料來源被取代後，該列的同步／非同步錯誤會自動移除；排序、篩選、分頁及欄位顯示或順序改變時，保留項目的 `rowIndex`／`rowNumber`／`colIndex`／`colNumber` 會同步更新。
+`isRequired: true` 的內建必填驗證會先執行，錯誤以 `type: 'required'` 存入 `grid.invalidItems`；必填失敗固定保留目前 editor，不需要另外設定 `stayOnInvalid`。數值 `0` 與 boolean `false` 都是有效值。通過必填驗證後才執行 `validate`。`validate` 回傳 `null`、`false` 或空字串表示通過；回傳字串或 `{ message }` 表示失敗。所有驗證失敗項目都存放於 `grid.invalidItems`，值修正後會自動移除對應錯誤。資料列刪除或資料來源被取代後，該列的同步／非同步錯誤會自動移除；排序、篩選、分頁及欄位顯示或順序改變時，保留項目的 `rowIndex`／`rowNumber`／`colIndex`／`colNumber` 會同步更新。
+
+Column `stayOnInvalid: true` 會讓該欄其他同步／非同步驗證在通過前保留 editor。失敗值不會寫回資料，`finishEditing(true)` 在等待或失敗時回傳 `false`，`cellEditEnding` 仍會觸發，但只有驗證通過並完成提交才觸發 `cellEditEnded`；Enter、Tab、方向鍵、點擊其他 cell 或焦點離開 Grid 都會留在原 cell。Promise 完成前不寫入資料，通過後才提交並結束編輯，失敗或 reject 則顯示錯誤並保留 editor；等待期間輸入改變時忽略舊結果，下次離開重新驗證。按 `Escape` 可取消編輯並忽略尚未完成的結果。`stayOnInvalid: false` 時，非必填的同步錯誤仍會記錄並提交，非同步驗證維持先提交、離開後更新 `invalidItems`。
 
 `validate(args)` 的 `args.isDuplicate(options?)` 會使用目前 Column binding 與準備寫入的新值，檢查完整本機資料來源並自動排除目前資料列。`null`、`undefined`、空字串與純空白永遠不視為重複；非空白字串會先移除前後空白再比較。預設區分大小寫，傳入 `{ ignoreCase: true }` 可忽略大小寫。支援 Array、CollectionView、`observeItemsSource`、巢狀 binding 與 TreeGrid：
 

@@ -2754,12 +2754,12 @@
   display: none;
   max-width: 260px;
   padding: 5px 9px;
-  border: 1px solid #e6d38a;
+  border: 1px solid #cc9933;
   border-radius: 3px;
-  background: #fff8d6;
+  background: #ffffcc;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.16);
-  color: #111827;
-  font-size: 13px;
+  color: #000000;
+  font-size: 14px;
   line-height: 1.35;
   white-space: nowrap;
   pointer-events: none;
@@ -2773,7 +2773,7 @@
   height: 0;
   margin-top: -6px;
   border-top: 6px solid transparent;
-  border-right: 7px solid #e6d38a;
+  border-right: 7px solid #cc9933;
   border-bottom: 6px solid transparent;
   content: "";
 }
@@ -2786,7 +2786,7 @@
   height: 0;
   margin-top: -5px;
   border-top: 5px solid transparent;
-  border-right: 6px solid #fff8d6;
+  border-right: 6px solid #ffffcc;
   border-bottom: 5px solid transparent;
   content: "";
 }
@@ -2813,6 +2813,11 @@
   color: #111827;
   font: inherit;
   outline: none;
+}
+
+:root .fg-editor.fg-editor-invalid {
+  border-color: #ffa8a8;
+  background-color: #fff3f3;
 }
 
 :root .fg-editor-multiline {

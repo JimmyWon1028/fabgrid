@@ -343,6 +343,18 @@ export function installFabGridData(FabGrid, context) {
   var rowMatchesColumnSearch = context.rowMatchesColumnSearch;
   var rowMatchesSearch = context.rowMatchesSearch;
 
+  function getSearchColumnSignature(columns) {
+    return columns.map(function(column, index) {
+      return column.visible === false ? '' : index + ':' + String(column.binding || '');
+    }).join('|');
+  }
+
+  function matchesSearch(grid, item, columns, searchText) {
+    return typeof grid.rowMatchesCachedSearch === 'function' ?
+      grid.rowMatchesCachedSearch(item, columns, searchText) :
+      rowMatchesSearch(item, columns, searchText);
+  }
+
   function createCollectionViewFilter(grid) {
     var filterPredicate = grid.filterPredicate;
     var searchText = grid.searchText;
@@ -353,6 +365,9 @@ export function installFabGridData(FabGrid, context) {
     var excelFilters = getActiveFilterMode(grid.options) === 'excel' && hasExcelFilters(grid.excelFilters) ?
       grid.excelFilters : null;
     var columns = grid.columns;
+    if (searchText && typeof grid.prepareSearchCache === 'function') {
+      grid.prepareSearchCache(columns);
+    }
     if (grid.options.remote === true ||
         !filterPredicate && !searchText && !columnSearchValues && !excelFilters) {
       return null;
@@ -369,7 +384,7 @@ export function installFabGridData(FabGrid, context) {
           columnSearchOperators
         )) && (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
       }
-      return rowMatchesSearch(item, columns, searchText) &&
+      return matchesSearch(grid, item, columns, searchText) &&
         (!columnSearchValues || rowMatchesColumnSearch(
           item,
           columns,
@@ -378,6 +393,40 @@ export function installFabGridData(FabGrid, context) {
         )) && (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
     };
   }
+
+  FabGrid.prototype.invalidateSearchCache = function() {
+    this._searchResultCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+    this._searchColumnSignature = '';
+    this._progressiveSearchText = '';
+    this._progressiveSearchRows = null;
+  };
+
+  FabGrid.prototype.prepareSearchCache = function(columns) {
+    var signature = getSearchColumnSignature(columns);
+    if (signature !== this._searchColumnSignature) {
+      this.invalidateSearchCache();
+      this._searchColumnSignature = signature;
+    }
+  };
+
+  FabGrid.prototype.rowMatchesCachedSearch = function(item, columns, searchText) {
+    var canCache = item !== null && (typeof item === 'object' || typeof item === 'function');
+    var cached;
+    var matched;
+    if (canCache && this._searchResultCache) {
+      cached = this._searchResultCache.get(item);
+      if (cached && cached.text === searchText) {
+        return cached.matched;
+      }
+      matched = rowMatchesSearch(item, columns, searchText);
+      this._searchResultCache.set(item, {
+        text: searchText,
+        matched: matched
+      });
+      return matched;
+    }
+    return rowMatchesSearch(item, columns, searchText);
+  };
 
   function createCollectionViewSorter(grid) {
     var sortStates;
@@ -1560,7 +1609,7 @@ export function installFabGridData(FabGrid, context) {
       }
     }
     this.syncCollectionViewFilter();
-    this.applyView();
+    this.applyView({ searchOnly: source === 'setSearch' });
     this.syncSelectionFromCollectionView();
     if (resetHorizontalScroll === true) {
       this.resetScroll();
@@ -1601,7 +1650,8 @@ export function installFabGridData(FabGrid, context) {
     }
   };
 
-  FabGrid.prototype.applyView = function() {
+  FabGrid.prototype.applyView = function(options) {
+    options = options || {};
     var baseRows = this._collectionView ? this._collectionView.items.slice() : this.source.slice();
     var rows = baseRows.slice();
     var filterPredicate = this.filterPredicate;
@@ -1616,6 +1666,21 @@ export function installFabGridData(FabGrid, context) {
     var treeSortValueCache;
     var treeOptions;
     var filtering;
+    var globalSearchOnly = Boolean(searchText) && !filterPredicate && !columnSearchValues && !excelFilters;
+    var progressiveSearch = false;
+
+    if (options.searchOnly !== true) {
+      if (typeof this.invalidateSearchCache === 'function') {
+        this.invalidateSearchCache();
+      }
+    }
+    if (searchText && typeof this.prepareSearchCache === 'function') {
+      this.prepareSearchCache(columns);
+    }
+    progressiveSearch = options.searchOnly === true && globalSearchOnly &&
+      Boolean(this._progressiveSearchText) &&
+      searchText.indexOf(this._progressiveSearchText) === 0 &&
+      Array.isArray(this._progressiveSearchRows);
 
     if (typeof this.isTreeGrid === 'function' && this.isTreeGrid()) {
       treeSortValueCache = sortStates.length && typeof WeakMap === 'function' ? new WeakMap() : null;
@@ -1634,10 +1699,10 @@ export function installFabGridData(FabGrid, context) {
             return (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators)) &&
               (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
           }
-          return rowMatchesSearch(item, columns, searchText) &&
+          return matchesSearch(this, item, columns, searchText) &&
             (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators)) &&
             (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
-        },
+        }.bind(this),
         compare: sortStates.length && this.options.remote !== true ? function(a, b) {
           var aValues;
           var bValues;
@@ -1688,6 +1753,9 @@ export function installFabGridData(FabGrid, context) {
     } else {
       if (!this._collectionView && this.options.remote !== true &&
           (filterPredicate || searchText || columnSearchValues || excelFilters)) {
+        if (progressiveSearch) {
+          rows = this._progressiveSearchRows.slice();
+        }
         rows = rows.filter(function(item, index) {
           if (filterPredicate && !filterPredicate(item, index)) {
             return false;
@@ -1696,10 +1764,20 @@ export function installFabGridData(FabGrid, context) {
             return (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators)) &&
               (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
           }
-          return rowMatchesSearch(item, columns, searchText) &&
+          return matchesSearch(this, item, columns, searchText) &&
             (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators)) &&
             (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
-        });
+        }, this);
+        if (globalSearchOnly) {
+          this._progressiveSearchText = searchText;
+          this._progressiveSearchRows = rows.slice();
+        } else {
+          this._progressiveSearchText = '';
+          this._progressiveSearchRows = null;
+        }
+      } else if (!searchText) {
+        this._progressiveSearchText = '';
+        this._progressiveSearchRows = null;
       }
 
       if (sortStates.length && this.options.remote !== true && !this._collectionView) {

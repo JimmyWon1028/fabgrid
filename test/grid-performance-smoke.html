@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>FabGrid Performance Smoke</title>
+  <link rel="stylesheet" href="/src/fabui.css">
+  <style>
+    html,
+    body {
+      margin: 0;
+    }
+
+    #grid {
+      width: 900px;
+      height: 500px;
+    }
+  </style>
+</head>
+<body>
+  <div id="grid"></div>
+  <pre id="result">{"passed":false}</pre>
+  <script type="module">
+    import fabui from '/src/fabui.js';
+
+    var resultElement = document.getElementById('result');
+    var result = { passed: false };
+
+    function nextFrame() {
+      return new Promise(function(resolve) {
+        setTimeout(resolve, 50);
+      });
+    }
+
+    function createRows(rowCount, columnCount) {
+      return Array.from({ length: rowCount }, function(value, rowIndex) {
+        var row = {};
+        var columnIndex;
+        for (columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+          row['c' + columnIndex] = rowIndex * columnCount + columnIndex;
+        }
+        row.c49 = rowIndex === rowCount - 1 ? 'needle' : 'row-' + rowIndex;
+        return row;
+      });
+    }
+
+    function createColumns(columnCount) {
+      return Array.from({ length: columnCount }, function(value, index) {
+        return {
+          binding: 'c' + index,
+          header: 'C' + index,
+          width: 120
+        };
+      });
+    }
+
+    window.addEventListener('error', function(event) {
+      result.error = event.message;
+      resultElement.textContent = JSON.stringify(result);
+      resultElement.dataset.complete = 'true';
+    });
+    window.addEventListener('unhandledrejection', function(event) {
+      result.error = String(event.reason && event.reason.message || event.reason);
+      resultElement.textContent = JSON.stringify(result);
+      resultElement.dataset.complete = 'true';
+    });
+
+    try {
+      var rows = createRows(20000, 50);
+      var initialStart = performance.now();
+      var grid = new fabui.FabGrid('#grid', {
+        itemsSource: rows,
+        columns: createColumns(50),
+        frozenColumns: 1,
+        frozenRightColumns: 1,
+        overscanRows: 8,
+        overscanColumns: 3,
+        syncScrollRender: false
+      });
+      await nextFrame();
+      await nextFrame();
+      result.initialRenderMs = performance.now() - initialStart;
+
+      var initialRange = {
+        start: grid.rowRange.start,
+        end: grid.rowRange.end
+      };
+      var visibleRowCount = Math.ceil(grid.renderContentHeight / grid.options.rowHeight);
+      var targetVisibleRow = Math.max(1, initialRange.end - visibleRowCount + 1);
+      var retainedRow = Math.max(initialRange.start, initialRange.end - 2);
+      var retainedSelector = '.fg-cell-layer [data-row="' + retainedRow + '"][data-col="2"]';
+      var retainedCell = document.querySelector(retainedSelector);
+      var retainedCellDetached = false;
+      var cellObserver = new MutationObserver(function(records) {
+        records.forEach(function(record) {
+          Array.prototype.forEach.call(record.removedNodes, function(node) {
+            if (node === retainedCell) {
+              retainedCellDetached = true;
+            }
+          });
+        });
+      });
+      cellObserver.observe(grid.cellLayer, { childList: true });
+      var scrollStart = performance.now();
+      grid.bodyScroll.scrollTop = targetVisibleRow * grid.options.rowHeight;
+      grid.bodyScroll.dispatchEvent(new Event('scroll'));
+      await nextFrame();
+      await nextFrame();
+      cellObserver.disconnect();
+      result.scrollRenderMs = performance.now() - scrollStart;
+      result.reusedSameCell = retainedCell !== null &&
+        retainedCell === document.querySelector(retainedSelector);
+      result.retainedCellDetached = retainedCellDetached;
+      result.initialRange = initialRange;
+      result.scrolledRange = grid.rowRange;
+      result.scrollTop = grid.bodyScroll.scrollTop;
+      result.renderStats = grid._lastScrollRenderStats;
+      result.renderedBodyCells = document.querySelectorAll(
+        '.fg-frozen-layer > .fg-cell, .fg-cell-layer > .fg-cell, .fg-frozen-right-layer > .fg-cell'
+      ).length;
+
+      var rapidScrollDurations = [];
+      var rapidScrollRangeCovered = true;
+      var rapidScrollRows = [
+        30, 42, 56, 72, 90, 110, 132, 156,
+        132, 110, 90, 72, 56, 42, 30, 18
+      ];
+      rapidScrollRows.forEach(function(rowIndex) {
+        var handlerStart = performance.now();
+        grid.bodyScroll.scrollTop = rowIndex * grid.options.rowHeight;
+        grid.bodyScroll.dispatchEvent(new Event('scroll'));
+        rapidScrollDurations.push(performance.now() - handlerStart);
+      });
+      await nextFrame();
+      await nextFrame();
+      var rapidVisibleStart = Math.floor(grid.bodyScroll.scrollTop / grid.options.rowHeight);
+      var rapidVisibleEnd = Math.ceil(
+        (grid.bodyScroll.scrollTop + grid.renderContentHeight) / grid.options.rowHeight
+      );
+      rapidScrollRangeCovered = grid.rowRange.start <= rapidVisibleStart &&
+        grid.rowRange.end >= rapidVisibleEnd;
+      result.rapidScrollMaxHandlerMs = Math.max.apply(Math, rapidScrollDurations);
+      result.rapidScrollAverageHandlerMs = rapidScrollDurations.reduce(function(total, duration) {
+        return total + duration;
+      }, 0) / rapidScrollDurations.length;
+      result.rapidScrollRangeCovered = rapidScrollRangeCovered;
+
+      var searchStart = performance.now();
+      grid.setSearch('needle');
+      result.searchColdMs = performance.now() - searchStart;
+      searchStart = performance.now();
+      grid.setSearch('needle');
+      result.searchCachedMs = performance.now() - searchStart;
+      grid.setSearch('need');
+      searchStart = performance.now();
+      grid.setSearch('needle');
+      result.searchProgressiveMs = performance.now() - searchStart;
+      result.searchResultCount = grid.view.length;
+      result.passed = result.reusedSameCell && !result.retainedCellDetached &&
+        result.renderStats && result.renderStats.reused > 0 &&
+        result.renderStats.created < result.renderStats.rendered &&
+        result.renderedBodyCells <= 1200 &&
+        result.rapidScrollRangeCovered &&
+        result.searchResultCount === 1;
+      resultElement.textContent = JSON.stringify(result);
+      resultElement.dataset.complete = 'true';
+    } catch (error) {
+      result.error = error.stack || error.message;
+      resultElement.textContent = JSON.stringify(result);
+      resultElement.dataset.complete = 'true';
+    }
+  </script>
+</body>
+</html>

@@ -96,6 +96,7 @@ function verifyResult(result) {
     'waitAlias',
     'domPublished',
     'configDefaults',
+    'completedScriptCacheCleared',
     'queuePassed',
     'queueContinuedAfterLoadError',
     'scriptDeduplicated',
@@ -113,6 +114,10 @@ function verifyResult(result) {
     'xmlParsed',
     'xmlTextCached',
     'htmlMounted',
+    'repeatedMountReplacesContent',
+    'appendMountPreservesContent',
+    'mountFailuresRejectAndPreserveDom',
+    'extendedRelativeUrls',
     'relativeScriptLoaded',
     'scriptsOrdered',
     'scriptTouchedDom'
@@ -129,6 +134,19 @@ function verifyResult(result) {
     '/test/fixtures/fab-loader-data.xml',
     '/test/fixtures/fab-loader-mounted-script.js',
     '/test/fixtures/fab-loader-module.js'
+  ].forEach(function(url) {
+    const expectedCount = url === '/test/fixtures/fab-loader-script.js' ||
+      url === '/test/fixtures/fab-loader-mounted-script.js' ? 2 : 1;
+    if (requestCounts[url] !== expectedCount) {
+      throw new Error(
+        'fabLoader requested ' + url + ' ' + (requestCounts[url] || 0) + ' times.'
+      );
+    }
+  });
+  [
+    '/test/fixtures/fab-loader-failing-fragment.html',
+    '/test/fixtures/missing-mounted-script.js',
+    '/test/fixtures/missing-fragment.html'
   ].forEach(function(url) {
     if (requestCounts[url] !== 1) {
       throw new Error(

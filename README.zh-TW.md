@@ -93,7 +93,7 @@ Diagram、Gantt、Scheduler 與 HtmlEditor 不包含在 FabUI core。載入順�
 
 | 類別 | 能力 |
 | --- | --- |
-| 效能 | 固定列高與欄寬的雙向 virtualization，只渲染可視範圍；垂直捲動重用既有 layout、Header、Footer 與 Pager，本機多欄排序預先準備每列排序值。 |
+| 效能 | 雙向 virtualization 只渲染可視範圍；垂直捲動會重用重疊範圍的 body cell DOM，以及既有 layout、Header、Footer 與 Pager，並預設由 animation frame 合併同一幀的連續捲動渲染。Quick Search 會快取重複條件並對連續縮小的條件漸進篩選；本機多欄排序預先準備每列排序值。 |
 | 資料來源 | 本機與 `remote: true` 模式的 `itemsSource` 都可接受 Array 或 `fabui.collections.CollectionView`；遠端 rows 會取代 Array 資料來源，或更新同一個 CollectionView instance，讓共用 Chart 保持同步。內建 `url` 請求可用 `credentials: 'include'`，較新的 load 或 `dispose()` 會中止尚未完成的舊 Fetch。 |
 | 表格版面 | 支援巢狀 `columns` 合併多列 Header、可用 key 存取的多列 Footer、hidden 欄位仍計入指定數量的左右凍結欄範圍、列號欄、欄寬調整、欄位顯示切換、資料 view 變更後才重算的 Footer aggregate 快取、交替列背景與全螢幕。 |
 | Column 寬度 | `width` 預設使用 Grid 的 `columnMinWidth`（預設 `20px`）；明確設定的初始 `width` 可更小，Column 不提供 `minWidth`。 |
@@ -101,7 +101,7 @@ Diagram、Gantt、Scheduler 與 HtmlEditor 不包含在 FabUI core。載入順�
 | 群組與 TreeGrid | 支援 1 至 3 階群組、小計、收合，以及 `childItemsPath` TreeGrid。 |
 | 資料列拖曳 | 支援 Grid 內重排、跨 Grid 移動，以及 TreeGrid 的 `before`、`inside`、`after` 階層調整。 |
 | 選取與剪貼簿 | 支援 Cell、CellRange、唯讀 `selectedRow` active row、單選列 `unselectRow()`、使用完整 `grid.columns` index 的 `select()`、`selectedRowChanged`、列多選、滑鼠拖曳、列號整列範圍選取、Shift 延伸、鍵盤導覽與 TSV 複製；點擊 RowHeader 會選取整列但維持 RowHeader 原本外觀，`Ctrl/Cmd + C` 複製該列所有可見欄位。所有公開事件的 `e.col` 都使用包含隱藏欄位的完整 `grid.columns` index，需要可見欄索引時使用 `e.viewCol`。CellRange 外框沿用 `activeCellBorder`。`stopNavigation` 可暫停使用者選取與捲動，程式 API 仍可操作。 |
-| 編輯與驗證 | 內建 `text`、`number`、`time`、`date`、`combo`、`color` editor，支援遮罩與同步／非同步驗證；`text`、`combo`、`color` 支援 `charcase: 'upper'`／`'lower'`，只轉換 ASCII 英文字母並保留其他字元，`date`、`time`、`number` 不套用，Grid 與 EditBox 共用此定義；唯讀 `editRange` 回報目前編輯中的 cell，未編輯時為 `null`；只要 cell 正在編輯，Enter／Shift+Enter 會向右／向左尋找可編輯 cell，並從列尾接續到下一列第一個可編輯 cell，或從列首回到上一列最後一個可編輯 cell，不受 `editOnSelect` 影響；`editOnSelect: true` 時 Tab／Shift+Tab 也可跨列左右搜尋，上下方向鍵跨列編輯；`editOnSelect: false` 時在可編輯 active cell 輸入可用字元會自動開始編輯並取代原值，Tab／Shift+Tab 只提交並結束編輯，未被 Spinner 或 Popup 接管的方向鍵保留 editor 原生字元游標移動；Column `multiLine: true` 讓文字 editor 使用可承載多行值的 `<textarea>`，cell 顯示仍為單行；Column `isReadOnly: true` 在 Grid 可編輯時仍會禁止該欄編輯；Column `isRequired` 預設為 `false`，啟用後空值會自動在 `invalidItems` 建立 required error；刪除資料列或取代資料來源時會移除該列過期的同步／非同步錯誤，列與欄版面改變時會同步更新所有保留錯誤的索引；滑鼠點擊其他 cell 時會先提交目前 editor 值再切換，程式選取其他 cell 仍取消目前編輯；Grid editor 在焦點離開 Grid、EditBox 在焦點離開控件時也會提交目前值，進入該 editor 的 Date／Combo／Color popup 仍屬於同一次編輯；Grid 與 EditBox 共用 63 色加清除色彩的 8×8 精簡色盤，選取後立即關閉 popup；Color cell 保留色塊，色碼文字使用一般 cell 文字色；連續編輯移出可視區時逐列捲動，active editor 保持在頂部或底部邊界。 |
+| 編輯與驗證 | 內建 `text`、`number`、`time`、`date`、`combo`、`color` editor，支援遮罩與同步／非同步驗證；`text`、`combo`、`color` 支援 `charcase: 'upper'`／`'lower'`，只轉換 ASCII 英文字母並保留其他字元，`date`、`time`、`number` 不套用，Grid 與 EditBox 共用此定義；唯讀 `editRange` 回報目前編輯中的 cell，未編輯時為 `null`；只要 cell 正在編輯，Enter／Shift+Enter 會向右／向左尋找可編輯 cell，並從列尾接續到下一列第一個可編輯 cell，或從列首回到上一列最後一個可編輯 cell，不受 `editOnSelect` 影響；`editOnSelect: true` 時 Tab／Shift+Tab 也可跨列左右搜尋，上下方向鍵跨列編輯；`editOnSelect: false` 時在可編輯 active cell 輸入可用字元會自動開始編輯並取代原值，Tab／Shift+Tab 只提交並結束編輯，未被 Spinner 或 Popup 接管的方向鍵保留 editor 原生字元游標移動；Column `multiLine: true` 讓文字 editor 使用可承載多行值的 `<textarea>`，cell 顯示仍為單行；Column `isReadOnly: true` 在 Grid 可編輯時仍會禁止該欄編輯；Column `isRequired` 預設為 `false`，啟用後空值會在 `invalidItems` 建立 required error 並保留 editor；Column `stayOnInvalid: true` 會讓該欄其他同步／非同步驗證在通過前都留在原 cell，輸入改變或按 Escape 取消後會忽略舊 Promise 結果；`stayOnInvalid: false` 時非同步驗證維持提交後處理；刪除資料列或取代資料來源時會移除該列過期的同步／非同步錯誤，列與欄版面改變時會同步更新所有保留錯誤的索引；滑鼠點擊其他 cell 時會先提交目前 editor 值再切換，程式選取其他 cell 仍取消目前編輯；Grid editor 在焦點離開 Grid、EditBox 在焦點離開控件時也會提交目前值，進入該 editor 的 Date／Combo／Color popup 仍屬於同一次編輯；Grid 與 EditBox 共用 63 色加清除色彩的 8×8 精簡色盤，選取後立即關閉 popup；Color cell 保留色塊，色碼文字使用一般 cell 文字色；連續編輯移出可視區時逐列捲動，active editor 保持在頂部或底部邊界。 |
 | 顯示自訂 | 提供 Column `cssClass`、formatter、`formatItem`、`cellTemplate`、`FabGrid.CellMaker.makeLink()` 連結模板、Header style、Row／GroupRow 與事件 API。 |
 | 匯入與匯出 | 支援 JSON、CSV 與 XLSX；Excel 可指定工作表名稱、合併多個 Grid 為多工作表，並保留格式、凍結窗格、篩選、群組、Footer 與隱藏欄位。 |
 | Popup | 右鍵選單、Filter、欄位選擇器與 editor popup 支援 `Escape` 及點擊外部關閉；`filterMode: false` 時不顯示「清除篩選」，「列號」與全螢幕項目分別由 `showRowHeaderMenu`、`showFullscreenMenu` 控制且預設隱藏。 |
@@ -389,6 +389,7 @@ Diagram Demo 試用，不併入 `fabui` namespace。`build fabloader` 發佈檔
 | `loadHtml(urlOrCollection, options)` | `loadText()` 的 HTML 相容名稱，使用相同文字快取；接受單一 URL、平行載入的 URL 陣列，或保留名稱的 `{ name: url }` 物件。 |
 | `getHtml(url, options)` | `getText()` 的 HTML 相容名稱，使用相同文字快取。 |
 | `clearTextCache(url?, options?)` | 清除指定或全部共用文字／HTML／XML 原文快取。省略 options 時會清除該 URL 的全部 credentials 變體。 |
+| `clearResourceCache(bucket?, url?)` | 清除已完成的 Script、CSS 與圖片去重紀錄；不取消 pending 或移除既有 DOM。 |
 | `mountHtml(target, url, options)` | 載入 HTML、放入指定元素，並依原始順序執行其中的 script。 |
 | `dom(target)` | 取得 jQuery-like collection；`dom(target).load(url, callback)` 直接橋接 `mountHtml()`。 |
 | `useDom()` | 回傳可作為局部 `$` 的 DOM provider；頁面有 jQuery 時回傳 jQuery，否則回傳內建 `fabLoader.dom`，不修改既有全域 `$`。 |
@@ -396,7 +397,8 @@ Diagram Demo 試用，不併入 `fabui` namespace。`build fabloader` 發佈檔
 未呼叫 `setConfig()` 時，四個載入桶的 timeout 都是 30 秒；
 Script 預設 `async: false` 與 `crossorigin="anonymous"`，CSS 預設
 `media: "all"`，圖片預設 `crossOrigin: "anonymous"`，文字 Fetch
-預設 `credentials: "same-origin"`。可在第一次載入前集中覆寫：
+預設 `credentials: "same-origin"`，文字快取預設最多保留 100 筆已完成
+紀錄並依 LRU 淘汰。可在第一次載入前集中覆寫：
 
 ```js
 fabLoader.setConfig({
@@ -414,20 +416,32 @@ fabLoader.setConfig({
   },
   text: {
     timeout: 10000,
-    credentials: 'include'
+    credentials: 'include',
+    maxEntries: 200
   }
 });
 ```
 
-單次呼叫的 options 仍可覆寫所屬桶的設定。會影響資源身份的
+單次呼叫的 options 仍可覆寫所屬桶的請求設定；`text.maxEntries`
+只能透過 `setConfig()` 修改。會影響資源身份的
 `type`、`async`、attributes、`media`、圖片請求屬性與 credentials
 會納入快取鍵；timeout 不納入。失敗、逾時或取消會清除該筆載入紀錄，
-所以相同資源可以重新嘗試。
+所以相同資源可以重新嘗試。`text.maxEntries` 只接受非負整數，設為
+`0` 時不保留已完成的文字／HTML／XML 原文紀錄；pending 不計入上限。
 
 ```js
 fabLoader.cancel('text', './data.xml');
 fabLoader.cancel('image');
 fabLoader.cancel();
+```
+
+若要讓已完成的 Script、CSS 或圖片下次重新載入，可清除其去重紀錄；
+此操作不會移除已掛載的 `<script>`／`<link>`，也不會取消 pending：
+
+```js
+fabLoader.clearResourceCache('script', './app.js');
+fabLoader.clearResourceCache('css');
+fabLoader.clearResourceCache();
 ```
 
 圖片陣列的每個數字索引都是可重複使用的 getter；每次讀取都回傳來源
@@ -477,7 +491,13 @@ SystemJS JSX loader 設定載入。Demo2 使用獨立的 `runtime.config.js`
 設定本機 systemjs-plugin-babel，原本的 `systemjs.config.js` 只保留
 Vue 設定。
 
-`mountHtml()` 預設取代目標元素內容；可用 `append: true` 改為追加，也可用 `executeScripts: false` 只插入 HTML。HTML 內相對路徑會以最終回應 URL 為基準解析。
+`mountHtml()` 預設取代目標元素內容；可用 `append: true` 改為追加，也可用 `executeScripts: false` 只插入 HTML。HTML 內的 `src`、`href`、`action`、`poster`、`srcset`、`formaction`、`object[data]` 與 inline style `url()` 都會以最終回應 URL 為基準解析。
+
+HTML 下載失敗時不會改變 target；HTML 插入後若外部 script 或 module
+載入失敗，Promise 會 reject，但已插入的 DOM 會保留。Classic inline
+script 的 runtime error 由瀏覽器錯誤機制處理，不保證進入
+`mountHtml()` Promise，從 `run()`／`done()` 回傳時也不保證進入 Loader
+queue 的 `.catch()`。
 
 內建 DOM helper 的 `.load()` 採用接近 jQuery 的格式，立即回傳原
 collection，因此可繼續鏈接；載入完成後呼叫
@@ -627,8 +647,11 @@ npm run serve
 | `npm run build:jquery` | 重建 FabGrid jQuery wrapper。 |
 | `npm run build:fabui-jquery` | 重建 FabUI jQuery 相容 wrapper。 |
 | `npm run build:all` | 依序重建 core、Lite、Diagram、Gantt、Scheduler、HtmlEditor、Locale 與三個 wrapper。 |
+| `npm run build:clear` | 清除 `dist/` 下所有檔案與資料夾，但保留空的 `dist/` 目錄。 |
 | `npm run build:fabloader` | 重建內建 fabDom helper 的 `fabLoader.*`。 |
 | `npm run benchmark:grid` | 以 20,000×50 資料集量測 binding、全域搜尋、雙欄排序與雙向 virtualization 上限，不重建 `dist`。 |
+| `npm run benchmark:grid:check` | 執行相同 benchmark，任一效能門檻超標時以失敗結束。 |
+| `npm run smoke:grid-performance` | 在無頭 Chrome 執行 source-mode Grid，檢查 DOM 重用與瀏覽器效能門檻。 |
 | `npm test` | 執行 Node.js 自動測試，不重建 `dist`。 |
 
 單一 build scope 可在 npm 參數後加入 `-- min`，只保留該範圍的 `.min.js`／`.min.css`；Theme 圖片仍會保留。
@@ -636,6 +659,8 @@ npm run serve
 所有 build 都只產生 browser global JavaScript、CSS、壓縮檔與必要圖片，不產生 `.esm.*`。
 
 使用 Codex 時可用 `build <scope>,<scope> [min]` 依指定順序組合 `fabui`、`lite`、`diagram`、`gantt`、`scheduler`、`htmleditor`、`theme`、`locale`，例如 `build fabui,htmleditor min`。逗號左右不可留空白；`all` 與 `clear` 必須單獨使用。
+
+`build clear` 對應 `npm run build:clear`，只會清空並重建 `dist/` 目錄，不執行任何編譯。
 
 `build htmleditor min` 對應 `npm run build:htmleditor -- min`，只產生並保留 `dist/fabui.htmleditor.min.js` 與 `dist/fabui.htmleditor.min.css`，不重建 FabUI core 或其他獨立 bundle。
 
@@ -651,7 +676,7 @@ npm run serve
 npm run benchmark:grid
 ```
 
-基準固定建立 20,000 列、50 欄，共 100 萬個資料格，輸出 binding scan、全域搜尋、雙欄排序的中位數，以及目前 viewport 的 row／column range 與最大渲染 cell 數。時間數字應在相同機器與執行環境下比較；虛擬化結果必須維持遠低於完整 100 萬個 cell。
+基準固定建立 20,000 列、50 欄，共 100 萬個資料格，輸出 binding scan、冷啟動／快取／漸進式全域搜尋、雙欄排序，以及最大渲染 cell 數。`npm run benchmark:grid:check` 執行預設門檻，`npm run smoke:grid-performance` 執行真實 Chrome 回歸；門檻可用 `FABGRID_BENCH_*` 與 `FABGRID_BROWSER_*` 環境變數覆寫。時間數字應在相同機器與執行環境下比較。
 
 ## 原始碼結構
 

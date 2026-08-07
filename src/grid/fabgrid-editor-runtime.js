@@ -230,6 +230,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     var item;
     var args;
     var editorIconDisplay;
+    var validationError;
     var value;
     var shouldSelectRow;
     if (useWijmoSignature) {
@@ -280,7 +281,10 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       event: event || null
     };
     try {
-      this.configureEditor(column);
+      validationError = this._invalidItemMap ? this.getCellValidationError(item, column) : null;
+      this.editing.originalValidationError = validationError;
+      this.editing.validationErrorChanged = false;
+      this.configureEditor(column, validationError);
       this.editor.value = this.getEditorText(value, column);
       this.updateEditorSpinnerState();
       if (this.editorConfig.type === 'combo') {
@@ -312,7 +316,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     return true;
   };
 
-  FabGrid.prototype.configureEditor = function(column) {
+  FabGrid.prototype.configureEditor = function(column, validationError) {
     var config = getColumnEditorConfig(column);
     var type = config.type;
     var definition = editorDefinitions[type] || null;
@@ -332,9 +336,15 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     this.renderEditorIcons(type, iconConfigs, spinner, spinnerWidth);
     this.editor.className = 'fg-editor ' + editorClassName +
       (multiLine ? ' fg-editor-multiline' : '') +
-      (hasEditorIcons ? ' fg-editor-with-icons' : '');
+      (hasEditorIcons ? ' fg-editor-with-icons' : '') +
+      (validationError ? ' fg-editor-invalid' : '');
     this.editor.setAttribute('data-editor-type', type);
     this.editor.setAttribute('autocomplete', 'off');
+    if (validationError) {
+      this.editor.setAttribute('aria-invalid', 'true');
+    } else {
+      this.editor.removeAttribute('aria-invalid');
+    }
     if (!multiLine) {
       this.editor.type = 'text';
     }
@@ -1745,6 +1755,43 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     this.hideColorPanel();
   };
 
+  FabGrid.prototype.applyEditingValidationError = function(error) {
+    var edit = this.editing;
+    var cell;
+    if (!edit || !error) {
+      return;
+    }
+    if (this.editor) {
+      if (this.editor.classList) {
+        this.editor.classList.add('fg-editor-invalid');
+      } else if ((' ' + this.editor.className + ' ').indexOf(' fg-editor-invalid ') < 0) {
+        this.editor.className += ' fg-editor-invalid';
+      }
+      if (typeof this.editor.setAttribute === 'function') {
+        this.editor.setAttribute('aria-invalid', 'true');
+      }
+    }
+    if (this.root && typeof this.root.querySelector === 'function') {
+      cell = this.root.querySelector(
+        '.fg-cell[data-row="' + edit.row + '"][data-col="' + edit.col + '"]'
+      );
+    }
+    if (cell) {
+      if (cell.classList) {
+        cell.classList.add('fg-cell-invalid');
+      } else if ((' ' + cell.className + ' ').indexOf(' fg-cell-invalid ') < 0) {
+        cell.className += ' fg-cell-invalid';
+      }
+      if (typeof cell.setAttribute === 'function') {
+        cell.setAttribute('aria-invalid', 'true');
+      }
+      this.showInvalidTip(cell, error.message || this.getText('validation.invalidValue'));
+    }
+    if (this.editor && typeof this.editor.focus === 'function') {
+      this.editor.focus();
+    }
+  };
+
   FabGrid.prototype.syncEditingWithView = function() {
     var edit = this.editing;
     if (!edit) {
@@ -1753,6 +1800,94 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     if (edit.row < 0 || edit.row >= this.view.length || (edit.item && this.view[edit.row] !== edit.item)) {
       this.clearEditingState();
     }
+  };
+
+  FabGrid.prototype.commitEditingArgs = function(edit, column, item, args, options) {
+    if (this.editing !== edit) {
+      return false;
+    }
+    this._suppressObservedItemChange += 1;
+    try {
+      setByBinding(item, column.binding, args.value);
+    } finally {
+      this._suppressObservedItemChange -= 1;
+    }
+    if (typeof this._invalidateFooterAggregateCache === 'function') {
+      this._invalidateFooterAggregateCache();
+    }
+    if (isPromiseLike(args.validationError)) {
+      this.setPendingCellValidation(
+        item,
+        column,
+        args.validationError,
+        args.value,
+        edit.row,
+        edit.col
+      );
+    } else if (args.validationError) {
+      this.setCellValidationError(item, column, args.validationError, edit.row, edit.col);
+    } else {
+      this.clearCellValidationError(item, column);
+    }
+    this.emit('cellEditEnded', Object.assign({}, args));
+    this.clearEditingState();
+    if (!this.refreshCollectionView()) {
+      this.applyView();
+      this.render();
+    }
+    if (options.restoreFocus !== false) {
+      this.root.focus();
+    }
+    return true;
+  };
+
+  FabGrid.prototype.waitForEditingValidation = function(edit, column, item, args, options) {
+    var self = this;
+    var promise = args.validationError;
+    var editorValue = this.editor ? String(this.editor.value) : '';
+    var token = toNumber(edit.asyncValidationToken, 0) + 1;
+    edit.asyncValidationToken = token;
+    edit.asyncValidationPending = true;
+    edit.asyncValidationEditorValue = editorValue;
+    if (this.editor && typeof this.editor.focus === 'function') {
+      this.editor.focus();
+    }
+    promise.then(function(error) {
+      if (self.disposed || self.editing !== edit || edit.asyncValidationToken !== token) {
+        return;
+      }
+      edit.asyncValidationPending = false;
+      if (self.editor && String(self.editor.value) !== editorValue) {
+        return;
+      }
+      args.validationError = error || null;
+      if (args.validationError) {
+        self.setCellValidationError(item, column, args.validationError, edit.row, edit.col);
+        edit.validationErrorChanged = true;
+        self.applyEditingValidationError(args.validationError);
+        return;
+      }
+      self.commitEditingArgs(edit, column, item, args, options);
+    }).catch(function(error) {
+      var validationError;
+      if (self.disposed || self.editing !== edit || edit.asyncValidationToken !== token) {
+        return;
+      }
+      edit.asyncValidationPending = false;
+      if (self.editor && String(self.editor.value) !== editorValue) {
+        return;
+      }
+      validationError = {
+        type: 'async',
+        message: error && error.message ? error.message : self.getText('validation.invalidValue'),
+        value: args.value
+      };
+      args.validationError = validationError;
+      self.setCellValidationError(item, column, validationError, edit.row, edit.col);
+      edit.validationErrorChanged = true;
+      self.applyEditingValidationError(validationError);
+    });
+    return false;
   };
 
   FabGrid.prototype.finishEditing = function(commit, options) {
@@ -1772,6 +1907,14 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     fullColumnIndex = getFullEditingColumnIndex(this, column, edit.col);
     item = this.view[edit.row];
     if (commit && item && column) {
+      if (edit.asyncValidationPending === true &&
+          this.editor &&
+          edit.asyncValidationEditorValue === String(this.editor.value)) {
+        if (typeof this.editor.focus === 'function') {
+          this.editor.focus();
+        }
+        return false;
+      }
       if (!isSafeBinding(column.binding)) {
         return false;
       }
@@ -1797,24 +1940,33 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       if (this.emit('cellEditEnding', args) === false) {
         return false;
       }
-      this._suppressObservedItemChange += 1;
-      try {
-        setByBinding(item, column.binding, args.value);
-      } finally {
-        this._suppressObservedItemChange -= 1;
+      if (column.stayOnInvalid === true && isPromiseLike(args.validationError)) {
+        return this.waitForEditingValidation(edit, column, item, args, options);
       }
-      if (typeof this._invalidateFooterAggregateCache === 'function') {
-        this._invalidateFooterAggregateCache();
-      }
-      if (isPromiseLike(args.validationError)) {
-        this.setPendingCellValidation(item, column, args.validationError, args.value, edit.row, edit.col);
-      } else if (args.validationError) {
+      if (args.validationError &&
+          !isPromiseLike(args.validationError) &&
+          (column.stayOnInvalid === true ||
+            (column.isRequired === true && args.validationError.type === 'required'))) {
         this.setCellValidationError(item, column, args.validationError, edit.row, edit.col);
-      } else {
-        this.clearCellValidationError(item, column);
+        edit.validationErrorChanged = true;
+        this.applyEditingValidationError(args.validationError);
+        return false;
       }
-      this.emit('cellEditEnded', Object.assign({}, args));
+      return this.commitEditingArgs(edit, column, item, args, options);
+    } else if (!commit && edit.validationErrorChanged && edit.item && column) {
+      if (edit.originalValidationError) {
+        this.setCellValidationError(
+          edit.item,
+          column,
+          edit.originalValidationError,
+          edit.row,
+          edit.col
+        );
+      } else {
+        this.clearCellValidationError(edit.item, column);
+      }
     }
+    edit.asyncValidationToken = toNumber(edit.asyncValidationToken, 0) + 1;
     this.clearEditingState();
     if (!this.refreshCollectionView()) {
       this.applyView();

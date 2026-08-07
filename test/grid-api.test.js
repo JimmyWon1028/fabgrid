@@ -170,6 +170,39 @@ test('Grid focus leaving commits the editor but owned popup focus stays inside',
   }), ['lostFocus']);
 });
 
+test('Grid focus leaving stays in an editor when commit is rejected', function() {
+  var FabGrid = createFabGridFactory({});
+  var outside = {};
+  var focusCount = 0;
+  var raised = [];
+  var grid = {
+    editing: { row: 0, col: 0 },
+    editor: {
+      focus: function() {
+        focusCount += 1;
+      }
+    },
+    root: {
+      contains: function() {
+        return false;
+      }
+    },
+    containsFocusTarget: FabGrid.prototype.containsFocusTarget,
+    finishEditing: function() {
+      return false;
+    },
+    emit: function(name) {
+      raised.push(name);
+    }
+  };
+
+  FabGrid.prototype.handleFocusOut.call(grid, { relatedTarget: outside });
+
+  assert.equal(focusCount, 1);
+  assert.deepEqual(raised, []);
+  assert.deepEqual(grid.editing, { row: 0, col: 0 });
+});
+
 test('all Grid editor types commit their value without restoring focus on blur', function() {
   var FabGrid = createFabGridFactory(createEditorDefinitions());
   var cases = [
@@ -2577,12 +2610,17 @@ test('observed array mutations are batched into one refresh', async function() {
 
 test('scrolling inside the rendered overscan range avoids a full render', function() {
   var FabGrid = createFabGridFactory({});
+  var fixedSyncs = 0;
+  var horizontalSyncs = 0;
+  var verticalScrollbarUpdates = 0;
+  var horizontalScrollbarUpdates = 0;
   var scheduled = 0;
   var rendered = 0;
   var grid = {
     options: { syncScrollRender: true },
     editing: null,
     bodyScroll: { scrollTop: 64, scrollLeft: 0 },
+    scrollState: { top: 0, left: 0 },
     hideInvalidTip: function() {},
     isFilterMenuOpen: function() { return false; },
     isColumnChooserOpen: function() { return false; },
@@ -2590,10 +2628,10 @@ test('scrolling inside the rendered overscan range avoids a full render', functi
     isComboboxPanelOpen: function() { return false; },
     isColorPanelOpen: function() { return false; },
     updateScrollState: function() {},
-    syncFixedPaneScrollOffset: function() {},
-    syncHeaderFooterScrollPosition: function() {},
-    updateHorizontalScrollbar: function() {},
-    updateVerticalScrollbar: function() {},
+    syncFixedPaneScrollOffset: function() { fixedSyncs += 1; },
+    syncHeaderFooterScrollPosition: function() { horizontalSyncs += 1; },
+    updateHorizontalScrollbarPosition: function() { horizontalScrollbarUpdates += 1; },
+    updateVerticalScrollbarPosition: function() { verticalScrollbarUpdates += 1; },
     shouldRenderScrollImmediately: function() { return false; },
     scheduleRender: function() { scheduled += 1; },
     render: function() { rendered += 1; },
@@ -2604,6 +2642,64 @@ test('scrolling inside the rendered overscan range avoids a full render', functi
 
   assert.equal(scheduled, 0);
   assert.equal(rendered, 0);
+  assert.equal(fixedSyncs, 1);
+  assert.equal(verticalScrollbarUpdates, 1);
+  assert.equal(horizontalSyncs, 0);
+  assert.equal(horizontalScrollbarUpdates, 0);
+});
+
+test('animation-frame scrolling keeps fixed panes aligned and defers body rendering', function() {
+  var FabGrid = createFabGridFactory({});
+  var fixedSyncs = 0;
+  var scheduled = [];
+  var grid = {
+    options: { syncScrollRender: false },
+    editing: null,
+    bodyScroll: { scrollTop: 96, scrollLeft: 0 },
+    scrollState: { top: 64, left: 0 },
+    hideInvalidTip: function() {},
+    isFilterMenuOpen: function() { return false; },
+    isColumnChooserOpen: function() { return false; },
+    isDateboxPanelOpen: function() { return false; },
+    isComboboxPanelOpen: function() { return false; },
+    isColorPanelOpen: function() { return false; },
+    updateScrollState: function() { this.scrollState.top = this.bodyScroll.scrollTop; },
+    syncFixedPaneScrollOffset: function() { fixedSyncs += 1; },
+    syncHeaderFooterScrollPosition: function() {},
+    updateHorizontalScrollbarPosition: function() {},
+    updateVerticalScrollbarPosition: function() {},
+    shouldRenderScrollImmediately: FabGrid.prototype.shouldRenderScrollImmediately,
+    scheduleRender: function(scrollOnly) { scheduled.push(scrollOnly); },
+    emit: function() {}
+  };
+
+  FabGrid.prototype.handleScroll.call(grid);
+
+  assert.equal(fixedSyncs, 1);
+  assert.deepEqual(scheduled, [true]);
+});
+
+test('vertical scrollbar thumb reaches the track bottom at native maximum scroll', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = {
+    options: { rowHeight: 32 },
+    view: new Array(924),
+    bodyScroll: { scrollTop: 29128 },
+    verticalScrollbar: { style: {} },
+    verticalScrollbarThumb: { style: {} },
+    getScrollbarGutterSize: function() { return 15; },
+    updateVerticalScrollbarPosition: FabGrid.prototype.updateVerticalScrollbarPosition
+  };
+
+  FabGrid.prototype.updateVerticalScrollbar.call(grid, {
+    height: 440,
+    contentHeight: 440
+  }, 29568, 15);
+
+  assert.equal(grid._verticalScrollbarState.maxScrollTop, 29128);
+  assert.equal(grid._verticalScrollbarState.maxThumbTop, 416);
+  assert.equal(grid.verticalScrollbar.style.bottom, '15px');
+  assert.equal(grid.verticalScrollbarThumb.style.transform, 'translate3d(0,416px,0)');
 });
 
 test('content shrink clamps scrollTop and clears fixed pane offsets', function() {
@@ -2640,8 +2736,8 @@ test('scheduled scroll renders reuse the current layout', function() {
   var grid = {
     raf: 0,
     disposed: false,
-    render: function(skipLayout) {
-      renderArguments.push(skipLayout);
+    render: function(skipLayout, scrollOnly) {
+      renderArguments.push([skipLayout, scrollOnly]);
     }
   };
 
@@ -2650,15 +2746,43 @@ test('scheduled scroll renders reuse the current layout', function() {
     return 1;
   };
   try {
-    FabGrid.prototype.scheduleRender.call(grid);
+    FabGrid.prototype.scheduleRender.call(grid, true);
     assert.equal(typeof callback, 'function');
     callback();
   } finally {
     globalThis.requestAnimationFrame = originalRequestAnimationFrame;
   }
 
-  assert.deepEqual(renderArguments, [true]);
+  assert.deepEqual(renderArguments, [[true, true]]);
   assert.equal(grid.raf, 0);
+});
+
+test('a full invalidation overrides an already scheduled scroll-only render', function() {
+  var FabGrid = createFabGridFactory({});
+  var originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+  var callback;
+  var renderArguments = [];
+  var grid = {
+    raf: 0,
+    disposed: false,
+    render: function(skipLayout, scrollOnly) {
+      renderArguments.push([skipLayout, scrollOnly]);
+    }
+  };
+
+  globalThis.requestAnimationFrame = function(handler) {
+    callback = handler;
+    return 1;
+  };
+  try {
+    FabGrid.prototype.scheduleRender.call(grid, true);
+    FabGrid.prototype.scheduleRender.call(grid, false);
+    callback();
+  } finally {
+    globalThis.requestAnimationFrame = originalRequestAnimationFrame;
+  }
+
+  assert.deepEqual(renderArguments, [[true, false]]);
 });
 
 test('vertical-only scroll reuses static columns unless the footer aggregate is dirty', function() {
@@ -3319,6 +3443,8 @@ test('column isRequired defaults to false and adds empty edits to invalidItems',
 
   assert.equal(requiredColumn.isRequired, true);
   assert.equal(optionalColumn.isRequired, false);
+  assert.equal(requiredColumn.stayOnInvalid, false);
+  assert.equal(optionalColumn.stayOnInvalid, false);
   grid.getText = function(path) {
     return path === 'validation.required' ? 'This field is required' : path;
   };
@@ -3355,7 +3481,9 @@ test('column isRequired defaults to false and adds empty edits to invalidItems',
   };
   grid.refreshCollectionView = function() { return true; };
 
-  assert.equal(grid.finishEditing(true, { restoreFocus: false }), true);
+  assert.equal(grid.finishEditing(true, { restoreFocus: false }), false);
+  assert.equal(item.name, 'Initial');
+  assert.notEqual(grid.editing, null);
   assert.equal(grid.invalidItems.length, 1);
   assert.equal(grid.invalidItems[0].type, 'required');
   assert.equal(grid.invalidItems[0].binding, 'name');
@@ -3372,6 +3500,362 @@ test('column isRequired defaults to false and adds empty edits to invalidItems',
   assert.equal(grid.finishEditing(true, { restoreFocus: false }), true);
   assert.equal(item.name, 'Alpha');
   assert.equal(grid.invalidItems.length, 0);
+});
+
+test('column stayOnInvalid keeps synchronous invalid edits active until corrected or canceled', function() {
+  var FabGrid = createFabGridFactory(createEditorDefinitions());
+  var grid = Object.create(FabGrid.prototype);
+  var item = { name: 'Initial' };
+  var column = {
+    binding: 'name',
+    dataType: 'string',
+    stayOnInvalid: true,
+    validate: function(args) {
+      return String(args.value || '').trim() ? null : 'Name is invalid';
+    },
+    _index: 0,
+    _viewIndex: 0
+  };
+  var editorAttributes = {};
+  var cellAttributes = {};
+  var focusCount = 0;
+  var endingCount = 0;
+  var endedCount = 0;
+  var tipMessage = null;
+  var cell = {
+    className: 'fg-cell',
+    setAttribute: function(name, value) {
+      cellAttributes[name] = value;
+    }
+  };
+
+  grid.options = {
+    allowEditing: true
+  };
+  grid.source = [item];
+  grid.view = [item];
+  grid.columns = [column];
+  grid.visibleColumns = [column];
+  grid.editing = {
+    row: 0,
+    col: 0,
+    item: item,
+    original: item.name,
+    originalValidationError: null,
+    validationErrorChanged: false
+  };
+  grid.editor = {
+    value: '   ',
+    style: {},
+    className: 'fg-editor',
+    setAttribute: function(name, value) {
+      editorAttributes[name] = value;
+    },
+    focus: function() {
+      focusCount += 1;
+    }
+  };
+  grid.root = {
+    querySelector: function() {
+      return cell;
+    },
+    focus: function() {}
+  };
+  grid._suppressObservedItemChange = 0;
+  grid._validationErrorSeq = 0;
+  grid._validationItems = [];
+  grid._validationItemIds = [];
+  grid._invalidItemMap = {};
+  grid._asyncValidationMap = {};
+  grid.invalidItems = [];
+  grid.isTreeGrid = function() { return false; };
+  grid.getText = function(path) {
+    return path === 'validation.invalidValue' ? 'Invalid' : path;
+  };
+  grid.showInvalidTip = function(target, message) {
+    assert.equal(target, cell);
+    tipMessage = message;
+  };
+  grid.emit = function(name) {
+    if (name === 'cellEditEnding') endingCount += 1;
+    if (name === 'cellEditEnded') endedCount += 1;
+    return true;
+  };
+  grid.clearEditingState = function() {
+    this.editing = null;
+    this.editor.style.display = 'none';
+  };
+  grid.refreshCollectionView = function() { return true; };
+
+  assert.equal(grid.finishEditing(true, { restoreFocus: false }), false);
+  assert.equal(item.name, 'Initial');
+  assert.notEqual(grid.editing, null);
+  assert.equal(grid.invalidItems.length, 1);
+  assert.equal(grid.invalidItems[0].type, 'custom');
+  assert.match(grid.editor.className, /fg-editor-invalid/);
+  assert.match(cell.className, /fg-cell-invalid/);
+  assert.equal(editorAttributes['aria-invalid'], 'true');
+  assert.equal(cellAttributes['aria-invalid'], 'true');
+  assert.equal(tipMessage, 'Name is invalid');
+  assert.equal(focusCount, 1);
+  assert.equal(endingCount, 1);
+  assert.equal(endedCount, 0);
+
+  assert.equal(grid.finishEditing(false, { restoreFocus: false }), true);
+  assert.equal(item.name, 'Initial');
+  assert.equal(grid.editing, null);
+  assert.equal(grid.invalidItems.length, 0);
+
+  grid.editing = {
+    row: 0,
+    col: 0,
+    item: item,
+    original: item.name,
+    originalValidationError: null,
+    validationErrorChanged: false
+  };
+  grid.editor.value = '';
+  assert.equal(grid.finishEditing(true, { restoreFocus: false }), false);
+  grid.editor.value = 'Alpha';
+  assert.equal(grid.finishEditing(true, { restoreFocus: false }), true);
+  assert.equal(item.name, 'Alpha');
+  assert.equal(grid.editing, null);
+  assert.equal(grid.invalidItems.length, 0);
+  assert.equal(endingCount, 3);
+  assert.equal(endedCount, 1);
+});
+
+test('column stayOnInvalid false commits synchronous validation errors', function() {
+  var FabGrid = createFabGridFactory(createEditorDefinitions());
+  var grid = Object.create(FabGrid.prototype);
+  var item = { code: 'A' };
+  var column = {
+    binding: 'code',
+    dataType: 'string',
+    stayOnInvalid: false,
+    _index: 0,
+    _viewIndex: 0
+  };
+  var savedError = null;
+
+  grid.options = {};
+  grid.view = [item];
+  grid.visibleColumns = [column];
+  grid.editing = { row: 0, col: 0, item: item, original: item.code };
+  grid.editor = { value: 'B', style: {} };
+  grid._suppressObservedItemChange = 0;
+  grid.validateCellValue = function() {
+    return { type: 'custom', message: 'Invalid code', value: 'B' };
+  };
+  grid.setCellValidationError = function(nextItem, nextColumn, error) {
+    savedError = error;
+  };
+  grid.emit = function() { return true; };
+  grid.clearEditingState = function() { this.editing = null; };
+  grid.refreshCollectionView = function() { return true; };
+
+  assert.equal(grid.finishEditing(true, { restoreFocus: false }), true);
+  assert.equal(item.code, 'B');
+  assert.equal(grid.editing, null);
+  assert.equal(savedError.message, 'Invalid code');
+});
+
+test('column stayOnInvalid false commits asynchronous validation immediately', function() {
+  var FabGrid = createFabGridFactory(createEditorDefinitions());
+  var grid = Object.create(FabGrid.prototype);
+  var item = { code: 'A' };
+  var column = {
+    binding: 'code',
+    dataType: 'string',
+    stayOnInvalid: false,
+    _index: 0,
+    _viewIndex: 0
+  };
+  var validation = Promise.resolve({ message: 'Already used' });
+  var pendingValidation = null;
+
+  grid.options = {};
+  grid.view = [item];
+  grid.visibleColumns = [column];
+  grid.editing = { row: 0, col: 0, item: item, original: item.code };
+  grid.editor = { value: 'B', style: {} };
+  grid._suppressObservedItemChange = 0;
+  grid.validateCellValue = function() { return validation; };
+  grid.setPendingCellValidation = function(nextItem, nextColumn, nextValidation) {
+    pendingValidation = nextValidation;
+  };
+  grid.emit = function() { return true; };
+  grid.clearEditingState = function() { this.editing = null; };
+  grid.refreshCollectionView = function() { return true; };
+
+  assert.equal(grid.finishEditing(true, { restoreFocus: false }), true);
+  assert.equal(item.code, 'B');
+  assert.equal(grid.editing, null);
+  assert.equal(pendingValidation, validation);
+});
+
+test('column stayOnInvalid waits for asynchronous validation and ignores stale results', async function() {
+  var FabGrid = createFabGridFactory(createEditorDefinitions());
+  var grid = Object.create(FabGrid.prototype);
+  var item = { code: 'A' };
+  var column = {
+    binding: 'code',
+    dataType: 'string',
+    stayOnInvalid: true,
+    _index: 0,
+    _viewIndex: 0
+  };
+  var validations = [];
+  var validationIndex = 0;
+  var endingCount = 0;
+  var endedCount = 0;
+  var focusCount = 0;
+  var lastError = null;
+  var appliedError = null;
+
+  function createDeferredValidation() {
+    var resolve;
+    var reject;
+    var promise = new Promise(function(nextResolve, nextReject) {
+      resolve = nextResolve;
+      reject = nextReject;
+    });
+    return {
+      promise: promise,
+      resolve: resolve,
+      reject: reject
+    };
+  }
+
+  validations.push(createDeferredValidation());
+  validations.push(createDeferredValidation());
+  validations.push(createDeferredValidation());
+  validations.push(createDeferredValidation());
+  grid.options = {};
+  grid.view = [item];
+  grid.visibleColumns = [column];
+  grid.editing = {
+    row: 0,
+    col: 0,
+    item: item,
+    original: item.code,
+    originalValidationError: null,
+    validationErrorChanged: false
+  };
+  grid.editor = {
+    value: 'B',
+    style: {},
+    focus: function() {
+      focusCount += 1;
+    }
+  };
+  grid._suppressObservedItemChange = 0;
+  grid.disposed = false;
+  grid.validateCellValue = function() {
+    var validation = validations[validationIndex];
+    validationIndex += 1;
+    return validation.promise;
+  };
+  grid.setCellValidationError = function(nextItem, nextColumn, error) {
+    lastError = error;
+  };
+  grid.clearCellValidationError = function() {
+    lastError = null;
+  };
+  grid.applyEditingValidationError = function(error) {
+    appliedError = error;
+  };
+  grid.getText = function() { return 'Invalid'; };
+  grid.emit = function(name) {
+    if (name === 'cellEditEnding') endingCount += 1;
+    if (name === 'cellEditEnded') endedCount += 1;
+    return true;
+  };
+  grid.clearEditingState = function() { this.editing = null; };
+  grid.refreshCollectionView = function() { return true; };
+
+  assert.equal(grid.finishEditing(true, { restoreFocus: false }), false);
+  assert.equal(grid.finishEditing(true, { restoreFocus: false }), false);
+  assert.equal(validationIndex, 1);
+  assert.equal(item.code, 'A');
+  assert.notEqual(grid.editing, null);
+
+  grid.editor.value = 'C';
+  validations[0].resolve(null);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(item.code, 'A');
+  assert.notEqual(grid.editing, null);
+
+  assert.equal(grid.finishEditing(true, { restoreFocus: false }), false);
+  validations[1].resolve({ type: 'custom', message: 'Already used', value: 'C' });
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(item.code, 'A');
+  assert.equal(lastError.message, 'Already used');
+  assert.equal(appliedError.message, 'Already used');
+  assert.notEqual(grid.editing, null);
+
+  grid.editor.value = 'D';
+  assert.equal(grid.finishEditing(true, { restoreFocus: false }), false);
+  validations[2].reject(new Error('Validation service failed'));
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(item.code, 'A');
+  assert.equal(lastError.type, 'async');
+  assert.equal(lastError.message, 'Validation service failed');
+  assert.notEqual(grid.editing, null);
+
+  grid.editor.value = 'E';
+  assert.equal(grid.finishEditing(true, { restoreFocus: false }), false);
+  validations[3].resolve(null);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(item.code, 'E');
+  assert.equal(grid.editing, null);
+  assert.equal(lastError, null);
+  assert.equal(endingCount, 4);
+  assert.equal(endedCount, 1);
+  assert.ok(focusCount >= 4);
+});
+
+test('Escape cancels an editor with pending stayOnInvalid validation', async function() {
+  var FabGrid = createFabGridFactory(createEditorDefinitions());
+  var grid = Object.create(FabGrid.prototype);
+  var item = { code: 'A' };
+  var column = {
+    binding: 'code',
+    dataType: 'string',
+    stayOnInvalid: true,
+    _index: 0,
+    _viewIndex: 0
+  };
+  var resolveValidation;
+  var validation = new Promise(function(resolve) {
+    resolveValidation = resolve;
+  });
+
+  grid.options = {};
+  grid.view = [item];
+  grid.visibleColumns = [column];
+  grid.editing = { row: 0, col: 0, item: item, original: item.code };
+  grid.editor = { value: 'B', style: {}, focus: function() {} };
+  grid._suppressObservedItemChange = 0;
+  grid.disposed = false;
+  grid.validateCellValue = function() { return validation; };
+  grid.emit = function() { return true; };
+  grid.clearEditingState = function() { this.editing = null; };
+  grid.refreshCollectionView = function() { return true; };
+
+  assert.equal(grid.finishEditing(true, { restoreFocus: false }), false);
+  assert.notEqual(grid.editing, null);
+  assert.equal(grid.finishEditing(false, { restoreFocus: false }), true);
+  assert.equal(grid.editing, null);
+  resolveValidation(null);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(item.code, 'A');
+  assert.equal(grid.editing, null);
 });
 
 test('validation args isDuplicate checks non-empty local column values and excludes the current row', function() {
@@ -3715,6 +4199,63 @@ test('Column multiLine uses a textarea only for the text editor', function() {
   });
   assert.equal(grid.editor.tagName, 'INPUT');
   assert.doesNotMatch(grid.editor.className, /fg-editor-multiline/);
+});
+
+test('an existing validation error marks the reopened editor invalid', function() {
+  var FabGrid = createFabGridFactory({});
+  var attributes = {};
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.editor = {
+    tagName: 'INPUT',
+    className: '',
+    style: {},
+    setAttribute: function(name, value) {
+      attributes[name] = String(value);
+    },
+    removeAttribute: function(name) {
+      delete attributes[name];
+    },
+    getAttribute: function(name) {
+      return attributes[name] || null;
+    }
+  };
+  grid.editorIconHost = { style: {}, className: '' };
+  grid.setEditorMultiline = function() {};
+  grid.renderEditorIcons = function() {};
+  grid.hideDateboxPanel = function() {};
+  grid.hideComboboxPanel = function() {};
+  grid.hideColorPanel = function() {};
+
+  grid.configureEditor({
+    binding: 'code',
+    dataType: 'string',
+    editor: 'text',
+    multiLine: false
+  }, { message: 'Invalid code' });
+
+  assert.match(grid.editor.className, /fg-editor-invalid/);
+  assert.equal(grid.editor.getAttribute('aria-invalid'), 'true');
+
+  grid.configureEditor({
+    binding: 'code',
+    dataType: 'string',
+    editor: 'text',
+    multiLine: false
+  }, null);
+
+  assert.doesNotMatch(grid.editor.className, /fg-editor-invalid/);
+  assert.equal(grid.editor.getAttribute('aria-invalid'), null);
+});
+
+test('validation tip and invalid editor use the EasyUI validatebox palette', function() {
+  var css = readFileSync(new URL('../src/grid/fabgrid.css', import.meta.url), 'utf8');
+
+  assert.match(css, /\.fg-invalid-tip\s*\{[^}]*border:\s*1px solid #cc9933/s);
+  assert.match(css, /\.fg-invalid-tip\s*\{[^}]*background:\s*#ffffcc/s);
+  assert.match(css, /\.fg-invalid-tip\s*\{[^}]*font-size:\s*14px/s);
+  assert.match(css, /\.fg-editor\.fg-editor-invalid\s*\{[^}]*border-color:\s*#ffa8a8/s);
+  assert.match(css, /\.fg-editor\.fg-editor-invalid\s*\{[^}]*background-color:\s*#fff3f3/s);
 });
 
 test('text editor charcase defaults to text and preserves non-English characters', function() {
@@ -7411,6 +7952,63 @@ test('allow filtering false clears both column filter modes and keeps quick sear
   assert.equal(grid.hasColumnSearch, false);
   assert.deepEqual(grid.excelFilters, {});
   assert.deepEqual(applies, [{ reset: true, source: 'filterMode' }]);
+});
+
+test('quick search reuses cached results and progressively narrows prior matches', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var checkedRows = 0;
+  var originalMatcher = grid.rowMatchesCachedSearch;
+  grid.options = {
+    filterMode: false,
+    remote: false,
+    pagination: false,
+    rowGroups: []
+  };
+  grid.source = [
+    { name: 'Alpha' },
+    { name: 'Beta' },
+    { name: 'Alpine' },
+    { name: 'Gamma' }
+  ];
+  grid.columns = [{ binding: 'name', visible: true }];
+  grid.excelFilters = {};
+  grid.filterPredicate = null;
+  grid.searchText = 'al';
+  grid.columnSearchValues = {};
+  grid.columnSearchOperators = {};
+  grid.hasColumnSearch = false;
+  grid.getSortStates = function() { return []; };
+  grid.captureSelectionState = function() { return null; };
+  grid.captureSelectedRowChangeState = function() { return null; };
+  grid.isTreeGrid = function() { return false; };
+  grid.createGroupedView = function(rows) { return rows; };
+  grid.refreshInvalidItemRows = function() {};
+  grid.restoreSelectionState = function() {};
+  grid.clampSelection = function() {};
+  grid.syncEditingWithView = function() {};
+
+  grid.applyView({ searchOnly: true });
+  assert.deepEqual(grid.view.map(function(item) { return item.name; }), ['Alpha', 'Alpine']);
+
+  grid.rowMatchesCachedSearch = function(item, columns, searchText) {
+    checkedRows += 1;
+    return originalMatcher.call(this, item, columns, searchText);
+  };
+  grid.searchText = 'alp';
+  grid.applyView({ searchOnly: true });
+
+  assert.equal(checkedRows, 2);
+  assert.deepEqual(grid.view.map(function(item) { return item.name; }), ['Alpha', 'Alpine']);
+  grid.columns[0].visible = false;
+  grid.searchText = 'alph';
+  assert.doesNotThrow(function() {
+    grid.applyView({ searchOnly: true });
+  });
+  assert.equal(grid.view.length, 0);
+  grid.invalidateSearchCache();
+  assert.equal(grid._progressiveSearchRows, null);
+  assert.equal(grid._progressiveSearchText, '');
 });
 
 test('excel value filters are applied only while search row is hidden', function() {
