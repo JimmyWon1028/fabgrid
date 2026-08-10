@@ -200,8 +200,6 @@
 
   function createGridOptions(settings) {
     return {
-      rowHeight: 32,
-      headerHeight: 32,
       // activeCellBorder: 2,
       searchDelay: 400,
       overscanRows: 14,
@@ -225,7 +223,6 @@
       },
       filterMode: settings.filterMode,
       // showFooter: true,
-      footerHeight: 32,
       multiSelectRows: settings.multiSelectRows,
       selectionMode: controls.selectionRange
         ? settings.selectionMode

@@ -24,6 +24,10 @@ export function getSizeLayerWidth(fixedLeftWidth, frozenWidth, scrollableWidth, 
   return Math.max(0, fixedLeftWidth + frozenWidth + scrollableWidth + frozenRightWidth);
 }
 
+export function getSizeLayerHeight(totalHeight, footerHeight, horizontalOverlayInset) {
+  return Math.max(0, totalHeight + footerHeight + horizontalOverlayInset);
+}
+
 export function installFabGridView(FabGrid, context) {
   var CellType = context.CellType;
   var DEFAULT_OPTIONS = context.DEFAULT_OPTIONS;
@@ -56,6 +60,7 @@ export function installFabGridView(FabGrid, context) {
   var normalizeGridOptions = context.normalizeGridOptions;
   var normalizeJustifyContent = context.normalizeJustifyContent;
   var normalizeNonNegativeInteger = context.normalizeNonNegativeInteger;
+  var normalizeNumberValue = context.normalizeNumberValue;
   var normalizePositiveNumber = context.normalizePositiveNumber;
   var normalizeTextAlign = context.normalizeTextAlign;
   var shouldUseThousandsSeparator = context.shouldUseThousandsSeparator;
@@ -392,6 +397,9 @@ export function installFabGridView(FabGrid, context) {
   };
 
   FabGrid.prototype.handleScroll = function() {
+    if (typeof this._isHostLayoutHidden === 'function' && this._isHostLayoutHidden()) {
+      return;
+    }
     var previousTop = this.scrollState ? this.scrollState.top : this.bodyScroll.scrollTop;
     var previousLeft = this.scrollState ? this.scrollState.left : this.bodyScroll.scrollLeft;
     var verticalChanged;
@@ -446,7 +454,7 @@ export function installFabGridView(FabGrid, context) {
   FabGrid.prototype.updateScrollState = function() {
     var top = this.bodyScroll ? this.bodyScroll.scrollTop : 0;
     var left = this.bodyScroll ? this.bodyScroll.scrollLeft : 0;
-    var rowHeight = Math.max(1, toNumber(this.options.rowHeight, 32));
+    var rowHeight = Math.max(1, toNumber(this.options.rowHeight, DEFAULT_OPTIONS.rowHeight));
     var maxExtraRows = Math.max(0, toNumber(this.options.fastScrollOverscanRows, 64));
     var rowDelta = Math.ceil(Math.abs(top - this.scrollState.top) / rowHeight);
     var targetExtraRows = Math.min(maxExtraRows, rowDelta * 2);
@@ -566,7 +574,7 @@ export function installFabGridView(FabGrid, context) {
         scrollbarGutterSize;
       bodyPaneBottom = footerOffsetBottom + footerHeight;
     }
-    trackHeight = Math.max(0, metrics.height + scrollbarGutterSize - bodyPaneBottom);
+    trackHeight = Math.max(0, this.bodyScroll.offsetHeight - bodyPaneBottom);
     contentHeight = Math.max(0, metrics.contentHeight);
     maxScrollTop = Math.max(0, totalHeight - contentHeight);
     if (trackHeight <= 0 || maxScrollTop <= 0) {
@@ -936,6 +944,7 @@ export function installFabGridView(FabGrid, context) {
     var renderStaticColumns;
     var renderFooterColumns;
     var sizeLayerHeight;
+    var horizontalScrollbarOverlayInset;
     var contentHeightChanged;
 
     if (this.disposed) {
@@ -972,6 +981,7 @@ export function installFabGridView(FabGrid, context) {
     this.body.style.bottom = paginationHeight + 'px';
     metrics = this.getViewportMetrics();
     scrollbarGutterSize = this.getScrollbarGutterSize();
+    horizontalScrollbarOverlayInset = this.getHorizontalScrollbarOverlayInset();
     verticalScrollbarGutterSize = this.getVerticalScrollbarGutterSize();
     this.root.style.setProperty('--fg-scrollbar-gutter-size', scrollbarGutterSize + 'px');
     rowHeaderWidth = this.getRowHeaderWidth();
@@ -1003,7 +1013,11 @@ export function installFabGridView(FabGrid, context) {
       this.scrollableWidth,
       this.frozenRightWidth
     ) + 'px';
-    sizeLayerHeight = (totalHeight + footerHeight) + 'px';
+    sizeLayerHeight = getSizeLayerHeight(
+      totalHeight,
+      footerHeight,
+      horizontalScrollbarOverlayInset
+    ) + 'px';
     contentHeightChanged = this.sizeLayer.style.height !== sizeLayerHeight;
     this.sizeLayer.style.height = sizeLayerHeight;
     // Clamp before the browser dispatches its delayed scroll event after resizing.
@@ -1095,8 +1109,6 @@ export function installFabGridView(FabGrid, context) {
     if (skipLayout !== true) {
       this.renderPagination();
     }
-    this.empty.style.display = this.view.length ? 'none' : 'flex';
-
     this.emit('viewportChanged', {
       rowStart: rowRange.start,
       rowEnd: rowRange.end,
@@ -1130,7 +1142,17 @@ export function installFabGridView(FabGrid, context) {
   FabGrid.prototype.getScrollableContentHeight = function() {
     var height = this.bodyScroll ? this.bodyScroll.clientHeight : 0;
     height -= this.getFooterHeight();
+    height -= this.getHorizontalScrollbarOverlayInset();
     return Math.max(0, height);
+  };
+
+  FabGrid.prototype.getHorizontalScrollbarOverlayInset = function() {
+    var nativeGutter;
+    if (!this.bodyScroll) {
+      return 0;
+    }
+    nativeGutter = Math.max(0, this.bodyScroll.offsetHeight - this.bodyScroll.clientHeight);
+    return Math.max(0, this.getScrollbarGutterSize() - nativeGutter);
   };
 
   FabGrid.prototype.getRowRange = function(metrics) {
@@ -2276,7 +2298,7 @@ export function installFabGridView(FabGrid, context) {
       this.renderHeaderSearchIcons(search, column, searchIcons);
       cell.appendChild(search);
     }
-    if (this.options.allowResizing) {
+    if (this.options.allowResizing && this._isColumnResizable(column)) {
       cell.appendChild(resize);
     }
     this.raiseFormatItem(this.createFormatItemEventArgs(this.columnHeaders, cell, 0, column._index, {
@@ -2760,6 +2782,7 @@ export function installFabGridView(FabGrid, context) {
   FabGrid.prototype.getCellDisplayText = function(item, column, value) {
     var text = value == null ? '' : String(value);
     var editorConfig = getColumnEditorConfig(column);
+    var number;
     if (this.isRowGroupFooter(item)) {
       text = column.aggregate ? this.formatAggregateValue(value, column, item.items) : '';
       return text == null ? '' : String(text);
@@ -2767,9 +2790,12 @@ export function installFabGridView(FabGrid, context) {
     if (editorConfig.type === 'combo') {
       text = getComboboxTextByValue(value, editorConfig);
     }
-    if (column.dataType === 'number' && value != null && value !== '' &&
-      (shouldUseThousandsSeparator(column) || getNumberPrecision(column) != null)) {
-      text = formatNumberDisplayText(value, column);
+    if (column.dataType === 'number') {
+      number = normalizeNumberValue(value);
+      if (number != null) {
+        text = shouldUseThousandsSeparator(column) || getNumberPrecision(column) != null ?
+          formatNumberDisplayText(number, column) : String(number);
+      }
     }
     if (editorConfig.type === 'time' && getEditorMask(column)) {
       text = formatMaskText(value, getMaskOptions(column, getEditorMask(column)));
@@ -2884,6 +2910,66 @@ export function installFabGridView(FabGrid, context) {
       }
     }
     this.raiseFormatItem(args);
+    this.queueCellOverflowCheck(cell);
+  };
+
+  FabGrid.prototype.isCellContentOverflowing = function(cell) {
+    var target;
+    if (!cell || !cell.classList) {
+      return false;
+    }
+    target = typeof cell.querySelector === 'function' ?
+      cell.querySelector('.fg-cell-maker, .fg-tree-cell-content') : null;
+    target = target || cell;
+    return target.scrollWidth > target.clientWidth;
+  };
+
+  FabGrid.prototype.updateCellOverflowState = function(cell) {
+    var overflowed;
+    if (!cell || !cell.classList) {
+      return false;
+    }
+    overflowed = this.isCellContentOverflowing(cell);
+    cell.classList.toggle('fg-cell-content-overflow', overflowed);
+    return overflowed;
+  };
+
+  FabGrid.prototype.flushCellOverflowChecks = function() {
+    var cells = this._cellOverflowCheckQueue || [];
+    var checks = [];
+    var i;
+    this._cellOverflowCheckQueue = [];
+    this.cellOverflowRaf = 0;
+    if (this.disposed) {
+      return;
+    }
+    for (i = 0; i < cells.length; i += 1) {
+      if (!this.root || typeof this.root.contains !== 'function' || this.root.contains(cells[i])) {
+        checks.push({
+          cell: cells[i],
+          overflowed: this.isCellContentOverflowing(cells[i])
+        });
+      }
+    }
+    for (i = 0; i < checks.length; i += 1) {
+      checks[i].cell.classList.toggle('fg-cell-content-overflow', checks[i].overflowed);
+    }
+  };
+
+  FabGrid.prototype.queueCellOverflowCheck = function(cell) {
+    var self = this;
+    if (!cell || !cell.classList || this.disposed) {
+      return;
+    }
+    cell.classList.remove('fg-cell-content-overflow');
+    this._cellOverflowCheckQueue = this._cellOverflowCheckQueue || [];
+    this._cellOverflowCheckQueue.push(cell);
+    if (this.cellOverflowRaf || typeof requestAnimationFrame !== 'function') {
+      return;
+    }
+    this.cellOverflowRaf = requestAnimationFrame(function() {
+      self.flushCellOverflowChecks();
+    });
   };
 
   FabGrid.prototype.getCellTemplateRenderer = function(column) {

@@ -46,14 +46,14 @@ test('group configs ignore empty entries and limit nesting', function() {
 });
 
 test('aggregates support numeric operations and custom callbacks', function() {
-  var rows = [{ amount: 10 }, { amount: '20' }, { amount: null }, { amount: 'x' }];
-  var column = { binding: 'amount' };
-  assert.equal(calculateAggregate('sum', column, rows, null), 30);
-  assert.equal(calculateAggregate('avg', column, rows, null), 15);
+  var rows = [{ amount: 10 }, { amount: '20' }, { amount: '1,000' }, { amount: null }, { amount: 'x' }];
+  var column = { binding: 'amount', dataType: 'number' };
+  assert.equal(calculateAggregate('sum', column, rows, null), 1030);
+  assert.equal(calculateAggregate('avg', column, rows, null), 1030 / 3);
   assert.equal(calculateAggregate('min', column, rows, null), 10);
-  assert.equal(calculateAggregate('max', column, rows, null), 20);
-  assert.equal(calculateAggregate('count', column, rows, null), 4);
-  assert.equal(calculateAggregate(function(args) { return args.rows.length + args.getValue(args.rows[0]); }, column, rows, null), 14);
+  assert.equal(calculateAggregate('max', column, rows, null), 1000);
+  assert.equal(calculateAggregate('count', column, rows, null), 5);
+  assert.equal(calculateAggregate(function(args) { return args.rows.length + args.getValue(args.rows[0]); }, column, rows, null), 15);
 });
 
 test('group buckets preserve input order and special keys', function() {

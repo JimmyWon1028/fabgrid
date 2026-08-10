@@ -40,7 +40,7 @@ FabUI 也提供表單、導覽、視窗、HtmlEditor、Chart、Pivot、Diagram�
   var grid = new fabui.FabGrid('#grid', {
     itemsSource: rows,
     columns: [
-      { binding: 'id', header: '編號', width: 80, align: 'center', dataType: 'number' },
+      { binding: 'id', header: '編號', width: 80, align: 'center', dataType: 'number', allowResizing: false },
       { binding: 'name', header: '姓名', width: 160 },
       { binding: 'amount', header: '金額', width: 120, align: 'right', dataType: 'number', allowSorting: false }
     ],
@@ -96,13 +96,13 @@ Diagram、Gantt、Scheduler 與 HtmlEditor 不包含在 FabUI core。載入順�
 | 效能 | 雙向 virtualization 只渲染可視範圍；垂直捲動會重用重疊範圍的 body cell DOM，以及既有 layout、Header、Footer 與 Pager，並預設由 animation frame 合併同一幀的連續捲動渲染。Quick Search 會快取重複條件並對連續縮小的條件漸進篩選；本機多欄排序預先準備每列排序值。 |
 | 資料來源 | 本機與 `remote: true` 模式的 `itemsSource` 都可接受 Array 或 `fabui.collections.CollectionView`；遠端 rows 會取代 Array 資料來源，或更新同一個 CollectionView instance，讓共用 Chart 保持同步。內建 `url` 請求可用 `credentials: 'include'`，較新的 load 或 `dispose()` 會中止尚未完成的舊 Fetch。 |
 | 表格版面 | 支援巢狀 `columns` 合併多列 Header、可用 key 存取的多列 Footer、hidden 欄位仍計入指定數量的左右凍結欄範圍、列號欄、欄寬調整、欄位顯示切換、資料 view 變更後才重算的 Footer aggregate 快取、交替列背景與全螢幕。 |
-| Column 寬度 | `width` 預設使用 Grid 的 `columnMinWidth`（預設 `20px`）；明確設定的初始 `width` 可更小，Column 不提供 `minWidth`。 |
-| 排序與篩選 | 支援單欄／Shift 多欄排序、`clearSort()`、安全的 `getSortState()`／`getFilterState()` 狀態快照、`allowMultiSorting: false`、Column `allowSorting: false`、可取消的 `sortingColumn`、含千位符號字串的數值排序、排序時保留水平捲動位置；點擊部分被遮住的 Header 時只做最小幅度調整讓整欄可見，並支援 Quick Search、Search Row、Excel-like 值篩選及 runtime Filter Rules。 |
+| Column 寬度 | `width` 預設使用 Grid 的 `columnMinWidth`（預設 `20px`）；明確設定的初始 `width` 可更小，Column 不提供 `minWidth`。Column `allowResizing: false` 會隱藏該欄 resize 操作區，並阻止拖曳與 AutoFit。 |
+| 排序與篩選 | 支援單欄／Shift 多欄排序、`clearSort()`、安全的 `getSortState()`／`getFilterState()` 狀態快照、`allowMultiSorting: false`、Column `allowSorting: false`、可取消的 `sortingColumn`、含千位符號字串的數值處理、排序時保留水平捲動位置；點擊部分被遮住的 Header 時只做最小幅度調整讓整欄可見，並支援 Quick Search、Search Row、Excel-like 值篩選及 runtime Filter Rules。 |
 | 群組與 TreeGrid | 支援 1 至 3 階群組、小計、收合，以及 `childItemsPath` TreeGrid。 |
 | 資料列拖曳 | 支援 Grid 內重排、跨 Grid 移動，以及 TreeGrid 的 `before`、`inside`、`after` 階層調整。 |
 | 選取與剪貼簿 | 支援 Cell、CellRange、唯讀 `selectedRow` active row、單選列 `unselectRow()`、使用完整 `grid.columns` index 的 `select()`、`selectedRowChanged`、列多選、滑鼠拖曳、列號整列範圍選取、Shift 延伸、鍵盤導覽與 TSV 複製；點擊 RowHeader 會選取整列但維持 RowHeader 原本外觀，`Ctrl/Cmd + C` 複製該列所有可見欄位。所有公開事件的 `e.col` 都使用包含隱藏欄位的完整 `grid.columns` index，需要可見欄索引時使用 `e.viewCol`。CellRange 外框沿用 `activeCellBorder`。`stopNavigation` 可暫停使用者選取與捲動，程式 API 仍可操作。 |
 | 編輯與驗證 | 內建 `text`、`number`、`time`、`date`、`combo`、`color` editor，支援遮罩與同步／非同步驗證；`text`、`combo`、`color` 支援 `charcase: 'upper'`／`'lower'`，只轉換 ASCII 英文字母並保留其他字元，`date`、`time`、`number` 不套用，Grid 與 EditBox 共用此定義；唯讀 `editRange` 回報目前編輯中的 cell，未編輯時為 `null`；只要 cell 正在編輯，Enter／Shift+Enter 會向右／向左尋找可編輯 cell，並從列尾接續到下一列第一個可編輯 cell，或從列首回到上一列最後一個可編輯 cell，不受 `editOnSelect` 影響；`editOnSelect: true` 時 Tab／Shift+Tab 也可跨列左右搜尋，上下方向鍵跨列編輯；`editOnSelect: false` 時在可編輯 active cell 輸入可用字元會自動開始編輯並取代原值，Tab／Shift+Tab 只提交並結束編輯，未被 Spinner 或 Popup 接管的方向鍵保留 editor 原生字元游標移動；Column `multiLine: true` 讓文字 editor 使用可承載多行值的 `<textarea>`，cell 顯示仍為單行；Column `isReadOnly: true` 在 Grid 可編輯時仍會禁止該欄編輯；Column `isRequired` 預設為 `false`，啟用後空值會在 `invalidItems` 建立 required error 並保留 editor；Column `stayOnInvalid: true` 會讓該欄其他同步／非同步驗證在通過前都留在原 cell，輸入改變或按 Escape 取消後會忽略舊 Promise 結果；`stayOnInvalid: false` 時非同步驗證維持提交後處理；刪除資料列或取代資料來源時會移除該列過期的同步／非同步錯誤，列與欄版面改變時會同步更新所有保留錯誤的索引；滑鼠點擊其他 cell 時會先提交目前 editor 值再切換，程式選取其他 cell 仍取消目前編輯；Grid editor 在焦點離開 Grid、EditBox 在焦點離開控件時也會提交目前值，進入該 editor 的 Date／Combo／Color popup 仍屬於同一次編輯；Grid 與 EditBox 共用 63 色加清除色彩的 8×8 精簡色盤，選取後立即關閉 popup；Color cell 保留色塊，色碼文字使用一般 cell 文字色；連續編輯移出可視區時逐列捲動，active editor 保持在頂部或底部邊界。 |
-| 顯示自訂 | 提供 Column `cssClass`、formatter、`formatItem`、`cellTemplate`、`FabGrid.CellMaker.makeLink()` 連結模板、Header style、Row／GroupRow 與事件 API。 |
+| 顯示自訂 | 提供 Column `cssClass`、formatter、`formatItem`、`cellTemplate`、`FabGrid.CellMaker.makeLink()` 連結模板、Header style、Row／GroupRow 與事件 API。Body cell 內容未超長時保留正常間距，內容被截斷時只移除右側 padding。 |
 | 匯入與匯出 | 支援 JSON、CSV 與 XLSX；Excel 可指定工作表名稱、合併多個 Grid 為多工作表，並保留格式、凍結窗格、篩選、群組、Footer 與隱藏欄位。 |
 | Popup | 右鍵選單、Filter、欄位選擇器與 editor popup 支援 `Escape` 及點擊外部關閉；`filterMode: false` 時不顯示「清除篩選」，「列號」與全螢幕項目分別由 `showRowHeaderMenu`、`showFullscreenMenu` 控制且預設隱藏。 |
 | 生命週期 | `fabui.Control.getControl()` 可取得 instance；`hasFocus` 可直接判斷 Grid 是否取得焦點；`beginUpdate()`／`endUpdate()` 與 `deferUpdate()` 可合併 View 更新，唯讀 `isUpdating` 回報批次狀態；`dispose()` 會解除受管理的 DOM listener。 |
@@ -112,6 +112,8 @@ Diagram、Gantt、Scheduler 與 HtmlEditor 不包含在 FabUI core。載入順�
 本機 Column 不可重複檢查可呼叫 `args.isDuplicate()`：同欄非空白值只能出現一次，空白可以重複；傳入 `{ ignoreCase: true }` 可忽略大小寫。
 
 所有公開方法的數字欄位參數都使用完整 `grid.columns` index，包含隱藏欄位；因欄位識別字以字母開頭，`"1"` 這類十進位整數字串也視為相同 index。需要可見欄 index 時只使用事件的 `viewCol` 等 `view*` 欄位。`startEditing(false)` 等 Wijmo-compatible 呼叫會直接編輯目前 active cell；既有 `startEditing(row, col, options)` 的 `col` 也使用完整欄 index。
+
+`dataType: 'number'` 欄位的有限數值字串會在 Grid 內部正規化，用於顯示、排序、Search Row／Excel-like 篩選、aggregate 與 XLSX 匯出；不會修改 `itemsSource`，未格式化的 `getCellData()` 仍回傳原值。無效文字維持原樣顯示但不參與數值運算；編輯提交後則寫入真正的 Number。
 
 ### 排序與篩選
 
@@ -131,7 +133,7 @@ var grid = new fabui.FabGrid('#grid', {
 | Search Row debounce | `searchDelay` 預設為 `400ms`；設為 `0` 時立即套用。 |
 | 遠端 Search Row | 查詢期間保留舊資料且不阻擋 Grid；新查詢會取消內建 Fetch，並忽略任何較舊的自訂 loader 回應。 |
 | Search Row 鍵盤 | `Enter`／`Tab` 移到下一欄，`Shift+Enter`／`Shift+Tab` 移到上一欄；方向鍵可在 Search Row 與 Grid 間移動，頁面有多個或巢狀 Grid 時只操作最後取得 pointer／焦點的 Grid；Grid 消化導覽鍵後會停止冒泡，同一個動作只處理一次。 |
-| Excel-like filter | Popup 可超出 Grid 高度並依瀏覽器視窗顯示更多項目；遠端模式重新開啟欄位時，保留完整候選值與目前勾選狀態。 |
+| Excel-like filter | Popup 可超出 Grid 高度並依瀏覽器視窗顯示更多項目；本機候選值會套用其他欄位的篩選並忽略目標欄位本身條件；遠端模式重新開啟欄位時，保留完整候選值與目前勾選狀態。 |
 
 `excelFilterMaxValues` 控制 Excel-like filter 最多收集多少個唯一候選值，不控制 popup 高度。Popup 會依 Header 位置與瀏覽器 viewport 自動向下或向上開啟，候選值超出可用空間時由清單內部捲動。
 

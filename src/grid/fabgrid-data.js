@@ -84,10 +84,7 @@ export function prepareSortValue(value, type) {
     return null;
   }
   if (type === 'number') {
-    if (typeof value === 'string') {
-      value = value.replace(/,/g, '').replace(/\s/g, '');
-    }
-    return Number(value);
+    return normalizeNumberValue(value);
   }
   if (type === 'date') {
     return new Date(value).getTime();
@@ -96,6 +93,21 @@ export function prepareSortValue(value, type) {
     return value ? 1 : 0;
   }
   return String(value).toLowerCase();
+}
+
+export function normalizeNumberValue(value) {
+  var number;
+  if (value == null || value === '') {
+    return null;
+  }
+  if (typeof value === 'string') {
+    value = value.replace(/,/g, '').replace(/\s/g, '');
+    if (!value) {
+      return null;
+    }
+  }
+  number = Number(value);
+  return isFinite(number) ? number : null;
 }
 
 export function comparePreparedValues(a, b) {
@@ -259,8 +271,8 @@ export function calculateAggregate(aggregate, column, rows, grid) {
   for (i = 0; i < rows.length; i += 1) {
     value = getByBinding(rows[i], column.binding);
     if (value == null || value === '') continue;
-    number = Number(value);
-    if (isNaN(number)) continue;
+    number = normalizeNumberValue(value);
+    if (number == null) continue;
     sum += number;
     count += 1;
     if (min == null || number < min) min = number;

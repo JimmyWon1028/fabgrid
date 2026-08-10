@@ -150,6 +150,8 @@ test('XLSX rows can retain data while remaining hidden', function() {
 
 test('Excel cell XML preserves numeric, boolean and text types', function() {
   assert.equal(createExcelCell(2, 1, 12.5, 'number', 3), '<c r="A2" s="3"><v>12.5</v></c>');
+  assert.equal(createExcelCell(2, 1, '1,234.5', 'number', 0), '<c r="A2"><v>1234.5</v></c>');
+  assert.match(createExcelCell(2, 1, 'invalid', 'number', 0), /t="inlineStr"/);
   assert.equal(createExcelCell(3, 2, 'Y', 'boolean', 0), '<c r="B3" t="b"><v>1</v></c>');
   assert.match(createExcelCell(4, 3, '<text>', 'string', 0), /&lt;text&gt;/);
 });

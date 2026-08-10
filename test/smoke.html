@@ -1765,13 +1765,13 @@
                 { binding: 'date', header: 'Date', dataType: 'date', editor: 'date' }
               ]
             });
-            var englishEmptyTextWorks = localeHost.querySelector('.fg-empty').textContent === 'No data';
+            var emptyOverlayAbsentInEnglish = localeHost.querySelector('.fg-empty') === null;
             var englishEditorAriaWorks = localeHost.querySelector('.fg-editor').getAttribute('aria-label') === 'Cell editor';
             localeGrid.setBusy(true);
             var englishBusyTextWorks = localeHost.querySelector('.fg-busy-text').textContent === 'Working...';
             localeGrid.setBusy(false);
             localeGrid.setLocale('zh-TW');
-            var zhEmptyTextWorks = localeHost.querySelector('.fg-empty').textContent === '沒有資料';
+            var emptyOverlayAbsentInZh = localeHost.querySelector('.fg-empty') === null;
             var localeStaticsWork = window.fabui.FabGrid.locales &&
               window.fabui.FabGrid.locales.en &&
               window.fabui.FabGrid.locales['zh-TW'] &&
@@ -2972,10 +2972,10 @@
                 yearMonthValidCommitClearsValidationWorks: yearMonthValidCommitClearsValidationWorks,
                 validateRowInvalidWorks: validateRowInvalidWorks,
                 validateRowValidWorks: validateRowValidWorks,
-                englishEmptyTextWorks: englishEmptyTextWorks,
+                emptyOverlayAbsentInEnglish: emptyOverlayAbsentInEnglish,
                 englishEditorAriaWorks: englishEditorAriaWorks,
                 englishBusyTextWorks: englishBusyTextWorks,
-                zhEmptyTextWorks: zhEmptyTextWorks,
+                emptyOverlayAbsentInZh: emptyOverlayAbsentInZh,
                 localeStaticsWork: localeStaticsWork,
                 embeddedLocalesWork: embeddedLocalesWork,
                 headerToggleDefaultDisabledWorks: headerToggleDefaultDisabledWorks,

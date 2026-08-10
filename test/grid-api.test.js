@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createFabGridFactory } from '../src/grid/fabgrid.js';
+import { createFabGridFactory } from '../src/grid/fabgrid.js?v=20260810-column-resizing-v1';
 import { createEditorDefinitions } from '../src/editbox/editbox-definitions.js?v=20260721-grid-number-spinner-v1';
 import {
   applyHeaderCellStyle,
+  getSizeLayerHeight,
   getSizeLayerWidth
-} from '../src/grid/fabgrid-view.js?v=20260803-scroll-clamp-v1';
+} from '../src/grid/fabgrid-view.js?v=20260810-column-resizing-v1';
 import { canSwitchFilterMode } from '../src/grid/fabgrid-filter-ui.js?v=20260722-filter-mode-switch-v1';
 import { Control } from '../src/core/control.js?v=20260716-control-events-v3';
 import { CellType, GroupRow, Row, createGridPanel } from '../src/grid/fabgrid-types.js?v=20260716-row-types-v1';
@@ -37,6 +38,37 @@ function createFakeElement(classNames, attributes, rect) {
 test('size layer width follows columns instead of a stale pre-scrollbar viewport', function() {
   assert.equal(getSizeLayerWidth(40, 0, 300, 0), 340);
   assert.equal(getSizeLayerWidth(40, 100, 240, 60), 440);
+});
+
+test('overlay horizontal scrollbar reserves space below the final row', function() {
+  var FabGrid = createFabGridFactory({});
+  var overlayGrid = {
+    bodyScroll: { clientHeight: 470, offsetHeight: 470 },
+    getFooterHeight: function() { return 0; },
+    getScrollbarGutterSize: function() { return 12; },
+    getHorizontalScrollbarOverlayInset: FabGrid.prototype.getHorizontalScrollbarOverlayInset
+  };
+  var nativeGrid = {
+    bodyScroll: { clientHeight: 458, offsetHeight: 470 },
+    getFooterHeight: function() { return 0; },
+    getScrollbarGutterSize: function() { return 12; },
+    getHorizontalScrollbarOverlayInset: FabGrid.prototype.getHorizontalScrollbarOverlayInset
+  };
+
+  assert.equal(FabGrid.prototype.getScrollableContentHeight.call(overlayGrid), 458);
+  assert.equal(getSizeLayerHeight(29568, 0, 12), 29580);
+  assert.equal(FabGrid.prototype.getScrollableContentHeight.call(nativeGrid), 458);
+  assert.equal(getSizeLayerHeight(29568, 0, 0), 29568);
+});
+
+test('empty Grid does not create a No data overlay', function() {
+  var gridSource = readFileSync(new URL('../src/grid/fabgrid.js', import.meta.url), 'utf8');
+  var viewSource = readFileSync(new URL('../src/grid/fabgrid-view.js', import.meta.url), 'utf8');
+  var css = readFileSync(new URL('../src/grid/fabgrid.css', import.meta.url), 'utf8');
+
+  assert.doesNotMatch(gridSource, /fg-empty|this\.empty/);
+  assert.doesNotMatch(viewSource, /this\.empty/);
+  assert.doesNotMatch(css, /\.fg-empty/);
 });
 
 test('empty pagination render keeps using its internal DOM after pager alias is overwritten', function() {
@@ -782,18 +814,165 @@ test('editOnSelect false starts editing the active cell from a typed character',
   assert.deepEqual(startCalls, [[2, 3]]);
 });
 
-test('host resize observer invalidates an empty grid after its layout becomes visible', function() {
+test('autoSearch accumulates a prefix and moves within the active column', function() {
+  var FabGrid = createFabGridFactory({});
+  var ownerDocument = {};
+  var root = {
+    nodeType: 1,
+    tagName: 'DIV',
+    className: 'fg-root',
+    parentNode: null,
+    ownerDocument: ownerDocument
+  };
+  var moves = [];
+  var prevented = 0;
+  var stopped = 0;
+  var grid = {
+    root: root,
+    selection: { row: 0, col: 0 },
+    options: {
+      allowEditing: false,
+      autoClipboard: false,
+      autoSearch: true,
+      caseSensitiveSearch: false,
+      editOnSelect: false,
+      multiSelectRows: false
+    },
+    visibleColumns: [{ binding: 'code' }],
+    view: [
+      { code: '6449' },
+      { code: '7722' },
+      { code: '7723' },
+      { code: 'Alpha' }
+    ],
+    busy: false,
+    editing: null,
+    _autoSearchText: '',
+    _autoSearchTimer: null,
+    isFilterMenuOpen: function() { return false; },
+    isTopLeftMenuOpen: function() { return false; },
+    isColumnChooserOpen: function() { return false; },
+    isHeaderToggleKey: function() { return false; },
+    handleFirstRowSearchFocus: function() { return false; },
+    handleCellRangeKeyDown: function() { return false; },
+    getVerticalBoundaryHotKeyDirection: function() { return 0; },
+    getHorizontalBoundaryHotKeyDirection: function() { return 0; },
+    handleTreeKeyDown: function() { return false; },
+    handleAutoSearchKeyDown: FabGrid.prototype.handleAutoSearchKeyDown,
+    findAutoSearchRow: FabGrid.prototype.findAutoSearchRow,
+    getAutoSearchCellText: FabGrid.prototype.getAutoSearchCellText,
+    resetAutoSearch: FabGrid.prototype.resetAutoSearch,
+    getCellDisplayText: function(item, column, value) { return String(value); },
+    isRowGroup: function() { return false; },
+    isRowGroupFooter: function() { return false; },
+    moveVertical: function(row, col) {
+      moves.push([row, col]);
+      this.selection = { row: row, col: col };
+    }
+  };
+
+  ownerDocument.activeElement = root;
+  ['7', '7', '2', '3'].forEach(function(key) {
+    FabGrid.prototype.handleKeyDown.call(grid, {
+      key: key,
+      target: root,
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      isComposing: false,
+      preventDefault: function() { prevented += 1; },
+      stopPropagation: function() { stopped += 1; }
+    });
+  });
+
+  assert.deepEqual(moves, [[1, 0], [1, 0], [1, 0], [2, 0]]);
+  assert.deepEqual(grid.selection, { row: 2, col: 0 });
+  assert.equal(grid._autoSearchText, '7723');
+  assert.equal(prevented, 4);
+  assert.equal(stopped, 4);
+  grid.resetAutoSearch();
+});
+
+test('autoSearch wraps, ignores case, and falls back to the last character', function() {
+  var FabGrid = createFabGridFactory({});
+  var moves = [];
+  var grid = {
+    options: { autoSearch: true, caseSensitiveSearch: false },
+    selection: { row: 1, col: 0 },
+    visibleColumns: [{ binding: 'name' }],
+    view: [{ name: 'Alpha' }, { name: 'Beta' }],
+    _autoSearchText: '',
+    _autoSearchTimer: null,
+    findAutoSearchRow: FabGrid.prototype.findAutoSearchRow,
+    getAutoSearchCellText: FabGrid.prototype.getAutoSearchCellText,
+    resetAutoSearch: FabGrid.prototype.resetAutoSearch,
+    getCellDisplayText: function(item, column, value) { return String(value); },
+    isRowGroup: function() { return false; },
+    isRowGroupFooter: function() { return false; },
+    moveVertical: function(row, col) {
+      moves.push([row, col]);
+      this.selection = { row: row, col: col };
+    }
+  };
+  function type(key) {
+    FabGrid.prototype.handleAutoSearchKeyDown.call(grid, {
+      key: key,
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      isComposing: false,
+      preventDefault: function() {},
+      stopPropagation: function() {}
+    }, grid.selection.row, grid.selection.col);
+  }
+
+  type('a');
+  type('b');
+
+  assert.deepEqual(moves, [[0, 0], [1, 0]]);
+  assert.equal(grid._autoSearchText, 'b');
+  grid.resetAutoSearch();
+});
+
+test('autoSearch and caseSensitiveSearch expose runtime properties', function() {
+  var FabGrid = createFabGridFactory({});
+  var autoSearchDescriptor = Object.getOwnPropertyDescriptor(FabGrid.prototype, 'autoSearch');
+  var caseDescriptor = Object.getOwnPropertyDescriptor(FabGrid.prototype, 'caseSensitiveSearch');
+  var resetCount = 0;
+  var grid = {
+    options: { autoSearch: false, caseSensitiveSearch: false },
+    resetAutoSearch: function() { resetCount += 1; }
+  };
+
+  autoSearchDescriptor.set.call(grid, true);
+  assert.equal(autoSearchDescriptor.get.call(grid), true);
+  assert.equal(resetCount, 0);
+
+  caseDescriptor.set.call(grid, true);
+  assert.equal(caseDescriptor.get.call(grid), true);
+  assert.equal(resetCount, 1);
+
+  autoSearchDescriptor.set.call(grid, false);
+  assert.equal(autoSearchDescriptor.get.call(grid), false);
+  assert.equal(resetCount, 2);
+});
+
+test('host resize observer preserves scroll while hidden and invalidates after becoming visible', function() {
   var FabGrid = createFabGridFactory({});
   var OriginalResizeObserver = globalThis.ResizeObserver;
   var observedHost = null;
   var disconnected = false;
   var callback;
   var invalidations = 0;
+  var bodyScroll = { scrollTop: 558 };
   var grid = {
     host: {},
+    bodyScroll: bodyScroll,
     _resizeObserver: null,
     invalidate: function() {
       invalidations += 1;
+      bodyScroll.scrollTop = 0;
     }
   };
 
@@ -811,8 +990,13 @@ test('host resize observer invalidates an empty grid after its layout becomes vi
     FabGrid.prototype.bindResizeObserver.call(grid);
     assert.equal(observedHost, grid.host);
 
-    callback();
+    callback([{ target: grid.host, contentRect: { width: 0, height: 0 } }]);
+    assert.equal(invalidations, 0);
+    assert.equal(bodyScroll.scrollTop, 558);
+
+    callback([{ target: grid.host, contentRect: { width: 800, height: 400 } }]);
     assert.equal(invalidations, 1);
+    assert.equal(bodyScroll.scrollTop, 0);
 
     FabGrid.prototype.unbindResizeObserver.call(grid);
     assert.equal(disconnected, true);
@@ -824,6 +1008,35 @@ test('host resize observer invalidates an empty grid after its layout becomes vi
       globalThis.ResizeObserver = OriginalResizeObserver;
     }
   }
+});
+
+test('scrollPosition reports the last rendered position while the Grid host is hidden', function() {
+  var FabGrid = createFabGridFactory({});
+  var scrollPosition = Object.getOwnPropertyDescriptor(FabGrid.prototype, 'scrollPosition');
+  var hidden = true;
+  var grid = {
+    _isHostLayoutHidden: function() { return hidden; },
+    bodyScroll: { scrollLeft: 0, scrollTop: 0 },
+    scrollState: { left: 34, top: 558 }
+  };
+
+  assert.deepEqual(scrollPosition.get.call(grid), { x: 34, y: 558 });
+
+  hidden = false;
+  assert.deepEqual(scrollPosition.get.call(grid), { x: 0, y: 0 });
+});
+
+test('a native scroll reset while hidden does not replace the last rendered position', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = {
+    _isHostLayoutHidden: function() { return true; },
+    bodyScroll: { scrollLeft: 0, scrollTop: 0 },
+    scrollState: { left: 34, top: 558 }
+  };
+
+  FabGrid.prototype.handleScroll.call(grid);
+
+  assert.deepEqual(grid.scrollState, { left: 34, top: 558 });
 });
 
 test('Grid avoids a redundant window resize listener when ResizeObserver exists', function() {
@@ -1684,7 +1897,7 @@ test('row collection exposes compatible Row and GroupRow instances', function() 
   assert.equal(grid.selectedRow, null);
 });
 
-test('row range uses a positive normalized row height', function() {
+test('row range falls back to the default 31 pixel row height', function() {
   var FabGrid = createFabGridFactory({});
   var grid = {
     options: { rowHeight: 0, overscanRows: 0 },
@@ -1696,7 +1909,37 @@ test('row range uses a positive normalized row height', function() {
     contentHeight: 320
   });
 
-  assert.deepEqual(range, { start: 0, end: 11 });
+  assert.deepEqual(range, { start: 0, end: 12 });
+});
+
+test('header and footer cells default to 31 pixel heights', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.options = {
+    headerHeight: NaN,
+    showFooter: true,
+    footerHeight: NaN,
+    footerRows: null,
+    footerLabel: ''
+  };
+
+  assert.equal(grid.getHeaderRowHeight(), 31);
+  assert.equal(grid.getFooterRowHeight(), 31);
+  assert.equal(grid.getFooterHeight(), 31);
+});
+
+test('Search Row defaults to the 31 pixel row height', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.options = {
+    rowHeight: NaN,
+    searchRowHeight: null,
+    filterMode: ['searchRow']
+  };
+
+  assert.equal(grid.getSearchRowHeight(), 31);
 });
 
 test('event dispatch uses a stable handler snapshot', function() {
@@ -2520,6 +2763,107 @@ test('truncated Excel filter values preserve unseen selections', function() {
   assert.deepEqual(applied, { type: 'values', values: ['B', 'C'] });
 });
 
+test('Excel filter candidates follow filters from other columns', function() {
+  var FabGrid = createFabGridFactory({});
+  var customerColumn = { binding: 'customer' };
+  var descriptionColumn = { binding: 'description' };
+  var grid = {
+    options: { remote: false, filterMode: ['excel'], excelFilterMaxValues: 1000 },
+    source: [
+      { customer: '柏宏', description: '柏宏項目一' },
+      { customer: '柏宏', description: '柏宏項目二' },
+      { customer: '其他', description: '其他項目' }
+    ],
+    columns: [customerColumn, descriptionColumn],
+    excelFilters: {
+      'binding:customer': { type: 'values', values: ['柏宏'] },
+      'binding:description': { type: 'values', values: ['柏宏項目一'] }
+    },
+    isTreeGrid: function() { return false; },
+    getCellDisplayText: function(item, column, value) { return String(value); },
+    getText: function() { return '(blank)'; },
+    getExcelFilter: FabGrid.prototype.getExcelFilter,
+    getExcelFilterRows: FabGrid.prototype.getExcelFilterRows
+  };
+
+  var descriptions = FabGrid.prototype.getExcelFilterValueItems.call(grid, descriptionColumn);
+
+  assert.deepEqual(descriptions.map(function(item) { return item.value; }), [
+    '柏宏項目一',
+    '柏宏項目二'
+  ]);
+});
+
+test('number columns normalize display and Excel filter values without mutating source data', function() {
+  var FabGrid = createFabGridFactory(createEditorDefinitions());
+  var amountColumn = { binding: 'amount', dataType: 'number' };
+  var labelColumn = { binding: 'label', dataType: 'string' };
+  var rows = [
+    { amount: '1,000', label: 'A' },
+    { amount: 1000, label: 'B' },
+    { amount: 'invalid', label: 'C' }
+  ];
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.options = { remote: false, filterMode: ['excel'], excelFilterMaxValues: 1000 };
+  grid.source = rows;
+  grid.view = rows;
+  grid.columns = [amountColumn, labelColumn];
+  grid.excelFilters = {};
+  grid._rowCollection = null;
+  grid.isTreeGrid = function() { return false; };
+  grid.isRowGroupFooter = function() { return false; };
+  grid.getText = function() { return '(blank)'; };
+  grid.cells = createGridPanel(grid, CellType.Cell);
+
+  assert.equal(grid.getCellDisplayText(rows[0], amountColumn, rows[0].amount), '1000');
+  assert.equal(grid.getCellDisplayText(rows[2], amountColumn, rows[2].amount), 'invalid');
+  assert.equal(grid.cells.getCellData(0, 0, false), '1,000');
+  assert.equal(grid.cells.getCellData(0, 0, true), '1000');
+  assert.equal(rows[0].amount, '1,000');
+  assert.deepEqual(grid.getExcelFilterValueItems(amountColumn).map(function(item) { return item.value; }), [1000, 'invalid']);
+
+  grid.excelFilters['binding:amount'] = { type: 'values', values: [1000] };
+  assert.deepEqual(grid.getExcelFilterValueItems(labelColumn).map(function(item) { return item.value; }), ['A', 'B']);
+});
+
+test('Excel filter search applies only matching selected values', function() {
+  var FabGrid = createFabGridFactory({});
+  var column = { binding: 'description' };
+  var applied = null;
+  var cleared = 0;
+  var grid = {
+    excelFilterDraft: {
+      column: column,
+      search: '1963',
+      valueItems: [
+        { key: 'string:A', value: 'WHL-55整機 1963-66', label: 'WHL-55整機 1963-66' },
+        { key: 'string:B', value: 'WHL-55整機 1965-66', label: 'WHL-55整機 1965-66' },
+        { key: 'string:C', value: '水箱組 1963-66', label: '水箱組 1963-66' }
+      ],
+      selectedKeys: {
+        'string:A': true,
+        'string:B': true,
+        'string:C': true
+      },
+      defaultSelected: true,
+      truncated: false
+    },
+    clearExcelFilter: function() { cleared += 1; },
+    setExcelFilter: function(targetColumn, filter) { applied = filter; }
+  };
+
+  FabGrid.prototype.handleExcelFilterMenuAction.call(grid, {
+    getAttribute: function() { return 'apply'; }
+  });
+
+  assert.equal(cleared, 0);
+  assert.deepEqual(applied, {
+    type: 'values',
+    values: ['WHL-55整機 1963-66', '水箱組 1963-66']
+  });
+});
+
 test('remote Excel filter keeps all cached candidates when reopened after apply', function() {
   var FabGrid = createFabGridFactory({});
   var column = { binding: 'customer' };
@@ -2684,7 +3028,7 @@ test('vertical scrollbar thumb reaches the track bottom at native maximum scroll
   var grid = {
     options: { rowHeight: 32 },
     view: new Array(924),
-    bodyScroll: { scrollTop: 29128 },
+    bodyScroll: { scrollTop: 29128, offsetHeight: 455 },
     verticalScrollbar: { style: {} },
     verticalScrollbarThumb: { style: {} },
     getScrollbarGutterSize: function() { return 15; },
@@ -2700,6 +3044,28 @@ test('vertical scrollbar thumb reaches the track bottom at native maximum scroll
   assert.equal(grid._verticalScrollbarState.maxThumbTop, 416);
   assert.equal(grid.verticalScrollbar.style.bottom, '15px');
   assert.equal(grid.verticalScrollbarThumb.style.transform, 'translate3d(0,416px,0)');
+});
+
+test('vertical scrollbar thumb stops above an overlay horizontal scrollbar', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = {
+    options: { rowHeight: 32 },
+    view: new Array(924),
+    bodyScroll: { scrollTop: 29128, offsetHeight: 440 },
+    verticalScrollbar: { style: {} },
+    verticalScrollbarThumb: { style: {} },
+    getScrollbarGutterSize: function() { return 15; },
+    updateVerticalScrollbarPosition: FabGrid.prototype.updateVerticalScrollbarPosition
+  };
+
+  FabGrid.prototype.updateVerticalScrollbar.call(grid, {
+    height: 440,
+    contentHeight: 440
+  }, 29568, 15);
+
+  assert.equal(grid._verticalScrollbarState.maxThumbTop, 401);
+  assert.equal(grid.verticalScrollbar.style.bottom, '15px');
+  assert.equal(grid.verticalScrollbarThumb.style.transform, 'translate3d(0,401px,0)');
 });
 
 test('content shrink clamps scrollTop and clears fixed pane offsets', function() {
@@ -4432,7 +4798,7 @@ test('nested column definitions create merged Header groups while keeping leaf c
   assert.equal(grid._visibleColumnHeaderDepth, 1);
 });
 
-test('columns allow sorting by default and can disable it individually', function() {
+test('columns allow sorting and resizing by default and can disable them individually', function() {
   var FabGrid = createFabGridFactory({});
   var grid = {
     options: { columnMinWidth: 20 },
@@ -4443,11 +4809,42 @@ test('columns allow sorting by default and can disable it individually', functio
 
   FabGrid.prototype.setColumns.call(grid, [
     { binding: 'name' },
-    { binding: 'amount', allowSorting: false }
+    { binding: 'amount', allowSorting: false, allowResizing: false }
   ], true);
 
   assert.equal(grid.columns[0].allowSorting, true);
+  assert.equal(grid.columns[0].allowResizing, true);
   assert.equal(grid.columns[1].allowSorting, false);
+  assert.equal(grid.columns[1].allowResizing, false);
+});
+
+test('a non-resizable column hides its resize handle and rejects resize entry points', function() {
+  var FabGrid = createFabGridFactory({});
+  var viewSource = readFileSync(new URL('../src/grid/fabgrid-view.js', import.meta.url), 'utf8');
+  var column = { binding: 'id', allowResizing: false, width: 80, _width: 80 };
+  var grid = Object.create(FabGrid.prototype);
+  var pointerEffects = 0;
+
+  grid.options = { allowResizing: true, columnMinWidth: 20, showFooter: false };
+  grid.columns = [column];
+  grid.visibleColumns = [column];
+  grid.getAutoSizeColumnWidth = function() {
+    assert.fail('A non-resizable column must not calculate an AutoFit width.');
+  };
+  grid.emit = function() {
+    assert.fail('A non-resizable column must not raise resize events.');
+  };
+  grid.bindPointerInteractionEvents = function() { pointerEffects += 1; };
+
+  assert.match(
+    viewSource,
+    /this\.options\.allowResizing && this\._isColumnResizable\(column\)/
+  );
+  assert.equal(grid.autoSizeColumn(column), false);
+  assert.equal(grid.startResize({ preventDefault: function() {}, stopPropagation: function() {} }, 0), false);
+  assert.equal(pointerEffects, 0);
+  assert.equal(column.width, 80);
+  assert.equal(column._width, 80);
 });
 
 test('allowMultiSorting false keeps Shift and API sorting to one column', function() {
@@ -5518,6 +5915,38 @@ test('CellMaker.makeLink creates a Wijmo-compatible link template', function() {
   assert.equal(clickedContext, ctx);
 });
 
+test('body cell removes only its right padding when rendered content overflows', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var classNames = new Set();
+  var content = { scrollWidth: 180, clientWidth: 120 };
+  var cell = {
+    scrollWidth: 120,
+    clientWidth: 120,
+    classList: {
+      toggle: function(name, active) {
+        if (active) {
+          classNames.add(name);
+        } else {
+          classNames.delete(name);
+        }
+      }
+    },
+    querySelector: function() {
+      return content;
+    }
+  };
+  var css = readFileSync(new URL('../src/grid/fabgrid.css', import.meta.url), 'utf8');
+
+  assert.equal(grid.updateCellOverflowState(cell), true);
+  assert.equal(classNames.has('fg-cell-content-overflow'), true);
+
+  content.scrollWidth = 120;
+  assert.equal(grid.updateCellOverflowState(cell), false);
+  assert.equal(classNames.has('fg-cell-content-overflow'), false);
+  assert.match(css, /\.fg-cell\.fg-cell-content-overflow\s*\{[^}]*padding-right:\s*0;/s);
+});
+
 test('runtime cellTemplate assignment invalidates the grid', function() {
   var FabGrid = createFabGridFactory({});
   var grid = Object.create(FabGrid.prototype);
@@ -5829,15 +6258,17 @@ test('cell range row header drag starts a whole-row range interaction', function
   assert.equal(focused, 1);
 });
 
-test('cell range appearance uses row selection fill and activeCellBorder', function() {
+test('cell range appearance uses non-layout shadows and activeCellBorder', function() {
   var css = readFileSync(new URL('../src/grid/fabgrid.css', import.meta.url), 'utf8');
   var viewSource = readFileSync(new URL('../src/grid/fabgrid-view.js', import.meta.url), 'utf8');
 
-  assert.match(css, /\.fg-cell\.fg-range-top\s*\{[^}]*border-top:\s*var\(--fg-active-cell-border\) solid var\(--fg-range-border\)/s);
-  assert.match(css, /\.fg-cell\.fg-range-bottom\s*\{[^}]*border-bottom:\s*var\(--fg-active-cell-border\) solid var\(--fg-range-border\)/s);
-  assert.match(css, /\.fg-cell\.fg-range-left\s*\{[^}]*border-left:\s*var\(--fg-active-cell-border\) solid var\(--fg-range-border\)/s);
-  assert.match(css, /\.fg-cell\.fg-range-right\s*\{[^}]*border-right:\s*var\(--fg-active-cell-border\) solid var\(--fg-range-border\)/s);
-  assert.match(css, /\.fg-root \.fg-cell\.fg-range-selected\.fg-selected\s*\{[^}]*background:\s*var\(--fg-range-active-bg\)[^}]*box-shadow:\s*none/s);
+  assert.match(css, /\.fg-cell\s*\{[^}]*--fg-range-top-shadow:\s*inset 0 0 0 0 transparent/s);
+  assert.match(css, /\.fg-root \.fg-cell\.fg-range-top\s*\{[^}]*--fg-range-top-shadow:\s*inset 0 var\(--fg-active-cell-border\) 0 0 var\(--fg-range-border\)/s);
+  assert.match(css, /\.fg-root \.fg-cell\.fg-range-bottom\s*\{[^}]*--fg-range-bottom-shadow:\s*inset 0 calc\(-1 \* var\(--fg-active-cell-border\)\) 0 0 var\(--fg-range-border\)/s);
+  assert.match(css, /\.fg-root \.fg-cell\.fg-range-left\s*\{[^}]*--fg-range-left-shadow:\s*inset var\(--fg-active-cell-border\) 0 0 0 var\(--fg-range-border\)/s);
+  assert.match(css, /\.fg-root \.fg-cell\.fg-range-right\s*\{[^}]*--fg-range-right-shadow:\s*inset calc\(-1 \* var\(--fg-active-cell-border\)\) 0 0 0 var\(--fg-range-border\)/s);
+  assert.doesNotMatch(css, /\.fg-root \.fg-cell\.fg-range-(?:top|bottom|left|right)\s*\{[^}]*border-(?:top|bottom|left|right):/s);
+  assert.match(css, /\.fg-root \.fg-cell\.fg-range-selected\.fg-selected\s*\{[^}]*background:\s*var\(--fg-range-active-bg\)[^}]*box-shadow:\s*var\(--fg-range-top-shadow\)/s);
   assert.match(css, /\.fg-root \.fg-cell\.fg-range-selected\.fg-selected::before\s*\{[^}]*border:\s*var\(--fg-active-cell-border\) solid var\(--fg-range-border\)/s);
   ['top', 'bottom', 'left', 'right'].forEach(function(side) {
     assert.match(css, new RegExp(
@@ -7099,6 +7530,128 @@ test('Excel-like filter popup moves to the page layer and restores to the Grid o
   }
 });
 
+test('Header context menu moves to the page layer and restores to the Grid on close', function() {
+  var FabGrid = createFabGridFactory({});
+  var originalDocument = globalThis.document;
+  var originalWindow = globalThis.window;
+  var classes = ['fg-top-left-menu'];
+  var root;
+  var body;
+  var menu;
+  var grid;
+
+  function createParent() {
+    return {
+      appendChild: function(node) {
+        node.parentNode = this;
+      }
+    };
+  }
+
+  root = createParent();
+  body = createParent();
+  menu = {
+    parentNode: root,
+    classList: {
+      add: function(name) {
+        if (classes.indexOf(name) < 0) {
+          classes.push(name);
+        }
+      },
+      remove: function(name) {
+        var index = classes.indexOf(name);
+        if (index >= 0) {
+          classes.splice(index, 1);
+        }
+      },
+      contains: function(name) {
+        return classes.indexOf(name) >= 0;
+      }
+    }
+  };
+  grid = {
+    disposed: false,
+    root: root,
+    topLeftMenu: menu,
+    filterMenu: null,
+    filterMenuViewportEventsBound: false,
+    _boundFilterMenuViewportChange: function() {},
+    isFilterMenuOpen: function() { return false; }
+  };
+  grid.bindFilterMenuViewportEvents = function() {
+    FabGrid.prototype.bindFilterMenuViewportEvents.call(grid);
+  };
+  grid.unbindFilterMenuViewportEvents = function() {
+    FabGrid.prototype.unbindFilterMenuViewportEvents.call(grid);
+  };
+  grid.getFilterMenuPortalTarget = function() {
+    return FabGrid.prototype.getFilterMenuPortalTarget.call(grid);
+  };
+
+  globalThis.document = {
+    body: body,
+    fullscreenElement: null,
+    webkitFullscreenElement: null
+  };
+  globalThis.window = {
+    addEventListener: function() {},
+    removeEventListener: function() {}
+  };
+
+  try {
+    FabGrid.prototype.portalTopLeftMenu.call(grid);
+    assert.equal(menu.parentNode, body);
+    assert.equal(menu.classList.contains('fg-top-left-menu-portal'), true);
+    assert.equal(grid.filterMenuViewportEventsBound, true);
+
+    FabGrid.prototype.restoreTopLeftMenu.call(grid);
+    assert.equal(menu.parentNode, root);
+    assert.equal(menu.classList.contains('fg-top-left-menu-portal'), false);
+    assert.equal(grid.filterMenuViewportEventsBound, false);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
+test('Header context menu uses the viewport instead of the Grid for positioning', function() {
+  var FabGrid = createFabGridFactory({});
+  var originalDocument = globalThis.document;
+  var originalWindow = globalThis.window;
+  var menu = {
+    style: { display: 'block' },
+    offsetWidth: 176,
+    offsetHeight: 160
+  };
+  var grid = {
+    topLeftMenu: menu
+  };
+
+  globalThis.document = {
+    documentElement: {
+      clientWidth: 1000,
+      clientHeight: 800
+    }
+  };
+  globalThis.window = {
+    innerWidth: 1000,
+    innerHeight: 800
+  };
+
+  try {
+    FabGrid.prototype.positionTopLeftMenu.call(grid, 100, 180);
+    assert.equal(menu.style.left, '100px');
+    assert.equal(menu.style.top, '180px');
+
+    FabGrid.prototype.positionTopLeftMenu.call(grid, 950, 750);
+    assert.equal(menu.style.left, '816px');
+    assert.equal(menu.style.top, '632px');
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
 test('Excel-like filter popup height is constrained by the viewport instead of the Grid', function() {
   var FabGrid = createFabGridFactory({});
   var originalDocument = globalThis.document;
@@ -7182,6 +7735,13 @@ test('Excel-like filter popup CSS uses fixed viewport positioning', function() {
   assert.ok(rule);
   assert.match(rule[1], /position:\s*fixed/);
   assert.match(rule[1], /max-width:\s*calc\(100vw - 16px\)/);
+});
+
+test('Header context menu portal CSS uses fixed viewport positioning', function() {
+  var css = readFileSync(new URL('../src/grid/fabgrid.css', import.meta.url), 'utf8');
+  var rule = css.match(/:root \.fg-top-left-menu\.fg-top-left-menu-portal\s*\{([^}]+)\}/);
+  assert.ok(rule);
+  assert.match(rule[1], /position:\s*fixed/);
 });
 
 test('document pointer leaves shared combo and color popup lifecycle to popup classes', function() {

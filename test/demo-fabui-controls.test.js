@@ -420,7 +420,7 @@ test('The Grid demos expose the same range selection and edit mode switches', fu
     /grid-data\.js\?v=20260721-initial-filter-rules-v1/,
     /grid-locales\.js\?v=20260728-edit-mode-toggle-v2/,
     /grid2-components\.js\?v=20260728-edit-mode-toggle-v2/,
-    /grid\.js\?v=20260804-grid-column-rollback-v4/
+    /grid\.js\?v=20260810-column-resizing-v1/
   ].forEach(function(pattern) {
     assert.match(devGridHtml, pattern);
     assert.match(buildGridHtml, pattern);

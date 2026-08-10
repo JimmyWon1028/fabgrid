@@ -45,6 +45,7 @@ test('prepared sort values preserve comparison semantics without repeated conver
   assert.equal(prepareSortValue('10', 'number'), 10);
   assert.equal(prepareSortValue('8,647.7', 'number'), 8647.7);
   assert.equal(prepareSortValue('-4,962.71', 'number'), -4962.71);
+  assert.equal(prepareSortValue('not a number', 'number'), null);
   assert.equal(prepareSortValue('2026-07-12', 'date'), new Date('2026-07-12').getTime());
   assert.equal(prepareSortValue(true, 'boolean'), 1);
   assert.equal(prepareSortValue('Beta', 'string'), 'beta');

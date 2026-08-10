@@ -142,9 +142,9 @@ fabui.setConfig({
 | --- | --- | --- | --- |
 | `itemsSource` | `Array<object>` | `[]` | 本機資料來源。 |
 | `columns` | `Array<Column \| ColumnGroup>` | `[]` | 欄位定義；群組可用巢狀 `columns` 建立多列合併 Header。 |
-| `rowHeight` | `number` | `32` | 每列固定高度；非正數或非有限數字回復為預設值。 |
+| `rowHeight` | `number` | `31` | 每列固定高度；非正數或非有限數字回復為預設值。 |
 | `columnMinWidth` | `number` | `20` | Column 未指定 `width` 時的預設欄寬，也是拖曳調寬與 AutoFit 的全域下限。 |
-| `headerHeight` | `number` | `32` | 每一層欄位標題列的高度。 |
+| `headerHeight` | `number` | `31` | 每一層欄位標題列的高度。 |
 | `overscanRows` | `number` | `8` | 垂直虛擬化預先渲染列數；正規化為非負整數。 |
 | `fastScrollOverscanRows` | `number` | `64` | 快速捲動時額外渲染列數。 |
 | `overscanColumns` | `number` | `3` | 水平虛擬化預先渲染欄數；正規化為非負整數。 |
@@ -157,7 +157,7 @@ fabui.setConfig({
 | `rowHeaderHeader` | `string` | `''` | 左上角列頭標題文字。 |
 | `showColumnChooser` | `boolean` | `true` | 顯示左上角欄位選擇器；popup 可按 `Escape` 或點擊 popup 外部關閉。 |
 | `showFooter` | `boolean` | `false` | 顯示 footer aggregate 列。 |
-| `footerHeight` | `number` | `32` | 每一列 Footer 的高度。 |
+| `footerHeight` | `number` | `31` | 每一列 Footer 的高度。 |
 | `footerLabel` | `string` | `''` | 未設定 `footerRows` 時，單列 Footer 左側的列頭文字。 |
 | `footerRows` | `Array<{ key, label, values? }>` | `null` | 定義多列 Footer；`key` 可供 Footer API 定位列，`label` 顯示於左側列頭，`values` 可用完整欄位 index 或 binding 提供初始值。未設定時維持一列；數字值預設靠右並顯示千位分隔。 |
 | `multiSelectRows` | `boolean` | `false` | 加入多選列 checkbox 欄。 |
@@ -178,11 +178,13 @@ fabui.setConfig({
 | `excelFilterMaxValues` | `number` | `1000` | Excel-like「依值篩選」最多收集的唯一候選值數量；不控制 popup 高度，套用時仍保留未列出值原本的選取狀態。 |
 | `updatedView` | `function(grid, eventArgs)` | `null` | View 完成更新時呼叫；等同註冊 `grid.updatedView.addHandler()`。 |
 | `searchDelay` | `number` | `400` | Search Row 輸入 debounce 時間；設為 `0` 時立即套用。 |
-| `searchRowHeight` | `number \| null` | `null` | 搜尋列高度；`null` 時沿用 `headerHeight`。 |
+| `searchRowHeight` | `number \| null` | `null` | 搜尋列高度；`null` 時沿用 `rowHeight`。 |
 | `headerDisplayMode` | `'header' \| 'binding'` | `'header'` | 標題顯示欄位標題或 binding。 |
 | `headerToggleKey` | `string \| false` | `false` | 切換標題顯示模式的快捷鍵，例如 `'F4'`。 |
 | `alternatingRowStep` | `false \| number` | `1` | 交替列背景的分段列數；`false` 關閉，正整數 `1`、`2`、`3`…分別每 1、2、3…列切換一次背景。 |
 | `autoClipboard` | `boolean` | `true` | 是否攔截 `Ctrl/Cmd + C` 並複製目前 cell、CellRange 或 RowHeader 整列選取。 |
+| `autoSearch` | `boolean` | `false` | 啟用 active column 快速定位。500ms 內連續輸入會累積為前綴字串，從目前列往下循環尋找並移動到符合列；多字元找不到時以最後輸入字元重新尋找。 |
+| `caseSensitiveSearch` | `boolean` | `false` | `autoSearch` 是否區分英文字母大小寫。變更此設定會清除目前快速定位字串。 |
 | `syncScrollRender` | `boolean` | `false` | 預設由 animation frame 合併捲動渲染以保持絲滑；設為 `true` 時改為在 scroll event 內同步渲染。 |
 | `itemFormatter` | `(cells, row, col, cell) => void` | `null` | Body cell 建立後的輕量格式化 callback；新程式優先使用 `formatItem` 或 `cellTemplate`。 |
 | `exportBusyText` | `string \| null` | `null` | Excel 匯出期間顯示的忙碌文字。 |
@@ -329,7 +331,7 @@ const columns = [
 
 ```js
 const columns = [
-  { binding: 'id', header: '編號', width: 72, align: 'center', dataType: 'number' },
+  { binding: 'id', header: '編號', width: 72, align: 'center', dataType: 'number', allowResizing: false },
   {
     binding: 'amount',
     header: '金額',
@@ -349,12 +351,13 @@ const columns = [
 | `header` | `string` | 顯示於欄位標題的文字。 |
 | `width` | `number` | 欄寬；未設定時使用 Grid `columnMinWidth`（預設 `20`）。明確設定的初始 `width` 可小於 `columnMinWidth`；Column 不提供 `minWidth`。 |
 | `align` | `'left' \| 'center' \| 'right'` | 標題、內容與 editor 都沿用此對齊。 |
-| `dataType` | `'string' \| 'number' \| 'date' \| 'boolean'` | 排序、解析與資料值型別。`number` 本機排序會先移除字串值的半形千位逗號與空白，再依實際數值排序。時間值使用 `dataType: 'string'` 搭配 `editor: 'time'`。 |
+| `dataType` | `'string' \| 'number' \| 'date' \| 'boolean'` | 排序、解析與資料值型別。`number` 會將有限數值字串移除半形千位逗號與空白後，在顯示、排序、Search Row／Excel-like 篩選、aggregate 與 XLSX 匯出時視為 Number；不修改 `itemsSource`，未格式化的 `getCellData()` 仍回傳原值。無效文字維持原樣顯示且不參與數值運算。時間值使用 `dataType: 'string'` 搭配 `editor: 'time'`。 |
 | `visible` | `boolean` | 是否顯示；資料仍會保留。 |
 | `isReadOnly` | `boolean` | 讓該欄不可編輯，預設為 `false`。只要 Grid 或 Column 為唯讀，該 cell 就不能開始編輯。 |
 | `isRequired` | `boolean` | 是否為必填欄位，預設為 `false`；設為 `true` 時，`null`、`undefined`、空字串與純空白會自動產生 required validation error。 |
 | `stayOnInvalid` | `boolean` | 此欄的其他同步／非同步驗證是否在通過前保留目前 editor，預設為 `false`；必填錯誤不受此值影響，`isRequired: true` 時固定不能離開。 |
 | `allowSorting` | `boolean` | 是否允許該欄排序，預設為 `true`；設為 `false` 時不觸發排序事件或遠端查詢。 |
+| `allowResizing` | `boolean` | 是否允許該欄調整寬度，預設為 `true`；設為 `false` 時不顯示 resize 操作區，並阻止拖曳、雙擊 AutoFit 與 `autoSizeColumn()`。 |
 | `multiLine` | `boolean` | 是否讓文字型 cell editor 使用可承載換行內容的 `<textarea>`，預設為 `false`。可輸入或貼入多行值，但不改變既有鍵盤操作與 cell 單行顯示。 |
 | `cssClass` | `string \| null` | 套用到此欄所有資料 cell 的 CSS class；可包含多個 class，不套用到 Header，預設為 `null`。 |
 | `formatter` | `(value, item, column) => string` | cell 顯示格式化函式。 |
@@ -441,6 +444,8 @@ column.cellTemplate = fabui.FabGrid.CellMaker.makeLink({
 
 連結會建立為 `<a class="fg-cell-maker">`，使用 Grid 的 `--fg-link-text` 顏色；選取 cell 時文字顏色改為繼承選取狀態。
 
+Body cell 內容未超過可用寬度時保留正常左右間距；內容被截斷時只移除右側 padding，讓超長內容貼齊右邊界並更容易辨識。
+
 Function callback 執行前，FabGrid 會保存 cell 原本的 inline style。Callback 中直接指定 `cell.style = customStyle` 時，FabGrid 會把變更過的視覺樣式疊加回原樣式，並保護定位與尺寸屬性；指定 `cell.style = null` 時，callback 後會還原成原本的 Grid style。因此不需要自行保存或串接 `cell.style.cssText`。
 
 ```js
@@ -464,7 +469,7 @@ grid.columns[idx].cellTemplate = (ctx, cell) => {
 | `setColumns(columns)` | 替換欄位集合。 |
 | `setColumnVisible(column, visible)` | 顯示／隱藏指定欄；數字或十進位整數字串 `column` 為完整 `grid.columns` index，也可傳入該 Grid 的 Column object，不接受 binding 字串。成功回傳 `true`。 |
 | `setHeaderCellStyle(binding, style)` | 以欄位 `binding` 設定 Header cell style object；保留原樣式，同名 property 由傳入樣式覆蓋。傳入 `null` 清除，成功回傳 `true`。 |
-| `autoSizeColumn(column)` | 依 header、目前 view、群組 aggregate 與可見 footer 自動調整指定欄寬；成功回傳新寬度。 |
+| `autoSizeColumn(column)` | 依 header、目前 view、群組 aggregate 與可見 footer 自動調整指定欄寬；成功回傳新寬度。Column `allowResizing: false` 時回傳 `false`。 |
 | `setRowGroups(groups)` | 設定 1 至 3 階群組設定。 |
 | `toggleRowGroup(rowIndex)` | 展開或收合指定群組列，並觸發群組收合事件。 |
 | `toggleAllRowGroups()` | 依目前狀態展開或收合所有列群組。 |
@@ -601,6 +606,10 @@ var grid = new fabui.FabGrid('#grid', {
 | `clearExcelFilters(source?)` | 清除全部 Excel-like filters。 |
 
 Excel-like 篩選 popup 會掛載到頁面 popup layer，以 fixed position 對齊 Header filter icon，因此可以超出 Grid 高度。它會比較 Header 上方與下方的 viewport 可用空間，自動決定開啟方向與高度；候選值超出空間時只捲動 popup 內的值清單，不會增加 Grid 高度。這項行為不需要額外 option。
+
+候選值搜尋框有內容時，按「套用」只會保留符合搜尋文字且仍勾選的值；搜尋結果之外的隱藏候選值不會一起套用。清空搜尋文字後則回到完整候選值與原勾選狀態。
+
+本機模式開啟某欄位的 Excel-like 篩選 popup 時，候選值會先套用其他欄位目前的 Excel-like 篩選，再忽略目標欄位本身的條件並收集唯一值。因此重新開啟同一欄位仍可看到該欄完整候選值，而其他欄位的條件會縮小候選範圍。
 
 `excelFilterMaxValues` 只限制最多收集的唯一候選值數量，不是畫面可見筆數或 popup 高度設定。Popup 開啟時可按 `Escape` 或點擊外部關閉；尚未按「套用」的選取變更不會寫入篩選條件。Grid 進入 fullscreen 時，popup 會改掛到 fullscreen element；關閉或 `dispose()` 時會移回 Grid 並清除 viewport listener。
 

@@ -1,3 +1,5 @@
+import { normalizeNumberValue } from './fabgrid-data.js?v=20260809-number-string-v1';
+
 var exportContext = {};
 
 function exportGetByBinding(item, binding) {
@@ -145,9 +147,13 @@ export function normalizeExcelAlign(value) {
 export function createExcelCell(row, col, value, type, styleId) {
   var ref = getExcelColumnName(col) + row;
   var style = styleId ? ' s="' + styleId + '"' : '';
+  var number;
   if (value == null) return '<c r="' + ref + '"' + style + ' t="inlineStr"><is><t></t></is></c>';
-  if (type === 'number' && typeof value !== 'boolean' && isFinite(Number(value))) {
-    return '<c r="' + ref + '"' + style + '><v>' + Number(value) + '</v></c>';
+  if (type === 'number' && typeof value !== 'boolean') {
+    number = normalizeNumberValue(value);
+    if (number != null) {
+      return '<c r="' + ref + '"' + style + '><v>' + number + '</v></c>';
+    }
   }
   if (type === 'boolean') {
     return '<c r="' + ref + '"' + style + ' t="b"><v>' + (exportParseValue(value, 'boolean') ? '1' : '0') + '</v></c>';
