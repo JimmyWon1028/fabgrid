@@ -2217,7 +2217,10 @@ export function installFabGridView(FabGrid, context) {
     var excelFilterActive = this.isExcelFilterActive(column);
     var headerText = this.getHeaderCellText(column);
     var headerTextWidth;
-    var headerContentWidth;
+    var headerBaseContentWidth;
+    var headerInlineContentWidth;
+    var headerAvailableWidth = Math.max(0, column._width - 1);
+    var filterMode = getActiveFilterMode(this.options);
     var headerDepth = toNumber(column._headerDepth, 0);
     var titleHeight = this.getColumnHeaderTitleHeight(column);
 
@@ -2235,17 +2238,16 @@ export function installFabGridView(FabGrid, context) {
     cell.setAttribute('data-header-title-height', titleHeight);
     cell.setAttribute('data-frozen', frozen ? '1' : '0');
     title.className = 'fg-header-title' +
-      (getActiveFilterMode(this.options) ? ' fg-header-title-filterable' : '') +
+      (filterMode ? ' fg-header-title-filterable' : '') +
       (sortDirection ? ' fg-header-title-sorted' : '');
-    if (getActiveFilterMode(this.options)) {
-      headerTextWidth = this.measureAutoSizeText(headerText, textMeasureContext);
-      headerContentWidth = headerTextWidth + (column.align === 'right' ? 0 : 13);
-      if (headerContentWidth + 30 > column._width) {
-        title.className += ' fg-header-title-filter-narrow';
-        if (column.align === 'right' && headerTextWidth + 13 <= column._width) {
-          title.className += ' fg-header-title-filter-right-inset';
-        }
-      }
+    headerTextWidth = this.measureAutoSizeText(headerText, textMeasureContext);
+    headerBaseContentWidth = headerTextWidth + (filterMode ? 30 : 20);
+    headerInlineContentWidth = headerBaseContentWidth + (sortDirection ? 13 : 0);
+    if (headerBaseContentWidth > headerAvailableWidth) {
+      title.className += ' fg-header-title-compact';
+    }
+    if (filterMode && sortDirection && headerInlineContentWidth > headerAvailableWidth) {
+      title.className += ' fg-header-title-filter-stacked';
     }
     title.style.height = titleHeight + 'px';
     label.className = 'fg-header-label';
@@ -2262,11 +2264,11 @@ export function installFabGridView(FabGrid, context) {
     sortWrap.appendChild(sort);
     title.appendChild(sortWrap);
     cell.appendChild(title);
-    if (getActiveFilterMode(this.options)) {
+    if (filterMode) {
       filterIcon.className = 'fg-filter-icon' +
-        (getActiveFilterMode(this.options) === 'searchRow' && searchOperator ? ' fg-filter-icon-active' : '') +
-        (getActiveFilterMode(this.options) === 'excel' && excelFilterActive ? ' fg-filter-icon-excel-active' : '');
-      filterIcon.textContent = getActiveFilterMode(this.options) === 'searchRow' && searchOperator ? getColumnSearchOperatorSymbol(searchOperator) : '';
+        (filterMode === 'searchRow' && searchOperator ? ' fg-filter-icon-active' : '') +
+        (filterMode === 'excel' && excelFilterActive ? ' fg-filter-icon-excel-active' : '');
+      filterIcon.textContent = filterMode === 'searchRow' && searchOperator ? getColumnSearchOperatorSymbol(searchOperator) : '';
       filterIcon.setAttribute('data-col', column._viewIndex);
       filterIcon.setAttribute('role', 'button');
       filterIcon.setAttribute('aria-label', this.getText('filter.openMenu', { column: headerText }));
@@ -2274,7 +2276,7 @@ export function installFabGridView(FabGrid, context) {
       filterIcon.setAttribute('aria-expanded', this.filterMenuColumn === column && this.isFilterMenuOpen() ? 'true' : 'false');
       title.appendChild(filterIcon);
     }
-    if (getActiveFilterMode(this.options) === 'searchRow') {
+    if (filterMode === 'searchRow') {
       searchEditorConfig = getColumnEditorConfig(column);
       searchIcons = getColumnSearchIconConfigs(column);
       search = document.createElement('span');
@@ -2287,7 +2289,7 @@ export function installFabGridView(FabGrid, context) {
         (isDateLikeEditorType(searchEditorConfig.type) || searchEditorConfig.type === 'time' ? 'numeric' : 'search');
       input.value = this.getColumnSearchValue(column);
       input.style.textAlign = normalizeTextAlign(column.align);
-      input.style.paddingRight = searchIcons.length ? (getIconConfigWidth(searchIcons, 22) + 8) + 'px' : '';
+      input.style.paddingRight = searchIcons.length ? (getIconConfigWidth(searchIcons, 22) + 7) + 'px' : '';
       input.setAttribute('data-col', column._viewIndex);
       input.setAttribute('aria-label', this.getHeaderCellText(column));
       input.setAttribute('autocomplete', 'off');

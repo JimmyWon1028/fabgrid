@@ -305,32 +305,55 @@
   padding: 0 24px 0 6px;
 }
 
-:root .fg-header-title-filter-narrow {
-  padding-right: 0;
+:root .fg-header-title-compact {
+  padding-right: 2px;
+  padding-left: 2px;
 }
 
-:root .fg-header-title-filter-narrow.fg-header-title-sorted {
-  padding-right: 0;
+:root .fg-header-title-filterable.fg-header-title-compact {
+  padding-right: 20px;
 }
 
-:root .fg-header-align-right .fg-header-title-filter-narrow.fg-header-title-filter-right-inset {
-  padding-right: 6px;
+:root .fg-header-title-filterable.fg-header-title-compact .fg-filter-icon {
+  right: 2px;
 }
 
-:root .fg-header-title-filter-narrow.fg-header-title-sorted .fg-sort-wrap {
+:root .fg-header-title-filter-stacked .fg-sort-wrap {
   position: absolute;
-  top: 50%;
-  right: 15px;
+  right: -2px;
+  bottom: 1px;
+  display: flex;
+  width: 18px;
+  height: 8px;
   margin-left: 0;
-  transform: translateY(-50%);
+  padding-bottom: 0;
+  flex-direction: row;
+  gap: 1px;
+  align-items: center;
+  justify-content: center;
 }
 
-:root .fg-header-align-right .fg-header-title-filterable.fg-header-title-sorted .fg-sort-wrap {
-  position: absolute;
-  top: 50%;
-  right: 15px;
-  margin-left: 0;
-  transform: translateY(-50%);
+:root .fg-header-title-filterable.fg-header-title-compact.fg-header-title-filter-stacked .fg-sort-wrap {
+  right: 2px;
+}
+
+:root .fg-header-title-filter-stacked .fg-sort-order {
+  height: 8px;
+  line-height: 8px;
+}
+
+:root .fg-header-title-filter-stacked .fg-filter-icon {
+  top: 5px;
+  bottom: auto;
+  height: 12px;
+}
+
+:root .fg-header-title-filter-stacked .fg-filter-icon-active {
+  top: 2px;
+  width: 18px;
+  height: 12px;
+  font-size: 10px;
+  line-height: 12px;
 }
 
 :root .fg-header-label {
@@ -380,7 +403,7 @@
   height: calc(100% - 1px);
   min-width: 0;
   margin: 0;
-  padding: 0 8px;
+  padding: 0 7px;
   border: 1px solid #d6e4f7;
   border-radius: 0;
   background: #ffffff;
@@ -1111,6 +1134,28 @@
 
 :root .fg-tree-cell {
   gap: 4px;
+}
+
+:root .fg-tree-level-bands {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+:root .fg-tree-level-colored .fg-tree-expander {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  height: auto;
+  z-index: 1;
+}
+
+:root .fg-tree-level-colored .fg-tree-cell-content {
+  position: relative;
+  z-index: 1;
 }
 
 :root .fg-tree-expander {

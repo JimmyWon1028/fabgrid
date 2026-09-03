@@ -258,6 +258,7 @@ test('Lite build supports min-only isolated output', function() {
   var sentinel = path.join(tempDir, 'fabui.min.js');
   var result;
   var context;
+  var css;
 
   assert.equal(packageJson.scripts['build:lite'], 'node build/build-lite.cjs');
   fs.writeFileSync(sentinel, 'keep', 'utf8');
@@ -275,6 +276,9 @@ test('Lite build supports min-only isolated output', function() {
     assert.equal(fs.existsSync(path.join(tempDir, 'fabui.lite.esm.js')), false);
     assert.equal(fs.existsSync(path.join(tempDir, 'fabui.lite.esm.min.js')), false);
     assert.equal(fs.readFileSync(sentinel, 'utf8'), 'keep');
+    css = fs.readFileSync(path.join(tempDir, 'fabui.lite.min.css'), 'utf8');
+    assert.match(css, /\.icon-expand-all\b/);
+    assert.match(css, /\.icon-collapse-all\b/);
     context = {};
     vm.createContext(context);
     vm.runInContext(fs.readFileSync(path.join(tempDir, 'fabui.lite.min.js'), 'utf8'), context);

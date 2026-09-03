@@ -893,6 +893,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     var iconIndex;
     var handler;
     var result;
+    var allowFocusOut;
     if (!button && !spinnerButton) {
       return;
     }
@@ -909,8 +910,18 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     if (iconIndex >= 0) {
       iconConfig = this.editorIconConfigs[iconIndex];
       handler = iconConfig && iconConfig.onClick;
-      if (typeof handler === 'function') {
-        result = handler.call(this, this.createEditorButtonArgs(event, button, iconConfig, iconIndex));
+      allowFocusOut = !!(iconConfig && iconConfig.keepFocus === false);
+      if (allowFocusOut) {
+        this._allowEditorFocusOut = (this._allowEditorFocusOut || 0) + 1;
+      }
+      try {
+        if (typeof handler === 'function') {
+          result = handler.call(this, this.createEditorButtonArgs(event, button, iconConfig, iconIndex));
+        }
+      } finally {
+        if (allowFocusOut) {
+          this._allowEditorFocusOut = Math.max(0, (this._allowEditorFocusOut || 0) - 1);
+        }
       }
       if (result !== false && (!iconConfig || iconConfig.keepFocus !== false)) {
         this.editor.focus();

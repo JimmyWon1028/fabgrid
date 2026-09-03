@@ -2,11 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildVisibleTreeRows,
+  createTreeLevelGradient,
   findTreeItemLocation,
+  getTreeLevelBandLayout,
   getTreeChildren,
   installFabGridTree,
+  isolateTreeCellTextDecoration,
   isTreeItemDescendant,
-  moveTreeItemInSource
+  moveTreeItemInSource,
+  normalizeTreeLevelColorOpacities,
+  normalizeTreeLevelColors
 } from '../src/grid/fabgrid-tree.js';
 import { getByBinding, setByBinding } from '../src/grid/fabgrid-data.js';
 
@@ -29,6 +34,9 @@ function build(rows, options) {
   return buildVisibleTreeRows(rows, {
     filtering: options.filtering === true,
     matches: options.matches || function() { return true; },
+    searching: options.searching === true,
+    matchesSearch: options.matchesSearch || function() { return true; },
+    includeSearchDescendants: options.includeSearchDescendants === true,
     compare: options.compare || null,
     getChildren: function(item) { return item.children || []; },
     isCollapsed: options.isCollapsed || function() { return false; }
@@ -72,6 +80,93 @@ test('tree filtering preserves ancestors and expands the matching path', functio
   assert.deepEqual(result.rows.map(function(item) { return item.id; }), ['A', 'A1', 'A11']);
   assert.deepEqual(result.infos.map(function(info) { return info.collapsed; }), [false, false, false]);
   assert.deepEqual(result.infos.map(function(info) { return info.rowNumber; }), [1, 3, 4]);
+});
+
+test('tree search children mode keeps descendants of matching nodes and required ancestors', function() {
+  var tree = createTree();
+  var result = build(tree, {
+    filtering: true,
+    searching: true,
+    includeSearchDescendants: true,
+    matchesSearch: function(item) { return item.name === 'Alpha'; }
+  });
+  assert.deepEqual(result.rows.map(function(item) { return item.id; }), ['A', 'A2', 'A1', 'A11']);
+
+  result = build(tree, {
+    filtering: true,
+    searching: true,
+    includeSearchDescendants: true,
+    matchesSearch: function(item) { return item.name === 'Target'; }
+  });
+  assert.deepEqual(result.rows.map(function(item) { return item.id; }), ['A', 'A1', 'A11']);
+});
+
+test('tree search children mode still applies non-search filters to descendants', function() {
+  var result = build(createTree(), {
+    filtering: true,
+    searching: true,
+    includeSearchDescendants: true,
+    matches: function(item) { return item.id !== 'A2'; },
+    matchesSearch: function(item) { return item.name === 'Alpha'; }
+  });
+  assert.deepEqual(result.rows.map(function(item) { return item.id; }), ['A', 'A1', 'A11']);
+});
+
+test('tree level colors accept dollar-prefixed hexadecimal values and cycle by level', function() {
+  assert.deepEqual(normalizeTreeLevelColors([
+    '$ff0000',
+    '$00FF00',
+    '#0000ff',
+    'red'
+  ]), ['#ff0000', '#00FF00']);
+  assert.equal(
+    createTreeLevelGradient(['$ff0000', '$00ff00'], 2, 18),
+    'linear-gradient(to right, #ff0000 0px, #ff0000 18px, #00ff00 18px, #00ff00 36px, #ff0000 36px, #ff0000 54px)'
+  );
+  assert.equal(createTreeLevelGradient(['#ff0000'], 1, 18), '');
+});
+
+test('tree level color opacities apply per band and preserve opaque defaults', function() {
+  assert.deepEqual(
+    normalizeTreeLevelColorOpacities([0.4, 0.15, -1, 2, '0.5', null]),
+    [0.4, 0.15, 0, 1, 1, 1]
+  );
+  assert.equal(
+    createTreeLevelGradient(['$ffff00', '$00ff00'], 2, 18, [0.4, 0.15]),
+    'linear-gradient(to right, rgba(255, 255, 0, 0.4) 0px, rgba(255, 255, 0, 0.4) 18px, rgba(0, 255, 0, 0.15) 18px, rgba(0, 255, 0, 0.15) 36px, rgba(255, 255, 0, 0.4) 36px, rgba(255, 255, 0, 0.4) 54px)'
+  );
+});
+
+test('tree level band layout centers the expander in its current color band', function() {
+  assert.deepEqual(getTreeLevelBandLayout(0, 18), {
+    width: 18,
+    expanderLeft: 0,
+    expanderWidth: 18,
+    contentPaddingLeft: 25
+  });
+  assert.deepEqual(getTreeLevelBandLayout(2, 18), {
+    width: 54,
+    expanderLeft: 36,
+    expanderWidth: 18,
+    contentPaddingLeft: 61
+  });
+});
+
+test('tree cell text decoration stays on content instead of the expander', function() {
+  var cell = {
+    style: {
+      textDecoration: '',
+      textDecorationLine: 'underline',
+      textDecorationStyle: 'dotted',
+      textDecorationColor: '',
+      textDecorationThickness: ''
+    }
+  };
+  var content = { style: {} };
+  assert.equal(isolateTreeCellTextDecoration(cell, content), true);
+  assert.equal(cell.style.textDecoration, 'none');
+  assert.equal(content.style.textDecorationLine, 'underline');
+  assert.equal(content.style.textDecorationStyle, 'dotted');
 });
 
 test('tree sorting only changes sibling order', function() {

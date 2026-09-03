@@ -11,6 +11,112 @@ export function getTreeChildren(item, childItemsPath, getByBinding, grid) {
   return Array.isArray(children) ? children : [];
 }
 
+export function normalizeTreeLevelColors(values) {
+  var result = [];
+  if (!Array.isArray(values)) {
+    return result;
+  }
+  values.forEach(function(value) {
+    var match = typeof value === 'string' ? /^\$([0-9a-f]{6})$/i.exec(value.trim()) : null;
+    if (match) {
+      result.push('#' + match[1]);
+    }
+  });
+  return result;
+}
+
+export function normalizeTreeLevelColorOpacities(values) {
+  var result = [];
+  if (!Array.isArray(values)) {
+    return result;
+  }
+  values.forEach(function(value) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      result.push(1);
+      return;
+    }
+    result.push(Math.max(0, Math.min(1, value)));
+  });
+  return result;
+}
+
+function applyTreeLevelColorOpacity(color, opacity) {
+  var red;
+  var green;
+  var blue;
+  if (opacity >= 1) {
+    return color;
+  }
+  red = parseInt(color.slice(1, 3), 16);
+  green = parseInt(color.slice(3, 5), 16);
+  blue = parseInt(color.slice(5, 7), 16);
+  return 'rgba(' + red + ', ' + green + ', ' + blue + ', ' + opacity + ')';
+}
+
+export function createTreeLevelGradient(colors, level, width, opacities) {
+  var normalized = normalizeTreeLevelColors(colors);
+  var normalizedOpacities = normalizeTreeLevelColorOpacities(opacities);
+  var bandCount = Math.max(0, Number(level) || 0) + 1;
+  var bandWidth = Math.max(1, Number(width) || 1);
+  var stops = [];
+  var color;
+  var opacity;
+  var i;
+  if (!normalized.length) {
+    return '';
+  }
+  for (i = 0; i < bandCount; i += 1) {
+    color = normalized[i % normalized.length];
+    opacity = normalizedOpacities.length ? normalizedOpacities[i % normalizedOpacities.length] : 1;
+    color = applyTreeLevelColorOpacity(color, opacity);
+    stops.push(color + ' ' + (i * bandWidth) + 'px');
+    stops.push(color + ' ' + ((i + 1) * bandWidth) + 'px');
+  }
+  return 'linear-gradient(to right, ' + stops.join(', ') + ')';
+}
+
+export function getTreeLevelBandLayout(level, width) {
+  var normalizedLevel = Math.max(0, Math.floor(Number(level) || 0));
+  var bandWidth = Math.max(1, Number(width) || 1);
+  return {
+    width: (normalizedLevel + 1) * bandWidth,
+    expanderLeft: normalizedLevel * bandWidth,
+    expanderWidth: bandWidth,
+    contentPaddingLeft: (normalizedLevel + 1) * bandWidth + 7
+  };
+}
+
+export function isolateTreeCellTextDecoration(cell, content) {
+  var properties = [
+    'textDecoration',
+    'textDecorationLine',
+    'textDecorationStyle',
+    'textDecorationColor',
+    'textDecorationThickness'
+  ];
+  var values = {};
+  var hasDecoration = false;
+  if (!cell || !cell.style || !content || !content.style) {
+    return false;
+  }
+  properties.forEach(function(property) {
+    values[property] = cell.style[property] || '';
+    if (values[property] && values[property] !== 'none') {
+      hasDecoration = true;
+    }
+  });
+  if (!hasDecoration) {
+    return false;
+  }
+  cell.style.textDecoration = 'none';
+  properties.forEach(function(property) {
+    if (values[property]) {
+      content.style[property] = values[property];
+    }
+  });
+  return true;
+}
+
 export function findTreeItemLocation(items, item, getChildren) {
   var visited = [];
   return find(Array.isArray(items) ? items : [], null);
@@ -133,9 +239,10 @@ export function buildVisibleTreeRows(items, options) {
   options.getChildren = typeof options.getChildren === 'function' ? options.getChildren : function() { return []; };
   options.isCollapsed = typeof options.isCollapsed === 'function' ? options.isCollapsed : function() { return false; };
   options.matches = typeof options.matches === 'function' ? options.matches : function() { return true; };
+  options.matchesSearch = typeof options.matchesSearch === 'function' ? options.matchesSearch : function() { return true; };
   var source = Array.isArray(items) ? items : [];
   var nextRowNumber = 1;
-  var nodes = buildNodes(source, 0, null, []);
+  var nodes = buildNodes(source, 0, null, [], false);
   var totalRoots = nodes.length;
   var rows = [];
   var infos = [];
@@ -154,14 +261,18 @@ export function buildVisibleTreeRows(items, options) {
     totalRoots: totalRoots
   };
 
-  function buildNodes(rows, level, parentItem, ancestors) {
+  function buildNodes(rows, level, parentItem, ancestors, ancestorSearchMatched) {
     var ordered = stableSort(rows, options.compare);
     var output = [];
     var item;
     var children;
     var childNodes;
     var nextAncestors;
-    var matches;
+    var nonSearchMatch;
+    var searchMatch;
+    var includedByAncestorSearch;
+    var nextAncestorSearchMatched;
+    var included;
     var rowNumber;
     var i;
     for (i = 0; i < ordered.length; i += 1) {
@@ -173,9 +284,23 @@ export function buildVisibleTreeRows(items, options) {
       nextRowNumber += 1;
       children = options.getChildren(item);
       nextAncestors = item && typeof item === 'object' ? ancestors.concat([item]) : ancestors;
-      childNodes = buildNodes(children, level + 1, item, nextAncestors);
-      matches = options.filtering !== true || options.matches(item) || childNodes.length > 0;
-      if (matches) {
+      nonSearchMatch = options.filtering !== true || options.matches(item);
+      searchMatch = options.searching !== true || options.matchesSearch(item);
+      includedByAncestorSearch = options.searching === true &&
+        options.includeSearchDescendants === true && ancestorSearchMatched;
+      nextAncestorSearchMatched = includedByAncestorSearch ||
+        (options.includeSearchDescendants === true && nonSearchMatch && searchMatch);
+      childNodes = buildNodes(
+        children,
+        level + 1,
+        item,
+        nextAncestors,
+        nextAncestorSearchMatched
+      );
+      included = options.filtering !== true ||
+        (nonSearchMatch && (searchMatch || includedByAncestorSearch)) ||
+        childNodes.length > 0;
+      if (included) {
         output.push({
           item: item,
           level: level,
@@ -420,7 +545,10 @@ export function installFabGridTree(FabGrid, context) {
     var result = buildVisibleTreeRows(rows, {
       compare: options.compare,
       filtering: options.filtering,
+      searching: options.searching,
+      includeSearchDescendants: options.includeSearchDescendants,
       matches: options.matches,
+      matchesSearch: options.matchesSearch,
       pagination: options.pagination,
       pageNumber: options.pageNumber,
       pageSize: options.pageSize,
@@ -717,6 +845,9 @@ export function installFabGridTree(FabGrid, context) {
     var info;
     var expander;
     var content;
+    var levelBands;
+    var levelLayout;
+    var levelGradient;
     var indent;
     if (!this.isTreeColumn(column)) {
       return;
@@ -730,6 +861,7 @@ export function installFabGridTree(FabGrid, context) {
     while (cell.firstChild) {
       content.appendChild(cell.firstChild);
     }
+    isolateTreeCellTextDecoration(cell, content);
     expander = document.createElement('span');
     expander.className = 'fg-tree-expander';
     if (info.hasChildren) {
@@ -743,8 +875,27 @@ export function installFabGridTree(FabGrid, context) {
     }
     cell.className += ' fg-tree-cell';
     indent = Math.max(0, Number(this.options.treeIndent) || 20);
+    levelGradient = createTreeLevelGradient(
+      this.options.treeLevelColors,
+      info.level,
+      indent,
+      this.options.treeLevelColorOpacities
+    );
+    if (levelGradient) {
+      levelLayout = getTreeLevelBandLayout(info.level, indent);
+      levelBands = document.createElement('span');
+      levelBands.className = 'fg-tree-level-bands';
+      levelBands.setAttribute('aria-hidden', 'true');
+      levelBands.style.width = levelLayout.width + 'px';
+      levelBands.style.background = levelGradient;
+      expander.style.left = levelLayout.expanderLeft + 'px';
+      expander.style.width = levelLayout.expanderWidth + 'px';
+      expander.style.flexBasis = levelLayout.expanderWidth + 'px';
+      cell.className += ' fg-tree-level-colored';
+      cell.appendChild(levelBands);
+    }
     cell.style.setProperty('--fg-tree-level', String(info.level));
-    cell.style.paddingLeft = (7 + info.level * indent) + 'px';
+    cell.style.paddingLeft = (levelLayout ? levelLayout.contentPaddingLeft : 7 + info.level * indent) + 'px';
     cell.setAttribute('aria-level', String(info.level + 1));
     cell.insertBefore(expander, cell.firstChild);
     cell.appendChild(content);
@@ -758,6 +909,9 @@ export function installFabGridTree(FabGrid, context) {
     }
     info = this.getTreeRowInfo(item);
     indent = Math.max(0, Number(this.options.treeIndent) || 20);
+    if (info && normalizeTreeLevelColors(this.options.treeLevelColors).length) {
+      return getTreeLevelBandLayout(info.level, indent).contentPaddingLeft;
+    }
     return info ? info.level * indent + 23 : 23;
   };
 

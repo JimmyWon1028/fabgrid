@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createFabGridFactory } from '../src/grid/fabgrid.js?v=20260810-column-resizing-v1';
+import { createFabGridFactory } from '../src/grid/fabgrid.js?v=20260827-group-aggregate-number-format-v1';
 import { createEditorDefinitions } from '../src/editbox/editbox-definitions.js?v=20260721-grid-number-spinner-v1';
 import {
   applyHeaderCellStyle,
@@ -233,6 +233,73 @@ test('Grid focus leaving stays in an editor when commit is rejected', function()
   assert.equal(focusCount, 1);
   assert.deepEqual(raised, []);
   assert.deepEqual(grid.editing, { row: 0, col: 0 });
+});
+
+test('keepFocus false editor icon allows focus to move to an external popup', function() {
+  var FabGrid = createFabGridFactory({});
+  var outside = {};
+  var finishCount = 0;
+  var focusCount = 0;
+  var raised = [];
+  var button = {
+    nodeType: 1,
+    className: 'fg-editor-trigger',
+    parentNode: null,
+    hasAttribute: function(name) {
+      return name === 'data-icon-index';
+    },
+    getAttribute: function(name) {
+      return name === 'data-icon-index' ? '0' : null;
+    }
+  };
+  var grid = {
+    editing: { row: 0, col: 0 },
+    editorConfig: { type: 'text' },
+    editorIconConfigs: [{
+      keepFocus: false,
+      onClick: function() {
+        FabGrid.prototype.handleFocusOut.call(grid, { relatedTarget: outside });
+      }
+    }],
+    editor: {
+      focus: function() {
+        focusCount += 1;
+      }
+    },
+    root: {
+      contains: function() {
+        return false;
+      }
+    },
+    containsFocusTarget: FabGrid.prototype.containsFocusTarget,
+    createEditorButtonArgs: function() {
+      return {};
+    },
+    finishEditing: function() {
+      finishCount += 1;
+      return false;
+    },
+    emit: function(name) {
+      raised.push(name);
+    }
+  };
+  var event = {
+    target: button,
+    preventDefault: function() {},
+    stopPropagation: function() {}
+  };
+
+  FabGrid.prototype.handleEditorTriggerClick.call(grid, event);
+
+  assert.equal(finishCount, 0);
+  assert.equal(focusCount, 0);
+  assert.deepEqual(raised, ['lostFocus']);
+  assert.equal(grid._allowEditorFocusOut, 0);
+  assert.deepEqual(grid.editing, { row: 0, col: 0 });
+
+  FabGrid.prototype.handleFocusOut.call(grid, { relatedTarget: outside });
+  assert.equal(finishCount, 1);
+  assert.equal(focusCount, 1);
 });
 
 test('all Grid editor types commit their value without restoring focus on blur', function() {
@@ -1237,6 +1304,69 @@ test('search row Enter and Tab navigation preserve debounce without applying imm
   });
 });
 
+test('search row leaves IME candidate navigation to the input method', function() {
+  var FabGrid = createFabGridFactory({});
+  var prevented = 0;
+  var stopped = 0;
+  var grid = Object.create(FabGrid.prototype);
+  var input = {
+    getAttribute: function(name) {
+      return name === 'data-col' ? '0' : null;
+    }
+  };
+  var event = {
+    key: 'ArrowDown',
+    isComposing: true,
+    preventDefault: function() { prevented += 1; },
+    stopPropagation: function() { stopped += 1; }
+  };
+
+  grid.headerSearchComposing = false;
+  grid.handleMaskedHeaderSearchDelete = function() {
+    throw new Error('IME keydown must not reach Search Row handlers');
+  };
+
+  assert.equal(grid.handleHeaderSearchKeyDown(event, input), false);
+
+  event.isComposing = false;
+  grid.headerSearchComposing = true;
+  assert.equal(grid.handleHeaderSearchKeyDown(event, input), false);
+
+  grid.headerSearchComposing = false;
+  event.keyCode = 229;
+  assert.equal(grid.handleHeaderSearchKeyDown(event, input), false);
+  assert.equal(prevented, 0);
+  assert.equal(stopped, 0);
+});
+
+test('search row composition lifecycle tracks IME state and applies the completed text', function() {
+  var FabGrid = createFabGridFactory({});
+  var input = {
+    nodeType: 1,
+    className: 'fg-header-search-input',
+    parentNode: null
+  };
+  var cancelled = 0;
+  var applied = 0;
+  var event = { target: input };
+  var grid = {
+    headerSearchComposing: false,
+    cancelHeaderSearchTimer: function() { cancelled += 1; },
+    handleHeaderSearchInput: function(value) {
+      assert.equal(value, event);
+      applied += 1;
+    }
+  };
+
+  FabGrid.prototype.handleHeaderSearchCompositionStart.call(grid, event);
+  assert.equal(grid.headerSearchComposing, true);
+  assert.equal(cancelled, 1);
+
+  FabGrid.prototype.handleHeaderSearchCompositionEnd.call(grid, event);
+  assert.equal(grid.headerSearchComposing, false);
+  assert.equal(applied, 1);
+});
+
 test('moving search row focus selects all text only when the target has a value', function() {
   var FabGrid = createFabGridFactory({});
   var targetInput = { value: '200000' };
@@ -2051,6 +2181,26 @@ test('only cancelable Grid events honor false returns', function() {
   assert.equal(changedArgs.cancel, false);
 });
 
+test('rowDropFailed is a public non-cancelable Grid event', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var received;
+
+  grid.events = {};
+  grid.wijmoEvents = {};
+  grid.options = {};
+  FabGrid.prototype.createWijmoEvents.call(grid);
+  grid.rowDropFailed.addHandler(function(sender, args) {
+    received = args;
+    return false;
+  });
+
+  assert.equal(grid.emit('rowDropFailed', { error: new Error('failed') }), true);
+  assert.equal(received.type, 'rowDropFailed');
+  assert.equal(received.cancel, false);
+  assert.equal(received.error.message, 'failed');
+});
+
 test('unimplemented compatibility events are not exposed as Grid Event objects', function() {
   var FabGrid = createFabGridFactory({});
   var grid = Object.create(FabGrid.prototype);
@@ -2498,6 +2648,31 @@ test('remote data replaces a shared CollectionView without applying local filter
   assert.equal(grid.source[0], replacement);
   assert.equal(grid.view[0], replacement);
   assert.equal(collectionChanges, 1);
+});
+
+test('CollectionView selection waits until the Grid DOM exists', function() {
+  var FabGrid = createFabGridFactory({});
+  var item = { id: 1 };
+  var grid = Object.create(FabGrid.prototype);
+  var calls = 0;
+
+  grid.root = null;
+  grid._collectionView = { currentItem: item };
+  grid.view = [item];
+  grid.visibleColumns = [{ binding: 'id' }];
+  grid.selection = { row: -1, col: -1 };
+  grid._selectVisibleCell = function(row, col) {
+    calls += 1;
+    assert.deepEqual([row, col], [0, 0]);
+    return true;
+  };
+
+  assert.equal(grid.syncSelectionFromCollectionView(), false);
+  assert.equal(calls, 0);
+
+  grid.root = {};
+  assert.equal(grid.syncSelectionFromCollectionView(), true);
+  assert.equal(calls, 1);
 });
 
 test('new built-in remote loads abort the previous fetch signal', function() {
@@ -3682,6 +3857,7 @@ test('pointer leaving the edit cell keeps editing unchanged', function() {
   grid.colorPanel = null;
   grid.hoverRow = null;
   grid.updateInvalidTip = function() {};
+  grid.updateHoveredRowClasses = function() {};
   grid.hideInvalidTip = function() {};
   grid.renderVisibleRows = function() {};
   grid.finishEditing = function(commit, options) {
@@ -3697,6 +3873,71 @@ test('pointer leaving the edit cell keeps editing unchanged', function() {
   FabGrid.prototype.handleMouseLeave.call(grid, { relatedTarget: outside });
   assert.equal(finishCalls.length, 0);
   assert.deepEqual(grid.editing, { row: 1, col: 2 });
+});
+
+test('row hover updates only rendered row classes without rebuilding visible rows', function() {
+  var FabGrid = createFabGridFactory({});
+  var firstCell = createFakeElement(['fg-cell'], { 'data-row': 1 });
+  var secondCell = createFakeElement(['fg-cell'], { 'data-row': 2 });
+  firstCell.className = 'fg-cell';
+  secondCell.className = 'fg-cell';
+  var updates = [];
+  var grid = {
+    hoverRow: 1,
+    updateInvalidTip: function() {},
+    hideInvalidTip: function() {},
+    updateHoveredRowClasses: function(row, hovered) {
+      updates.push([row, hovered]);
+    },
+    renderVisibleRows: function() {
+      throw new Error('row hover must not rebuild visible rows');
+    }
+  };
+
+  FabGrid.prototype.handleMouseMove.call(grid, { target: secondCell });
+  FabGrid.prototype.handleMouseMove.call(grid, { target: secondCell });
+  FabGrid.prototype.handleMouseLeave.call(grid);
+
+  assert.equal(grid.hoverRow, null);
+  assert.deepEqual(updates, [[1, false], [2, true], [2, false]]);
+  assert.equal(firstCell.getAttribute('data-row'), '1');
+});
+
+test('hover row class updates cover body frozen row header and selection cells', function() {
+  var FabGrid = createFabGridFactory({});
+  var states = [false, false, false, false];
+  var cells = states.map(function(value, index) {
+    return {
+      classList: {
+        add: function(name) {
+          assert.equal(name, 'fg-row-hovered');
+          states[index] = true;
+        },
+        remove: function(name) {
+          assert.equal(name, 'fg-row-hovered');
+          states[index] = false;
+        }
+      }
+    };
+  });
+  var selectorValue = '';
+  var grid = {
+    root: {
+      querySelectorAll: function(selector) {
+        selectorValue = selector;
+        return cells;
+      }
+    }
+  };
+
+  FabGrid.prototype.updateHoveredRowClasses.call(grid, 7, true);
+  assert.deepEqual(states, [true, true, true, true]);
+  assert.match(selectorValue, /\.fg-cell\[data-row="7"\]/);
+  assert.match(selectorValue, /\.fg-row-header-cell\[data-row="7"\]/);
+  assert.match(selectorValue, /\.fg-selection-cell\[data-row="7"\]/);
+
+  FabGrid.prototype.updateHoveredRowClasses.call(grid, 7, false);
+  assert.deepEqual(states, [false, false, false, false]);
 });
 
 test('clicking another cell commits the current editor before changing selection', function() {
@@ -6298,6 +6539,19 @@ test('column footer uses the same horizontal padding as body cells', function() 
   assert.match(footerCellRule[1], /padding:\s*0 7px;/);
 });
 
+test('Search Row input uses the same horizontal padding as body cells', function() {
+  var css = readFileSync(new URL('../src/grid/fabgrid.css', import.meta.url), 'utf8');
+  var viewSource = readFileSync(new URL('../src/grid/fabgrid-view.js', import.meta.url), 'utf8');
+  var bodyCellRule = css.match(/:root \.fg-cell\s*\{([^}]+)\}/);
+  var searchInputRule = css.match(/:root \.fg-header-search-input\s*\{([^}]+)\}/);
+
+  assert.ok(bodyCellRule);
+  assert.ok(searchInputRule);
+  assert.match(bodyCellRule[1], /padding:\s*0 7px;/);
+  assert.match(searchInputRule[1], /padding:\s*0 7px;/);
+  assert.match(viewSource, /getIconConfigWidth\(searchIcons, 22\) \+ 7/);
+});
+
 test('multiple footer rows support keys, labels and panel cell updates', function() {
   var FabGrid = createFabGridFactory({});
   var grid = Object.create(FabGrid.prototype);
@@ -6378,6 +6632,24 @@ test('numeric footer cells align right while footerFormatter remains authoritati
   } finally {
     globalThis.document = originalDocument;
   }
+});
+
+test('numeric row group aggregates use thousands separators by default', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var column = {
+    binding: 'amount',
+    dataType: 'number',
+    aggregate: 'sum',
+    thousandsSeparator: false,
+    precision: 2
+  };
+
+  assert.equal(grid.formatAggregateValue(27060, column, []), '27,060.00');
+  assert.equal(column.thousandsSeparator, false);
+
+  column.formatter = function(value) { return '$' + value; };
+  assert.equal(grid.formatAggregateValue(27060, column, []), '$27060');
 });
 
 test('legacy footer options keep a single footer row', function() {
@@ -7198,18 +7470,25 @@ test('Grid context menu follows filter and row header menu options', function() 
     };
   }
 
-  function renderActions(filterMode, showRowHeaderMenu, showFullscreenMenu) {
+  function renderActions(filterMode, showRowHeaderMenu, showFullscreenMenu, rowGroups, view) {
     var menu = createNode('div');
+    var textKeys = [];
     var grid = {
       options: {
         filterMode: filterMode,
         showRowHeaders: true,
         showRowHeaderMenu: showRowHeaderMenu,
-        showFullscreenMenu: showFullscreenMenu
+        showFullscreenMenu: showFullscreenMenu,
+        rowGroups: rowGroups || []
       },
+      view: view || [],
       topLeftMenu: menu,
       getText: function(key) {
+        textKeys.push(key);
         return key;
+      },
+      isRowGroup: function(item) {
+        return !!(item && item.__fgRowType === 'group');
       },
       isFullscreen: function() {
         return false;
@@ -7219,15 +7498,19 @@ test('Grid context menu follows filter and row header menu options', function() 
       }
     };
     var actions = [];
+    var icons = {};
 
     FabGrid.prototype.renderTopLeftMenu.call(grid);
     function collect(node) {
       if (node.attributes && node.attributes['data-action']) {
         actions.push(node.attributes['data-action']);
+        icons[node.attributes['data-action']] = node.children[0] ? node.children[0].className : '';
       }
       (node.children || []).forEach(collect);
     }
     collect(menu);
+    actions.icons = icons;
+    actions.textKeys = textKeys;
     return actions;
   }
 
@@ -7248,6 +7531,19 @@ test('Grid context menu follows filter and row header menu options', function() 
     assert.equal(renderActions(false, false, false).includes('export-csv'), true);
     assert.equal(renderActions(false, false, false).includes('fullscreen'), false);
     assert.equal(renderActions(false, false, true).includes('fullscreen'), true);
+    var expandedGroups = renderActions(false, false, false, [{ binding: 'region' }], [
+      { __fgRowType: 'group', collapsed: false }
+    ]);
+    var collapsedGroups = renderActions(false, false, false, [{ binding: 'region' }], [
+      { __fgRowType: 'group', collapsed: true }
+    ]);
+    assert.equal(expandedGroups.includes('row-headers-menu'), false);
+    assert.equal(expandedGroups.includes('toggle-row-groups'), true);
+    assert.ok(expandedGroups.indexOf('toggle-row-groups') < expandedGroups.indexOf('export-excel'));
+    assert.equal(expandedGroups.textKeys.includes('topLeftMenu.collapseAllGroups'), true);
+    assert.equal(collapsedGroups.textKeys.includes('topLeftMenu.expandAllGroups'), true);
+    assert.match(expandedGroups.icons['toggle-row-groups'], /icon-collapse-all/);
+    assert.match(collapsedGroups.icons['toggle-row-groups'], /icon-expand-all/);
   } finally {
     if (originalDocument === undefined) {
       delete globalThis.document;
@@ -7255,6 +7551,42 @@ test('Grid context menu follows filter and row header menu options', function() 
       globalThis.document = originalDocument;
     }
   }
+});
+
+test('Grid context menu routes the row group toggle action', function() {
+  var FabGrid = createFabGridFactory({});
+  var toggled = 0;
+  var hidden = 0;
+  var item = {
+    nodeType: 1,
+    className: 'fg-top-left-menu-item',
+    disabled: false,
+    parentNode: null,
+    getAttribute: function(name) {
+      return name === 'data-action' ? 'toggle-row-groups' : null;
+    }
+  };
+  var grid = {
+    topLeftMenu: {},
+    hideTopLeftMenu: function() {
+      hidden += 1;
+    },
+    handleTreeContextMenuAction: function() {
+      return false;
+    },
+    toggleAllRowGroups: function() {
+      toggled += 1;
+    }
+  };
+
+  FabGrid.prototype.handleTopLeftMenuClick.call(grid, {
+    target: item,
+    preventDefault: function() {},
+    stopPropagation: function() {}
+  });
+
+  assert.equal(hidden, 1);
+  assert.equal(toggled, 1);
 });
 
 test('escape closes the Excel-like filter popup without applying its draft', function() {
@@ -7454,6 +7786,7 @@ test('Excel-like filter popup moves to the page layer and restores to the Grid o
   var added = [];
   var removed = [];
   var root;
+  var dialog;
   var body;
   var menu;
   var grid;
@@ -7466,14 +7799,18 @@ test('Excel-like filter popup moves to the page layer and restores to the Grid o
     };
   }
 
+  body = createParent();
   root = createParent();
+  dialog = createParent();
+  root.parentElement = dialog;
+  dialog.parentElement = body;
   root.contains = function(node) {
     return node === root || node === menu;
   };
-  body = createParent();
   menu = {
     parentNode: root,
-    className: 'fg-filter-menu fg-excel-filter-menu'
+    className: 'fg-filter-menu fg-excel-filter-menu',
+    style: {}
   };
   grid = {
     disposed: false,
@@ -7491,6 +7828,12 @@ test('Excel-like filter popup moves to the page layer and restores to the Grid o
   grid.getFilterMenuPortalTarget = function() {
     return FabGrid.prototype.getFilterMenuPortalTarget.call(grid);
   };
+  grid.getPortalPopupZIndex = function(popup) {
+    return FabGrid.prototype.getPortalPopupZIndex.call(grid, popup);
+  };
+  grid.syncPortalPopupZIndex = function(popup) {
+    FabGrid.prototype.syncPortalPopupZIndex.call(grid, popup);
+  };
 
   globalThis.document = {
     body: body,
@@ -7498,6 +7841,11 @@ test('Excel-like filter popup moves to the page layer and restores to the Grid o
     webkitFullscreenElement: null
   };
   globalThis.window = {
+    getComputedStyle: function(element) {
+      return {
+        zIndex: element === dialog ? '9068' : element === menu ? '35' : 'auto'
+      };
+    },
     addEventListener: function(name, handler, capture) {
       added.push([name, handler, capture]);
     },
@@ -7509,6 +7857,7 @@ test('Excel-like filter popup moves to the page layer and restores to the Grid o
   try {
     FabGrid.prototype.portalExcelFilterMenu.call(grid);
     assert.equal(menu.parentNode, body);
+    assert.equal(menu.style.zIndex, '9069');
     assert.deepEqual(added.map(function(item) {
       return [item[0], item[2]];
     }), [
@@ -7518,6 +7867,7 @@ test('Excel-like filter popup moves to the page layer and restores to the Grid o
 
     FabGrid.prototype.restoreFilterMenu.call(grid);
     assert.equal(menu.parentNode, root);
+    assert.equal(menu.style.zIndex, '');
     assert.deepEqual(removed.map(function(item) {
       return [item[0], item[2]];
     }), [
@@ -7536,6 +7886,7 @@ test('Header context menu moves to the page layer and restores to the Grid on cl
   var originalWindow = globalThis.window;
   var classes = ['fg-top-left-menu'];
   var root;
+  var dialog;
   var body;
   var menu;
   var grid;
@@ -7548,10 +7899,14 @@ test('Header context menu moves to the page layer and restores to the Grid on cl
     };
   }
 
-  root = createParent();
   body = createParent();
+  root = createParent();
+  dialog = createParent();
+  root.parentElement = dialog;
+  dialog.parentElement = body;
   menu = {
     parentNode: root,
+    style: {},
     classList: {
       add: function(name) {
         if (classes.indexOf(name) < 0) {
@@ -7587,6 +7942,12 @@ test('Header context menu moves to the page layer and restores to the Grid on cl
   grid.getFilterMenuPortalTarget = function() {
     return FabGrid.prototype.getFilterMenuPortalTarget.call(grid);
   };
+  grid.getPortalPopupZIndex = function(popup) {
+    return FabGrid.prototype.getPortalPopupZIndex.call(grid, popup);
+  };
+  grid.syncPortalPopupZIndex = function(popup) {
+    FabGrid.prototype.syncPortalPopupZIndex.call(grid, popup);
+  };
 
   globalThis.document = {
     body: body,
@@ -7594,6 +7955,11 @@ test('Header context menu moves to the page layer and restores to the Grid on cl
     webkitFullscreenElement: null
   };
   globalThis.window = {
+    getComputedStyle: function(element) {
+      return {
+        zIndex: element === dialog ? '9068' : element === menu ? '35' : 'auto'
+      };
+    },
     addEventListener: function() {},
     removeEventListener: function() {}
   };
@@ -7602,11 +7968,13 @@ test('Header context menu moves to the page layer and restores to the Grid on cl
     FabGrid.prototype.portalTopLeftMenu.call(grid);
     assert.equal(menu.parentNode, body);
     assert.equal(menu.classList.contains('fg-top-left-menu-portal'), true);
+    assert.equal(menu.style.zIndex, '9069');
     assert.equal(grid.filterMenuViewportEventsBound, true);
 
     FabGrid.prototype.restoreTopLeftMenu.call(grid);
     assert.equal(menu.parentNode, root);
     assert.equal(menu.classList.contains('fg-top-left-menu-portal'), false);
+    assert.equal(menu.style.zIndex, '');
     assert.equal(grid.filterMenuViewportEventsBound, false);
   } finally {
     globalThis.document = originalDocument;
@@ -7829,6 +8197,49 @@ test('constructor filter rules initialize Search Row values and operators', func
       { field: 'serverOnly', op: 'eq', value: '保留' }
     ])
   });
+});
+
+test('local filter rules accept legacy pattern operator aliases', function() {
+  var FabGrid = createFabGridFactory({});
+  var columns = [
+    { binding: 'contains', dataType: 'string' },
+    { binding: 'starts', dataType: 'string' },
+    { binding: 'ends', dataType: 'string' }
+  ];
+  var grid = {
+    options: {
+      remote: false,
+      filterMode: ['searchRow'],
+      filterRules: [
+        { field: 'contains', op: '%..%', value: 'A' },
+        { field: 'starts', op: '..%', value: 'B' },
+        { field: 'ends', op: '%..', value: 'C' }
+      ]
+    },
+    columns: columns,
+    columnSearchValues: {},
+    columnSearchOperators: {},
+    hasColumnSearch: false,
+    getColumn: function(value) {
+      return columns.find(function(column) {
+        return column.binding === value;
+      }) || null;
+    }
+  };
+
+  var applied = FabGrid.prototype.applyInitialFilterRules.call(grid, grid.options.filterRules);
+
+  assert.deepEqual(applied, [
+    { field: 'contains', op: 'contains', value: 'A' },
+    { field: 'starts', op: 'starts', value: 'B' },
+    { field: 'ends', op: 'ends', value: 'C' }
+  ]);
+  assert.deepEqual(grid.columnSearchOperators, {
+    'binding:contains': 'contains',
+    'binding:starts': 'starts',
+    'binding:ends': 'ends'
+  });
+  assert.deepEqual(grid.options.filterRules, applied);
 });
 
 test('remote constructor filter rules preserve custom operators', function() {
@@ -8569,6 +8980,63 @@ test('quick search reuses cached results and progressively narrows prior matches
   grid.invalidateSearchCache();
   assert.equal(grid._progressiveSearchRows, null);
   assert.equal(grid._progressiveSearchText, '');
+});
+
+test('TreeGrid children search mode includes the complete branch of a matching parent', function() {
+  var FabGrid = createFabGridFactory({});
+  var root = {
+    name: 'Alpha',
+    children: [
+      { name: 'First child', children: [] },
+      { name: 'Second child', children: [] }
+    ]
+  };
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.options = {
+    childItemsPath: 'children',
+    treeSearchVisibility: 'children',
+    remote: false,
+    pagination: false,
+    filterMode: ['excel'],
+    rowGroups: []
+  };
+  grid.source = [root];
+  grid._collectionView = null;
+  grid.columns = [{ binding: 'name', visible: true, _index: 0 }];
+  grid.visibleColumns = grid.columns;
+  grid.excelFilters = {};
+  grid.filterPredicate = null;
+  grid.searchText = 'alpha';
+  grid.columnSearchValues = {};
+  grid.columnSearchOperators = {};
+  grid.hasColumnSearch = false;
+  grid._treeCollapsedItems = [];
+  grid._treeCollapsedSet = typeof WeakSet === 'function' ? new WeakSet() : null;
+  grid._searchResultCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  grid._searchColumnSignature = '';
+  grid._progressiveSearchText = '';
+  grid._progressiveSearchRows = null;
+  grid.getSortStates = function() { return []; };
+  grid.captureSelectionState = function() { return null; };
+  grid.refreshInvalidItemRows = function() {};
+  grid.restoreSelectionState = function() {};
+  grid.clampSelection = function() {};
+  grid.syncEditingWithView = function() {};
+  grid.rowMatchesCachedSearch = function(item, columns, searchText) {
+    return String(item.name || '').toLowerCase().indexOf(String(searchText).toLowerCase()) >= 0;
+  };
+
+  grid.applyView();
+  assert.deepEqual(grid.view.map(function(item) { return item.name; }), [
+    'Alpha',
+    'First child',
+    'Second child'
+  ]);
+
+  grid.options.treeSearchVisibility = 'ancestors';
+  grid.applyView();
+  assert.deepEqual(grid.view, [root]);
 });
 
 test('excel value filters are applied only while search row is hidden', function() {

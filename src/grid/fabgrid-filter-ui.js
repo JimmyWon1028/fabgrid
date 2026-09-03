@@ -36,6 +36,28 @@ export function installFabGridFilterUi(FabGrid, context) {
     return !search || label.toLowerCase().indexOf(search) >= 0;
   }
 
+  function hasConfiguredRowGroups(grid) {
+    var groups = grid && grid.options && Array.isArray(grid.options.rowGroups) ? grid.options.rowGroups : [];
+    var i;
+    for (i = 0; i < groups.length; i += 1) {
+      if (groups[i]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function hasExpandedRowGroups(grid) {
+    var rows = grid && Array.isArray(grid.view) ? grid.view : [];
+    var i;
+    for (i = 0; i < rows.length; i += 1) {
+      if (grid.isRowGroup(rows[i]) && !rows[i].collapsed) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   FabGrid.prototype.bindPopupDocumentEvents = function() {
     if (this.popupDocumentEventsBound || this.disposed) {
       return;
@@ -100,6 +122,45 @@ export function installFabGridFilterUi(FabGrid, context) {
     return document.body || this.root;
   };
 
+  FabGrid.prototype.getPortalPopupZIndex = function(popup) {
+    var node = this.root;
+    var popupStyle;
+    var nodeStyle;
+    var value;
+    var zIndex = 0;
+    if (typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') {
+      return zIndex;
+    }
+    if (popup) {
+      popupStyle = window.getComputedStyle(popup);
+      value = parseInt(popupStyle && popupStyle.zIndex, 10);
+      if (Number.isFinite(value)) {
+        zIndex = Math.max(zIndex, value);
+      }
+    }
+    while (node) {
+      nodeStyle = window.getComputedStyle(node);
+      value = parseInt(nodeStyle && nodeStyle.zIndex, 10);
+      if (Number.isFinite(value)) {
+        zIndex = Math.max(zIndex, value + 1);
+      }
+      node = node.parentElement;
+    }
+    return zIndex;
+  };
+
+  FabGrid.prototype.syncPortalPopupZIndex = function(popup) {
+    var zIndex;
+    if (!popup || !popup.style) {
+      return;
+    }
+    popup.style.zIndex = '';
+    zIndex = this.getPortalPopupZIndex(popup);
+    if (zIndex > 0) {
+      popup.style.zIndex = String(zIndex);
+    }
+  };
+
   FabGrid.prototype.portalExcelFilterMenu = function() {
     var target;
     if (!this.filterMenu || !hasClass(this.filterMenu, 'fg-excel-filter-menu')) {
@@ -109,11 +170,15 @@ export function installFabGridFilterUi(FabGrid, context) {
     if (target && this.filterMenu.parentNode !== target) {
       target.appendChild(this.filterMenu);
     }
+    this.syncPortalPopupZIndex(this.filterMenu);
     this.bindFilterMenuViewportEvents();
   };
 
   FabGrid.prototype.restoreFilterMenu = function() {
     this.unbindFilterMenuViewportEvents();
+    if (this.filterMenu && this.filterMenu.style) {
+      this.filterMenu.style.zIndex = '';
+    }
     if (this.filterMenu && this.root && this.filterMenu.parentNode !== this.root) {
       this.root.appendChild(this.filterMenu);
     }
@@ -129,12 +194,16 @@ export function installFabGridFilterUi(FabGrid, context) {
       target.appendChild(this.topLeftMenu);
     }
     this.topLeftMenu.classList.add('fg-top-left-menu-portal');
+    this.syncPortalPopupZIndex(this.topLeftMenu);
     this.bindFilterMenuViewportEvents();
   };
 
   FabGrid.prototype.restoreTopLeftMenu = function() {
     if (this.topLeftMenu) {
       this.topLeftMenu.classList.remove('fg-top-left-menu-portal');
+      if (this.topLeftMenu.style) {
+        this.topLeftMenu.style.zIndex = '';
+      }
     }
     if (this.topLeftMenu && this.root && this.topLeftMenu.parentNode !== this.root) {
       this.root.appendChild(this.topLeftMenu);
@@ -245,6 +314,15 @@ export function installFabGridFilterUi(FabGrid, context) {
         iconClass: 'icon-row-number',
         label: this.getText('topLeftMenu.rowHeaders'),
         children: rowHeaderItems
+      });
+    }
+    if (hasConfiguredRowGroups(this)) {
+      var collapseRowGroups = hasExpandedRowGroups(this);
+      items.push({
+        action: 'toggle-row-groups',
+        iconClass: collapseRowGroups ? 'icon-collapse-all' : 'icon-expand-all',
+        label: this.getText(collapseRowGroups ?
+          'topLeftMenu.collapseAllGroups' : 'topLeftMenu.expandAllGroups')
       });
     }
     items.push(
@@ -396,6 +474,10 @@ export function installFabGridFilterUi(FabGrid, context) {
     }
     if (action === 'row-headers-cell') {
       this.setShowRowHeaders('cell');
+      return;
+    }
+    if (action === 'toggle-row-groups') {
+      this.toggleAllRowGroups();
       return;
     }
     if (action === 'export-excel') {
@@ -1316,12 +1398,14 @@ export function installFabGridFilterUi(FabGrid, context) {
 
   FabGrid.prototype.handleHeaderSearchCompositionStart = function(event) {
     if (closest(event.target, 'fg-header-search-input')) {
+      this.headerSearchComposing = true;
       this.cancelHeaderSearchTimer();
     }
   };
 
   FabGrid.prototype.handleHeaderSearchCompositionEnd = function(event) {
     if (closest(event.target, 'fg-header-search-input')) {
+      this.headerSearchComposing = false;
       this.handleHeaderSearchInput(event);
     }
   };
@@ -1392,6 +1476,10 @@ export function installFabGridFilterUi(FabGrid, context) {
     var column;
     var direction;
     var nextCol;
+    if (this.headerSearchComposing === true || event.isComposing === true ||
+      event.keyCode === 229 || event.which === 229) {
+      return false;
+    }
     if (this.handleMaskedHeaderSearchDelete(event, input)) {
       return true;
     }

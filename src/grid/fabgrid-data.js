@@ -377,6 +377,7 @@ export function installFabGridData(FabGrid, context) {
     var excelFilters = getActiveFilterMode(grid.options) === 'excel' && hasExcelFilters(grid.excelFilters) ?
       grid.excelFilters : null;
     var columns = grid.columns;
+    var tree = typeof grid.isTreeGrid === 'function' && grid.isTreeGrid();
     if (searchText && typeof grid.prepareSearchCache === 'function') {
       grid.prepareSearchCache(columns);
     }
@@ -384,7 +385,36 @@ export function installFabGridData(FabGrid, context) {
         !filterPredicate && !searchText && !columnSearchValues && !excelFilters) {
       return null;
     }
-    return function(item, index) {
+    if (tree) {
+      return function(item, index) {
+        var visited = [];
+        return matchesTreeItem(item, index, visited);
+      };
+    }
+    return matchesItem;
+
+    function matchesTreeItem(item, index, visited) {
+      var children;
+      var i;
+      if (matchesItem(item, index)) {
+        return true;
+      }
+      if (item && typeof item === 'object') {
+        if (visited.indexOf(item) >= 0) {
+          return false;
+        }
+        visited.push(item);
+      }
+      children = grid.getTreeChildren(item);
+      for (i = 0; i < children.length; i += 1) {
+        if (matchesTreeItem(children[i], i, visited)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function matchesItem(item, index) {
       if (filterPredicate && !filterPredicate(item, index)) {
         return false;
       }
@@ -403,7 +433,7 @@ export function installFabGridData(FabGrid, context) {
           columnSearchValues,
           columnSearchOperators
         )) && (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
-    };
+    }
   }
 
   FabGrid.prototype.invalidateSearchCache = function() {
@@ -481,7 +511,7 @@ export function installFabGridData(FabGrid, context) {
     };
   }
 
-  function normalizeRemotePatternOperator(operator) {
+  function normalizePatternOperator(operator) {
     operator = String(operator || '').trim();
     if (operator === '%..%') {
       return 'contains';
@@ -492,6 +522,11 @@ export function installFabGridData(FabGrid, context) {
     if (operator === '%..') {
       return 'ends';
     }
+    return normalizeColumnSearchOperator(operator);
+  }
+
+  function normalizeRemotePatternOperator(operator) {
+    operator = String(operator || '').trim();
     if (operator === '!%..%') {
       return 'not-contains';
     }
@@ -522,7 +557,7 @@ export function installFabGridData(FabGrid, context) {
     if (operator.toLowerCase() === 'in') {
       return 'in';
     }
-    return normalizeColumnSearchOperator(operator);
+    return normalizePatternOperator(operator);
   }
 
   function serializeRemoteFilterOperator(operator) {
@@ -712,6 +747,7 @@ export function installFabGridData(FabGrid, context) {
 
   FabGrid.prototype.formatAggregateValue = function(value, column, rows) {
     var formatted;
+    var numberColumn;
     if (value == null) {
       return '';
     }
@@ -724,7 +760,9 @@ export function installFabGridData(FabGrid, context) {
       return formatted == null ? '' : String(formatted);
     }
     if (column && column.dataType === 'number') {
-      return formatNumberDisplayText(value, column);
+      numberColumn = Object.create(column);
+      numberColumn.thousandsSeparator = true;
+      return formatNumberDisplayText(value, numberColumn);
     }
     return String(value);
   };
@@ -934,7 +972,7 @@ export function installFabGridData(FabGrid, context) {
   FabGrid.prototype.syncSelectionFromCollectionView = function() {
     var row;
     var col;
-    if (!this._collectionView || !this._collectionView.currentItem || !this.view ||
+    if (!this.root || !this._collectionView || !this._collectionView.currentItem || !this.view ||
         !this.visibleColumns || !this.visibleColumns.length) {
       return false;
     }
@@ -1409,7 +1447,7 @@ export function installFabGridData(FabGrid, context) {
       } else {
         value = String(rule.value).trim();
       }
-      operator = normalizeColumnSearchOperator(rawOperator);
+      operator = normalizePatternOperator(rawOperator);
       uiOperator = this.options.remote === true ? normalizeRemotePatternOperator(rawOperator) : operator;
       column = field ? this.getColumn(field) : null;
       if (
@@ -1696,10 +1734,13 @@ export function installFabGridData(FabGrid, context) {
 
     if (typeof this.isTreeGrid === 'function' && this.isTreeGrid()) {
       treeSortValueCache = sortStates.length && typeof WeakMap === 'function' ? new WeakMap() : null;
-      filtering = !this._collectionView && this.options.remote !== true &&
+      filtering = this.options.remote !== true &&
         Boolean(filterPredicate || searchText || columnSearchValues || excelFilters);
       treeOptions = {
         filtering: filtering,
+        searching: Boolean(searchText),
+        includeSearchDescendants: Boolean(searchText) &&
+          String(this.options.treeSearchVisibility || '').toLowerCase() === 'children',
         pagination: false,
         pageNumber: this.options.pageNumber,
         pageSize: this.options.pageSize,
@@ -1707,13 +1748,11 @@ export function installFabGridData(FabGrid, context) {
           if (filterPredicate && !filterPredicate(item)) {
             return false;
           }
-          if (!searchText) {
-            return (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators)) &&
-              (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
-          }
-          return matchesSearch(this, item, columns, searchText) &&
-            (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators)) &&
+          return (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators)) &&
             (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
+        }.bind(this),
+        matchesSearch: function(item) {
+          return !searchText || matchesSearch(this, item, columns, searchText);
         }.bind(this),
         compare: sortStates.length && this.options.remote !== true ? function(a, b) {
           var aValues;

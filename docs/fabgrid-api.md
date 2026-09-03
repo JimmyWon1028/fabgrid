@@ -173,6 +173,7 @@ fabui.setConfig({
 | `editOnSelect` | `boolean` | `false` | 點選 cell 時直接開始編輯。 |
 | `allowResizing` | `boolean` | `true` | 是否允許拖曳調整欄寬；雙擊 header 分隔線會自動調整為合適欄寬。 |
 | `allowDragging` | `'None' \| 'Columns' \| 'Rows' \| 'All'` | `'None'` | `'Columns'` 重排欄位；`'Rows'` 啟用同一 Grid 或跨 Grid 資料列拖曳；`'All'` 同時啟用兩者。Row drag 僅支援本機資料。 |
+| `rowDropHandler` | `function(args)` | `null` | Row drop 執行前決定結果；可回傳 `false` 取消、`{ action: 'move' }`、`{ action: 'copy', item }`，或回傳上述結果的 Promise。Promise pending 期間來源與目標 Grid 暫停新的 Row drag；失敗不改動資料並觸發 `rowDropFailed`。 |
 | `filterMode` | `false \| Array<'excel' \| 'searchRow'>` | `['excel', 'searchRow']` | 可用篩選模式；第一項是目前模式。多於一項時，Header 右鍵功能表可切換模式。 |
 | `filterRules` | `Array<{field, op, value}> \| string` | `[]` | 初始化 Search Row 規則；本機與遠端細節見[篩選與搜尋](#篩選與搜尋)。 |
 | `excelFilterMaxValues` | `number` | `1000` | Excel-like「依值篩選」最多收集的唯一候選值數量；不控制 popup 高度，套用時仍保留未列出值原本的選取狀態。 |
@@ -195,6 +196,9 @@ fabui.setConfig({
 | `childItemsPath` | `string \| function` | `null` | 指定子節點陣列的 binding path 或 callback；設定後啟用 TreeGrid。 |
 | `treeColumn` | `number \| string \| Column` | `null` | 顯示階層箭頭與縮排的欄位；數字及十進位整數字串使用完整 `grid.columns` index，也可傳入 binding／name／header 或 Column object；預設為第一個可見欄。 |
 | `treeIndent` | `number` | `20` | 每一階 TreeGrid 縮排寬度，單位為 px。 |
+| `treeSearchVisibility` | `'ancestors' \| 'children'` | `'ancestors'` | 全域 `setSearch()` 的 TreeGrid 顯示方式。`'ancestors'` 只保留符合節點及祖先；`'children'` 在父節點符合時保留其完整子樹，子節點符合時仍保留必要祖先。其他欄位篩選條件仍會套用。 |
+| `treeLevelColors` | `string[] \| null` | `null` | 樹欄各階層左側色帶，值只接受 `$RRGGBB`，例如 `['$ffff00', '$00ff00']`；層級超過陣列長度時循環使用。`null` 或空陣列不顯示色帶。 |
+| `treeLevelColorOpacities` | `number[] \| null` | `null` | `treeLevelColors` 各色帶的透明度，值為 `0` 至 `1` 並循環使用；未設定時完全不透明。無效項目視為 `1`，超出範圍時限制為 `0` 或 `1`。 |
 
 ### 分頁與遠端資料
 
@@ -236,7 +240,7 @@ var grid = new fabui.FabGrid('#grid', {
 });
 ```
 
-具有 `aggregate` 的欄位會在群組列顯示彙總結果。群組收合狀態會在排序、篩選與 refresh 後保留；可使用 `toggleRowGroup()`、`toggleAllRowGroups()` 操作。
+具有 `aggregate` 的欄位會在群組列顯示彙總結果；數字欄位的 aggregate 預設顯示千位分隔，自訂 `footerFormatter`／`formatter` 仍優先。群組收合狀態會在排序、篩選與 refresh 後保留；可使用 `toggleRowGroup()`、`toggleAllRowGroups()` 操作。設定 `rowGroups` 時，Header 右鍵功能表會在匯出項目前顯示單一「全部疊合／全部展開」狀態項目；只要目前仍有可視的展開群組就顯示「全部疊合」，全部疊合後切換為「全部展開」。此項目不依賴 `showRowHeaderMenu`。
 
 ### TreeGrid
 
@@ -267,13 +271,24 @@ var grid = new fabui.FabGrid('#grid', {
 grid.collapseGroupsToLevel(0);
 ```
 
-節點箭頭與樹欄的左右方向鍵可收合或展開。排序只調整同一父節點下的兄弟順序；本機篩選會保留並暫時展開符合節點的祖先路徑。
+節點箭頭與樹欄的左右方向鍵可收合或展開。排序只調整同一父節點下的兄弟順序；本機篩選會保留並暫時展開符合節點的祖先路徑。若要讓符合搜尋的父節點顯示完整子樹，可設定 `treeSearchVisibility: 'children'`。`treeLevelColors` 可直接由 TreeGrid renderer 畫出階層色帶，不需要在 `formatItem` 建立額外 DOM；箭頭會置中於目前階層色塊，cell 的文字裝飾只套用到內容，不影響箭頭：
+
+```js
+var grid = new fabui.FabGrid('#grid', {
+  itemsSource: rows,
+  childItemsPath: 'children',
+  treeColumn: 'name',
+  treeSearchVisibility: 'children',
+  treeLevelColors: ['$ffff00', '$00ff00', '$ff0000', '$0000ff'],
+  treeLevelColorOpacities: [0.4, 0.15, 0.15, 0.15]
+});
+```
 
 列號依完整階層順序編排，收合或篩選不會重新編號。分頁以根節點為單位，子樹不會被拆頁。設定 `childItemsPath` 時，不再套用 `rowGroups`。
 
 在樹欄的任一資料 cell 按滑鼠右鍵會開啟共用 Grid popup，並顯示單一「全部展開」或「全部疊合」狀態項目。只要目前仍有可視的展開節點就顯示「全部疊合」；全部疊合後才切換為「全部展開」。
 
-設定 `allowDragging: 'Rows'` 後，可拖曳同一 TreeGrid 節點或從另一個啟用 row drag 的 Grid 移入。節點列上緣、中央、下緣分別代表 `before`、`inside`、`after`；核心會阻止把父節點移入自己的子孫節點。跨 Grid drop 採 move 語意，成功後資料會從來源 Grid 移除：
+設定 `allowDragging: 'Rows'` 後，可拖曳同一 TreeGrid 節點或從另一個啟用 row drag 的 Grid 移入。節點列上緣、中央、下緣分別代表 `before`、`inside`、`after`；核心會阻止把父節點移入自己的子孫節點。未設定 `rowDropHandler` 時，跨 Grid drop 採 move 語意，成功後資料會從來源 Grid 移除：
 
 ```js
 var pool = new fabui.FabGrid('#pool', {
@@ -288,6 +303,23 @@ var tree = new fabui.FabGrid('#tree', {
   childItemsPath: 'children',
   treeColumn: 'name',
   allowDragging: 'Rows'
+});
+```
+
+需要先非同步載入完整子樹再複製時，直接由目標 Grid 的 `rowDropHandler` 回傳 Promise。核心只會在 Promise 成功後寫入資料，來源列不會被移除：
+
+```js
+var tree = new fabui.FabGrid('#tree', {
+  itemsSource: organizationRows,
+  childItemsPath: 'children',
+  treeColumn: 'name',
+  allowDragging: 'Rows',
+  rowDropHandler: function(e) {
+    if (e.sourceGrid === e.targetGrid) return { action: 'move' };
+    return loadBranch(e.sourceItem).then(function(item) {
+      return { action: 'copy', item: item };
+    });
+  }
 });
 ```
 
@@ -582,7 +614,7 @@ var grid = new fabui.FabGrid('#grid', {
 });
 ```
 
-上例會自動顯示 Search Row，在 `status` input 填入「草稿」並顯示 `=`，在 `amount` input 填入 `1000` 並顯示 `≥`。本機模式支援 `starts`、`contains`、`ends`、`not-starts`、`not-contains`、`not-ends`、`gte`、`gt`、`lte`、`lt`、`ne` 與 `eq`；省略 `op` 時使用 `starts`。`remote: true` 時不套用這份白名單，自訂 `op` 會保留大小寫與符號並原樣送出。
+上例會自動顯示 Search Row，在 `status` input 填入「草稿」並顯示 `=`，在 `amount` input 填入 `1000` 並顯示 `≥`。本機模式支援 `starts`、`contains`、`ends`、`not-starts`、`not-contains`、`not-ends`、`gte`、`gt`、`lte`、`lt`、`ne` 與 `eq`；為相容舊 OA/ERP 規則，也接受 `..%`、`%..%`、`%..`，並分別正規化為 `starts`、`contains`、`ends`。省略 `op` 時使用 `starts`。`remote: true` 時不套用本機白名單，自訂 `op` 會保留大小寫與符號並原樣送出。
 
 `remote: true` 的 SQL-like 字串運算符會另外映射到既有 Search Row filter icon，但 request 仍保留原始 `op`：`%..%` 對應包含、`..%` 對應開頭、`%..` 對應結尾；前置 `!` 分別對應不包含、非開頭與非結尾。
 
@@ -622,6 +654,8 @@ Search Row 遇到 `date`、`combo`、`color` editor 時會使用相同類型的�
 Search input 聚焦時按 `↓`，焦點會移到目前 selected row 的同欄 active cell，不會移動資料列或啟動 editor。若目標已捲出畫面，Grid 會先將它捲入可視範圍。
 
 第一列 active cell 按 `↑` 會回到同欄 Search input。Popup 開啟時，方向鍵優先由 popup 處理。
+
+Search input 正在進行中文等輸入法 composition 時，`↑`／`↓` 與 keyCode `229` 會保留給輸入法候選字操作，不會把焦點移到 Grid；composition 完成後才依輸入結果套用 Search Row 篩選。
 
 頁面同時存在多個 FabGrid，或一個 FabGrid 位於另一個 FabGrid 內時，方向鍵只由最後取得 pointer／焦點且為事件來源最近 `.fg-root` 的 Grid 處理；Grid 消化方向鍵、Page、Home 或 End 導覽後會停止事件冒泡，避免頁面層或另一套鍵盤 handler 再次移動 Grid。即使頁面轉送事件或焦點暫時回到頁面層，同一個動作仍只處理一次，其他 Grid 的 selection 不會跟著移動。
 
@@ -781,13 +815,13 @@ const blob = fabui.Excel.getBlob({
 
 JSON 使用標準 `JSON.stringify()`／`JSON.parse()`；日期會依 JSON 規格成為字串，循環參照與 `BigInt` 會由 `JSON.stringify()` 拋出錯誤。預設輸出完整 `itemsSource` 是為了保留 TreeGrid 階層與未顯示資料；只有明確指定 `viewOnly: true` 才輸出目前篩選／排序／分頁後的 view。
 
-CSV 與 Excel 都以目前 Grid view 為資料來源。Excel 預設保留完整欄位集合；畫面隱藏的欄位仍包含資料，並在工作表標記為 hidden。只有明確傳入 `visibleOnly: true` 或相容 boolean `true` 才排除隱藏欄。群組啟用時會保留群組列、aggregate 顯示格式與收合狀態；工作表同時包含凍結窗格、autoFilter 與目前 `headerDisplayMode` 對應的標題。
+CSV 與 Excel 都以目前 Grid view 為資料來源。Excel 預設保留完整欄位集合；畫面隱藏的欄位仍包含資料，並在工作表標記為 hidden。只有明確傳入 `visibleOnly: true` 或相容 boolean `true` 才排除隱藏欄。`dataType: 'number'` 欄位啟用 `thousandsSeparator` 時，XLSX 會保留數值型別並套用千分位格式；未指定 `precision` 時，整數不會顯示小數點，有小數的值才保留小數格式。若明確設定 `precision`，則保留指定的小數位格式。群組啟用時會保留群組列、aggregate 顯示格式與收合狀態；工作表同時包含凍結窗格、autoFilter 與目前 `headerDisplayMode` 對應的標題。
 
 ### Header Row 右鍵功能表
 
-在一般欄位 Header Row 按滑鼠右鍵會開啟 Grid 功能表；左上角列頭、Search Row 與一般資料列不會觸發。正規化後的 `filterMode.length > 1` 時，功能表提供切換目前篩選模式；單一模式時不顯示此項目。另有清除所有篩選、列號、匯出 Excel、匯出 CSV 與 Grid fullscreen。
+在一般欄位 Header Row 按滑鼠右鍵會開啟 Grid 功能表；左上角列頭、Search Row 與一般資料列不會觸發。正規化後的 `filterMode.length > 1` 時，功能表提供切換目前篩選模式；單一模式時不顯示此項目。另有清除所有篩選、列號、群組全部疊合／展開、匯出 Excel、匯出 CSV 與 Grid fullscreen。
 
-啟用任一 `filterMode` 時，「清除篩選」會清除 predicate、全域搜尋與所有欄位搜尋；`filterMode: false` 時不顯示此項目。「列號」的下層功能表提供關閉、顯示列號及只顯示 cell，並以勾選標示目前模式；`showRowHeaderMenu: false` 時不顯示整個「列號」項目，但不會改變目前列號欄狀態。`showFullscreenMenu` 預設為 `false`，只有設為 `true` 時才顯示 Grid 全螢幕／離開全螢幕項目。功能表文字跟隨目前 locale，篩選模式與 fullscreen 項目會依當下狀態切換文字。TreeGrid 樹欄資料 cell 是唯一例外，右鍵時使用同一 popup 顯示全部展開／全部疊合。
+啟用任一 `filterMode` 時，「清除篩選」會清除 predicate、全域搜尋與所有欄位搜尋；`filterMode: false` 時不顯示此項目。「列號」的下層功能表提供關閉、顯示列號及只顯示 cell，並以勾選標示目前模式；`showRowHeaderMenu: false` 時不顯示整個「列號」項目，但不會改變目前列號欄狀態。只要設定 `rowGroups`，功能表便會在匯出 Excel 前顯示單一「全部疊合／全部展開」狀態項目，且不受 `showRowHeaderMenu` 影響。`showFullscreenMenu` 預設為 `false`，只有設為 `true` 時才顯示 Grid 全螢幕／離開全螢幕項目。功能表文字跟隨目前 locale，篩選模式、群組與 fullscreen 項目會依當下狀態切換文字。TreeGrid 樹欄資料 cell 右鍵時使用同一 popup 顯示 TreeGrid 的全部展開／全部疊合。Excel-like filter popup 與 Header 右鍵功能表掛載至頁面層時會自動高於 Grid 所在的視窗堆疊層級，不需由外部硬編 z-index。
 
 ## 5. 事件
 
@@ -821,7 +855,8 @@ grid.on('cellEditEnding', function(g, e) {
 | `filterModeChanged` | `setFilterMode()` 改變設定後；`e.filterMode` 為正規化後的模式、`e.activeMode` 為目前模式或 `null`，`e.clearedFilter` 表示是否清除原模式的欄位條件。 |
 | `rowHeaderModeChanged` | 呼叫 `setShowRowHeaders()` 改變列號模式後；`e.mode` 為 `true`、`false` 或 `'cell'`。 |
 | `draggingRow` | Row drag 開始或進入新落點時；可回傳 `false` 取消，`e.phase` 為 `'start'` 或 `'over'`。 |
-| `draggedRow` | Row drop 完成後；包含 `e.sourceGrid`、`e.targetGrid`、`e.item`、`e.targetItem`、`e.position`。 |
+| `draggedRow` | Row drop 完成後；包含 `e.sourceGrid`、`e.targetGrid`、`e.sourceItem`、實際寫入的 `e.item`、`e.targetItem`、`e.position` 與 `e.action`。 |
+| `rowDropFailed` | `rowDropHandler` 拋出例外、Promise reject 或回傳無效結果時；包含原 drop 參數、`e.error` 與來源／目標角色 `e.role`，且不改動資料。 |
 | `groupCollapsedChanging` / `groupCollapsedChanged` | 群組或 TreeGrid 節點收合前／後；TreeGrid event args 會包含 `tree: true`、`row`、`item`、`level`、`collapsed`。 |
 | `updatingLayout` / `updatedLayout` | 版面更新前／後；`updatingLayout` 可回傳 `false` 取消該次 layout 與 render，且不觸發 `updatedLayout`、`updatedView` 或對應完成事件。 |
 | `viewportChanged` | 可視 row、column 範圍或 render cell 數變動。 |
@@ -1090,7 +1125,7 @@ var columns = [
 
 雙擊 cell、按 `Enter` 或 `F2` 可開始編輯。只要 cell 正在編輯，`Enter` 都會提交並向右尋找下一個可編輯 cell；目前列找不到時，接續到下一列第一個可編輯 cell。`Shift+Enter` 則向左尋找，並可從列首回到上一列最後一個可編輯 cell。此行為不受 `editOnSelect` 影響。`editOnSelect: true` 時，`Tab`／`Shift+Tab` 也會向右／向左尋找且可跨列，上下方向鍵維持跨列連續編輯。`editOnSelect: false` 且允許編輯時，在 active cell 直接輸入可用字元會自動開始編輯並取代原內容；Tab／Shift+Tab 只提交並結束目前編輯，未由 Spinner 或已開啟 Popup 接管的方向鍵保留輸入框原生字元游標移動。`Escape` 一律取消。文字 Column 設定 `multiLine: true` 時 editor 使用 `<textarea>`，可以承載輸入或貼入的多行值，並沿用上述 Enter 導覽契約。此設定不改變 cell 的單行顯示與固定列高。FabGrid 只保留一個 active cell，active editor 必須與該 cell 相同；滑鼠單純離開 edit cell 時維持編輯不變，只有點擊或程式選取其他 cell 時才取消目前編輯，且不提交尚未完成的值。使用鍵盤讓焦點離開 Grid 時，`text`、`number`、`time`、`date`、`combo`、`color` editor 仍會提交目前值。連續編輯移出可視區時只捲動所需列數，active editor 會保持在可視區頂部或底部邊界，不會跳到第一列。
 
-FabGrid 與 `fabui.EditBox` 共用 editor definitions 與主要 options。Icon descriptor 統一為 `{ iconCls, title, ariaLabel, text, width, align, keepFocus, onClick }`；舊欄位名稱只保留相容。`iconCls` 可使用外部普通 CSS class 定義 `background` 或 `background-image`，不需要加上 `:root` 或 `!important`。
+FabGrid 與 `fabui.EditBox` 共用 editor definitions 與主要 options。Icon descriptor 統一為 `{ iconCls, title, ariaLabel, text, width, align, keepFocus, onClick }`；舊欄位名稱只保留相容。`keepFocus: false` 允許 `onClick` 將焦點同步交給外部 popup，不會提交或重新聚焦目前的 Grid editor；callback 結束後，後續失焦仍維持原本的提交與驗證行為。`iconCls` 可使用外部普通 CSS class 定義 `background` 或 `background-image`，不需要加上 `:root` 或 `!important`。
 
 日期、清單與顏色 editor／Search Row 分別共用 DatePopup、ComboPopup 與 ColorPopup。Grid 的 `color` cell editor 點選色票或清除色彩後會立即關閉 popup。完整 options 請見 [EditBox API](./editbox-api.md)。
 

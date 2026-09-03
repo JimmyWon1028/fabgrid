@@ -419,6 +419,8 @@
         "rowHeadersOff": "Row headers: Off",
         "rowHeadersNumbers": "Row headers: Numbers",
         "rowHeadersCellOnly": "Row headers: Cells only",
+        "expandAllGroups": "Expand all groups",
+        "collapseAllGroups": "Collapse all groups",
         "exportExcel": "Export Excel",
         "exportCsv": "Export CSV",
         "fullscreen": "Grid fullscreen",

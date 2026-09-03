@@ -10,8 +10,8 @@ import {
   normalizeRemoteData,
   normalizeRemoteCredentials,
   setByBinding
-} from './fabgrid-data.js?v=20260809-number-string-v1';
-import { installFabGridExport } from './fabgrid-export.js?v=20260809-number-string-v1';
+} from './fabgrid-data.js?v=20260827-group-aggregate-number-format-v1';
+import { installFabGridExport } from './fabgrid-export.js?v=20260812-collection-view-init-v1';
 import { installFabGridDrag } from './fabgrid-drag.js?v=20260804-grid-event-layout-v2';
 import { installFabGridTree } from './fabgrid-tree.js?v=20260804-grid-column-rollback-v4';
 import {
@@ -27,9 +27,9 @@ import {
   isMaskValueIncludingLiterals
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
-import { installFabGridView } from './fabgrid-view.js?v=20260810-column-resizing-v1';
-import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260809-excel-filter-search-apply-v1';
-import { installFabGridSelection } from './fabgrid-selection.js?v=20260810-column-resizing-v1';
+import { installFabGridView } from './fabgrid-view.js?v=20260815-header-compact-icons-v2';
+import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260821-search-row-ime-v1';
+import { installFabGridSelection } from './fabgrid-selection.js?v=20260815-row-hover-fast-v1';
 import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260807-async-stay-on-invalid-v1';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
@@ -88,6 +88,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       'copyFailed',
       'draggedColumn',
       'draggedRow',
+      'rowDropFailed',
       'excelExportFailed',
       'excelExported',
       'filterChanged',
@@ -179,6 +180,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     editOnSelect: false,
     allowResizing: true,
     allowDragging: 'None',
+    rowDropHandler: null,
     allowMerging: 'None',
     allowPinning: false,
     headerDisplayMode: 'header',
@@ -206,6 +208,9 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     childItemsPath: null,
     treeColumn: null,
     treeIndent: 20,
+    treeSearchVisibility: 'ancestors',
+    treeLevelColors: null,
+    treeLevelColorOpacities: null,
     rowGroups: [],
     columns: [],
     observeItemsSource: false,
@@ -370,6 +375,8 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       rowHeadersOff: 'Row headers: Off',
       rowHeadersNumbers: 'Row headers: Numbers',
       rowHeadersCellOnly: 'Row headers: Cells only',
+      expandAllGroups: 'Expand all groups',
+      collapseAllGroups: 'Collapse all groups',
       exportExcel: 'Export Excel',
       exportCsv: 'Export CSV',
       fullscreen: 'Grid fullscreen',
@@ -553,6 +560,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.editing = null;
     this.editorConfig = null;
     this.editorIconConfigs = [];
+    this._allowEditorFocusOut = 0;
     this.editorSpinner = null;
     this.editorSpinnerIncrease = null;
     this.editorSpinnerDecrease = null;
@@ -594,6 +602,9 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.columnDragState = null;
     this.columnDragTargetCell = null;
     this.columnDragIndicator = null;
+    this._rowDropSeq = 0;
+    this._rowDropPending = false;
+    this._rowDropPendingSeq = 0;
     this.verticalScrollbarDrag = null;
     this.horizontalScrollbarDrag = null;
     this.pointerInteractionEventsBound = false;
@@ -605,6 +616,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.cellRangeClickCandidate = null;
     this.copyBuffer = '';
     this.headerSearchTimer = 0;
+    this.headerSearchComposing = false;
     this.cellDblClickTimer = 0;
     this.pendingCellDblClick = null;
     this._autoSizeCanvas = null;
@@ -1027,6 +1039,13 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   FabGrid.prototype.handleFocusOut = function(event) {
     var nextTarget = event.relatedTarget;
     if (this.containsFocusTarget(nextTarget)) {
+      return;
+    }
+    if (this._allowEditorFocusOut > 0) {
+      this.emit('lostFocus', {
+        originalEvent: event,
+        relatedTarget: nextTarget || null
+      });
       return;
     }
     if (this.editing) {
@@ -2157,6 +2176,9 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       return;
     }
     this.disposed = true;
+    this._rowDropSeq += 1;
+    this._rowDropPending = false;
+    this._rowDropPendingSeq = 0;
     if (typeof this.deactivateKeyboardEventOwner === 'function') {
       this.deactivateKeyboardEventOwner();
     }

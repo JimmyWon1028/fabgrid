@@ -274,7 +274,9 @@ test('Built-in icons keep their images above generic native selectors', function
     'icon-refwin',
     'icon-search',
     'icon-clear',
-    'icon-row-number'
+    'icon-row-number',
+    'icon-expand-all',
+    'icon-collapse-all'
   ].forEach(function(className) {
     assert.match(iconCss, new RegExp(':root\\s+\\.' + className + '\\b'));
   });

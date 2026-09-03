@@ -1,6 +1,47 @@
 var activeRowDrag = null;
 var rowDragGrids = [];
 
+function isPromiseLike(value) {
+  return !!(value && typeof value.then === 'function');
+}
+
+function beginPendingRowDrop(sourceGrid, targetGrid) {
+  var sourceSeq = (sourceGrid._rowDropSeq || 0) + 1;
+  var targetSeq;
+  sourceGrid._rowDropSeq = sourceSeq;
+  sourceGrid._rowDropPending = true;
+  sourceGrid._rowDropPendingSeq = sourceSeq;
+  if (targetGrid === sourceGrid) {
+    targetSeq = sourceSeq;
+  } else {
+    targetSeq = (targetGrid._rowDropSeq || 0) + 1;
+    targetGrid._rowDropSeq = targetSeq;
+    targetGrid._rowDropPending = true;
+    targetGrid._rowDropPendingSeq = targetSeq;
+  }
+  return {
+    sourceSeq: sourceSeq,
+    targetSeq: targetSeq
+  };
+}
+
+function isPendingRowDropCurrent(sourceGrid, targetGrid, pending) {
+  return !sourceGrid.disposed && !targetGrid.disposed &&
+    sourceGrid._rowDropPendingSeq === pending.sourceSeq &&
+    targetGrid._rowDropPendingSeq === pending.targetSeq;
+}
+
+function finishPendingRowDrop(sourceGrid, targetGrid, pending) {
+  if (sourceGrid._rowDropPendingSeq === pending.sourceSeq) {
+    sourceGrid._rowDropPending = false;
+    sourceGrid._rowDropPendingSeq = 0;
+  }
+  if (targetGrid !== sourceGrid && targetGrid._rowDropPendingSeq === pending.targetSeq) {
+    targetGrid._rowDropPending = false;
+    targetGrid._rowDropPendingSeq = 0;
+  }
+}
+
 export function calculateRowDropIndicatorWidth(bodyWidth, fixedLeftWidth, totalColumnWidth, verticalScrollbarGutterSize) {
   var availableWidth = Math.max(0, Number(bodyWidth) || 0) -
     Math.max(0, Number(verticalScrollbarGutterSize) || 0);
@@ -16,6 +57,9 @@ export function installFabGridDrag(FabGrid, context) {
 
   FabGrid.prototype.canDragRows = function() {
     var mode = this.options.allowDragging;
+    if (this._rowDropPending) {
+      return false;
+    }
     if (mode === true) {
       return this.options.remote !== true;
     }
@@ -356,6 +400,7 @@ export function installFabGridDrag(FabGrid, context) {
       rowIndex: target.row,
       item: state.item,
       dataItem: state.item,
+      sourceItem: state.item,
       targetItem: target.item,
       position: target.position,
       tree: this.isTreeGrid()
@@ -363,23 +408,96 @@ export function installFabGridDrag(FabGrid, context) {
   };
 
   FabGrid.prototype.performRowDrop = function(state, target) {
+    var targetGrid = this;
+    var sourceGrid = state.sourceGrid;
+    var handler = targetGrid.options && targetGrid.options.rowDropHandler;
+    var args = targetGrid.createRowDragEventArgs(state, target, 'drop');
+    var decision;
+    var pending;
+    if (typeof handler !== 'function') {
+      return targetGrid.performResolvedRowDrop(state, target);
+    }
+    try {
+      decision = handler.call(targetGrid, args);
+    } catch (error) {
+      targetGrid.emitRowDropFailed(args, error);
+      return false;
+    }
+    if (!isPromiseLike(decision)) {
+      try {
+        return targetGrid.performResolvedRowDrop(state, target, decision);
+      } catch (error) {
+        targetGrid.emitRowDropFailed(args, error);
+        return false;
+      }
+    }
+    pending = beginPendingRowDrop(sourceGrid, targetGrid);
+    return Promise.resolve(decision).then(function(resolved) {
+      if (!isPendingRowDropCurrent(sourceGrid, targetGrid, pending)) {
+        return false;
+      }
+      return targetGrid.performResolvedRowDrop(state, target, resolved);
+    }).then(function(result) {
+      finishPendingRowDrop(sourceGrid, targetGrid, pending);
+      return result;
+    }, function(error) {
+      if (isPendingRowDropCurrent(sourceGrid, targetGrid, pending)) {
+        targetGrid.emitRowDropFailed(args, error);
+      }
+      finishPendingRowDrop(sourceGrid, targetGrid, pending);
+      return false;
+    });
+  };
+
+  FabGrid.prototype.emitRowDropFailed = function(args, error) {
+    var targetGrid = this;
+    var sourceGrid = args.sourceGrid;
+    var failureArgs = Object.assign({}, args, {
+      error: error
+    });
+    targetGrid.emit('rowDropFailed', Object.assign({}, failureArgs, {
+      role: sourceGrid === targetGrid ? 'both' : 'target'
+    }));
+    if (sourceGrid !== targetGrid) {
+      sourceGrid.emit('rowDropFailed', Object.assign({}, failureArgs, {
+        role: 'source'
+      }));
+    }
+  };
+
+  FabGrid.prototype.performResolvedRowDrop = function(state, target, decision) {
     var sourceGrid = state.sourceGrid;
     var targetGrid = this;
+    var action = decision && typeof decision === 'object' && decision.action != null ?
+      String(decision.action).toLowerCase() : 'move';
+    var dropItem = state.item;
     var result;
     var removed;
     var args;
-    if (sourceGrid === targetGrid) {
+    if (decision === false) {
+      return false;
+    }
+    if (action !== 'move' && action !== 'copy') {
+      throw new TypeError('rowDropHandler action must be "move" or "copy".');
+    }
+    if (action === 'copy') {
+      if (!decision || !Object.prototype.hasOwnProperty.call(decision, 'item') || decision.item == null) {
+        throw new TypeError('rowDropHandler copy action requires an item.');
+      }
+      dropItem = decision.item;
+    }
+    if (sourceGrid === targetGrid && action === 'move') {
       result = targetGrid.isTreeGrid() ?
-        targetGrid.moveTreeItem(state.item, target.item, target.position, true) :
-        targetGrid.moveFlatRowItem(state.item, target.item, target.position, true);
+        targetGrid.moveTreeItem(dropItem, target.item, target.position, true) :
+        targetGrid.moveFlatRowItem(dropItem, target.item, target.position, true);
     } else {
       result = targetGrid.isTreeGrid() ?
-        targetGrid.moveTreeItem(state.item, target.item, target.position, true) :
-        targetGrid.insertFlatRowItem(state.item, target.item, target.position, true);
-      if (result) {
+        targetGrid.moveTreeItem(dropItem, target.item, target.position, true) :
+        targetGrid.insertFlatRowItem(dropItem, target.item, target.position, true);
+      if (result && action === 'move') {
         removed = sourceGrid.removeRowItem(state.item, true);
         if (!removed) {
-          targetGrid.removeRowItem(state.item, true);
+          targetGrid.removeRowItem(dropItem, true);
           result = false;
         }
       }
@@ -387,12 +505,20 @@ export function installFabGridDrag(FabGrid, context) {
     if (!result) {
       return false;
     }
-    sourceGrid.refreshRowsAfterDrop();
-    if (sourceGrid !== targetGrid) {
+    if (sourceGrid === targetGrid) {
+      targetGrid.refreshRowsAfterDrop();
+    } else if (action === 'move') {
+      sourceGrid.refreshRowsAfterDrop();
+      targetGrid.refreshRowsAfterDrop();
+    } else {
       targetGrid.refreshRowsAfterDrop();
     }
     args = targetGrid.createRowDragEventArgs(state, target, 'drop');
     args.result = result;
+    args.action = action;
+    args.sourceItem = state.item;
+    args.item = dropItem;
+    args.dataItem = dropItem;
     args.role = sourceGrid === targetGrid ? 'both' : 'target';
     targetGrid.emit('draggedRow', Object.assign({}, args));
     if (sourceGrid !== targetGrid) {

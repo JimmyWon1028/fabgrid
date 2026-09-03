@@ -1,4 +1,4 @@
-import { normalizeNumberValue } from './fabgrid-data.js?v=20260809-number-string-v1';
+import { normalizeNumberValue } from './fabgrid-data.js?v=20260812-collection-view-init-v1';
 
 var exportContext = {};
 
@@ -11,11 +11,41 @@ function exportToNumber(value, fallback) {
 }
 
 function exportGetNumberPrecision(column) {
-  return exportContext.getNumberPrecision ? exportContext.getNumberPrecision(column) : null;
+  var editor = column && column.editor && typeof column.editor === 'object' ? column.editor : null;
+  var options = editor && editor.options && typeof editor.options === 'object' ? editor.options : null;
+  var value;
+  if (exportContext.getNumberPrecision) {
+    return exportContext.getNumberPrecision(column);
+  }
+  value = column && column.precision != null ? column.precision :
+    (editor && editor.precision != null ? editor.precision : (options ? options.precision : null));
+  if (value == null || value === false || value === '') {
+    return null;
+  }
+  value = Number(value);
+  return isFinite(value) && value >= 0 ? Math.floor(value) : null;
 }
 
 function exportShouldUseThousandsSeparator(column) {
-  return exportContext.shouldUseThousandsSeparator ? exportContext.shouldUseThousandsSeparator(column) : false;
+  var editor = column && column.editor && typeof column.editor === 'object' ? column.editor : null;
+  var options = editor && editor.options && typeof editor.options === 'object' ? editor.options : null;
+  var sources;
+  var names = ['thousandsSeparator', 'useThousandsSeparator', 'showThousandsSeparator'];
+  var i;
+  var n;
+  if (exportContext.shouldUseThousandsSeparator) {
+    return exportContext.shouldUseThousandsSeparator(column);
+  }
+  sources = [column, editor, options];
+  for (i = 0; i < sources.length; i += 1) {
+    if (!sources[i]) continue;
+    for (n = 0; n < names.length; n += 1) {
+      if (sources[i][names[n]] != null) {
+        return sources[i][names[n]] === true;
+      }
+    }
+  }
+  return false;
 }
 
 function exportParseValue(value, type) {
@@ -807,7 +837,8 @@ function createColumnWidthXml(columns) {
 }
 
 function getExcelCellStyle(column, item, rowIndex, colIndex, options, registry, styleResolver) {
-  var baseStyle = getExcelBaseCellStyle(column);
+  var value = exportGetByBinding(item, column.binding);
+  var baseStyle = getExcelBaseCellStyle(column, value);
   var extraStyle = styleResolver(item, column, rowIndex, colIndex);
   if (extraStyle) {
     if (!extraStyle.align) {
@@ -841,10 +872,10 @@ function getExcelGroupCellStyle(column, isLabel, registry) {
   return registerExcelCellStyle(registry, style);
 }
 
-function getExcelBaseCellStyle(column) {
+function getExcelBaseCellStyle(column, value) {
   var numberFormat;
   if (column.align === 'right' || column.dataType === 'number') {
-    numberFormat = getExcelNumberFormatCode(column);
+    numberFormat = getExcelNumberFormatCode(column, value);
     if (numberFormat) {
       return { align: 'right', numFmtCode: numberFormat };
     }
@@ -866,19 +897,23 @@ function getExcelFooterCellStyle(column) {
   return 2;
 }
 
-function getExcelNumberFormatCode(column) {
+function getExcelNumberFormatCode(column, value) {
+  var number;
   var precision;
   var decimalPart = '';
   var integerPart;
+  var useThousandsSeparator;
   if (!column || column.dataType !== 'number') {
     return '';
   }
   precision = exportGetNumberPrecision(column);
-  integerPart = exportShouldUseThousandsSeparator(column) ? '#,##0' : '0';
+  useThousandsSeparator = exportShouldUseThousandsSeparator(column);
+  integerPart = useThousandsSeparator ? '#,##0' : '0';
   if (precision != null) {
     decimalPart = precision > 0 ? '.' + repeatString('0', precision) : '';
-  } else if (exportShouldUseThousandsSeparator(column)) {
-    decimalPart = '.############';
+  } else if (useThousandsSeparator) {
+    number = normalizeNumberValue(value);
+    decimalPart = number != null && number % 1 !== 0 ? '.############' : '';
   } else {
     return '';
   }

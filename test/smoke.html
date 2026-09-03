@@ -351,50 +351,44 @@
           rightAlignedFilterLabelRect.right <= rightAlignedFilterIconRect.left
         );
         var rightAlignedBorderlineHeader = headerLayoutGrid.hostElement.querySelector('.fg-header-cell[data-col="2"]');
-        var rightAlignedBorderlineLabel = rightAlignedBorderlineHeader ?
-          rightAlignedBorderlineHeader.querySelector('.fg-header-label') : null;
         var rightAlignedBorderlineTitle = rightAlignedBorderlineHeader ?
           rightAlignedBorderlineHeader.querySelector('.fg-header-title') : null;
-        var rightAlignedBorderlineLeftBeforeSort = rightAlignedBorderlineLabel ?
-          rightAlignedBorderlineLabel.getBoundingClientRect().left : null;
+        var rightAlignedBorderlineIconBeforeSort = rightAlignedBorderlineHeader ?
+          rightAlignedBorderlineHeader.querySelector('.fg-filter-icon') : null;
+        var rightAlignedBorderlineIconTopBeforeSort = rightAlignedBorderlineIconBeforeSort ?
+          rightAlignedBorderlineIconBeforeSort.getBoundingClientRect().top : null;
         var rightAlignedBorderlinePaddingBeforeSort = rightAlignedBorderlineTitle ?
           window.getComputedStyle(rightAlignedBorderlineTitle).paddingRight : null;
         headerLayoutGrid.toggleSort(2);
         rightAlignedBorderlineHeader = headerLayoutGrid.hostElement.querySelector('.fg-header-cell[data-col="2"]');
-        rightAlignedBorderlineLabel = rightAlignedBorderlineHeader ?
+        var rightAlignedBorderlineLabel = rightAlignedBorderlineHeader ?
           rightAlignedBorderlineHeader.querySelector('.fg-header-label') : null;
         rightAlignedBorderlineTitle = rightAlignedBorderlineHeader ?
           rightAlignedBorderlineHeader.querySelector('.fg-header-title') : null;
-        var rightAlignedBorderlineLeftAfterSort = rightAlignedBorderlineLabel ?
-          rightAlignedBorderlineLabel.getBoundingClientRect().left : null;
-        var rightAlignedBorderlinePaddingAfterSort = rightAlignedBorderlineTitle ?
-          window.getComputedStyle(rightAlignedBorderlineTitle).paddingRight : null;
         var rightAlignedBorderlineIcon = rightAlignedBorderlineHeader ?
           rightAlignedBorderlineHeader.querySelector('.fg-filter-icon') : null;
+        var rightAlignedBorderlineSort = rightAlignedBorderlineHeader ?
+          rightAlignedBorderlineHeader.querySelector('.fg-sort') : null;
         var rightAlignedBorderlineLabelRectAfterSort = rightAlignedBorderlineLabel ?
           rightAlignedBorderlineLabel.getBoundingClientRect() : null;
         var rightAlignedBorderlineIconRect = rightAlignedBorderlineIcon ?
           rightAlignedBorderlineIcon.getBoundingClientRect() : null;
-        var rightAlignedHeaderTextAnchorStableWorks =
-          rightAlignedBorderlineLeftBeforeSort != null &&
-          rightAlignedBorderlineLeftAfterSort != null &&
-          Math.abs(rightAlignedBorderlineLeftAfterSort - rightAlignedBorderlineLeftBeforeSort) <= 0.5;
-        var rightAlignedInsetHeader = headerLayoutGrid.hostElement.querySelector('.fg-header-cell[data-col="3"]');
-        var rightAlignedInsetTitle = rightAlignedInsetHeader ?
-          rightAlignedInsetHeader.querySelector('.fg-header-title') : null;
-        var rightAlignedTightHeader = headerLayoutGrid.hostElement.querySelector('.fg-header-cell[data-col="4"]');
-        var rightAlignedTightTitle = rightAlignedTightHeader ?
-          rightAlignedTightHeader.querySelector('.fg-header-title') : null;
-        var rightAlignedHeaderAdaptiveInsetWorks =
+        var rightAlignedBorderlineSortRect = rightAlignedBorderlineSort ?
+          rightAlignedBorderlineSort.getBoundingClientRect() : null;
+        var stableHeaderPaddingWorks =
           rightAlignedBorderlinePaddingBeforeSort === '24px' &&
-          rightAlignedBorderlinePaddingAfterSort === '24px' &&
+          rightAlignedBorderlineTitle &&
+          !rightAlignedBorderlineTitle.classList.contains('fg-header-title-compact') &&
+          rightAlignedBorderlineTitle.classList.contains('fg-header-title-filter-stacked') &&
+          window.getComputedStyle(rightAlignedBorderlineTitle).paddingLeft === '6px' &&
+          window.getComputedStyle(rightAlignedBorderlineTitle).paddingRight === '24px' &&
           rightAlignedBorderlineLabelRectAfterSort &&
           rightAlignedBorderlineIconRect &&
           rightAlignedBorderlineLabelRectAfterSort.right <= rightAlignedBorderlineIconRect.left &&
-          rightAlignedInsetTitle &&
-          window.getComputedStyle(rightAlignedInsetTitle).paddingRight === '6px' &&
-          rightAlignedTightTitle &&
-          window.getComputedStyle(rightAlignedTightTitle).paddingRight === '0px';
+          rightAlignedBorderlineSortRect &&
+          rightAlignedBorderlineIconTopBeforeSort != null &&
+          Math.abs(rightAlignedBorderlineIconRect.top - rightAlignedBorderlineIconTopBeforeSort) <= 0.5 &&
+          rightAlignedBorderlineIconRect.top < rightAlignedBorderlineSortRect.top;
         headerLayoutGrid.toggleSort(1);
         var narrowFilterHeader = headerLayoutGrid.hostElement.querySelector('.fg-header-cell[data-col="1"]');
         var narrowFilterTitle = narrowFilterHeader ? narrowFilterHeader.querySelector('.fg-header-title') : null;
@@ -404,21 +398,36 @@
         var narrowFilterLabelRect = narrowFilterLabel ? narrowFilterLabel.getBoundingClientRect() : null;
         var narrowFilterSortRect = narrowFilterSort ? narrowFilterSort.getBoundingClientRect() : null;
         var narrowFilterIconRect = narrowFilterIcon ? narrowFilterIcon.getBoundingClientRect() : null;
-        var narrowFilterTextOverlapsIconWorks = !!(
+        var stackedSortFilterWorks = !!(
           narrowFilterTitle &&
           narrowFilterLabel &&
           narrowFilterLabelRect &&
           narrowFilterIconRect &&
-          narrowFilterTitle.classList.contains('fg-header-title-filter-narrow') &&
-          narrowFilterLabel.scrollWidth >= narrowFilterLabel.clientWidth &&
-          narrowFilterLabelRect.right > narrowFilterIconRect.left
-        );
-        var narrowSortFilterGapWorks = !!(
-          narrowFilterTitle &&
-          narrowFilterTitle.classList.contains('fg-header-title-sorted') &&
           narrowFilterSortRect &&
-          narrowFilterIconRect &&
-          Math.abs((narrowFilterIconRect.left + 2) - narrowFilterSortRect.right - 2) <= 0.5
+          narrowFilterTitle.classList.contains('fg-header-title-compact') &&
+          narrowFilterTitle.classList.contains('fg-header-title-filter-stacked') &&
+          narrowFilterLabelRect.right <= narrowFilterIconRect.left &&
+          narrowFilterIconRect.top < narrowFilterSortRect.top
+        );
+        var narrowFilterLabelWidth = narrowFilterLabel ? narrowFilterLabel.clientWidth : 0;
+        headerLayoutGrid.setFilterMode(false);
+        var noFilterHeader = headerLayoutGrid.hostElement.querySelector('.fg-header-cell[data-col="1"]');
+        var noFilterTitle = noFilterHeader ? noFilterHeader.querySelector('.fg-header-title') : null;
+        var noFilterLabel = noFilterHeader ? noFilterHeader.querySelector('.fg-header-label') : null;
+        var noFilterSort = noFilterHeader ? noFilterHeader.querySelector('.fg-sort') : null;
+        var noFilterLabelRect = noFilterLabel ? noFilterLabel.getBoundingClientRect() : null;
+        var noFilterSortRect = noFilterSort ? noFilterSort.getBoundingClientRect() : null;
+        var noFilterReusesIconSpaceWorks = !!(
+          noFilterTitle &&
+          noFilterLabel &&
+          noFilterSort &&
+          !noFilterHeader.querySelector('.fg-filter-icon') &&
+          noFilterTitle.classList.contains('fg-header-title-compact') &&
+          window.getComputedStyle(noFilterTitle).paddingRight === '2px' &&
+          noFilterLabel.clientWidth > narrowFilterLabelWidth &&
+          noFilterLabelRect &&
+          noFilterSortRect &&
+          noFilterSortRect.left >= noFilterLabelRect.right
         );
         var stringTemplateCell = cellTemplateGrid.hostElement.querySelector('[data-cell-template-string="0"]');
         var functionTemplateCell = cellTemplateGrid.hostElement.querySelector('[data-cell-template-function="name"]');
@@ -2739,10 +2748,9 @@
                 }),
                 filterHeaderTextVerticallyCenteredWorks: filterHeaderTextVerticallyCenteredWorks,
                 filterHeaderTextClearsIconWorks: filterHeaderTextClearsIconWorks,
-          rightAlignedHeaderTextAnchorStableWorks: rightAlignedHeaderTextAnchorStableWorks,
-          rightAlignedHeaderAdaptiveInsetWorks: rightAlignedHeaderAdaptiveInsetWorks,
-                narrowFilterTextOverlapsIconWorks: narrowFilterTextOverlapsIconWorks,
-                narrowSortFilterGapWorks: narrowSortFilterGapWorks,
+          stableHeaderPaddingWorks: stableHeaderPaddingWorks,
+                stackedSortFilterWorks: stackedSortFilterWorks,
+                noFilterReusesIconSpaceWorks: noFilterReusesIconSpaceWorks,
                 excelFilterPopupDynamicHeightWorks: excelFilterPopupDynamicHeightWorks,
                 excelFilterPopupAlignsHeaderLeftWorks: excelFilterPopupAlignsHeaderLeftWorks,
                 excelFilterPopupBottomShadowWorks: excelFilterPopupBottomShadowWorks,

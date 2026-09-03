@@ -371,6 +371,8 @@
       rowHeadersOff: '列號：關閉',
       rowHeadersNumbers: '列號：顯示列號',
       rowHeadersCellOnly: '列號：只顯示 cell',
+      expandAllGroups: '全部展開',
+      collapseAllGroups: '全部疊合',
       exportExcel: '匯出 Excel',
       exportCsv: '匯出 CSV',
       fullscreen: 'Grid 全螢幕',

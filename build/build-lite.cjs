@@ -69,7 +69,9 @@ const liteIconSelectors = [
   '.fg-filter-menu-clear .fg-filter-menu-funnel',
   '.icon-fullscreen',
   '.icon-search',
-  '.icon-row-number'
+  '.icon-row-number',
+  '.icon-expand-all',
+  '.icon-collapse-all'
 ];
 const themeSources = ['theme/fabgrid.default.css'];
 

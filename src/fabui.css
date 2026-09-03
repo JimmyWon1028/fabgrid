@@ -10,7 +10,7 @@
 @import './radiogroup/radiogroup.css?v=20260724-native-elements-v2';
 @import './chart/chart.css?v=20260724-native-elements-v2';
 @import './diagram/diagram.css?v=20260721-diagram-focus-outline-v1';
-@import './grid/fabgrid.css?v=20260810-cell-range-shadow-v1';
+@import './grid/fabgrid.css?v=20260815-header-compact-icons-v2';
 @import './pivot/pivot-chart.css?v=20260724-native-elements-v2';
 @import './pivot/pivot-grid.css?v=20260724-native-elements-v2';
 @import './pivot/pivot-panel.css?v=20260804-combine-fields-v1';
@@ -30,5 +30,5 @@
 @import './layout/layout.css?v=20260724-native-elements-v2';
 @import './window/window.css?v=20260724-native-elements-v2';
 @import './messager/messager.css?v=20260724-native-elements-v2';
-@import './fabui.icon.css?v=20260724-native-elements-v2';
+@import './fabui.icon.css?v=20260812-row-group-menu-icons-v1';
 @import './theme/fabgrid.default.css?v=20260725-editbox-themes-v1';

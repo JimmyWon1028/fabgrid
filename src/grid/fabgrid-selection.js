@@ -1340,6 +1340,7 @@ export function installFabGridSelection(FabGrid, context) {
     var rowHeader = closest(event.target, 'fg-row-header-cell');
     var selectionCell = closest(event.target, 'fg-selection-cell');
     var cell = closest(event.target, 'fg-cell');
+    var previousRow = this.hoverRow;
     var nextRow = null;
     if (rowHeader) {
       nextRow = toNumber(rowHeader.getAttribute('data-row'), null);
@@ -1349,17 +1350,39 @@ export function installFabGridSelection(FabGrid, context) {
       nextRow = toNumber(cell.getAttribute('data-row'), null);
     }
     this.updateInvalidTip(cell);
-    if (this.hoverRow !== nextRow) {
+    if (previousRow !== nextRow) {
       this.hoverRow = nextRow;
-      this.renderVisibleRows();
+      this.updateHoveredRowClasses(previousRow, false);
+      this.updateHoveredRowClasses(nextRow, true);
     }
   };
 
   FabGrid.prototype.handleMouseLeave = function() {
+    var previousRow = this.hoverRow;
     this.hideInvalidTip();
-    if (this.hoverRow !== null) {
+    if (previousRow !== null) {
       this.hoverRow = null;
-      this.renderVisibleRows();
+      this.updateHoveredRowClasses(previousRow, false);
+    }
+  };
+
+  FabGrid.prototype.updateHoveredRowClasses = function(rowIndex, hovered) {
+    var cells;
+    var selector;
+    var i;
+    if (rowIndex == null || !this.root || typeof this.root.querySelectorAll !== 'function') {
+      return;
+    }
+    selector = '.fg-cell[data-row="' + rowIndex + '"], ' +
+      '.fg-row-header-cell[data-row="' + rowIndex + '"], ' +
+      '.fg-selection-cell[data-row="' + rowIndex + '"]';
+    cells = this.root.querySelectorAll(selector);
+    for (i = 0; i < cells.length; i += 1) {
+      if (hovered) {
+        cells[i].classList.add('fg-row-hovered');
+      } else {
+        cells[i].classList.remove('fg-row-hovered');
+      }
     }
   };
 

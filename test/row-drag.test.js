@@ -11,11 +11,22 @@ function createGrid(rows, allowDragging) {
   var grid = new TestGrid();
   grid.options = {
     allowDragging: allowDragging,
-    remote: false
+    remote: false,
+    rowDropHandler: null
   };
   grid.source = rows.slice();
+  grid.disposed = false;
+  grid._rowDropSeq = 0;
+  grid._rowDropPending = false;
+  grid._rowDropPendingSeq = 0;
+  grid.emitted = [];
+  grid.emit = function(name, args) {
+    this.emitted.push({ name: name, args: args });
+    return true;
+  };
   grid.isTreeGrid = function() { return false; };
-  grid.refreshRowsAfterDrop = function() {};
+  grid.refreshCount = 0;
+  grid.refreshRowsAfterDrop = function() { this.refreshCount += 1; };
   return grid;
 }
 
@@ -99,6 +110,89 @@ test('flat row helpers reorder, insert and remove items', function() {
   assert.deepEqual(grid.source, [c, a, x, b]);
   assert.equal(grid.removeRowItem(a, true), true);
   assert.deepEqual(grid.source, [c, x, b]);
+});
+
+test('async rowDropHandler copies the resolved item without removing the source row', async function() {
+  var sourceItem = { id: 'A' };
+  var targetItem = { id: 'T' };
+  var copiedItem = { id: 'A', children: [{ id: 'A1' }] };
+  var source = createGrid([sourceItem], 'Rows');
+  var target = createGrid([targetItem], 'Rows');
+  var result;
+  target.options.rowDropHandler = function(args) {
+    assert.equal(args.sourceItem, sourceItem);
+    assert.equal(args.targetItem, targetItem);
+    assert.equal(args.position, 'after');
+    return Promise.resolve({ action: 'copy', item: copiedItem });
+  };
+
+  result = await target.performRowDrop({ sourceGrid: source, sourceRow: 0, item: sourceItem }, {
+    row: 0,
+    item: targetItem,
+    position: 'after'
+  });
+
+  assert.ok(result);
+  assert.deepEqual(source.source, [sourceItem]);
+  assert.deepEqual(target.source, [targetItem, copiedItem]);
+  assert.equal(source.refreshCount, 0);
+  assert.equal(target.refreshCount, 1);
+  assert.equal(target.emitted[0].name, 'draggedRow');
+  assert.equal(target.emitted[0].args.action, 'copy');
+  assert.equal(target.emitted[0].args.sourceItem, sourceItem);
+  assert.equal(target.emitted[0].args.item, copiedItem);
+  assert.equal(source.emitted[0].args.role, 'source');
+  assert.equal(source._rowDropPending, false);
+  assert.equal(target._rowDropPending, false);
+});
+
+test('async rowDropHandler rejection preserves both grids and emits rowDropFailed', async function() {
+  var sourceItem = { id: 'A' };
+  var targetItem = { id: 'T' };
+  var source = createGrid([sourceItem], 'Rows');
+  var target = createGrid([targetItem], 'Rows');
+  target.options.rowDropHandler = function() {
+    return Promise.reject(new Error('load failed'));
+  };
+
+  assert.equal(await target.performRowDrop({ sourceGrid: source, sourceRow: 0, item: sourceItem }, {
+    row: 0,
+    item: targetItem,
+    position: 'after'
+  }), false);
+  assert.deepEqual(source.source, [sourceItem]);
+  assert.deepEqual(target.source, [targetItem]);
+  assert.equal(target.emitted[0].name, 'rowDropFailed');
+  assert.equal(target.emitted[0].args.error.message, 'load failed');
+  assert.equal(source.emitted[0].name, 'rowDropFailed');
+});
+
+test('disposed async row drop ignores its late result', async function() {
+  var sourceItem = { id: 'A' };
+  var targetItem = { id: 'T' };
+  var source = createGrid([sourceItem], 'Rows');
+  var target = createGrid([targetItem], 'Rows');
+  var resolveDrop;
+  target.options.rowDropHandler = function() {
+    return new Promise(function(resolve) {
+      resolveDrop = resolve;
+    });
+  };
+
+  var pending = target.performRowDrop({ sourceGrid: source, sourceRow: 0, item: sourceItem }, {
+    row: 0,
+    item: targetItem,
+    position: 'after'
+  });
+  target.disposed = true;
+  target._rowDropSeq += 1;
+  target._rowDropPending = false;
+  target._rowDropPendingSeq = 0;
+  resolveDrop({ action: 'copy', item: { id: 'late' } });
+
+  assert.equal(await pending, false);
+  assert.deepEqual(target.source, [targetItem]);
+  assert.equal(target.emitted.length, 0);
 });
 
 test('row drag document handlers are bound only while a pointer drag is active', function() {

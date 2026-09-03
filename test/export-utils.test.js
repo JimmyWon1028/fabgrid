@@ -10,6 +10,7 @@ import {
   csvEscape,
   getExcelColumnName,
   getXmlSpaceAttribute,
+  installFabGridExport,
   mergeExcelStyle,
   normalizeExcelAlign,
   normalizeExcelSheetName,
@@ -154,6 +155,59 @@ test('Excel cell XML preserves numeric, boolean and text types', function() {
   assert.match(createExcelCell(2, 1, 'invalid', 'number', 0), /t="inlineStr"/);
   assert.equal(createExcelCell(3, 2, 'Y', 'boolean', 0), '<c r="B3" t="b"><v>1</v></c>');
   assert.match(createExcelCell(4, 3, '<text>', 'string', 0), /&lt;text&gt;/);
+});
+
+test('XLSX numeric columns retain the Grid thousands separator format', function() {
+  function TestGrid() {}
+  installFabGridExport(TestGrid, {
+    getByBinding: function(item, binding) { return item[binding]; }
+  });
+  var files = createXlsxFiles(
+    [{
+      binding: 'amount',
+      header: 'Amount',
+      dataType: 'number',
+      thousandsSeparator: true,
+      precision: 2,
+      width: 120
+    }],
+    [{ amount: '1234567.8' }],
+    {}
+  );
+  var stylesXml = files.find(function(file) { return file.name === 'xl/styles.xml'; }).content;
+  var sheetXml = files.find(function(file) { return file.name === 'xl/worksheets/sheet1.xml'; }).content;
+
+  assert.match(stylesXml, /formatCode="#,##0\.00"/);
+  assert.match(stylesXml, /applyNumberFormat="1"/);
+  assert.match(sheetXml, /<c r="A2" s="\d+"><v>1234567\.8<\/v><\/c>/);
+});
+
+test('XLSX thousands separator omits the decimal point for whole numbers', function() {
+  function TestGrid() {}
+  installFabGridExport(TestGrid, {
+    getByBinding: function(item, binding) { return item[binding]; }
+  });
+  var files = createXlsxFiles(
+    [{
+      binding: 'amount',
+      header: 'Amount',
+      dataType: 'number',
+      thousandsSeparator: true,
+      width: 120
+    }],
+    [{ amount: 13280020 }, { amount: 1234.5 }],
+    {}
+  );
+  var stylesXml = files.find(function(file) { return file.name === 'xl/styles.xml'; }).content;
+  var sheetXml = files.find(function(file) { return file.name === 'xl/worksheets/sheet1.xml'; }).content;
+  var integerStyle = sheetXml.match(/<c r="A2" s="(\d+)"><v>13280020<\/v><\/c>/);
+  var decimalStyle = sheetXml.match(/<c r="A3" s="(\d+)"><v>1234\.5<\/v><\/c>/);
+
+  assert.match(stylesXml, /formatCode="#,##0"/);
+  assert.match(stylesXml, /formatCode="#,##0\.############"/);
+  assert.ok(integerStyle);
+  assert.ok(decimalStyle);
+  assert.notEqual(integerStyle[1], decimalStyle[1]);
 });
 
 test('Excel style helpers normalize and merge custom cell styles', function() {

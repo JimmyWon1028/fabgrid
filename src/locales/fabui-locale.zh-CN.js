@@ -371,6 +371,8 @@
       rowHeadersOff: '行号：关闭',
       rowHeadersNumbers: '行号：显示行号',
       rowHeadersCellOnly: '行号：仅显示 cell',
+      expandAllGroups: '全部展开',
+      collapseAllGroups: '全部折叠',
       exportExcel: '导出 Excel',
       exportCsv: '导出 CSV',
       fullscreen: 'Grid 全屏',
