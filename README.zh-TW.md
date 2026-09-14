@@ -128,7 +128,7 @@ var grid = new fabui.FabGrid('#grid', {
 | 主題 | 行為 |
 | --- | --- |
 | Runtime Filter Rules | `setFilterRules(rules)` 會立即套用規則；`getFilterRules()` 回傳目前規則的深層副本。 |
-| 本機資料 | 套用規則後立即重新篩選，不需要呼叫 `reload()`。 |
+| 本機資料 | 套用規則後立即重新篩選，不需要呼叫 `reload()`；支援下表全部標準 operator、相容符號及 `in`；欄位設為 `visible: false` 時規則仍須生效。 |
 | 遠端資料 | `remote: true` 會回到第 1 頁並自動重新 request。 |
 | Search Row debounce | `searchDelay` 預設為 `400ms`；設為 `0` 時立即套用。 |
 | 遠端 Search Row | 查詢期間保留舊資料且不阻擋 Grid；新查詢會取消內建 Fetch，並忽略任何較舊的自訂 loader 回應。 |
@@ -137,7 +137,7 @@ var grid = new fabui.FabGrid('#grid', {
 
 `excelFilterMaxValues` 控制 Excel-like filter 最多收集多少個唯一候選值，不控制 popup 高度。Popup 會依 Header 位置與瀏覽器 viewport 自動向下或向上開啟，候選值超出可用空間時由清單內部捲動。
 
-遠端 Search Row 會將常用 operator 轉為相容符號：
+本機與遠端 `filterRules` 都接受下表的 operator 名稱與相容符號；遠端 request 會將名稱轉為符號，自訂 `op` 仍僅供遠端使用：
 
 | Operator | 傳送值 | Operator | 傳送值 |
 | --- | --- | --- | --- |
@@ -147,7 +147,7 @@ var grid = new fabui.FabGrid('#grid', {
 | `gte`／`gt` | `>=`／`>` | `lte`／`lt` | `<=`／`<` |
 | `ne`／`eq` | `<>`／`=` | 自訂 `op` | 原樣傳送 |
 
-`op: 'in'` 不分大小寫，陣列值會轉為逗號分隔字串。空白 Search Row 不會建立或傳送篩選規則。
+`op: 'in'` 本機與遠端都支援且不分大小寫，陣列值會轉為逗號分隔字串；本機以該欄既有 `eq` 語意逐項比對，符合任一非空白項目即保留。空白 Search Row 不會建立或傳送篩選規則。
 
 完整的初始化、遠端 GET／POST 格式與 operator 契約請見 [FabGrid API](./docs/fabgrid-api.md)。
 

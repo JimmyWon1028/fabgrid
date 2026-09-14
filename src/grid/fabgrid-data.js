@@ -522,11 +522,6 @@ export function installFabGridData(FabGrid, context) {
     if (operator === '%..') {
       return 'ends';
     }
-    return normalizeColumnSearchOperator(operator);
-  }
-
-  function normalizeRemotePatternOperator(operator) {
-    operator = String(operator || '').trim();
     if (operator === '!%..%') {
       return 'not-contains';
     }
@@ -557,12 +552,12 @@ export function installFabGridData(FabGrid, context) {
     if (operator.toLowerCase() === 'in') {
       return 'in';
     }
-    return normalizePatternOperator(operator);
+    return normalizeColumnSearchOperator(operator);
   }
 
   function serializeRemoteFilterOperator(operator) {
     var source = String(operator || '').trim();
-    var normalized = normalizeRemotePatternOperator(source);
+    var normalized = normalizePatternOperator(source);
     if (normalized === 'starts') {
       return '..%';
     }
@@ -1134,7 +1129,7 @@ export function installFabGridData(FabGrid, context) {
         }
         currentOperator = normalizeColumnSearchOperator(self.columnSearchOperators[key]);
         configuredUiOperator = self.options.remote === true ?
-          normalizeRemotePatternOperator(operator) : normalizeColumnSearchOperator(operator);
+          normalizePatternOperator(operator) : normalizeColumnSearchOperator(operator);
         if (currentOperator && currentOperator !== configuredUiOperator) {
           operator = currentOperator;
         }
@@ -1440,7 +1435,7 @@ export function installFabGridData(FabGrid, context) {
       field = String(rule.field).trim();
       rawOperator = rule.op == null ? '' : String(rule.op).trim();
       if (Array.isArray(rule.value)) {
-        if (this.options.remote !== true || rawOperator.toLowerCase() !== 'in') {
+        if (rawOperator.toLowerCase() !== 'in') {
           continue;
         }
         value = serializeRemoteInValue(rule.value);
@@ -1448,7 +1443,7 @@ export function installFabGridData(FabGrid, context) {
         value = String(rule.value).trim();
       }
       operator = normalizePatternOperator(rawOperator);
-      uiOperator = this.options.remote === true ? normalizeRemotePatternOperator(rawOperator) : operator;
+      uiOperator = operator;
       column = field ? this.getColumn(field) : null;
       if (
         !field ||

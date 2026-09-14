@@ -14,7 +14,7 @@
 <body class="fg-theme-default">
   <div id="grid"></div>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260721-stylesheet-default-theme-v1';
+    import fabui from '../src/fabui.js?v=20260904-hidden-column-filter-v1';
 
     window.filterRulesGrid = new fabui.FabGrid('#grid', {
       itemsSource: [
@@ -23,12 +23,12 @@
         { status: '完成', amount: 1500 }
       ],
       columns: [
-        { binding: 'status', header: '狀態' },
+        { binding: 'status', header: '狀態', visible: false },
         { binding: 'amount', header: '金額', dataType: 'number' }
       ],
       filterRules: [
-        { field: 'status', op: 'eq', value: '草稿' },
-        { field: 'amount', op: 'gte', value: 1000 }
+        { field: 'status', op: 'IN', value: ['草稿'] },
+        { field: 'amount', op: '>=', value: 1000 }
       ]
     });
   </script>

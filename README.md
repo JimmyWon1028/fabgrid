@@ -97,7 +97,7 @@ Diagram, Gantt, Scheduler, and HtmlEditor are not included in FabUI core. Load f
 | Data sources | `itemsSource` accepts an Array or `fabui.collections.CollectionView` in both local and `remote: true` modes. Remote rows replace the Array source or update the same CollectionView instance, keeping shared Charts synchronized. Built-in `url` requests can use `credentials: 'include'`; a newer load or `dispose()` aborts an unfinished older Fetch request. |
 | Grid layout | Supports nested `columns` with merged multi-row Headers, multiple keyed Footer rows, left and right frozen column ranges that include hidden columns in their configured counts, row headers, column resizing, column visibility, cached Footer aggregates that recalculate after data view changes, alternating row backgrounds, and fullscreen mode. |
 | Column width | `width` defaults to the Grid `columnMinWidth` (`20px` by default). An explicit initial `width` may be smaller; Column has no `minWidth` property. Column-level `allowResizing: false` hides its resize handle and blocks dragging or AutoFit for that column. |
-| Sorting and filtering | Supports single-column sorting, Shift multi-column sorting, `clearSort()`, safe `getSortState()` and `getFilterState()` snapshots, `allowMultiSorting: false`, Column-level `allowSorting: false`, cancellable `sortingColumn`, numeric handling for string values with thousands separators, horizontal scroll preservation while sorting with minimal adjustment for a partially hidden clicked Header, Quick Search, Search Row, Excel-like value filters, and runtime Filter Rules including local legacy `..%`/`%..%`/`%..` pattern aliases. |
+| Sorting and filtering | Supports single-column sorting, Shift multi-column sorting, `clearSort()`, safe `getSortState()` and `getFilterState()` snapshots, `allowMultiSorting: false`, Column-level `allowSorting: false`, cancellable `sortingColumn`, numeric handling for string values with thousands separators, horizontal scroll preservation while sorting with minimal adjustment for a partially hidden clicked Header, Quick Search, Search Row, Excel-like value filters, and runtime Filter Rules including the same standard and compatibility operators in local and remote modes. |
 | Grouping and TreeGrid | Supports one to three grouping levels, subtotals with default thousands separators for numeric aggregates, collapsing, a Header context-menu action that switches between expanding and collapsing all configured row groups, `childItemsPath` TreeGrid data, ancestor-only or full-child-branch Quick Search visibility, and renderer-managed level color bands using `$RRGGBB` values. |
 | Row drag and drop | Supports reordering within a Grid, moving rows across Grids, TreeGrid hierarchy changes using `before`, `inside`, and `after`, and Promise-based `rowDropHandler` decisions for async move or copy workflows. |
 | Selection and clipboard | Supports Cell, CellRange, the read-only `selectedRow` active row, single-selection `unselectRow()`, `select()` with full `grid.columns` indexes, `selectedRowChanged`, multiple row selection, mouse dragging, whole-row range selection through row headers, Shift extension, keyboard navigation, and TSV copy. With `autoSearch: true`, printable keys search the active column by a 500ms accumulated prefix, wrap through rows, and optionally honor `caseSensitiveSearch`. Clicking a RowHeader selects the whole row while preserving the RowHeader's original appearance; `Ctrl/Cmd + C` copies every visible column in that row. Every public event `e.col` uses the full `grid.columns` index including hidden columns; `e.viewCol` exposes the visible index when needed. CellRange borders use `activeCellBorder`. `stopNavigation` can pause user selection and scrolling while keeping programmatic APIs available. |
@@ -128,7 +128,7 @@ var grid = new fabui.FabGrid('#grid', {
 | Topic | Behavior |
 | --- | --- |
 | Runtime Filter Rules | `setFilterRules(rules)` applies rules immediately; `getFilterRules()` returns a deep copy of the current rules. |
-| Local data | Rules are applied immediately without calling `reload()`. In addition to the standard operator names, the legacy aliases `..%`, `%..%`, and `%..` are normalized to `starts`, `contains`, and `ends`. |
+| Local data | Rules are applied immediately without calling `reload()`. Accepts all standard operators and compatibility symbols listed below, including `in`. Rules still apply to columns with `visible: false`. |
 | Remote data | With `remote: true`, the Grid returns to page 1 and automatically sends a new request. |
 | Search Row debounce | `searchDelay` defaults to `400ms`; use `0` to apply changes immediately. |
 | Remote Search Row | Keeps the current rows and Grid interactive while loading; a newer query aborts the built-in Fetch and ignores any older custom loader response. |
@@ -138,7 +138,7 @@ var grid = new fabui.FabGrid('#grid', {
 
 `excelFilterMaxValues` limits the number of unique candidate values collected by an Excel-like filter; it does not control popup height. The popup opens below or above the Header according to the available browser viewport, and the list scrolls internally when candidates exceed that space.
 
-Remote Search Row filters convert common operators to compatible symbols:
+Local and remote `filterRules` accept both operator names and compatibility symbols below. Remote requests convert the names to symbols; custom `op` values remain remote-only:
 
 | Operator | Sent value | Operator | Sent value |
 | --- | --- | --- | --- |
@@ -148,7 +148,7 @@ Remote Search Row filters convert common operators to compatible symbols:
 | `gte`/`gt` | `>=`/`>` | `lte`/`lt` | `<=`/`<` |
 | `ne`/`eq` | `<>`/`=` | Custom `op` | Sent unchanged |
 
-`op: 'in'` is case-insensitive, and array values are converted to a comma-separated string. A blank Search Row does not create or send filter rules.
+`op: 'in'` works in both modes, is case-insensitive, and converts array values to a comma-separated string. Local matching applies the column's `eq` comparison to each nonblank entry (OR). A blank Search Row does not create or send filter rules.
 
 See the [FabGrid API](./docs/fabgrid-api.md) for complete initialization, remote GET/POST formats, and operator contracts.
 

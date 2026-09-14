@@ -8242,6 +8242,88 @@ test('local filter rules accept legacy pattern operator aliases', function() {
   assert.deepEqual(grid.options.filterRules, applied);
 });
 
+test('local filter rules apply compatibility operators and IN to visible and hidden columns', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var updates = 0;
+  grid.options = { remote: false, pagination: false, filterMode: ['searchRow'], rowGroups: [] };
+  grid.columns = [
+    { binding: 'name', dataType: 'string', visible: true },
+    { binding: 'amount', dataType: 'number', visible: true },
+    { binding: 'status', dataType: 'string', visible: true }
+  ];
+  grid.source = [
+    { name: 'Alpha', amount: 10, status: 'Y' },
+    { name: 'Beta', amount: 20, status: 'N' },
+    { name: 'Alpine', amount: '1,000', status: null },
+    { name: null, amount: null, status: '' },
+    { name: '', amount: 'invalid' }
+  ];
+  grid.searchText = '';
+  grid.filterPredicate = null;
+  grid.excelFilters = {};
+  grid.getSortStates = function() { return []; };
+  grid.captureSelectionState = function() { return null; };
+  grid.isTreeGrid = function() { return false; };
+  grid.createGroupedView = function(rows) { return rows; };
+  grid.refreshInvalidItemRows = function() {};
+  grid.restoreSelectionState = function() {};
+  grid.clampSelection = function() {};
+  grid.syncEditingWithView = function() {};
+  grid.cancelHeaderSearchTimer = function() {};
+  grid.hideFilterMenu = function() {};
+  grid.getColumn = function(binding) {
+    return this.columns.find(function(column) { return column.binding === binding; });
+  };
+  grid.applyFilterChange = function() {
+    updates += 1;
+    this.applyView();
+  };
+  var cases = [
+    ['starts', '..%', 'name', 'Al', ['Alpha', 'Alpine']],
+    ['contains', '%..%', 'name', 'ph', ['Alpha']],
+    ['ends', '%..', 'name', 'ta', ['Beta']],
+    ['not-starts', '!..%', 'name', 'Al', ['Beta', '']],
+    ['not-contains', '!%..%', 'name', 'ph', ['Beta', 'Alpine', '']],
+    ['not-ends', '!%..', 'name', 'ta', ['Alpha', 'Alpine', '']],
+    ['gte', '>=', 'amount', 20, ['Beta', 'Alpine']],
+    ['gt', '>', 'amount', 20, ['Alpine']],
+    ['lte', '<=', 'amount', 20, ['Alpha', 'Beta']],
+    ['lt', '<', 'amount', 20, ['Alpha']],
+    ['ne', '<>', 'amount', 20, ['Alpha', 'Alpine', null]],
+    ['ne', '<>', 'status', 'Y', ['Beta', 'Alpine', null, '']],
+    ['eq', '=', 'amount', 20, ['Beta']],
+    ['eq', '=', 'name', 'ALPHA', ['Alpha']],
+    ['in', 'iN', 'name', [' alpha ', 'Beta', '', null], ['Alpha', 'Beta']],
+    ['in', 'IN', 'name', 'alpha, Beta,, ', ['Alpha', 'Beta']],
+    ['in', 'IN', 'amount', [10, 1000], ['Alpha', 'Alpine']],
+    ['in', 'IN', 'amount', '20,invalid', ['Beta']],
+    ['in', 'IN', 'name', 'missing', []]
+  ];
+  [true, false].forEach(function(visible) {
+    grid.columns.forEach(function(column) { column.visible = visible; });
+    cases.forEach(function(entry) {
+      [entry[0], entry[1]].forEach(function(operator) {
+        var rule = { field: entry[2], op: operator, value: entry[3] };
+        grid.columnSearchValues = {};
+        grid.columnSearchOperators = {};
+        grid.hasColumnSearch = false;
+        grid.applyInitialFilterRules([rule]);
+        grid.applyView();
+        assert.deepEqual(grid.view.map(function(item) { return item.name; }), entry[4], operator);
+        assert.equal(grid.getColumnSearchOperator(grid.getColumn(entry[2])), entry[0]);
+        grid.setFilterRules(JSON.stringify([rule]));
+        assert.deepEqual(grid.view.map(function(item) { return item.name; }), entry[4], 'runtime ' + operator);
+        assert.equal(grid.getFilterRules()[0].op, entry[0]);
+      });
+    });
+  });
+  assert.equal(updates, cases.length * 4);
+  assert.equal(grid.source[2].amount, '1,000');
+  grid.setFilterRules([]);
+  assert.deepEqual(grid.view, grid.source);
+});
+
 test('remote constructor filter rules preserve custom operators', function() {
   var FabGrid = createFabGridFactory({});
   var columns = [

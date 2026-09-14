@@ -614,9 +614,11 @@ var grid = new fabui.FabGrid('#grid', {
 });
 ```
 
-上例會自動顯示 Search Row，在 `status` input 填入「草稿」並顯示 `=`，在 `amount` input 填入 `1000` 並顯示 `≥`。本機模式支援 `starts`、`contains`、`ends`、`not-starts`、`not-contains`、`not-ends`、`gte`、`gt`、`lte`、`lt`、`ne` 與 `eq`；為相容舊 OA/ERP 規則，也接受 `..%`、`%..%`、`%..`，並分別正規化為 `starts`、`contains`、`ends`。省略 `op` 時使用 `starts`。`remote: true` 時不套用本機白名單，自訂 `op` 會保留大小寫與符號並原樣送出。
+上例會自動顯示 Search Row，在 `status` input 填入「草稿」並顯示 `=`，在 `amount` input 填入 `1000` 並顯示 `≥`。本機與遠端都支援 `starts`、`contains`、`ends`、`not-starts`、`not-contains`、`not-ends`、`gte`、`gt`、`lte`、`lt`、`ne`、`eq` 與 `in`；前 12 個 operator 也接受對應的相容符號 `..%`、`%..%`、`%..`、`!..%`、`!%..%`、`!%..`、`>=`、`>`、`<=`、`<`、`<>`、`=`。`in` 不分大小寫，`value` 可傳陣列或逗號分隔字串；陣列會轉為逗號分隔字串，本機以該欄既有 `eq` 語意比對任一非空白項目。省略 `op` 時使用 `starts`。`remote: true` 時不套用本機白名單，自訂 `op` 會保留大小寫與符號並原樣送出。
 
-`remote: true` 的 SQL-like 字串運算符會另外映射到既有 Search Row filter icon，但 request 仍保留原始 `op`：`%..%` 對應包含、`..%` 對應開頭、`%..` 對應結尾；前置 `!` 分別對應不包含、非開頭與非結尾。
+`filterRules` 對 `visible: false` 的隱藏欄位仍然有效：本機初始化與 `setFilterRules()` 都會套用該欄條件，遠端也會繼續傳送該欄規則。
+
+兩種模式的 SQL-like 字串運算符都會映射到既有 Search Row filter icon；遠端 request 保留相容符號：`%..%` 對應包含、`..%` 對應開頭、`%..` 對應結尾；前置 `!` 分別對應不包含、非開頭與非結尾。
 
 遠端模式使用 `method: 'POST'` 時，初始化規則會以 JSON 字串放入 `application/x-www-form-urlencoded` Form Data 的 `filterRules` 欄位；規則即使對應到未顯示的伺服器欄位，也會保留在 request 中。
 

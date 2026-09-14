@@ -10,7 +10,7 @@ import {
   normalizeRemoteData,
   normalizeRemoteCredentials,
   setByBinding
-} from './fabgrid-data.js?v=20260827-group-aggregate-number-format-v1';
+} from './fabgrid-data.js?v=20260904-filter-rule-operators-v1';
 import { installFabGridExport } from './fabgrid-export.js?v=20260812-collection-view-init-v1';
 import { installFabGridDrag } from './fabgrid-drag.js?v=20260804-grid-event-layout-v2';
 import { installFabGridTree } from './fabgrid-tree.js?v=20260804-grid-column-rollback-v4';
@@ -3961,9 +3961,6 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     var operator;
     for (i = 0; i < columns.length; i += 1) {
       column = columns[i];
-      if (column.visible === false) {
-        continue;
-      }
       key = getColumnSearchKey(column);
       text = searchValues[key];
       if (!text) {
@@ -4068,10 +4065,16 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     if (searchText == null || String(searchText).trim() === '') {
       return true;
     }
-    if (value == null) {
-      return false;
-    }
     operator = normalizeColumnSearchOperator(operator);
+    if (value == null) {
+      return operator === 'ne';
+    }
+    if (operator === 'in') {
+      return String(searchText).split(',').some(function(candidate) {
+        candidate = candidate.trim();
+        return candidate !== '' && columnValueMatchesSearch(value, column, candidate, 'eq');
+      });
+    }
     if (column.dataType === 'number') {
       expected = parseValue(searchText, 'number');
       actual = normalizeNumberValue(value);
@@ -4232,7 +4235,8 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       operator === 'lte' ||
       operator === 'lt' ||
       operator === 'ne' ||
-      operator === 'eq'
+      operator === 'eq' ||
+      operator === 'in'
     ) {
       return operator;
     }

@@ -483,6 +483,15 @@ export function installFabGridSelection(FabGrid, context) {
       return;
     }
 
+    if (!cell && closest(event.target, 'fg-body-scroll') && this.editing) {
+      if (this.finishEditing(true, { restoreFocus: false }) === false) {
+        event.preventDefault();
+        return;
+      }
+      this.root.focus();
+      return;
+    }
+
     if (cell) {
       rowIndex = toNumber(cell.getAttribute('data-row'), 0);
       colIndex = toNumber(cell.getAttribute('data-col'), 0);
