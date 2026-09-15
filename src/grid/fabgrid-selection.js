@@ -2174,7 +2174,10 @@ export function installFabGridSelection(FabGrid, context) {
     if (rowSelectionChanged && this.options.multiSelectRows !== true) {
       this.raiseRowSelectionChanged({ row: nextRowSelection });
     }
-    this.render(renderOptions && renderOptions._skipLayout === true);
+    this.render(
+      renderOptions && renderOptions._skipLayout === true,
+      renderOptions && renderOptions._scrollOnly === true
+    );
     return true;
   };
 
@@ -2704,7 +2707,7 @@ export function installFabGridSelection(FabGrid, context) {
       }
     }
     adjustColumnScrollIntoView(this, col);
-    this.render(options._skipLayout === true);
+    this.render(options._skipLayout === true, options._scrollOnly === true);
     return true;
   };
 

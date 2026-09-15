@@ -480,6 +480,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this._updatePendingRender = false;
     this._updatePendingInvalidate = false;
     this._updatePendingSkipLayout = true;
+    this._updatePendingScrollOnly = true;
     this.columns = [];
     this.source = [];
     this.view = [];
@@ -1938,6 +1939,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       this._updatePendingRender = false;
       this._updatePendingInvalidate = false;
       this._updatePendingSkipLayout = true;
+      this._updatePendingScrollOnly = true;
       if (this.raf) {
         if (typeof cancelAnimationFrame === 'function') {
           cancelAnimationFrame(this.raf);
@@ -1954,6 +1956,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     var pendingRender;
     var pendingInvalidate;
     var pendingSkipLayout;
+    var pendingScrollOnly;
 
     if (!this.isUpdating) {
       return;
@@ -1968,10 +1971,12 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     pendingRender = this._updatePendingRender;
     pendingInvalidate = this._updatePendingInvalidate;
     pendingSkipLayout = this._updatePendingSkipLayout;
+    pendingScrollOnly = this._updatePendingScrollOnly;
     this._updatePendingRefresh = false;
     this._updatePendingRender = false;
     this._updatePendingInvalidate = false;
     this._updatePendingSkipLayout = true;
+    this._updatePendingScrollOnly = true;
 
     if (shouldInvalidate === false || this.disposed) {
       return;
@@ -1981,7 +1986,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
       return;
     }
     if (pendingRender) {
-      this.render(pendingSkipLayout);
+      this.render(pendingSkipLayout, pendingScrollOnly);
       return;
     }
     if (pendingInvalidate) {

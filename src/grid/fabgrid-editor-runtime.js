@@ -81,21 +81,24 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       value.getTime() === previousValue.getTime();
   }
 
-  function canReuseFlatEditingView(grid, edit, item, args, options) {
+  function canReuseEditingView(grid, edit, item, args, options) {
     var gridOptions = grid.options || {};
     if (!options || options.editingNavigation !== true ||
         !editingValuesEqual(args.value, args.previousValue) ||
         grid._collectionView || gridOptions.remote === true || gridOptions.pagination === true ||
         grid.filterPredicate || grid.searchText || grid.hasColumnSearch ||
         grid.excelFilters && Object.keys(grid.excelFilters).length ||
-        Array.isArray(gridOptions.rowGroups) && gridOptions.rowGroups.length ||
         typeof grid.isTreeGrid === 'function' && grid.isTreeGrid() ||
         typeof grid.getSortStates === 'function' && grid.getSortStates().length) {
       return false;
     }
-    return Array.isArray(grid.source) && Array.isArray(grid.view) &&
-      grid.source.length === grid.view.length &&
-      grid.source[edit.row] === item && grid.view[edit.row] === item;
+    if (!Array.isArray(grid.source) || !Array.isArray(grid.view) || grid.view[edit.row] !== item) {
+      return false;
+    }
+    if (Array.isArray(gridOptions.rowGroups) && gridOptions.rowGroups.length) {
+      return true;
+    }
+    return grid.source.length === grid.view.length && grid.source[edit.row] === item;
   }
 
   function getEditorSpinner(config) {
@@ -327,7 +330,10 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       if (this.editorIconHost) {
         this.editorIconHost.style.display = 'none';
       }
-      this.render(options && options._skipLayout === true);
+      this.render(
+        options && options._skipLayout === true,
+        options && options._scrollOnly === true
+      );
       if (this.editorIconHost) {
         this.editorIconHost.style.display = editorIconDisplay;
       }
@@ -1174,15 +1180,18 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       reuseLayout = finishOptions.reuseLayout === true;
       if (next) {
         this.applyCellSelection(next.row, next.col, next.row, next.col, undefined, {
-          _skipLayout: reuseLayout
+          _skipLayout: reuseLayout,
+          _scrollOnly: reuseLayout
         });
         this._scrollVisibleIntoView(next.row, next.col, {
           directionY: direction,
-          _skipLayout: reuseLayout
+          _skipLayout: reuseLayout,
+          _scrollOnly: reuseLayout
         });
         this._startEditingVisible(next.row, next.col, {
           selectRow: this.options.multiSelectRows !== true,
-          _skipLayout: reuseLayout
+          _skipLayout: reuseLayout,
+          _scrollOnly: reuseLayout
         });
       }
       return true;
@@ -1888,14 +1897,14 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       this.clearCellValidationError(item, column);
     }
     this.emit('cellEditEnded', Object.assign({}, args));
-    reuseView = canReuseFlatEditingView(this, edit, item, args, options);
+    reuseView = canReuseEditingView(this, edit, item, args, options);
     this.clearEditingState();
     if (reuseView) {
       if (typeof this.invalidateSearchCache === 'function') {
         this.invalidateSearchCache();
       }
       options.reuseLayout = true;
-      this.render(true);
+      this.render(true, true);
     } else if (!this.refreshCollectionView()) {
       this.applyView();
       this.render();

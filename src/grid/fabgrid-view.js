@@ -955,6 +955,9 @@ export function installFabGridView(FabGrid, context) {
       if (skipLayout !== true) {
         this._updatePendingSkipLayout = false;
       }
+      if (scrollOnly !== true) {
+        this._updatePendingScrollOnly = false;
+      }
       return;
     }
 
@@ -1904,6 +1907,7 @@ export function installFabGridView(FabGrid, context) {
     if (this.isUpdating) {
       this._updatePendingRender = true;
       this._updatePendingSkipLayout = false;
+      this._updatePendingScrollOnly = false;
       return true;
     }
     this.renderFooterRowHeaders();
@@ -2025,6 +2029,30 @@ export function installFabGridView(FabGrid, context) {
     cell.style.height = this.getVisibleRowHeight(top) + 'px';
   };
 
+  FabGrid.prototype.updateReusedRowHeaderCell = function(cell, rowIndex) {
+    this.updateFixedRowCellPosition(cell, rowIndex);
+    cell.classList.toggle('fg-row-hovered', this.hoverRow === rowIndex);
+    cell.classList.toggle('fg-row-selected', this.shouldHighlightRow(rowIndex));
+    if (this._isRowHeaderCellSelected(rowIndex)) {
+      cell.setAttribute('aria-selected', 'true');
+    } else {
+      cell.removeAttribute('aria-selected');
+    }
+  };
+
+  FabGrid.prototype.updateReusedSelectionCell = function(cell, rowIndex) {
+    var row = this.view[rowIndex];
+    var checkbox = cell.querySelector('.fg-selection-check');
+    var groupSelectionState = this.isRowGroup(row) ? this.getRowGroupSelectionState(row) : null;
+    this.updateFixedRowCellPosition(cell, rowIndex);
+    cell.classList.toggle('fg-row-hovered', this.hoverRow === rowIndex);
+    cell.classList.toggle('fg-row-selected', this.shouldHighlightRow(rowIndex));
+    if (checkbox) {
+      checkbox.checked = groupSelectionState ? groupSelectionState.checked : this.isRowSelected(rowIndex);
+      checkbox.indeterminate = groupSelectionState ? groupSelectionState.indeterminate : false;
+    }
+  };
+
   FabGrid.prototype.renderRowHeaders = function(rowRange, reuseExisting) {
     var fragment = document.createDocumentFragment();
     var descriptors;
@@ -2044,7 +2072,7 @@ export function installFabGridView(FabGrid, context) {
       stats = this.reconcileRenderedLayer(this.rowHeaderLayer, descriptors, function(descriptor) {
         return self.createRowHeaderCell(descriptor.row);
       }, function(existingCell, descriptor) {
-        self.updateFixedRowCellPosition(existingCell, descriptor.row);
+        self.updateReusedRowHeaderCell(existingCell, descriptor.row);
       });
       this._accumulateScrollRenderStats(stats);
       return;
@@ -2087,7 +2115,7 @@ export function installFabGridView(FabGrid, context) {
       stats = this.reconcileRenderedLayer(this.selectionLayer, descriptors, function(descriptor) {
         return self.createSelectionCell(descriptor.row);
       }, function(existingCell, descriptor) {
-        self.updateFixedRowCellPosition(existingCell, descriptor.row);
+        self.updateReusedSelectionCell(existingCell, descriptor.row);
       });
       this._accumulateScrollRenderStats(stats);
       return;
@@ -2445,12 +2473,49 @@ export function installFabGridView(FabGrid, context) {
     return descriptors;
   };
 
-  FabGrid.prototype.updateReusedBodyCellPosition = function(cell, descriptor) {
+  FabGrid.prototype.updateReusedBodyCell = function(cell, descriptor, selectionRange) {
+    var row = this.view[descriptor.row];
+    var column = this.visibleColumns[descriptor.col];
+    var inRange;
+    var isFirstPane;
+    var isLastPane;
+    var isSelected;
     var viewportTop = descriptor.row * this.options.rowHeight - this.bodyScroll.scrollTop;
     cell.style.top = descriptor.pane === 'scroll' ?
       descriptor.row * this.options.rowHeight + 'px' :
       viewportTop + 'px';
     cell.style.height = this.getVisibleRowHeight(viewportTop) + 'px';
+    if (descriptor.group) {
+      isSelected = this.shouldHighlightRow(descriptor.row);
+      isFirstPane = descriptor.pane === 'left' ||
+        descriptor.pane === 'scroll' && !this.frozenWidth ||
+        descriptor.pane === 'right' && !this.frozenWidth && !this.scrollableWidth;
+      isLastPane = descriptor.pane === 'right' ||
+        descriptor.pane === 'scroll' && !this.frozenRightWidth ||
+        descriptor.pane === 'left' && !this.scrollableWidth && !this.frozenRightWidth;
+      cell.classList.toggle('fg-row-group-selected', isSelected);
+      cell.classList.toggle('fg-row-group-selected-start', isSelected && isFirstPane);
+      cell.classList.toggle('fg-row-group-selected-end', isSelected && isLastPane);
+      return;
+    }
+    inRange = !!selectionRange && !this.isRowGroupFooter(row) &&
+      descriptor.row >= selectionRange.row && descriptor.row <= selectionRange.row2 &&
+      descriptor.col >= selectionRange.col && descriptor.col <= selectionRange.col2;
+    cell.classList.toggle('fg-row-hovered', this.hoverRow === descriptor.row);
+    cell.classList.toggle('fg-row-selected', this.shouldHighlightRow(descriptor.row));
+    cell.classList.toggle('fg-selected', this.selection.row === descriptor.row && this.selection.col === descriptor.col);
+    cell.classList.toggle('fg-range-selected', inRange);
+    cell.classList.toggle('fg-range-top', inRange && descriptor.row === selectionRange.row);
+    cell.classList.toggle('fg-range-bottom', inRange && descriptor.row === selectionRange.row2);
+    cell.classList.toggle('fg-range-left', inRange && descriptor.col === selectionRange.col);
+    cell.classList.toggle('fg-range-right', inRange && descriptor.col === selectionRange.col2);
+    if (this.getCellValidationError(row, column)) {
+      cell.classList.add('fg-cell-invalid');
+      cell.setAttribute('aria-invalid', 'true');
+    } else {
+      cell.classList.remove('fg-cell-invalid');
+      cell.removeAttribute('aria-invalid');
+    }
   };
 
   FabGrid.prototype.reconcileBodyLayer = function(layer, rowRange, colRange, pane, selectionRange) {
@@ -2462,7 +2527,7 @@ export function installFabGridView(FabGrid, context) {
       }
       return self.createBodyCell(descriptor.row, descriptor.col, descriptor.pane, selectionRange);
     }, function(cell, descriptor) {
-      self.updateReusedBodyCellPosition(cell, descriptor);
+      self.updateReusedBodyCell(cell, descriptor, selectionRange);
     });
   };
 
@@ -3015,7 +3080,13 @@ export function installFabGridView(FabGrid, context) {
       result = renderer(ctx, cell);
     }
     if (result != null) {
-      cell.innerHTML = String(result);
+      result = String(result);
+      // Preserve HTML and entity parsing while avoiding it for plain text cells.
+      if (result.indexOf('<') < 0 && result.indexOf('&') < 0) {
+        cell.textContent = result;
+      } else {
+        cell.innerHTML = result;
+      }
     }
     return true;
   };

@@ -564,22 +564,43 @@ test('editing navigation scrolls after selection without top-aligning through se
       throw new Error('editing navigation must not use select() top alignment');
     },
     applyCellSelection: function(anchorRow, anchorCol, row, col, rowHeaderSelection, renderOptions) {
-      calls.push(['selection', anchorRow, anchorCol, row, col, renderOptions && renderOptions._skipLayout]);
+      calls.push([
+        'selection',
+        anchorRow,
+        anchorCol,
+        row,
+        col,
+        renderOptions && renderOptions._skipLayout,
+        renderOptions && renderOptions._scrollOnly
+      ]);
     },
     _scrollVisibleIntoView: function(row, col, options) {
-      calls.push(['scroll', row, col, options && options.directionY, options && options._skipLayout]);
+      calls.push([
+        'scroll',
+        row,
+        col,
+        options && options.directionY,
+        options && options._skipLayout,
+        options && options._scrollOnly
+      ]);
     },
     _startEditingVisible: function(row, col, options) {
-      calls.push(['editing', row, col, options && options._skipLayout]);
+      calls.push([
+        'editing',
+        row,
+        col,
+        options && options._skipLayout,
+        options && options._scrollOnly
+      ]);
     }
   };
 
   assert.equal(FabGrid.prototype.commitEditingAndMoveVertical.call(grid, 1), true);
   assert.deepEqual(calls, [
     ['begin'],
-    ['selection', 6, 1, 6, 1, true],
-    ['scroll', 6, 1, 1, true],
-    ['editing', 6, 1, true],
+    ['selection', 6, 1, 6, 1, true, true],
+    ['scroll', 6, 1, 1, true, true],
+    ['editing', 6, 1, true, true],
     ['end', true]
   ]);
 
@@ -592,9 +613,9 @@ test('editing navigation scrolls after selection without top-aligning through se
   };
   assert.equal(FabGrid.prototype.commitEditingAndMoveRight.call(grid), true);
   assert.deepEqual(calls, [
-    ['selection', 7, 1, 7, 1, undefined],
-    ['scroll', 7, 1, undefined, undefined],
-    ['editing', 7, 1, undefined]
+    ['selection', 7, 1, 7, 1, undefined, undefined],
+    ['scroll', 7, 1, undefined, undefined, undefined],
+    ['editing', 7, 1, undefined, undefined]
   ]);
 });
 
@@ -640,8 +661,8 @@ test('unchanged vertical editing navigation reuses a simple local view', functio
   grid.invalidateSearchCache = function() {
     searchInvalidations += 1;
   };
-  grid.render = function(skipLayout) {
-    renderArgs.push(skipLayout);
+  grid.render = function(skipLayout, scrollOnly) {
+    renderArgs.push([skipLayout, scrollOnly]);
   };
   grid.root = { focus: function() {} };
 
@@ -653,7 +674,7 @@ test('unchanged vertical editing navigation reuses a simple local view', functio
   assert.deepEqual(events, ['cellEditEnded']);
   assert.equal(applyViewCount, 0);
   assert.equal(searchInvalidations, 1);
-  assert.deepEqual(renderArgs, [true]);
+  assert.deepEqual(renderArgs, [[true, true]]);
   assert.equal(options.reuseLayout, true);
 
   grid.editing = edit;
@@ -666,8 +687,55 @@ test('unchanged vertical editing navigation reuses a simple local view', functio
     validationError: null
   }, options), true);
   assert.equal(applyViewCount, 1);
-  assert.deepEqual(renderArgs, [true, undefined]);
+  assert.deepEqual(renderArgs, [[true, true], [undefined, undefined]]);
   assert.equal(options.reuseLayout, undefined);
+});
+
+test('unchanged vertical editing navigation reuses a grouped local view', function() {
+  var FabGrid = createFabGridFactory({});
+  var item = { category: 'A', value: 'same' };
+  var group = { isGroup: true, key: 'A', items: [item] };
+  var column = { binding: 'value' };
+  var edit = { row: 1, col: 0 };
+  var options = { editingNavigation: true };
+  var renderArgs = [];
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.options = { remote: false, pagination: false, rowGroups: ['category'] };
+  grid.source = [item];
+  grid.view = [group, item];
+  grid.editing = edit;
+  grid._collectionView = null;
+  grid._suppressObservedItemChange = 0;
+  grid.filterPredicate = null;
+  grid.searchText = '';
+  grid.hasColumnSearch = false;
+  grid.excelFilters = {};
+  grid.getSortStates = function() { return []; };
+  grid.isTreeGrid = function() { return false; };
+  grid._invalidateFooterAggregateCache = function() {};
+  grid.clearCellValidationError = function() {};
+  grid.emit = function() { return true; };
+  grid.clearEditingState = function() { this.editing = null; };
+  grid.refreshCollectionView = function() {
+    throw new Error('unchanged grouped navigation must not refresh CollectionView');
+  };
+  grid.applyView = function() {
+    throw new Error('unchanged grouped navigation must keep the current view');
+  };
+  grid.invalidateSearchCache = function() {};
+  grid.render = function(skipLayout, scrollOnly) {
+    renderArgs.push([skipLayout, scrollOnly]);
+  };
+  grid.root = { focus: function() {} };
+
+  assert.equal(FabGrid.prototype.commitEditingArgs.call(grid, edit, column, item, {
+    value: 'same',
+    previousValue: 'same',
+    validationError: null
+  }, options), true);
+  assert.deepEqual(renderArgs, [[true, true]]);
+  assert.equal(options.reuseLayout, true);
 });
 
 test('vertical editing navigation batches intermediate renders into one update', function() {
@@ -681,16 +749,20 @@ test('vertical editing navigation batches intermediate renders into one update',
   grid._updatePendingRender = false;
   grid._updatePendingInvalidate = false;
   grid._updatePendingSkipLayout = true;
+  grid._updatePendingScrollOnly = true;
   grid.editing = { row: 5, col: 1 };
   grid.options = { multiSelectRows: false };
   grid.findEditableCellInRow = function() {
     return { row: 6, col: 1 };
   };
-  grid.render = function(skipLayout) {
+  grid.render = function(skipLayout, scrollOnly) {
     if (this.isUpdating) {
       this._updatePendingRender = true;
       if (skipLayout !== true) {
         this._updatePendingSkipLayout = false;
+      }
+      if (scrollOnly !== true) {
+        this._updatePendingScrollOnly = false;
       }
       return;
     }
@@ -727,6 +799,90 @@ test('vertical editing navigation batches intermediate renders into one update',
   assert.equal(moveCount, 3);
   assert.equal(renderCount, 1);
   assert.equal(grid.isUpdating, false);
+});
+
+test('Grid batch update preserves scroll-only render unless a full render is requested', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var renderArgs = [];
+
+  grid._updateCount = 0;
+  grid._updatePendingRefresh = false;
+  grid._updatePendingRender = false;
+  grid._updatePendingInvalidate = false;
+  grid._updatePendingSkipLayout = true;
+  grid._updatePendingScrollOnly = true;
+  grid.disposed = false;
+
+  grid.beginUpdate();
+  FabGrid.prototype.render.call(grid, true, true);
+  FabGrid.prototype.render.call(grid, true, true);
+  grid.render = function(skipLayout, scrollOnly) {
+    renderArgs.push([skipLayout, scrollOnly]);
+  };
+  grid.endUpdate();
+  assert.deepEqual(renderArgs, [[true, true]]);
+
+  renderArgs = [];
+  grid.beginUpdate();
+  FabGrid.prototype.render.call(grid, true, true);
+  FabGrid.prototype.render.call(grid, true, false);
+  grid.endUpdate();
+  assert.deepEqual(renderArgs, [[true, false]]);
+});
+
+test('reused body cells refresh selection and validation state', function() {
+  var FabGrid = createFabGridFactory({});
+  var classes = new Set(['fg-selected', 'fg-row-selected', 'fg-cell-invalid']);
+  var attributes = { 'aria-invalid': 'true' };
+  var item = { value: 'same' };
+  var column = { binding: 'value' };
+  var cell = {
+    style: {},
+    classList: {
+      add: function(name) { classes.add(name); },
+      remove: function(name) { classes.delete(name); },
+      toggle: function(name, force) {
+        if (force) classes.add(name);
+        else classes.delete(name);
+      }
+    },
+    setAttribute: function(name, value) { attributes[name] = value; },
+    removeAttribute: function(name) { delete attributes[name]; }
+  };
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.view = [item];
+  grid.visibleColumns = [column];
+  grid.bodyScroll = { scrollTop: 0 };
+  grid.options = { rowHeight: 31 };
+  grid.selection = { row: 1, col: 0 };
+  grid.hoverRow = -1;
+  grid.shouldHighlightRow = function() { return false; };
+  grid.isRowGroupFooter = function() { return false; };
+  grid.getVisibleRowHeight = function() { return 31; };
+  grid.getCellValidationError = function() { return null; };
+
+  grid.updateReusedBodyCell(cell, { row: 0, col: 0, pane: 'scroll', group: false }, null);
+  assert.equal(classes.has('fg-selected'), false);
+  assert.equal(classes.has('fg-row-selected'), false);
+  assert.equal(classes.has('fg-cell-invalid'), false);
+  assert.equal(attributes['aria-invalid'], undefined);
+
+  grid.selection = { row: 0, col: 0 };
+  grid.shouldHighlightRow = function() { return true; };
+  grid.getCellValidationError = function() { return 'invalid'; };
+  grid.updateReusedBodyCell(cell, { row: 0, col: 0, pane: 'scroll', group: false }, {
+    row: 0,
+    row2: 0,
+    col: 0,
+    col2: 0
+  });
+  assert.equal(classes.has('fg-selected'), true);
+  assert.equal(classes.has('fg-row-selected'), true);
+  assert.equal(classes.has('fg-range-selected'), true);
+  assert.equal(classes.has('fg-cell-invalid'), true);
+  assert.equal(attributes['aria-invalid'], 'true');
 });
 
 test('editOnSelect true lets Enter and Tab wrap rows', function() {
@@ -6224,7 +6380,23 @@ test('cell templates support Wijmo-compatible function and string contracts', fu
   };
   var cell = { innerHTML: '', textContent: '' };
   var directCell = { innerHTML: 'default', textContent: '' };
+  var plainCellWrites = [];
+  var plainCell = {};
+  var entityCell = { innerHTML: '', textContent: '' };
   var functionContext;
+
+  Object.defineProperty(plainCell, 'innerHTML', {
+    configurable: true,
+    set: function(value) {
+      plainCellWrites.push(['html', value]);
+    }
+  });
+  Object.defineProperty(plainCell, 'textContent', {
+    configurable: true,
+    set: function(value) {
+      plainCellWrites.push(['text', value]);
+    }
+  });
 
   grid.view = [item];
   grid._rowCollection = null;
@@ -6246,6 +6418,14 @@ test('cell templates support Wijmo-compatible function and string contracts', fu
   assert.equal(functionContext.row, grid.rows[0]);
   assert.equal(functionContext.value, 4200);
   assert.equal(functionContext.text, '4,200');
+
+  column.cellTemplate = function(ctx) { return ctx.text; };
+  assert.equal(grid.applyCellTemplate(plainCell, item, column, item.amount, '4,200', 0), true);
+  assert.deepEqual(plainCellWrites, [['text', '4,200']]);
+
+  column.cellTemplate = function() { return '&amp;'; };
+  assert.equal(grid.applyCellTemplate(entityCell, item, column, item.amount, '4,200', 0), true);
+  assert.equal(entityCell.innerHTML, '&amp;');
 });
 
 test('CellMaker.makeLink creates a Wijmo-compatible link template', function() {

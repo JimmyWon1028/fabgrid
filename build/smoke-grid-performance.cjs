@@ -19,7 +19,9 @@ const thresholds = {
   rapidScrollMaxHandlerMs: Number(process.env.FABGRID_BROWSER_RAPID_SCROLL_HANDLER_MAX_MS || 8),
   searchColdMs: Number(process.env.FABGRID_BROWSER_SEARCH_COLD_MAX_MS || 500),
   searchCachedMs: Number(process.env.FABGRID_BROWSER_SEARCH_CACHED_MAX_MS || 100),
-  searchProgressiveMs: Number(process.env.FABGRID_BROWSER_SEARCH_PROGRESSIVE_MAX_MS || 100)
+  searchProgressiveMs: Number(process.env.FABGRID_BROWSER_SEARCH_PROGRESSIVE_MAX_MS || 100),
+  unchangedEditMoveMs: Number(process.env.FABGRID_BROWSER_EDIT_MOVE_MAX_MS || 100),
+  repeatedEditMoveMaxMs: Number(process.env.FABGRID_BROWSER_EDIT_REPEAT_MAX_MS || 100)
 };
 
 function serveFile(req, res) {

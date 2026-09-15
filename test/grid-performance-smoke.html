@@ -14,10 +14,16 @@
       width: 900px;
       height: 500px;
     }
+
+    #editGrid {
+      width: 900px;
+      height: 320px;
+    }
   </style>
 </head>
 <body>
   <div id="grid"></div>
+  <div id="editGrid"></div>
   <pre id="result">{"passed":false}</pre>
   <script type="module">
     import fabui from '/src/fabui.js';
@@ -155,12 +161,70 @@
       grid.setSearch('needle');
       result.searchProgressiveMs = performance.now() - searchStart;
       result.searchResultCount = grid.view.length;
+
+      var editRows = createRows(300, 20).map(function(row, rowIndex) {
+        row.category = 'Group ' + Math.floor(rowIndex / 50);
+        row.c1 = String(row.c1);
+        return row;
+      });
+      var editColumns = createColumns(20);
+      editColumns.forEach(function(column) {
+        column.cellTemplate = function(ctx) { return ctx.text; };
+      });
+      var editGrid = new fabui.FabGrid('#editGrid', {
+        itemsSource: editRows,
+        columns: editColumns,
+        rowGroups: [{ binding: 'category' }],
+        allowEditing: true,
+        editOnSelect: true,
+        frozenColumns: 1,
+        frozenRightColumns: 1,
+        overscanRows: 8,
+        overscanColumns: 3
+      });
+      var editingRow = editGrid.view.findIndex(function(item) {
+        return !editGrid.isRowGroup(item) && !editGrid.isRowGroupFooter(item);
+      });
+      editGrid.startEditing(editingRow, 1);
+      var retainedEditCell = editGrid.cellLayer.querySelector(
+        '[data-row="' + editingRow + '"][data-col="1"]'
+      );
+      var editStart = performance.now();
+      editGrid.editor.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowDown',
+        bubbles: true,
+        cancelable: true
+      }));
+      result.unchangedEditMoveMs = performance.now() - editStart;
+      result.unchangedEditMoved = !!editGrid.editing && editGrid.editing.row === editingRow + 1;
+      result.unchangedEditRetainedCell = retainedEditCell === editGrid.cellLayer.querySelector(
+        '[data-row="' + editingRow + '"][data-col="1"]'
+      );
+      result.unchangedEditRenderStats = editGrid._lastScrollRenderStats;
+      var repeatedEditDurations = [result.unchangedEditMoveMs];
+      for (var editMoveIndex = 1; editMoveIndex < 30; editMoveIndex += 1) {
+        editStart = performance.now();
+        editGrid.editor.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown',
+          bubbles: true,
+          cancelable: true
+        }));
+        repeatedEditDurations.push(performance.now() - editStart);
+      }
+      result.repeatedEditMoveMaxMs = Math.max.apply(Math, repeatedEditDurations);
+      result.repeatedEditMoveAverageMs = repeatedEditDurations.reduce(function(total, duration) {
+        return total + duration;
+      }, 0) / repeatedEditDurations.length;
+      result.repeatedEditMoved = !!editGrid.editing && editGrid.editing.row === editingRow + 30;
       result.passed = result.reusedSameCell && !result.retainedCellDetached &&
         result.renderStats && result.renderStats.reused > 0 &&
         result.renderStats.created < result.renderStats.rendered &&
         result.renderedBodyCells <= 1200 &&
         result.rapidScrollRangeCovered &&
-        result.searchResultCount === 1;
+        result.searchResultCount === 1 &&
+        result.unchangedEditMoved && result.unchangedEditRetainedCell &&
+        result.unchangedEditRenderStats && result.unchangedEditRenderStats.created === 0 &&
+        result.repeatedEditMoved;
       resultElement.textContent = JSON.stringify(result);
       resultElement.dataset.complete = 'true';
     } catch (error) {
