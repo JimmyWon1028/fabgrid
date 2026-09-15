@@ -542,34 +542,45 @@ test('editing navigation scrolls after selection without top-aligning through se
     options: {
       multiSelectRows: false
     },
+    beginUpdate: function() {
+      calls.push(['begin']);
+    },
+    endUpdate: function(shouldInvalidate) {
+      calls.push(['end', shouldInvalidate]);
+    },
     findEditableCellInRow: function() {
       return {
         row: 6,
         col: 1
       };
     },
-    finishEditing: function() {
+    finishEditing: function(commit, options) {
+      if (options) {
+        options.reuseLayout = true;
+      }
       return true;
     },
     select: function() {
       throw new Error('editing navigation must not use select() top alignment');
     },
-    applyCellSelection: function(anchorRow, anchorCol, row, col) {
-      calls.push(['selection', anchorRow, anchorCol, row, col]);
+    applyCellSelection: function(anchorRow, anchorCol, row, col, rowHeaderSelection, renderOptions) {
+      calls.push(['selection', anchorRow, anchorCol, row, col, renderOptions && renderOptions._skipLayout]);
     },
     _scrollVisibleIntoView: function(row, col, options) {
-      calls.push(['scroll', row, col, options && options.directionY]);
+      calls.push(['scroll', row, col, options && options.directionY, options && options._skipLayout]);
     },
-    _startEditingVisible: function(row, col) {
-      calls.push(['editing', row, col]);
+    _startEditingVisible: function(row, col, options) {
+      calls.push(['editing', row, col, options && options._skipLayout]);
     }
   };
 
   assert.equal(FabGrid.prototype.commitEditingAndMoveVertical.call(grid, 1), true);
   assert.deepEqual(calls, [
-    ['selection', 6, 1, 6, 1],
-    ['scroll', 6, 1, 1],
-    ['editing', 6, 1]
+    ['begin'],
+    ['selection', 6, 1, 6, 1, true],
+    ['scroll', 6, 1, 1, true],
+    ['editing', 6, 1, true],
+    ['end', true]
   ]);
 
   calls = [];
@@ -581,10 +592,141 @@ test('editing navigation scrolls after selection without top-aligning through se
   };
   assert.equal(FabGrid.prototype.commitEditingAndMoveRight.call(grid), true);
   assert.deepEqual(calls, [
-    ['selection', 7, 1, 7, 1],
-    ['scroll', 7, 1, undefined],
-    ['editing', 7, 1]
+    ['selection', 7, 1, 7, 1, undefined],
+    ['scroll', 7, 1, undefined, undefined],
+    ['editing', 7, 1, undefined]
   ]);
+});
+
+test('unchanged vertical editing navigation reuses a simple local view', function() {
+  var FabGrid = createFabGridFactory({});
+  var item = { value: 'same' };
+  var column = { binding: 'value' };
+  var edit = { row: 0, col: 0 };
+  var options = { editingNavigation: true };
+  var events = [];
+  var renderArgs = [];
+  var applyViewCount = 0;
+  var searchInvalidations = 0;
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.options = { remote: false, pagination: false, rowGroups: [] };
+  grid.source = [item];
+  grid.view = [item];
+  grid.editing = edit;
+  grid._collectionView = null;
+  grid._suppressObservedItemChange = 0;
+  grid.filterPredicate = null;
+  grid.searchText = '';
+  grid.hasColumnSearch = false;
+  grid.excelFilters = {};
+  grid.getSortStates = function() { return []; };
+  grid.isTreeGrid = function() { return false; };
+  grid._invalidateFooterAggregateCache = function() {};
+  grid.clearCellValidationError = function() {};
+  grid.emit = function(name) {
+    events.push(name);
+    return true;
+  };
+  grid.clearEditingState = function() {
+    this.editing = null;
+  };
+  grid.refreshCollectionView = function() {
+    throw new Error('unchanged simple navigation must not refresh CollectionView');
+  };
+  grid.applyView = function() {
+    applyViewCount += 1;
+  };
+  grid.invalidateSearchCache = function() {
+    searchInvalidations += 1;
+  };
+  grid.render = function(skipLayout) {
+    renderArgs.push(skipLayout);
+  };
+  grid.root = { focus: function() {} };
+
+  assert.equal(FabGrid.prototype.commitEditingArgs.call(grid, edit, column, item, {
+    value: 'same',
+    previousValue: 'same',
+    validationError: null
+  }, options), true);
+  assert.deepEqual(events, ['cellEditEnded']);
+  assert.equal(applyViewCount, 0);
+  assert.equal(searchInvalidations, 1);
+  assert.deepEqual(renderArgs, [true]);
+  assert.equal(options.reuseLayout, true);
+
+  grid.editing = edit;
+  grid.getSortStates = function() { return [{ column: column, direction: 1 }]; };
+  grid.refreshCollectionView = function() { return false; };
+  options = { editingNavigation: true };
+  assert.equal(FabGrid.prototype.commitEditingArgs.call(grid, edit, column, item, {
+    value: 'same',
+    previousValue: 'same',
+    validationError: null
+  }, options), true);
+  assert.equal(applyViewCount, 1);
+  assert.deepEqual(renderArgs, [true, undefined]);
+  assert.equal(options.reuseLayout, undefined);
+});
+
+test('vertical editing navigation batches intermediate renders into one update', function() {
+  var FabGrid = createFabGridFactory({});
+  var renderCount = 0;
+  var moveCount = 0;
+  var grid = Object.create(FabGrid.prototype);
+
+  grid._updateCount = 0;
+  grid._updatePendingRefresh = false;
+  grid._updatePendingRender = false;
+  grid._updatePendingInvalidate = false;
+  grid._updatePendingSkipLayout = true;
+  grid.editing = { row: 5, col: 1 };
+  grid.options = { multiSelectRows: false };
+  grid.findEditableCellInRow = function() {
+    return { row: 6, col: 1 };
+  };
+  grid.render = function(skipLayout) {
+    if (this.isUpdating) {
+      this._updatePendingRender = true;
+      if (skipLayout !== true) {
+        this._updatePendingSkipLayout = false;
+      }
+      return;
+    }
+    renderCount += 1;
+  };
+  grid.finishEditing = function() {
+    this.render();
+    return true;
+  };
+  grid.applyCellSelection = function() {
+    moveCount += 1;
+    this.render();
+  };
+  grid._scrollVisibleIntoView = function() {
+    moveCount += 1;
+    this.render();
+  };
+  grid._startEditingVisible = function() {
+    moveCount += 1;
+    this.render();
+  };
+
+  assert.equal(FabGrid.prototype.commitEditingAndMoveVertical.call(grid, 1), true);
+  assert.equal(moveCount, 3);
+  assert.equal(renderCount, 1);
+  assert.equal(grid.isUpdating, false);
+
+  grid.editing = { row: 6, col: 1 };
+  grid.finishEditing = function() {
+    this.render();
+    return false;
+  };
+  assert.equal(FabGrid.prototype.commitEditingAndMoveVertical.call(grid, 1), false);
+  assert.equal(moveCount, 3);
+  assert.equal(renderCount, 1);
+  assert.equal(grid.isUpdating, false);
 });
 
 test('editOnSelect true lets Enter and Tab wrap rows', function() {

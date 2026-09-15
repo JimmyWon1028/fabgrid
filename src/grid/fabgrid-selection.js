@@ -2132,7 +2132,7 @@ export function installFabGridSelection(FabGrid, context) {
     return this.applyCellSelection(anchor.row, anchor.col, row, col);
   };
 
-  FabGrid.prototype.applyCellSelection = function(anchorRow, anchorCol, row, col, rowHeaderSelection) {
+  FabGrid.prototype.applyCellSelection = function(anchorRow, anchorCol, row, col, rowHeaderSelection, renderOptions) {
     var nextRowSelection;
     var rowSelectionChanged;
     var rowHeaderSelectionChanged;
@@ -2174,7 +2174,7 @@ export function installFabGridSelection(FabGrid, context) {
     if (rowSelectionChanged && this.options.multiSelectRows !== true) {
       this.raiseRowSelectionChanged({ row: nextRowSelection });
     }
-    this.render();
+    this.render(renderOptions && renderOptions._skipLayout === true);
     return true;
   };
 
@@ -2704,7 +2704,7 @@ export function installFabGridSelection(FabGrid, context) {
       }
     }
     adjustColumnScrollIntoView(this, col);
-    this.render();
+    this.render(options._skipLayout === true);
     return true;
   };
 

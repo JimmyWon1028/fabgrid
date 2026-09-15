@@ -70,6 +70,34 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     return type;
   }
 
+  function editingValuesEqual(value, previousValue) {
+    if (value === previousValue) {
+      return true;
+    }
+    if (typeof value === 'number' && typeof previousValue === 'number') {
+      return isNaN(value) && isNaN(previousValue);
+    }
+    return value instanceof Date && previousValue instanceof Date &&
+      value.getTime() === previousValue.getTime();
+  }
+
+  function canReuseFlatEditingView(grid, edit, item, args, options) {
+    var gridOptions = grid.options || {};
+    if (!options || options.editingNavigation !== true ||
+        !editingValuesEqual(args.value, args.previousValue) ||
+        grid._collectionView || gridOptions.remote === true || gridOptions.pagination === true ||
+        grid.filterPredicate || grid.searchText || grid.hasColumnSearch ||
+        grid.excelFilters && Object.keys(grid.excelFilters).length ||
+        Array.isArray(gridOptions.rowGroups) && gridOptions.rowGroups.length ||
+        typeof grid.isTreeGrid === 'function' && grid.isTreeGrid() ||
+        typeof grid.getSortStates === 'function' && grid.getSortStates().length) {
+      return false;
+    }
+    return Array.isArray(grid.source) && Array.isArray(grid.view) &&
+      grid.source.length === grid.view.length &&
+      grid.source[edit.row] === item && grid.view[edit.row] === item;
+  }
+
   function getEditorSpinner(config) {
     var definition = config ? editorDefinitions[config.type] || null : null;
     var options = config && config.options ? config.options : {};
@@ -299,7 +327,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       if (this.editorIconHost) {
         this.editorIconHost.style.display = 'none';
       }
-      this.render();
+      this.render(options && options._skipLayout === true);
       if (this.editorIconHost) {
         this.editorIconHost.style.display = editorIconDisplay;
       }
@@ -1130,19 +1158,37 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   FabGrid.prototype.commitEditingAndMoveVertical = function(direction) {
     var edit = this.editing;
     var next;
+    var committed = false;
+    var finishOptions = { editingNavigation: true };
+    var reuseLayout;
     if (!edit) {
       return false;
     }
     next = this.findEditableCellInRow(edit.row + direction, edit.col, direction >= 0 ? 1 : -1);
-    if (this.finishEditing(true) === false) {
-      return false;
+    this.beginUpdate();
+    try {
+      if (this.finishEditing(true, finishOptions) === false) {
+        return false;
+      }
+      committed = true;
+      reuseLayout = finishOptions.reuseLayout === true;
+      if (next) {
+        this.applyCellSelection(next.row, next.col, next.row, next.col, undefined, {
+          _skipLayout: reuseLayout
+        });
+        this._scrollVisibleIntoView(next.row, next.col, {
+          directionY: direction,
+          _skipLayout: reuseLayout
+        });
+        this._startEditingVisible(next.row, next.col, {
+          selectRow: this.options.multiSelectRows !== true,
+          _skipLayout: reuseLayout
+        });
+      }
+      return true;
+    } finally {
+      this.endUpdate(committed);
     }
-    if (next) {
-      this.applyCellSelection(next.row, next.col, next.row, next.col);
-      this._scrollVisibleIntoView(next.row, next.col, { directionY: direction });
-      this._startEditingVisible(next.row, next.col, { selectRow: this.options.multiSelectRows !== true });
-    }
-    return true;
   };
 
   FabGrid.prototype.findNextEditableCell = function(row, col, sameRow) {
@@ -1814,6 +1860,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   };
 
   FabGrid.prototype.commitEditingArgs = function(edit, column, item, args, options) {
+    var reuseView;
     if (this.editing !== edit) {
       return false;
     }
@@ -1841,8 +1888,15 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       this.clearCellValidationError(item, column);
     }
     this.emit('cellEditEnded', Object.assign({}, args));
+    reuseView = canReuseFlatEditingView(this, edit, item, args, options);
     this.clearEditingState();
-    if (!this.refreshCollectionView()) {
+    if (reuseView) {
+      if (typeof this.invalidateSearchCache === 'function') {
+        this.invalidateSearchCache();
+      }
+      options.reuseLayout = true;
+      this.render(true);
+    } else if (!this.refreshCollectionView()) {
       this.applyView();
       this.render();
     }
