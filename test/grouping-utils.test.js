@@ -56,6 +56,13 @@ test('aggregates support numeric operations and custom callbacks', function() {
   assert.equal(calculateAggregate(function(args) { return args.rows.length + args.getValue(args.rows[0]); }, column, rows, null), 15);
 });
 
+test('sum aggregates do not expose binary floating-point residue', function() {
+  var rows = [{ amount: 7970.7 }, { amount: 0.11 }];
+  var column = { binding: 'amount', dataType: 'number' };
+
+  assert.equal(calculateAggregate('sum', column, rows, null), 7970.81);
+});
+
 test('group buckets preserve input order and special keys', function() {
   var rows = [{ group: '__proto__', id: 1 }, { group: 'A', id: 2 }, { group: '__proto__', id: 3 }];
   var buckets = createGroupBuckets(rows, { binding: 'group' }, null);

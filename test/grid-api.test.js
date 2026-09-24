@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createFabGridFactory } from '../src/grid/fabgrid.js?v=20260827-group-aggregate-number-format-v1';
+import { createFabGridFactory } from '../src/grid/fabgrid.js?v=20260922-excel-optional-decimals-v1';
 import { createEditorDefinitions } from '../src/editbox/editbox-definitions.js?v=20260721-grid-number-spinner-v1';
 import {
   applyHeaderCellStyle,
@@ -2726,11 +2726,13 @@ test('Wijmo-compatible events use a stable handler snapshot', function() {
   var first;
 
   FabGrid.prototype.createWijmoEvents.call(grid);
+  assert.equal(grid.updatedView._hasHandlers(), false);
   first = function() {
     calls.push('first');
     grid.updatedView.removeHandler(first);
   };
   grid.updatedView.addHandler(first);
+  assert.equal(grid.updatedView._hasHandlers(), true);
   grid.updatedView.addHandler(function() {
     calls.push('second');
   });
@@ -4236,6 +4238,79 @@ test('hover row class updates cover body frozen row header and selection cells',
 
   FabGrid.prototype.updateHoveredRowClasses.call(grid, 7, false);
   assert.deepEqual(states, [false, false, false, false]);
+});
+
+test('clicking a multi-select checkbox preserves the active cell', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var root = createFakeElement(['fg-root']);
+  var checkbox = createFakeElement(['fg-selection-check'], { 'data-row': 1 });
+  var toggled = null;
+
+  root.className = 'fg-root';
+  root.ownerDocument = {};
+  root.focus = function() {};
+  checkbox.className = 'fg-selection-check';
+  checkbox.parentElement = root;
+  grid.root = root;
+  grid.options = { multiSelectRows: true };
+  grid.selection = { row: 0, col: 0 };
+  grid.busy = false;
+  grid.suppressClick = false;
+  grid.toggleRowSelection = function(row, col, preserveActiveCell) {
+    toggled = {
+      row: row,
+      col: col,
+      preserveActiveCell: preserveActiveCell
+    };
+  };
+
+  FabGrid.prototype.handleClick.call(grid, {
+    target: checkbox,
+    preventDefault: function() {},
+    stopPropagation: function() {}
+  });
+
+  assert.deepEqual(toggled, {
+    row: 1,
+    col: null,
+    preserveActiveCell: true
+  });
+});
+
+test('clicking select all suppresses a single-row selection change', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var root = createFakeElement(['fg-root']);
+  var checkbox = createFakeElement(['fg-selection-check-all']);
+  var selected = null;
+
+  root.className = 'fg-root';
+  root.ownerDocument = {};
+  root.focus = function() {};
+  checkbox.className = 'fg-selection-check-all';
+  checkbox.checked = true;
+  grid.root = root;
+  grid.options = { multiSelectRows: true };
+  grid.busy = false;
+  grid.suppressClick = false;
+  grid.setAllRowsSelected = function(value, suppressSelectedRowChanged) {
+    selected = {
+      value: value,
+      suppressSelectedRowChanged: suppressSelectedRowChanged
+    };
+  };
+
+  FabGrid.prototype.handleClick.call(grid, {
+    target: checkbox,
+    preventDefault: function() {},
+    stopPropagation: function() {}
+  });
+
+  assert.deepEqual(selected, {
+    value: true,
+    suppressSelectedRowChanged: true
+  });
 });
 
 test('clicking another cell commits the current editor before changing selection', function() {
@@ -6043,6 +6118,54 @@ test('unselectRow clears a checked row without toggling an unchecked row on', fu
   assert.equal(renderCount, 1);
 });
 
+test('multi-select checkbox toggles row color without moving the active cell', function() {
+  var FabGrid = createFabGridFactory({});
+  var first = { id: 1 };
+  var second = { id: 2 };
+  var events = [];
+  var cancelCount = 0;
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.options = { multiSelectRows: true };
+  grid.view = [first, second];
+  grid.columns = [{ binding: 'id', _index: 0 }];
+  grid.visibleColumns = grid.columns;
+  grid.selection = { row: 0, col: 0 };
+  grid.selectionAnchor = { row: 0, col: 0 };
+  grid.rowSelection = 0;
+  grid._rowHeaderSelection = null;
+  grid.selectedRowMap = { 0: true };
+  grid.selectedItemRefs = [first];
+  grid._selectedItemSet = new WeakSet([first]);
+  grid.isRowGroup = function() { return false; };
+  grid.isRowGroupFooter = function() { return false; };
+  grid.cancelEditingForSelection = function() { cancelCount += 1; };
+  grid.emit = function(name, args) {
+    events.push([name, args]);
+    return true;
+  };
+  grid.render = function() {};
+
+  assert.equal(grid.toggleRowSelection(1, null, true), true);
+  assert.deepEqual(grid.selection, { row: 0, col: 0 });
+  assert.deepEqual(grid.selectionAnchor, { row: 0, col: 0 });
+  assert.equal(grid.rowSelection, 0);
+  assert.equal(grid.isRowSelected(1), true);
+  assert.equal(cancelCount, 0);
+  assert.equal(events[0][1].activeRow, 0);
+  assert.equal(events[0][1].changedRow, 1);
+
+  events = [];
+  assert.equal(grid.toggleRowSelection(1, null, true), true);
+  assert.deepEqual(grid.selection, { row: 0, col: 0 });
+  assert.deepEqual(grid.selectionAnchor, { row: 0, col: 0 });
+  assert.equal(grid.rowSelection, 0);
+  assert.equal(grid.isRowSelected(1), false);
+  assert.equal(cancelCount, 0);
+  assert.equal(events[0][1].activeRow, 0);
+  assert.equal(events[0][1].changedRow, 1);
+});
+
 test('unselectRow clears a single selected row and keeps it cleared across selection clamping', function() {
   var FabGrid = createFabGridFactory({});
   var first = { id: 1 };
@@ -6221,6 +6344,71 @@ test('select all rows raises complete selection event pairs', function() {
   assert.equal(events[2][1].selected, true);
   assert.notEqual(events[0][1], events[2][1]);
   assert.notEqual(events[1][1], events[3][1]);
+});
+
+test('checkbox select all and clear all do not raise selectedRowChanged', function() {
+  var FabGrid = createFabGridFactory({});
+  var first = { id: 1 };
+  var second = { id: 2 };
+  var events = [];
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.options = { multiSelectRows: true };
+  grid.view = [first, second];
+  grid.dataView = grid.view;
+  grid.columns = [{ binding: 'id', _index: 0 }];
+  grid.visibleColumns = grid.columns;
+  grid.selection = { row: 1, col: 0 };
+  grid.selectionAnchor = { row: 1, col: 0 };
+  grid.rowSelection = 1;
+  grid._selectedRowSnapshot = { rowIndex: -1, dataItem: null };
+  Object.defineProperty(grid, 'rows', {
+    configurable: true,
+    value: [{ dataItem: first }, { dataItem: second }]
+  });
+  grid.selectedRowMap = {};
+  grid.selectedItemRefs = [];
+  grid._selectedItemSet = new WeakSet();
+  grid.isRowGroup = function() { return false; };
+  grid.isRowGroupFooter = function() { return false; };
+  grid.emit = function(name, args) {
+    events.push([name, args]);
+    return true;
+  };
+  grid.render = function() {};
+
+  assert.equal(grid.setAllRowsSelected(true, true), true);
+  assert.deepEqual(grid.selection, { row: 1, col: 0 });
+  assert.equal(grid.getSelectedRowCount(), 2);
+  assert.deepEqual(events.map(function(entry) { return entry[0]; }), [
+    'selectionChanging',
+    'rowSelectionChanging',
+    'selectionChanged',
+    'rowSelectionChanged'
+  ]);
+  assert.equal(grid._selectedRowSnapshot.rowIndex, 1);
+
+  events = [];
+  assert.equal(grid.setAllRowsSelected(false, true), true);
+  assert.deepEqual(grid.selection, { row: 1, col: 0 });
+  assert.equal(grid.getSelectedRowCount(), 0);
+  assert.deepEqual(events.map(function(entry) { return entry[0]; }), [
+    'selectionChanging',
+    'rowSelectionChanging',
+    'selectionChanged',
+    'rowSelectionChanged'
+  ]);
+  assert.equal(grid._selectedRowSnapshot.rowIndex, -1);
+
+  events = [];
+  assert.equal(grid.setAllRowsSelected(true), true);
+  assert.deepEqual(events.map(function(entry) { return entry[0]; }), [
+    'selectionChanging',
+    'rowSelectionChanging',
+    'selectionChanged',
+    'rowSelectionChanged',
+    'selectedRowChanged'
+  ]);
 });
 
 test('number cell editor spinner uses the shared definition and keeps editing active', function() {
@@ -6954,6 +7142,25 @@ test('numeric footer cells align right while footerFormatter remains authoritati
   } finally {
     globalThis.document = originalDocument;
   }
+});
+
+test('numeric footer sums hide binary floating-point residue', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var column = {
+    _index: 0,
+    binding: 'amount',
+    dataType: 'number',
+    aggregate: 'sum'
+  };
+
+  grid.options = { showFooter: true, footerHeight: 32, footerLabel: 'Total' };
+  grid.columns = [column];
+  grid.view = [{ amount: 7970.7 }, { amount: 0.11 }];
+  grid.dataView = grid.view;
+
+  assert.equal(grid.getFooterCellValue(column), 7970.81);
+  assert.equal(grid.getFooterCellText(column), '7,970.81');
 });
 
 test('numeric row group aggregates use thousands separators by default', function() {

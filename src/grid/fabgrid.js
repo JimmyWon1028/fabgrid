@@ -10,8 +10,8 @@ import {
   normalizeRemoteData,
   normalizeRemoteCredentials,
   setByBinding
-} from './fabgrid-data.js?v=20260904-filter-rule-operators-v1';
-import { installFabGridExport } from './fabgrid-export.js?v=20260812-collection-view-init-v1';
+} from './fabgrid-data.js?v=20260922-footer-aggregate-precision-v1';
+import { installFabGridExport } from './fabgrid-export.js?v=20260922-excel-optional-decimals-v1';
 import { installFabGridDrag } from './fabgrid-drag.js?v=20260804-grid-event-layout-v2';
 import { installFabGridTree } from './fabgrid-tree.js?v=20260804-grid-column-rollback-v4';
 import {
@@ -29,7 +29,7 @@ import {
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
 import { installFabGridView } from './fabgrid-view.js?v=20260815-header-compact-icons-v2';
 import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260821-search-row-ime-v1';
-import { installFabGridSelection } from './fabgrid-selection.js?v=20260815-row-hover-fast-v1';
+import { installFabGridSelection } from './fabgrid-selection.js?v=20260924-select-all-no-row-event-v1';
 import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260807-async-stay-on-invalid-v1';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
@@ -2367,7 +2367,9 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
         return;
       }
     }
-    if (area === 'selection' || area === 'rowHeader') {
+    if (area === 'selection') {
+      this.toggleRowSelection(rowIndex, null, true);
+    } else if (area === 'rowHeader') {
       this.toggleRowSelection(rowIndex, colIndex);
     } else if (this.shouldEditOnSelect(rowIndex, colIndex)) {
       this._selectVisibleRow(rowIndex, colIndex);
@@ -3341,6 +3343,9 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   function createWijmoEvent(grid, name, definition) {
     var handlers = [];
     return {
+      _hasHandlers: function() {
+        return handlers.length > 0;
+      },
       addHandler: function(handler, self) {
         if (typeof handler === 'function') {
           handlers.push({ handler: handler, self: self || null });

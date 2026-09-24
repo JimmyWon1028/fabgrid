@@ -82,6 +82,7 @@
 - FabGrid 事件表只允許公開實際會由目前程式流程觸發的正式事件；尚未實作的相容事件不得先建立 Event object。所有動作前／開始事件都必須實際支援 `e.cancel = true` 或 handler 回傳 `false`，包含 `updatingLayout` 與 `excelExporting`，取消後不得執行對應動作或完成事件。
 - FabGrid 同一動作的前置與完成事件必須使用不同的 event args object；不得因後續 `emit()` 改寫 handler 已保留的前置事件 `e.type`、`e.grid` 或其他欄位。同一事件派送內的 handler 仍共用該次 args，以保留 `e.value`、`e.width` 與 `e.cancel` 等可修改契約。
 - FabGrid `selectedRowChanged` 是不可取消的公開事件，必須支援 constructor option 與 Wijmo-compatible `addHandler()`。selected row 因滑鼠、鍵盤或 API 改變／取消時以 `reason: 'selection'` 觸發；`setItemsSource()`、遠端資料回傳或 `observeItemsSource` mutation 更新資料來源時，即使 row index 相同也以 `reason: 'itemsSource'` 觸發。只改變同一 row 的 active column 不得觸發；更新資料來源前後都沒有 selected row 時也不得觸發。參數必須包含 `row`、`rowIndex`、`dataItem`、`previousRowIndex` 與 `previousDataItem`。
+- FabGrid 多選欄的單列 checkbox 勾選／取消不得移動 active cell；左上角全選／取消全選只更新列勾選與底色，不得觸發單列 `selectedRowChanged`，但仍須保留帶有 `allRows: true` 的可取消 selection／row-selection 事件與完成事件。點擊一般資料 cell 維持原有移動 active cell 的行為。
 - FabGrid 每次有效的遠端成功回應套用新 rows 後，都必須以 `{ rows, remote: true }` 觸發 `itemsSourceChanged`，包含初次載入、換頁、排序、篩選與 `reload()`；事件順序為 `itemsSourceChanged`、`selectedRowChanged`、`loadSuccess`，換頁成功時再觸發 `pageChanged`。失敗、取消或被較新請求取代的過期 response 不得觸發 `itemsSourceChanged`。
 - FabGrid 使用內建 `url`／Fetch 載入遠端資料時，新的有效 load 開始前必須以 `AbortController` 中止上一個尚未完成的內建 request，`dispose()` 也必須立即中止；被中止、過期或 dispose 後才完成的 response 不得觸發 `itemsSourceChanged`、`selectedRowChanged`、`loadSuccess` 或 `loadError`。自訂 `loader` 的取消能力仍由使用者實作，不得強迫套用內建 AbortSignal。
 - FabGrid nested binding path 必須使用有上限的共用解析快取，同時保留 `__proto__`、`prototype`、`constructor` 等危險 path 拒絕規則；Chart 的 nested binding 也必須使用有上限的 path cache。不得在每次 cell render、搜尋或 sort comparator 內重複 `split('.')`。
@@ -98,7 +99,7 @@
 - FabGrid `treeColumn` 的數字與十進位整數字串統一使用完整 `grid.columns` index，包含隱藏欄位；指定隱藏欄時不顯示階層箭頭，也可使用以字母開頭的 binding／name／header 或該 Grid 的 Column object。
 - FabGrid `treeSearchVisibility` 預設為 `'ancestors'`；設為 `'children'` 時，全域搜尋若符合父節點必須保留其完整子樹，符合子節點仍保留必要祖先，其他 predicate、Search Row 與 Excel-like 篩選仍須限制節點。`treeLevelColors` 只接受 `$RRGGBB` 陣列，由 TreeGrid renderer 依 level 畫出循環色帶，不得要求外部以 `formatItem` 建立色帶 DOM；`treeLevelColorOpacities` 以 `0` 至 `1` 的陣列分別控制色帶透明度，未設定時完全不透明。使用階層色帶時，展開箭頭必須置中於目前階層色塊，cell 的 underline／line-through 只能套用內容，不得延伸到箭頭。
 - FabGrid `rowDropHandler(args)` 可同步或以 Promise 回傳 `false`、`{ action: 'move' }` 或 `{ action: 'copy', item }`；Promise pending 期間來源與目標 Grid 不得再開始 Row drag。失敗、dispose 後完成或被較新 drop 取代的結果不得改動資料；有效失敗觸發 `rowDropFailed`，copy 不移除來源資料。
-- FabGrid XLSX 匯出數字欄位時必須保留數值型別與 Column 的千分位／`precision` 格式。啟用千分位但未指定 `precision` 時，整數 cell 使用不含小數點的格式，實際含小數的 cell 才使用可選小數位格式；不得讓整數顯示尾端小數點。
+- FabGrid XLSX 匯出的 Footer cell 必須使用 `#EFEFEF` 灰色背景與黑色文字。數字欄位與 Footer 有限數字值必須保留數值型別與 Column 的千分位／`precision` 格式；明確的 `footerFormatter` 仍保留其文字輸出。啟用千分位但未指定 `precision` 時，整數 cell 使用不含小數點的格式，實際含小數的 cell 才使用可選小數位格式；不得讓整數顯示尾端小數點。
 - 修改 Grid 資料熱路徑、排序、搜尋或 virtualization 後，必須執行 `npm run benchmark:grid`。此命令固定使用 20,000×50、共 100 萬資料格，量測 binding scan、全域搜尋、雙欄排序與渲染 cell 上限；時間必須在相同機器與環境比較，虛擬化結果必須遠低於完整資料格數。Benchmark 不得重建 `dist`。
 - Excel 匯出使用目前 grid `view`。群組啟用時必須保留 group row、群組 aggregate 顯示格式與收合狀態。
 - Excel 匯出的標題列必須跟隨目前 `headerDisplayMode`；畫面顯示 binding 時匯出 binding，顯示 header 時匯出 header。

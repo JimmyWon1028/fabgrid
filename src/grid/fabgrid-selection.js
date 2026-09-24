@@ -105,9 +105,14 @@ export function installFabGridSelection(FabGrid, context) {
     return grid.emit('rowSelectionChanging', Object.assign({}, rowArgs)) !== false;
   }
 
-  function raiseRowSelectionEvents(grid, selectionArgs, rowArgs) {
+  function raiseRowSelectionEvents(grid, selectionArgs, rowArgs, suppressSelectedRowChanged) {
     grid.emit('selectionChanged', Object.assign({}, selectionArgs));
-    grid.raiseRowSelectionChanged(Object.assign({}, rowArgs));
+    grid.emit('rowSelectionChanged', Object.assign({}, rowArgs));
+    if (suppressSelectedRowChanged === true) {
+      grid._selectedRowSnapshot = grid.captureSelectedRowChangeState();
+    } else {
+      grid.raiseSelectedRowChanged('selection');
+    }
   }
 
   function adjustColumnScrollIntoView(grid, col) {
@@ -424,7 +429,7 @@ export function installFabGridSelection(FabGrid, context) {
     if (selectAll) {
       event.preventDefault();
       event.stopPropagation();
-      this.setAllRowsSelected(selectAll.checked);
+      this.setAllRowsSelected(selectAll.checked, true);
       this.root.focus();
       return;
     }
@@ -433,7 +438,7 @@ export function installFabGridSelection(FabGrid, context) {
       event.preventDefault();
       event.stopPropagation();
       rowIndex = toNumber((selectionCheck || selectionCell).getAttribute('data-row'), 0);
-      this.toggleRowSelection(rowIndex);
+      this.toggleRowSelection(rowIndex, null, true);
       this.root.focus();
       return;
     }
@@ -2226,7 +2231,7 @@ export function installFabGridSelection(FabGrid, context) {
     return true;
   };
 
-  FabGrid.prototype.toggleRowSelection = function(row, col) {
+  FabGrid.prototype.toggleRowSelection = function(row, col, preserveActiveCell) {
     var item;
     var groupState;
     var selected;
@@ -2245,7 +2250,10 @@ export function installFabGridSelection(FabGrid, context) {
     } else {
       selected = !this.isItemSelected(item);
     }
-    selectionArgs = Object.assign(this.getSelectionEventArgs(row, col, row, col), {
+    preserveActiveCell = preserveActiveCell === true;
+    selectionArgs = Object.assign(preserveActiveCell ?
+      this._createSelectionChangedEventArgs() :
+      this.getSelectionEventArgs(row, col, row, col), {
       changedRow: row,
       selected: selected
     });
@@ -2253,17 +2261,21 @@ export function installFabGridSelection(FabGrid, context) {
     if (!canChangeRowSelection(this, selectionArgs, rowArgs)) {
       return false;
     }
-    this.cancelEditingForSelection(row, col);
+    if (!preserveActiveCell) {
+      this.cancelEditingForSelection(row, col);
+    }
     if (this.isRowGroup(item)) {
       this.setItemsSelectionState(item.items || [], selected);
     } else {
       this.setItemSelectionState(item, selected);
     }
     this.rebuildSelectedRowMap();
-    this.rowSelection = row;
-    this.selection = { row: row, col: col };
-    this.selectionAnchor = { row: row, col: col };
-    this._rowHeaderSelection = null;
+    if (!preserveActiveCell) {
+      this.rowSelection = row;
+      this.selection = { row: row, col: col };
+      this.selectionAnchor = { row: row, col: col };
+      this._rowHeaderSelection = null;
+    }
     selectionArgs.selected = this.isRowSelected(row);
     rowArgs.selected = selectionArgs.selected;
     raiseRowSelectionEvents(this, selectionArgs, rowArgs);
@@ -2343,7 +2355,7 @@ export function installFabGridSelection(FabGrid, context) {
     return true;
   };
 
-  FabGrid.prototype.setAllRowsSelected = function(selected) {
+  FabGrid.prototype.setAllRowsSelected = function(selected, suppressSelectedRowChanged) {
     var selectionArgs;
     var rowArgs;
     selected = selected === true;
@@ -2358,7 +2370,7 @@ export function installFabGridSelection(FabGrid, context) {
     this.resetSelectedItemSelection(this.options.multiSelectRows === true && selected ? (this.dataView || []).slice() : []);
     this.rebuildSelectedRowMap();
     this._rowHeaderSelection = null;
-    raiseRowSelectionEvents(this, selectionArgs, rowArgs);
+    raiseRowSelectionEvents(this, selectionArgs, rowArgs, suppressSelectedRowChanged);
     this.render();
     return true;
   };

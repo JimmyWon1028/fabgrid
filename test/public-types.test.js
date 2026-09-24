@@ -4,7 +4,7 @@ import fabui from '../src/fabui.js';
 import {
   createXlsxFiles,
   getExcelColumnName
-} from '../src/grid/fabgrid-export.js?v=20260812-collection-view-init-v1';
+} from '../src/grid/fabgrid-export.js?v=20260922-excel-optional-decimals-v1';
 
 test('FabUI publishes CellType at the top level and Row types through FabGrid', function() {
   assert.equal(fabui.CellType.Cell, 1);

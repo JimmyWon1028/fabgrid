@@ -1,6 +1,7 @@
 import { normalizeNumberValue } from './fabgrid-data.js?v=20260812-collection-view-init-v1';
 
 var exportContext = {};
+var excelColumnNameCache = [''];
 
 function exportGetByBinding(item, binding) {
   return exportContext.getByBinding ? exportContext.getByBinding(item, binding) : undefined;
@@ -95,6 +96,9 @@ export function readJsonSource(source) {
 }
 
 export function getExcelColumnName(index) {
+  if (excelColumnNameCache[index]) {
+    return excelColumnNameCache[index];
+  }
   var name = '';
   var number = index;
   while (number > 0) {
@@ -102,6 +106,7 @@ export function getExcelColumnName(index) {
     name = String.fromCharCode(65 + (number % 26)) + name;
     number = Math.floor(number / 26);
   }
+  excelColumnNameCache[index] = name;
   return name;
 }
 
@@ -135,7 +140,11 @@ function normalizeExcelExportOptions(value) {
 
 export function cssColorToExcelColor(value) {
   var match;
+  var alpha;
+  var blue;
+  var green;
   var hex;
+  var red;
   if (!value || value === 'transparent' || value === 'rgba(0, 0, 0, 0)') return '';
   if (value.charAt(0) === '#') {
     hex = value.length === 4 ?
@@ -145,7 +154,11 @@ export function cssColorToExcelColor(value) {
   }
   match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([0-9.]+))?\)/);
   if (!match || match[4] === '0') return '';
-  return 'FF' + toHexByte(match[1]) + toHexByte(match[2]) + toHexByte(match[3]);
+  alpha = match[4] == null ? 1 : Math.max(0, Math.min(1, Number(match[4])));
+  red = Number(match[1]) * alpha + 255 * (1 - alpha);
+  green = Number(match[2]) * alpha + 255 * (1 - alpha);
+  blue = Number(match[3]) * alpha + 255 * (1 - alpha);
+  return 'FF' + toHexByte(red) + toHexByte(green) + toHexByte(blue);
 }
 
 export function normalizeExcelStyle(style) {
@@ -192,7 +205,7 @@ export function createExcelCell(row, col, value, type, styleId) {
 }
 
 function toHexByte(value) {
-  var hex = Math.max(0, Math.min(255, Number(value))).toString(16).toUpperCase();
+  var hex = Math.round(Math.max(0, Math.min(255, Number(value)))).toString(16).toUpperCase();
   return hex.length === 1 ? '0' + hex : hex;
 }
 
@@ -212,6 +225,7 @@ function createGridExcelSheet(grid, options) {
       headerDisplayMode: grid.getHeaderDisplayMode(),
       grid: grid,
       formatCell: grid.options.formatCell,
+      itemFormatter: grid.options.itemFormatter,
       excelCellStyle: grid.options.excelCellStyle,
       includeFooter: grid.getFooterHeight() > 0,
       footerRowCount: typeof grid.getFooterRowCount === 'function' ? grid.getFooterRowCount() : 1,
@@ -709,7 +723,12 @@ export function createWorksheetXml(columns, rows, options, registry) {
   var c;
   var footerRow;
   var row;
-  var styleResolver = createExcelStyleResolver(options);
+  var rowXml;
+  var value;
+  var baseStyleStates = columns.map(function(column) {
+    return createExcelBaseCellStyleState(column, registry);
+  });
+  var styleResolver = createExcelStyleResolver(options, columns);
   xml.push('<?xml version="1.0" encoding="UTF-8"?>');
   xml.push('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">');
   xml.push('<dimension ref="A1:' + getExcelColumnName(maxCol) + maxRow + '"/>');
@@ -736,22 +755,33 @@ export function createWorksheetXml(columns, rows, options, registry) {
     if (options.grid && options.grid.isRowGroupFooter(row)) {
       continue;
     }
-    xml.push('<row r="' + (r + 2) + '"' +
-      (typeof options.isRowHidden === 'function' && options.isRowHidden(row, r) ? ' hidden="1"' : '') + '>');
+    rowXml = ['<row r="' + (r + 2) + '"' +
+      (typeof options.isRowHidden === 'function' && options.isRowHidden(row, r) ? ' hidden="1"' : '') + '>'];
     for (c = 0; c < columns.length; c += 1) {
-      xml.push(createExcelCell(
+      value = exportGetByBinding(row, columns[c].binding);
+      rowXml.push(createExcelCell(
         r + 2,
         c + 1,
-        exportGetByBinding(row, columns[c].binding),
+        value,
         columns[c].dataType,
-        getExcelCellStyle(columns[c], row, r, c, options, registry, styleResolver)
+        getExcelCellStyle(
+          columns[c],
+          row,
+          value,
+          r,
+          c,
+          registry,
+          styleResolver,
+          baseStyleStates[c]
+        )
       ));
     }
-    xml.push('</row>');
+    rowXml.push('</row>');
+    xml.push(rowXml.join(''));
   }
   if (includeFooter) {
     for (footerRow = 0; footerRow < footerRowCount; footerRow += 1) {
-      xml.push(createExcelFooterRowXml(rows.length + 2 + footerRow, columns, options.grid, footerRow));
+      xml.push(createExcelFooterRowXml(rows.length + 2 + footerRow, columns, options.grid, footerRow, registry));
     }
   }
   if (styleResolver.dispose) {
@@ -795,14 +825,31 @@ function createExcelGroupRowXml(rowIndex, group, columns, grid, registry) {
   return xml.join('');
 }
 
-function createExcelFooterRowXml(rowIndex, columns, grid, footerRowIndex) {
+function createExcelFooterRowXml(rowIndex, columns, grid, footerRowIndex, registry) {
   var xml = [];
   var c;
+  var rawValue;
+  var type;
   var value;
   xml.push('<row r="' + rowIndex + '">');
   for (c = 0; c < columns.length; c += 1) {
     value = grid.getFooterCellText(footerRowIndex, columns[c]);
-    xml.push(createExcelCell(rowIndex, c + 1, value, 'string', getExcelFooterCellStyle(columns[c])));
+    rawValue = typeof grid.getFooterCellValue === 'function' ?
+      grid.getFooterCellValue(footerRowIndex, columns[c]) : value;
+    type = 'string';
+    if (typeof columns[c].footerFormatter !== 'function' &&
+        (typeof rawValue === 'number' || columns[c].dataType === 'number' || columns[c].aggregate) &&
+        normalizeNumberValue(rawValue) != null) {
+      value = normalizeNumberValue(rawValue);
+      type = 'number';
+    }
+    xml.push(createExcelCell(
+      rowIndex,
+      c + 1,
+      value,
+      type,
+      getExcelFooterCellStyle(columns[c], value, type, registry)
+    ));
   }
   xml.push('</row>');
   return xml.join('');
@@ -836,26 +883,53 @@ function createColumnWidthXml(columns) {
   return xml.join('');
 }
 
-function getExcelCellStyle(column, item, rowIndex, colIndex, options, registry, styleResolver) {
-  var value = exportGetByBinding(item, column.binding);
-  var baseStyle = getExcelBaseCellStyle(column, value);
-  var extraStyle = styleResolver(item, column, rowIndex, colIndex);
+function getExcelCellStyle(column, item, value, rowIndex, colIndex, registry, styleResolver, baseStyleState) {
+  var baseStyle = getExcelBaseCellStyleFromState(baseStyleState, value);
+  var extraStyle = styleResolver(item, column, value, rowIndex, colIndex);
+  var combinedStyle;
   if (extraStyle) {
-    if (!extraStyle.align) {
-      extraStyle.align = baseStyle.align;
-    }
-    if (!extraStyle.numFmtCode && !extraStyle.numberFormat && baseStyle.numFmtCode) {
-      extraStyle.numFmtCode = baseStyle.numFmtCode;
-    }
-    return registerExcelCellStyle(registry, extraStyle);
-  }
-  if (baseStyle.numFmtCode) {
-    return registerExcelCellStyle(registry, baseStyle);
+    combinedStyle = mergeExcelStyle({
+      align: baseStyle.align || '',
+      numFmtCode: baseStyle.numFmtCode || ''
+    }, extraStyle);
+    return registerExcelCellStyle(registry, combinedStyle);
   }
   if (baseStyle.id) {
     return baseStyle.id;
   }
   return 2;
+}
+
+function createExcelBaseCellStyleState(column, registry) {
+  var integerStyle = getExcelBaseCellStyle(column);
+  var decimalStyle;
+  if (integerStyle.numFmtCode) {
+    integerStyle.id = registerExcelCellStyle(registry, integerStyle);
+  }
+  if (column && column.dataType === 'number' &&
+      exportGetNumberPrecision(column) == null &&
+      exportShouldUseThousandsSeparator(column)) {
+    decimalStyle = {
+      align: 'right',
+      numFmtCode: '#,##0.############'
+    };
+    decimalStyle.id = registerExcelCellStyle(registry, decimalStyle);
+  }
+  return {
+    integer: integerStyle,
+    decimal: decimalStyle
+  };
+}
+
+function getExcelBaseCellStyleFromState(state, value) {
+  var number;
+  if (state.decimal) {
+    number = normalizeNumberValue(value);
+    if (number == null || number % 1 !== 0) {
+      return state.decimal;
+    }
+  }
+  return state.integer;
 }
 
 function getExcelGroupCellStyle(column, isLabel, registry) {
@@ -887,14 +961,29 @@ function getExcelBaseCellStyle(column, value) {
   return { id: 2, align: '' };
 }
 
-function getExcelFooterCellStyle(column) {
+function getExcelFooterCellStyle(column, value, type, registry) {
+  var numberColumn;
+  var numberFormat;
+  var style = {
+    backgroundColor: 'FFEFEFEF',
+    color: 'FF000000',
+    align: ''
+  };
+  if (type === 'number') {
+    numberColumn = Object.create(column || null);
+    numberColumn.dataType = 'number';
+    numberColumn.thousandsSeparator = true;
+    numberFormat = getExcelNumberFormatCode(numberColumn, value);
+    style.align = 'right';
+    style.numFmtCode = numberFormat;
+    return registerExcelCellStyle(registry, style);
+  }
   if (column.align === 'right' || column.dataType === 'number') {
-    return 3;
+    style.align = 'right';
+  } else if (column.align === 'center' || column.dataType === 'boolean') {
+    style.align = 'center';
   }
-  if (column.align === 'center' || column.dataType === 'boolean') {
-    return 4;
-  }
-  return 2;
+  return registerExcelCellStyle(registry, style);
 }
 
 function getExcelNumberFormatCode(column, value) {
@@ -929,13 +1018,32 @@ function repeatString(text, count) {
   return output;
 }
 
-function createExcelStyleResolver(options) {
+function createExcelStyleResolver(options, columns) {
   var sampleCell = null;
   var formatCell = options.formatCell;
+  var itemFormatter = options.itemFormatter;
   var customStyle = options.excelCellStyle;
   var grid = options.grid;
+  var hasFormatItem = hasExcelFormatItemHandlers(grid);
+  var dynamicComputedStyle = typeof formatCell === 'function' ||
+    typeof itemFormatter === 'function' || hasFormatItem;
+  var computedStyleColumns = columns.map(function(column) {
+    return dynamicComputedStyle || !!(column && (
+      column.cssClass ||
+      column.cellTemplate != null ||
+      (column.color && !cssColorToExcelColor(column.color))
+    ));
+  });
+  var sourceColumnIndexes = columns.map(function(column, index) {
+    return column && column._index != null ? column._index :
+      (grid && Array.isArray(grid.columns) ? grid.columns.indexOf(column) : index);
+  });
+  var viewColumnIndexes = columns.map(function(column, index) {
+    return grid && Array.isArray(grid.visibleColumns) ? grid.visibleColumns.indexOf(column) : index;
+  });
   var resolver;
-  if (grid && grid.root && typeof document !== 'undefined' && typeof formatCell === 'function') {
+  if (grid && grid.root && typeof document !== 'undefined' &&
+      computedStyleColumns.some(function(value) { return value; })) {
     sampleCell = document.createElement('div');
     sampleCell.style.position = 'absolute';
     sampleCell.style.visibility = 'hidden';
@@ -944,12 +1052,18 @@ function createExcelStyleResolver(options) {
     sampleCell.style.left = '-10000px';
     grid.root.appendChild(sampleCell);
   }
-  resolver = function(item, column, rowIndex, colIndex) {
-    var value = exportGetByBinding(item, column.binding);
+  resolver = function(item, column, value, rowIndex, colIndex) {
+    var displayText;
     var style = null;
     var fromCell;
+    var initialMarkup = null;
     var override;
-    if (sampleCell) {
+    var requiresComputedStyle;
+    var templateApplied = false;
+    var sourceColIndex = sourceColumnIndexes[colIndex];
+    var viewColIndex = viewColumnIndexes[colIndex];
+    var args;
+    if (sampleCell && computedStyleColumns[colIndex]) {
       sampleCell.removeAttribute('style');
       sampleCell.style.position = 'absolute';
       sampleCell.style.visibility = 'hidden';
@@ -957,22 +1071,72 @@ function createExcelStyleResolver(options) {
       sampleCell.style.top = '-10000px';
       sampleCell.style.left = '-10000px';
       sampleCell.className = 'fg-cell' + (column.align ? ' fg-align-' + column.align : '');
+      if (column.cssClass) {
+        sampleCell.className += ' ' + String(column.cssClass).trim();
+      }
+      if (grid && typeof grid.isAlternatingRow === 'function' && grid.isAlternatingRow(rowIndex)) {
+        sampleCell.className += ' fg-row-even fg-row-alt';
+      }
+      if (column.color) {
+        sampleCell.style.color = column.color;
+      }
       sampleCell.removeAttribute('data-row');
       sampleCell.removeAttribute('data-col');
-      sampleCell.textContent = value == null ? '' : String(value);
-      formatCell({
-        grid: grid,
-        cell: sampleCell,
-        item: item,
-        column: column,
-        value: value,
-        rowIndex: rowIndex,
-        colIndex: colIndex
-      });
-      fromCell = getExcelStyleFromComputedCell(sampleCell);
-      if (fromCell) {
-        style = fromCell;
+      sampleCell.setAttribute('data-row', rowIndex);
+      sampleCell.setAttribute('data-col', viewColIndex);
+      displayText = grid && typeof grid.getCellDisplayText === 'function' ?
+        grid.getCellDisplayText(item, column, value) : (value == null ? '' : String(value));
+      sampleCell.textContent = '';
+      if (grid && typeof grid.applyCellTemplate === 'function' && column.cellTemplate != null) {
+        templateApplied = grid.applyCellTemplate(
+          sampleCell,
+          item,
+          column,
+          value,
+          displayText,
+          rowIndex
+        );
       }
+      if (!templateApplied) {
+        sampleCell.textContent = displayText;
+      }
+      requiresComputedStyle = !!(
+        column.cssClass ||
+        templateApplied ||
+        (column.color && !cssColorToExcelColor(column.color))
+      );
+      if (dynamicComputedStyle && !requiresComputedStyle && typeof sampleCell.outerHTML === 'string') {
+        initialMarkup = sampleCell.outerHTML;
+      }
+      args = createExcelFormatItemArgs(
+        grid,
+        sampleCell,
+        item,
+        column,
+        value,
+        rowIndex,
+        sourceColIndex,
+        viewColIndex
+      );
+      if (typeof formatCell === 'function') {
+        formatCell(args);
+      }
+      if (typeof itemFormatter === 'function' && viewColIndex >= 0) {
+        itemFormatter(grid.cells, rowIndex, viewColIndex, sampleCell);
+      }
+      if (hasFormatItem && viewColIndex >= 0 && grid && typeof grid.raiseFormatItem === 'function') {
+        grid.raiseFormatItem(args);
+      }
+      if (requiresComputedStyle || initialMarkup == null || sampleCell.outerHTML !== initialMarkup) {
+        fromCell = getExcelStyleFromComputedCell(sampleCell);
+        if (fromCell) {
+          style = fromCell;
+        }
+      } else if (column.color) {
+        style = { color: cssColorToExcelColor(column.color) };
+      }
+    } else if (column && column.color) {
+      style = { color: cssColorToExcelColor(column.color) };
     }
     if (typeof customStyle === 'function') {
       override = customStyle({
@@ -981,7 +1145,8 @@ function createExcelStyleResolver(options) {
         column: column,
         value: value,
         rowIndex: rowIndex,
-        colIndex: colIndex,
+        colIndex: sourceColIndex,
+        viewCol: viewColIndex,
         style: style || {}
       });
       if (override) {
@@ -1000,18 +1165,63 @@ function createExcelStyleResolver(options) {
   return resolver;
 }
 
+function hasExcelFormatItemHandlers(grid) {
+  var formatItemEvent = grid && grid.formatItem;
+  var eventHandlers = grid && grid.events && grid.events.formatItem;
+  if (Array.isArray(eventHandlers) && eventHandlers.length) {
+    return true;
+  }
+  if (formatItemEvent && typeof formatItemEvent._hasHandlers === 'function' &&
+      formatItemEvent._hasHandlers()) {
+    return true;
+  }
+  return false;
+}
+
+function createExcelFormatItemArgs(grid, cell, item, column, value, rowIndex, colIndex, viewCol) {
+  if (grid && typeof grid.createFormatItemEventArgs === 'function') {
+    return grid.createFormatItemEventArgs(grid.cells, cell, rowIndex, colIndex, {
+      item: item,
+      column: column,
+      value: value,
+      viewCol: viewCol
+    });
+  }
+  return {
+    grid: grid,
+    panel: grid ? grid.cells : null,
+    cell: cell,
+    item: item,
+    data: item,
+    column: column,
+    value: value,
+    row: rowIndex,
+    rowIndex: rowIndex,
+    col: colIndex,
+    colIndex: colIndex,
+    viewCol: viewCol
+  };
+}
+
 function getExcelStyleFromComputedCell(cell) {
   var computed = window.getComputedStyle(cell);
+  var textTarget = findExcelTextStyleTarget(cell);
+  var textComputed = textTarget === cell ? computed : window.getComputedStyle(textTarget);
   var style = {};
-  var color = cssColorToExcelColor(computed.color);
+  var color = cssColorToExcelColor(textComputed.color);
   var backgroundColor = cssColorToExcelColor(computed.backgroundColor);
+  var textBackgroundColor = textTarget === cell ? '' :
+    cssColorToExcelColor(textComputed.backgroundColor);
+  if ((!backgroundColor || backgroundColor === 'FFFFFFFF') && textBackgroundColor) {
+    backgroundColor = textBackgroundColor;
+  }
   if (color && color !== 'FF1F2937' && color !== 'FF111827') {
     style.color = color;
   }
   if (backgroundColor && backgroundColor !== 'FFFFFFFF') {
     style.backgroundColor = backgroundColor;
   }
-  if (Number(computed.fontWeight) >= 600 || computed.fontWeight === 'bold') {
+  if (Number(textComputed.fontWeight) >= 600 || textComputed.fontWeight === 'bold') {
     style.bold = true;
   }
   if (computed.textAlign === 'right' || computed.justifyContent === 'flex-end') {
@@ -1020,6 +1230,33 @@ function getExcelStyleFromComputedCell(cell) {
     style.align = 'center';
   }
   return Object.keys(style).length ? style : null;
+}
+
+function findExcelTextStyleTarget(cell) {
+  var target = findFirstTextParent(cell);
+  return target || cell;
+}
+
+function findFirstTextParent(node) {
+  var child;
+  var found;
+  var i;
+  if (!node || !node.childNodes) {
+    return null;
+  }
+  for (i = 0; i < node.childNodes.length; i += 1) {
+    child = node.childNodes[i];
+    if (child.nodeType === 3 && String(child.nodeValue || '').trim()) {
+      return child.parentElement || child.parentNode || node;
+    }
+    if (child.nodeType === 1) {
+      found = findFirstTextParent(child);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
 }
 
 export function createZip(files) {

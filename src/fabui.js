@@ -21,8 +21,8 @@ import {
 import { Clipboard } from './core/clipboard.js?v=20260724-clipboard-v1';
 import { getConfig, setConfig } from './core/config.js?v=20260723-global-config-v1';
 import { createLocaleManager } from './core/locale.js?v=20260728-locale-packs-v1';
-import { createFabGridFactory } from './grid/fabgrid.js?v=20260904-hidden-column-filter-v1';
-import { createExcelNamespace } from './grid/fabgrid-export.js?v=20260812-collection-view-init-v1';
+import { createFabGridFactory } from './grid/fabgrid.js?v=20260924-select-all-no-row-event-v1';
+import { createExcelNamespace } from './grid/fabgrid-export.js?v=20260922-excel-optional-decimals-v1';
 import { CellType } from './grid/fabgrid-types.js?v=20260716-row-types-v1';
 import { createLayoutFactory } from './layout/layout.js?v=20260728-locale-packs-v1';
 import { createMenuFactory } from './menu/menu.js?v=20260728-locale-packs-v1';

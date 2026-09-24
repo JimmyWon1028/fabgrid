@@ -817,7 +817,7 @@ const blob = fabui.Excel.getBlob({
 
 JSON 使用標準 `JSON.stringify()`／`JSON.parse()`；日期會依 JSON 規格成為字串，循環參照與 `BigInt` 會由 `JSON.stringify()` 拋出錯誤。預設輸出完整 `itemsSource` 是為了保留 TreeGrid 階層與未顯示資料；只有明確指定 `viewOnly: true` 才輸出目前篩選／排序／分頁後的 view。
 
-CSV 與 Excel 都以目前 Grid view 為資料來源。Excel 預設保留完整欄位集合；畫面隱藏的欄位仍包含資料，並在工作表標記為 hidden。只有明確傳入 `visibleOnly: true` 或相容 boolean `true` 才排除隱藏欄。`dataType: 'number'` 欄位啟用 `thousandsSeparator` 時，XLSX 會保留數值型別並套用千分位格式；未指定 `precision` 時，整數不會顯示小數點，有小數的值才保留小數格式。若明確設定 `precision`，則保留指定的小數位格式。群組啟用時會保留群組列、aggregate 顯示格式與收合狀態；工作表同時包含凍結窗格、autoFilter 與目前 `headerDisplayMode` 對應的標題。
+CSV 與 Excel 都以目前 Grid view 為資料來源。Excel 預設保留完整欄位集合；畫面隱藏的欄位仍包含資料，並在工作表標記為 hidden。只有明確傳入 `visibleOnly: true` 或相容 boolean `true` 才排除隱藏欄。資料 cell 經 `cellTemplate`、`formatCell`、`itemFormatter`、`formatItem`、Column `cssClass` 或 `color` 套用的背景色與文字色會寫入 XLSX；`cellTemplate` 內層文字元素的顏色也會保留。半透明色彩會先合成為 Excel 可顯示的實色，滑入與選取等暫時狀態不會匯出。`dataType: 'number'` 欄位啟用 `thousandsSeparator` 時，XLSX 會保留數值型別並套用千分位格式；未指定 `precision` 時，整數不會顯示小數點，有小數的值才保留小數格式。若明確設定 `precision`，則保留指定的小數位格式。群組啟用時會保留群組列、aggregate 顯示格式與收合狀態；工作表同時包含凍結窗格、autoFilter 與目前 `headerDisplayMode` 對應的標題。
 
 ### Header Row 右鍵功能表
 
@@ -849,7 +849,7 @@ grid.on('cellEditEnding', function(g, e) {
 | `beforeLoad` / `loadSuccess` / `loadError` | 遠端載入前、成功或失敗。 |
 | `pageChanging` / `pageChanged` | 分頁變更前／後。 |
 | `selectionChanging` / `selectionChanged` | Active cell、cell range 或列選取變更；固定包含 `row`、`col`、`row2`、`col2`、anchor／active 座標、`range`、對應的 `view*` 座標，以及列勾選用的 `changedRow`、`selected`、`allRows`。`col` 系列使用完整 `grid.columns` index，`view*` 使用可見欄 index；不適用的 `changedRow`／`selected` 為 `null`，一般 cell 選取的 `allRows` 為 `false`。列選取、取消與全選會先依序觸發可取消的 `selectionChanging`、`rowSelectionChanging`，任一事件取消時都不改變狀態。 |
-| `selectedRowChanged` | Selected row 改變或資料來源更新時觸發；`reason` 為 `'selection'` 或 `'itemsSource'`，並包含目前與先前的 row index／data item。同一 row 只切換 active column 不觸發。 |
+| `selectedRowChanged` | Selected row 改變或資料來源更新時觸發；`reason` 為 `'selection'` 或 `'itemsSource'`，並包含目前與先前的 row index／data item。同一 row 只切換 active column 不觸發；點擊多選欄左上角全選／取消全選也不觸發。 |
 | `sortingColumn` / `sortedColumn` | 排序前／後；`sortingColumn` handler 回傳 `false` 可取消本機或遠端排序，取消時不會送出遠端查詢。 |
 | `cellEditEnding` / `cellEditEnded` | cell 編輯提交前／後；`e.col` 對應完整 `grid.columns` index 並計入隱藏欄位，`e.viewCol` 為目前 `visibleColumns` index。 |
 | `resizingColumn` / `resizedColumn` | 拖曳欄寬期間／完成後。 |
@@ -917,7 +917,7 @@ grid.selectionChanged.addHandler(function(sender, e) {
 });
 ```
 
-`selectedRowChanged` 可統一監聽使用者換列、取消 selected row，以及 `setItemsSource()`、遠端載入或 `observeItemsSource` mutation 造成的資料來源更新。資料來源更新時，即使 selected row index 相同也會觸發；更新前後都沒有 selected row 時不觸發。這是 changed 事件，handler 回傳 `false` 不會取消已完成的變更。
+`selectedRowChanged` 可統一監聽使用者換列、取消 selected row，以及 `setItemsSource()`、遠端載入或 `observeItemsSource` mutation 造成的資料來源更新。資料來源更新時，即使 selected row index 相同也會觸發；更新前後都沒有 selected row 時不觸發。多選欄左上角 checkbox 的全選／取消全選只更新勾選與列底色，不移動 active cell，也不觸發此單列事件；全選本身仍會觸發帶有 `allRows: true` 的 selection／row-selection 事件。這是 changed 事件，handler 回傳 `false` 不會取消已完成的變更。
 
 ```js
 const grid = new fabui.FabGrid('#grid', {

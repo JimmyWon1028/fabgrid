@@ -133,6 +133,56 @@ test('XLSX export includes every configured footer row', function() {
   assert.match(sheetXml, /<row r="3"><c r="A3"[^>]*>.*>3000</);
 });
 
+test('XLSX export writes numeric footer aggregates as numbers', function() {
+  var columns = [{
+    binding: 'amount',
+    header: '金額',
+    dataType: 'number',
+    aggregate: 'sum',
+    precision: 1,
+    width: 120
+  }];
+  var grid = {
+    getFooterCellValue: function() { return 99359.8; },
+    getFooterCellText: function() { return '99,359.8'; }
+  };
+  var files = createXlsxFiles(columns, [], {
+    includeFooter: true,
+    grid: grid
+  });
+  var sheetXml = files.find(function(file) { return file.name === 'xl/worksheets/sheet1.xml'; }).content;
+  var stylesXml = files.find(function(file) { return file.name === 'xl/styles.xml'; }).content;
+
+  assert.match(sheetXml, /<c r="A2" s="\d+"><v>99359\.8<\/v><\/c>/);
+  assert.doesNotMatch(sheetXml, /<c r="A2"[^>]*t="inlineStr"/);
+  assert.match(stylesXml, /formatCode="#,##0\.0"/);
+  assert.match(stylesXml, /<color rgb="FF000000"\/>/);
+  assert.match(stylesXml, /<fgColor rgb="FFEFEFEF"\/>/);
+  assert.match(stylesXml, /fontId="2" fillId="3"/);
+});
+
+test('XLSX export preserves explicit footerFormatter text', function() {
+  var columns = [{
+    binding: 'amount',
+    header: '金額',
+    dataType: 'number',
+    aggregate: 'sum',
+    footerFormatter: function(value) { return '$' + value; },
+    width: 120
+  }];
+  var grid = {
+    getFooterCellValue: function() { return 99359.8; },
+    getFooterCellText: function() { return '$99,359.8'; }
+  };
+  var files = createXlsxFiles(columns, [], {
+    includeFooter: true,
+    grid: grid
+  });
+  var sheetXml = files.find(function(file) { return file.name === 'xl/worksheets/sheet1.xml'; }).content;
+
+  assert.match(sheetXml, /<c r="A2"[^>]*t="inlineStr"[^>]*>.*\$99,359\.8/);
+});
+
 test('XLSX rows can retain data while remaining hidden', function() {
   var files = createXlsxFiles(
     [{ binding: 'name', header: 'Name', width: 120 }],
@@ -182,7 +232,7 @@ test('XLSX numeric columns retain the Grid thousands separator format', function
   assert.match(sheetXml, /<c r="A2" s="\d+"><v>1234567\.8<\/v><\/c>/);
 });
 
-test('XLSX thousands separator omits the decimal point for whole numbers', function() {
+test('XLSX optional decimal format keeps blanks precise without adding a dot to integers', function() {
   function TestGrid() {}
   installFabGridExport(TestGrid, {
     getByBinding: function(item, binding) { return item[binding]; }
@@ -195,19 +245,22 @@ test('XLSX thousands separator omits the decimal point for whole numbers', funct
       thousandsSeparator: true,
       width: 120
     }],
-    [{ amount: 13280020 }, { amount: 1234.5 }],
+    [{ amount: null }, { amount: 13280020 }, { amount: 1234.5 }],
     {}
   );
   var stylesXml = files.find(function(file) { return file.name === 'xl/styles.xml'; }).content;
   var sheetXml = files.find(function(file) { return file.name === 'xl/worksheets/sheet1.xml'; }).content;
-  var integerStyle = sheetXml.match(/<c r="A2" s="(\d+)"><v>13280020<\/v><\/c>/);
-  var decimalStyle = sheetXml.match(/<c r="A3" s="(\d+)"><v>1234\.5<\/v><\/c>/);
+  var blankStyle = sheetXml.match(/<c r="A2" s="(\d+)" t="inlineStr">/);
+  var integerStyle = sheetXml.match(/<c r="A3" s="(\d+)"><v>13280020<\/v><\/c>/);
+  var decimalStyle = sheetXml.match(/<c r="A4" s="(\d+)"><v>1234\.5<\/v><\/c>/);
 
   assert.match(stylesXml, /formatCode="#,##0"/);
   assert.match(stylesXml, /formatCode="#,##0\.############"/);
+  assert.ok(blankStyle);
   assert.ok(integerStyle);
   assert.ok(decimalStyle);
-  assert.notEqual(integerStyle[1], decimalStyle[1]);
+  assert.notEqual(blankStyle[1], integerStyle[1]);
+  assert.equal(blankStyle[1], decimalStyle[1]);
 });
 
 test('Excel style helpers normalize and merge custom cell styles', function() {
@@ -218,6 +271,382 @@ test('Excel style helpers normalize and merge custom cell styles', function() {
     align: 'center', bold: true
   });
   assert.equal(normalizeExcelAlign('justify'), '');
+});
+
+test('XLSX export preserves data cell colors applied by formatItem', function() {
+  function TestGrid() {}
+  var originalDocument = globalThis.document;
+  var originalWindow = globalThis.window;
+  var columns = [{
+    binding: 'amount',
+    header: 'Amount',
+    dataType: 'number',
+    _index: 0,
+    width: 120
+  }];
+  var root = {
+    appendChild: function(node) {
+      node.parentNode = this;
+    },
+    removeChild: function(node) {
+      node.parentNode = null;
+    }
+  };
+  var grid = {
+    root: root,
+    columns: columns,
+    visibleColumns: columns,
+    cells: {},
+    events: {},
+    formatItem: {
+      _hasHandlers: function() { return true; }
+    },
+    isRowGroup: function() { return false; },
+    isRowGroupFooter: function() { return false; },
+    raiseFormatItem: function(args) {
+      if (args.item.highlighted) {
+        args.cell.style.color = 'rgb(192, 0, 0)';
+        args.cell.style.backgroundColor = 'rgba(119, 179, 0, 0.1)';
+      }
+    }
+  };
+
+  installFabGridExport(TestGrid, {
+    getByBinding: function(item, binding) { return item[binding]; }
+  });
+  globalThis.document = {
+    createElement: function() {
+      return {
+        className: '',
+        parentNode: null,
+        style: {},
+        textContent: '',
+        removeAttribute: function(name) {
+          if (name === 'style') this.style = {};
+        },
+        setAttribute: function() {}
+      };
+    }
+  };
+  globalThis.window = {
+    getComputedStyle: function(cell) {
+      return {
+        color: cell.style.color || 'rgb(31, 41, 55)',
+        backgroundColor: cell.style.backgroundColor || 'rgba(0, 0, 0, 0)',
+        fontWeight: cell.style.fontWeight || '400',
+        textAlign: cell.style.textAlign || '',
+        justifyContent: cell.style.justifyContent || ''
+      };
+    }
+  };
+
+  try {
+    var files = createXlsxFiles(columns, [
+      { amount: 10, highlighted: true },
+      { amount: 20, highlighted: false }
+    ], { grid: grid });
+    var sheetXml = files.find(function(file) {
+      return file.name === 'xl/worksheets/sheet1.xml';
+    }).content;
+    var stylesXml = files.find(function(file) {
+      return file.name === 'xl/styles.xml';
+    }).content;
+    var styledCell = sheetXml.match(/<c r="A2" s="(\d+)"><v>10<\/v><\/c>/);
+    var plainCell = sheetXml.match(/<c r="A3" s="(\d+)"><v>20<\/v><\/c>/);
+
+    assert.ok(styledCell);
+    assert.ok(plainCell);
+    assert.notEqual(styledCell[1], plainCell[1]);
+    assert.match(stylesXml, /<color rgb="FFC00000"\/>/);
+    assert.match(stylesXml, /<fgColor rgb="FFF1F7E6"\/>/);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
+test('XLSX export preserves text colors applied inside a cellTemplate', function() {
+  function TestGrid() {}
+  function createElement() {
+    var textContent = '';
+    var element = {
+      nodeType: 1,
+      childNodes: [],
+      className: '',
+      parentNode: null,
+      style: {},
+      appendChild: function(child) {
+        child.parentNode = this;
+        this.childNodes.push(child);
+      },
+      removeAttribute: function(name) {
+        if (name === 'style') this.style = {};
+      },
+      setAttribute: function() {}
+    };
+    Object.defineProperty(element, 'textContent', {
+      get: function() { return textContent; },
+      set: function(value) {
+        textContent = String(value == null ? '' : value);
+        element.childNodes = [];
+      }
+    });
+    return element;
+  }
+  var originalDocument = globalThis.document;
+  var originalWindow = globalThis.window;
+  var columns = [{
+    binding: 'amount',
+    header: 'Amount',
+    dataType: 'number',
+    cellTemplate: function() {},
+    _index: 0,
+    width: 120
+  }];
+  var root = {
+    appendChild: function(node) { node.parentNode = this; },
+    removeChild: function(node) { node.parentNode = null; }
+  };
+  var grid = {
+    root: root,
+    columns: columns,
+    visibleColumns: columns,
+    cells: {},
+    events: {},
+    isRowGroup: function() { return false; },
+    isRowGroupFooter: function() { return false; },
+    applyCellTemplate: function(cell, item, column, value) {
+      var text = {
+        nodeType: 3,
+        nodeValue: String(value),
+        parentElement: null,
+        parentNode: null
+      };
+      var content = createElement();
+      content.style.color = 'rgb(0, 0, 255)';
+      text.parentElement = content;
+      text.parentNode = content;
+      content.childNodes.push(text);
+      cell.appendChild(content);
+      return true;
+    },
+    raiseFormatItem: function() {}
+  };
+
+  installFabGridExport(TestGrid, {
+    getByBinding: function(item, binding) { return item[binding]; }
+  });
+  globalThis.document = { createElement: createElement };
+  globalThis.window = {
+    getComputedStyle: function(element) {
+      return {
+        color: element.style.color || 'rgb(31, 41, 55)',
+        backgroundColor: element.style.backgroundColor || 'rgba(0, 0, 0, 0)',
+        fontWeight: element.style.fontWeight || '400',
+        textAlign: element.style.textAlign || '',
+        justifyContent: element.style.justifyContent || ''
+      };
+    }
+  };
+
+  try {
+    var files = createXlsxFiles(columns, [{ amount: 10 }], { grid: grid });
+    var stylesXml = files.find(function(file) {
+      return file.name === 'xl/styles.xml';
+    }).content;
+
+    assert.match(stylesXml, /<color rgb="FF0000FF"\/>/);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
+test('XLSX export resolves named column colors through computed styles', function() {
+  function TestGrid() {}
+  var originalDocument = globalThis.document;
+  var originalWindow = globalThis.window;
+  var columns = [{
+    binding: 'amount',
+    header: 'Amount',
+    color: 'blue',
+    _index: 0,
+    width: 120
+  }];
+  var sampleCell = {
+    childNodes: [],
+    className: '',
+    parentNode: null,
+    style: {},
+    textContent: '',
+    removeAttribute: function(name) {
+      if (name === 'style') this.style = {};
+    },
+    setAttribute: function() {}
+  };
+  Object.defineProperty(sampleCell, 'outerHTML', {
+    get: function() {
+      return sampleCell.className + '|' + JSON.stringify(sampleCell.style) + '|' + sampleCell.textContent;
+    }
+  });
+  var root = {
+    appendChild: function(node) { node.parentNode = this; },
+    removeChild: function(node) { node.parentNode = null; }
+  };
+  var grid = {
+    root: root,
+    columns: columns,
+    visibleColumns: columns,
+    cells: {},
+    events: {},
+    isRowGroup: function() { return false; },
+    isRowGroupFooter: function() { return false; },
+    raiseFormatItem: function() {}
+  };
+
+  installFabGridExport(TestGrid, {
+    getByBinding: function(item, binding) { return item[binding]; }
+  });
+  globalThis.document = { createElement: function() { return sampleCell; } };
+  globalThis.window = {
+    getComputedStyle: function(element) {
+      return {
+        color: element.style.color === 'blue' ? 'rgb(0, 0, 255)' : 'rgb(31, 41, 55)',
+        backgroundColor: 'rgba(0, 0, 0, 0)',
+        fontWeight: '400',
+        textAlign: '',
+        justifyContent: ''
+      };
+    }
+  };
+
+  try {
+    var files = createXlsxFiles(columns, [{ amount: 10 }], {
+      grid: grid,
+      formatCell: function() {}
+    });
+    var stylesXml = files.find(function(file) {
+      return file.name === 'xl/styles.xml';
+    }).content;
+
+    assert.match(stylesXml, /<color rgb="FF0000FF"\/>/);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
+test('XLSX export skips computed styles when dynamic formatters leave a cell unchanged', function() {
+  function TestGrid() {}
+  function createElement() {
+    var textContent = '';
+    var element = {
+      nodeType: 1,
+      childNodes: [],
+      className: '',
+      parentNode: null,
+      style: {},
+      removeAttribute: function(name) {
+        if (name === 'style') this.style = {};
+      },
+      setAttribute: function() {}
+    };
+    Object.defineProperty(element, 'textContent', {
+      get: function() { return textContent; },
+      set: function(value) {
+        textContent = String(value == null ? '' : value);
+        element.childNodes = [];
+      }
+    });
+    Object.defineProperty(element, 'outerHTML', {
+      get: function() {
+        return element.className + '|' + JSON.stringify(element.style) + '|' + textContent;
+      }
+    });
+    return element;
+  }
+  var originalDocument = globalThis.document;
+  var originalWindow = globalThis.window;
+  var computedStyleCalls = 0;
+  var columns = [
+    { binding: 'name', header: 'Name', _index: 0, width: 120 },
+    { binding: 'status', header: 'Status', _index: 1, width: 120 }
+  ];
+  var root = {
+    appendChild: function(node) { node.parentNode = this; },
+    removeChild: function(node) { node.parentNode = null; }
+  };
+  var grid = {
+    root: root,
+    columns: columns,
+    visibleColumns: columns,
+    cells: {},
+    events: {},
+    formatItem: { _hasHandlers: function() { return false; } },
+    isRowGroup: function() { return false; },
+    isRowGroupFooter: function() { return false; },
+    raiseFormatItem: function() {
+      throw new Error('formatItem should not run without handlers');
+    }
+  };
+
+  installFabGridExport(TestGrid, {
+    getByBinding: function(item, binding) { return item[binding]; }
+  });
+  globalThis.document = { createElement: createElement };
+  globalThis.window = {
+    getComputedStyle: function(element) {
+      computedStyleCalls += 1;
+      return {
+        color: element.style.color || 'rgb(31, 41, 55)',
+        backgroundColor: 'rgba(0, 0, 0, 0)',
+        fontWeight: '400',
+        textAlign: '',
+        justifyContent: ''
+      };
+    }
+  };
+
+  try {
+    createXlsxFiles(columns, [
+      { name: 'A', status: 'normal' },
+      { name: 'B', status: 'alert' }
+    ], {
+      grid: grid,
+      formatCell: function(args) {
+        if (args.column.binding === 'status' && args.value === 'alert') {
+          args.cell.style.color = 'rgb(192, 0, 0)';
+        }
+      }
+    });
+
+    assert.equal(computedStyleCalls, 1);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
+test('XLSX export reads each binding once per data cell', function() {
+  function TestGrid() {}
+  var bindingReads = 0;
+  var columns = [
+    { binding: 'name', header: 'Name', width: 120 },
+    { binding: 'amount', header: 'Amount', dataType: 'number', width: 120 }
+  ];
+
+  installFabGridExport(TestGrid, {
+    getByBinding: function(item, binding) {
+      bindingReads += 1;
+      return item[binding];
+    }
+  });
+  createXlsxFiles(columns, [
+    { name: 'A', amount: 10 },
+    { name: 'B', amount: 20 }
+  ], {});
+
+  assert.equal(bindingReads, 4);
 });
 
 test('ZIP writer creates a valid archive signature and central directory', function() {
@@ -241,5 +670,6 @@ test('XML and Excel colors are normalized safely', function() {
   assert.equal(getXmlSpaceAttribute(' value '), ' xml:space="preserve"');
   assert.equal(cssColorToExcelColor('#0af'), 'FF00AAFF');
   assert.equal(cssColorToExcelColor('rgb(255, 128, 0)'), 'FFFF8000');
+  assert.equal(cssColorToExcelColor('rgba(119, 179, 0, 0.1)'), 'FFF1F7E6');
   assert.equal(cssColorToExcelColor('transparent'), '');
 });

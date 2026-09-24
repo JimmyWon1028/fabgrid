@@ -110,6 +110,19 @@ export function normalizeNumberValue(value) {
   return isFinite(number) ? number : null;
 }
 
+function getNumberDecimalPlaces(value) {
+  var text = String(value).toLowerCase();
+  var exponentIndex = text.indexOf('e');
+  var exponent = 0;
+  var decimalIndex;
+  if (exponentIndex >= 0) {
+    exponent = Number(text.slice(exponentIndex + 1)) || 0;
+    text = text.slice(0, exponentIndex);
+  }
+  decimalIndex = text.indexOf('.');
+  return Math.max(0, (decimalIndex < 0 ? 0 : text.length - decimalIndex - 1) - exponent);
+}
+
 export function comparePreparedValues(a, b) {
   if (a == null && b == null) {
     return 0;
@@ -257,12 +270,22 @@ export function createGroupBuckets(rows, config, grid) {
 export function calculateAggregate(aggregate, column, rows, grid) {
   var count = 0;
   var sum = 0;
+  var compensation = 0;
+  var scaledSum = 0;
+  var scale = 1;
+  var scalePrecision = 0;
+  var canUseScaledSum = true;
   var min = null;
   var max = null;
   var i;
   var value;
   var number;
   var name;
+  var precision;
+  var multiplier;
+  var scaledNumber;
+  var corrected;
+  var nextSum;
   if (typeof aggregate === 'function') {
     return aggregate({ grid: grid, column: column, rows: rows, getValue: function(item) { return getByBinding(item, column.binding); } });
   }
@@ -273,10 +296,38 @@ export function calculateAggregate(aggregate, column, rows, grid) {
     if (value == null || value === '') continue;
     number = normalizeNumberValue(value);
     if (number == null) continue;
-    sum += number;
+    corrected = number - compensation;
+    nextSum = sum + corrected;
+    compensation = (nextSum - sum) - corrected;
+    sum = nextSum;
+    if (canUseScaledSum) {
+      precision = getNumberDecimalPlaces(number);
+      if (precision > scalePrecision) {
+        multiplier = Math.pow(10, precision - scalePrecision);
+        if (!Number.isSafeInteger(scaledSum * multiplier)) {
+          canUseScaledSum = false;
+        } else {
+          scaledSum *= multiplier;
+          scale *= multiplier;
+          scalePrecision = precision;
+        }
+      }
+      if (canUseScaledSum) {
+        scaledNumber = Math.round(number * scale);
+        if (!Number.isSafeInteger(scaledNumber) ||
+            !Number.isSafeInteger(scaledSum + scaledNumber)) {
+          canUseScaledSum = false;
+        } else {
+          scaledSum += scaledNumber;
+        }
+      }
+    }
     count += 1;
     if (min == null || number < min) min = number;
     if (max == null || number > max) max = number;
+  }
+  if (canUseScaledSum && count) {
+    sum = scaledSum / scale;
   }
   if (name === 'avg' || name === 'average') return count ? sum / count : null;
   if (name === 'min') return min;
