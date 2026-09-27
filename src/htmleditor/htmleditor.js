@@ -1133,9 +1133,9 @@ export function createHtmlEditorFactory(fabui) {
       Array.prototype.forEach.call(blocked, function(node) { node.remove(); });
       Array.prototype.forEach.call(documentNode.body.querySelectorAll('*'), function(node) {
         Array.prototype.slice.call(node.attributes).forEach(function(attribute) {
-          if (/^on/i.test(attribute.name) ||
-              (/^(?:href|src)$/i.test(attribute.name) &&
-               /^\s*javascript:/i.test(attribute.value))) {
+          if (/^on/i.test(attribute.name) || /^srcdoc$/i.test(attribute.name) ||
+              (/^(?:href|src|xlink:href)$/i.test(attribute.name) &&
+               /^javascript:/i.test(attribute.value.replace(/[\u0000-\u0020\u007f]/g, '')))) {
             node.removeAttribute(attribute.name);
           }
         });
@@ -1147,6 +1147,7 @@ export function createHtmlEditorFactory(fabui) {
         var valid = /^https:\/\/(?:www\.)?(?:youtube\.com|youtube-nocookie\.com)\/embed\//i
           .test(src) || /^https:\/\/player\.vimeo\.com\/video\//i.test(src);
         if (!valid) frame.remove();
+        else frame.removeAttribute('srcdoc');
       });
     }
     return documentNode.body.innerHTML;

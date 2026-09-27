@@ -4900,6 +4900,52 @@ test('validation args isDuplicate supports nested bindings and TreeGrid children
   assert.equal(grid.validateCellValue(child, column, '', 1, 0), null);
 });
 
+test('validation identities stay local to each Grid when shared and legacy-tagged items are combined', function() {
+  var FabGrid = createFabGridFactory(createEditorDefinitions());
+  var column = { binding: 'name' };
+  var first = { name: 'A' };
+  var second = { name: 'B' };
+  var frozen = Object.freeze({ name: 'C' });
+  function makeGrid(items) {
+    var grid = Object.create(FabGrid.prototype);
+    Object.assign(grid, {
+      source: items, view: items.slice(), columns: [column], visibleColumns: [column],
+      _validationErrorSeq: 0, _validationItems: [], _validationItemIds: [],
+      _invalidItemMap: {}, _asyncValidationMap: {}, _asyncValidationItems: {}, invalidItems: []
+    });
+    grid.isTreeGrid = function() { return false; };
+    grid.getText = function() { return 'Invalid'; };
+    return grid;
+  }
+  var a = makeGrid([first]);
+  var b = makeGrid([second]);
+  a.setCellValidationError(first, column, { message: 'A' }, 0, 0);
+  b.setCellValidationError(second, column, { message: 'B' }, 0, 0);
+  assert.equal(Object.hasOwn(first, '__fgValidationId'), false);
+  assert.equal(Object.hasOwn(second, '__fgValidationId'), false);
+  Object.defineProperty(first, '__fgValidationId', { value: 'r1' });
+  Object.defineProperty(second, '__fgValidationId', { value: 'r1' });
+
+  var combined = makeGrid([first, second, frozen]);
+  [first, second, frozen].forEach(function(item, index) {
+    combined.setCellValidationError(item, column, { message: item.name }, index, 0);
+  });
+  assert.equal(combined.invalidItems.length, 3);
+  assert.equal(new Set(combined.invalidItems.map(function(entry) { return entry.key; })).size, 3);
+  combined.clearCellValidationError(first, column);
+  assert.equal(combined.getCellValidationError(second, column).message, 'B');
+  assert.equal(a.getCellValidationError(first, column).message, 'A');
+  assert.equal(b.getCellValidationError(second, column).message, 'B');
+  combined.view = [frozen, second, first];
+  combined.refreshInvalidItemRows();
+  assert.equal(combined.getCellValidationError(frozen, column).rowIndex, 0);
+  assert.equal(combined.getCellValidationError(second, column).rowIndex, 1);
+  combined.source = [first, frozen];
+  combined.refreshInvalidItemRows();
+  assert.equal(combined.invalidItems.length, 1);
+  assert.equal(combined.invalidItems[0].item, frozen);
+});
+
 test('invalidItems removes deleted rows and updates every remaining row and column index', function() {
   var FabGrid = createFabGridFactory(createEditorDefinitions());
   var grid = Object.create(FabGrid.prototype);

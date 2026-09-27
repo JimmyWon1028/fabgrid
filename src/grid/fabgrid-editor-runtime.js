@@ -2275,27 +2275,20 @@ export function installFabGridEditorRuntime(FabGrid, context) {
 
   FabGrid.prototype.getValidationErrorKey = function(item, column) {
     var id;
-    var nextId;
     if (!item || !column) {
       return '';
     }
-    if (!item.__fgValidationId) {
-      this._validationErrorSeq += 1;
-      nextId = 'r' + this._validationErrorSeq;
-      try {
-        Object.defineProperty(item, '__fgValidationId', {
-          value: nextId,
-          enumerable: false
-        });
-      } catch (error) {
-        try {
-          item.__fgValidationId = nextId;
-        } catch (assignError) {
-          return this.getFallbackValidationId(item) + '::' + (column.binding || column.header || column._index);
-        }
+    if (typeof WeakMap === 'function' && (typeof item === 'object' || typeof item === 'function')) {
+      if (!this._validationItemIdMap) this._validationItemIdMap = new WeakMap();
+      id = this._validationItemIdMap.get(item);
+      if (!id) {
+        this._validationErrorSeq += 1;
+        id = 'r' + this._validationErrorSeq;
+        this._validationItemIdMap.set(item, id);
       }
+    } else {
+      id = this.getFallbackValidationId(item);
     }
-    id = item.__fgValidationId;
     return id + '::' + (column.binding || column.header || column._index);
   };
 
@@ -2468,8 +2461,8 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     if (!item) {
       return '';
     }
-    if (item.__fgValidationId) {
-      return item.__fgValidationId;
+    if (this._validationItemIdMap && (typeof item === 'object' || typeof item === 'function')) {
+      return this._validationItemIdMap.get(item) || '';
     }
     for (i = 0; i < this._validationItems.length; i += 1) {
       if (this._validationItems[i] === item) {

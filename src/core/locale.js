@@ -68,6 +68,16 @@ export function createLocaleManager() {
     instances.delete(instance);
   }
 
+  function wrapDisposal(method) {
+    return function() {
+      var result = method.apply(this, arguments);
+      if (result !== false && this._destroyed !== false && this.disposed !== false) {
+        unregisterInstance(this);
+      }
+      return result;
+    };
+  }
+
   function trackInstance(instance) {
     var destroy;
     var dispose;
@@ -78,18 +88,10 @@ export function createLocaleManager() {
     destroy = typeof instance.destroy === 'function' ? instance.destroy : null;
     dispose = typeof instance.dispose === 'function' ? instance.dispose : null;
     if (destroy) {
-      instance.destroy = function() {
-        var result = destroy.apply(this, arguments);
-        unregisterInstance(this);
-        return result;
-      };
+      instance.destroy = wrapDisposal(destroy);
     }
-    if (dispose && dispose !== destroy) {
-      instance.dispose = function() {
-        var result = dispose.apply(this, arguments);
-        unregisterInstance(this);
-        return result;
-      };
+    if (dispose) {
+      instance.dispose = dispose === destroy ? instance.destroy : wrapDisposal(dispose);
     }
     return instance;
   }

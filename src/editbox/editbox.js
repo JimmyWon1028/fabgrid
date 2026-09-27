@@ -2,7 +2,7 @@ import { createEditorDefinitions } from './editbox-definitions.js?v=20260803-tex
 import { createColorEditBoxFactory } from './color-editbox.js?v=20260729-color-palette-layout-v2';
 import { createTextBoxFactory } from './text-editbox.js?v=20260803-text-charcase-v2';
 import { createNumberBoxFactory } from './number-editbox.js?v=20260803-text-charcase-v2';
-import { createTimeBoxFactory } from './time-editbox.js?v=20260803-text-charcase-v2';
+import { createTimeBoxFactory } from './time-editbox.js?v=20260927-priority-audit-fixes-v1';
 import { createDateBoxFactory } from './date-editbox.js?v=20260803-text-charcase-v2';
 import { createComboBoxFactory } from './combo-editbox.js?v=20260727-editbox-blur-commit-v1';
 

@@ -30,7 +30,7 @@ import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
 import { installFabGridView } from './fabgrid-view.js?v=20260815-header-compact-icons-v2';
 import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260821-search-row-ime-v1';
 import { installFabGridSelection } from './fabgrid-selection.js?v=20260924-select-all-no-row-event-v1';
-import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260807-async-stay-on-invalid-v1';
+import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260927-priority-audit-fixes-v1';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
 import { DatePopup } from '../editbox/date-popup.js?v=20260725-remove-mono-variants-v1';
@@ -587,6 +587,7 @@ export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
     this.invalidItems = [];
     this._invalidItemMap = {};
     this._validationErrorSeq = 0;
+    this._validationItemIdMap = typeof WeakMap === 'function' ? new WeakMap() : null;
     this._asyncValidationSeq = 0;
     this._asyncValidationMap = {};
     this._asyncValidationItems = {};

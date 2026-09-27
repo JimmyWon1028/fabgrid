@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
+import { createFabGridFactory } from "../src/grid/fabgrid.js";
 import {
   createFabGridJQuery,
   isPublicMethod,
@@ -366,6 +367,61 @@ test("jQuery wrapper updates and removes event callbacks on existing instances",
   $(element).fabgrid("instance").selectionChanged.raise(null, {});
   assert.equal(firstCalls, 0);
   assert.equal(secondCalls, 1);
+});
+
+test('jQuery callbacks have one owner when Core binds options, including constructor events', function() {
+  var $ = createJQueryStub();
+  var element = {};
+  var FabGrid = createFabGridFactory({});
+  var calls = [];
+  var externalCalls = 0;
+  var first = function(event, args, grid) {
+    assert.equal(this, element);
+    assert.equal(grid.element, element);
+    event.preventDefault();
+    calls.push('first');
+  };
+  function OptionBoundGrid(host, options) {
+    FakeGrid.call(this, host, options);
+    this.beforeLoad = createCoreEvent();
+    this.wijmoEvents = { selectionChanged: this.selectionChanged, beforeLoad: this.beforeLoad };
+    FabGrid.prototype.bindOptionEvents.call(this);
+    this.initialArgs = {};
+    this.beforeLoad.raise(this, this.initialArgs);
+  }
+  OptionBoundGrid.prototype = Object.create(FakeGrid.prototype);
+  OptionBoundGrid.prototype.bindOptionEvent = FabGrid.prototype.bindOptionEvent;
+  createFabGridJQuery($, { FabGrid: OptionBoundGrid });
+  $(element).on('selectionchanged.fabgrid', function() { externalCalls += 1; });
+  var options = {
+    selectionChanged: first,
+    beforeLoad: function(event) { event.preventDefault(); calls.push('initial'); }
+  };
+  $(element).fabgrid(options);
+  var instance = $(element).fabgrid('instance');
+  assert.equal(instance.initialArgs.cancel, true);
+  assert.deepEqual(calls, ['initial']);
+  assert.equal(instance.selectionChanged.count(), 1);
+  assert.equal(options.selectionChanged, first);
+  assert.equal(instance.options.selectionChanged, first);
+  assert.equal($(element).fabgrid('option', 'selectionChanged'), instance.selectionChanged);
+
+  var args = {};
+  instance.selectionChanged.raise(instance, args);
+  assert.equal(args.cancel, true);
+  assert.deepEqual(calls, ['initial', 'first']);
+  $(element).fabgrid({ selectionChanged: function() { calls.push('second'); return false; } });
+  args = {};
+  instance.selectionChanged.raise(instance, args);
+  assert.equal(args.cancel, true);
+  $(element).fabgrid({ selectionChanged: null });
+  instance.selectionChanged.raise(instance, {});
+  assert.equal($(element).fabgrid('option', 'selectionChanged'), instance.selectionChanged);
+  assert.deepEqual(calls, ['initial', 'first', 'second']);
+  assert.equal(externalCalls, 3);
+  $(element).fabgrid('destroy');
+  assert.equal(instance.selectionChanged.count(), 0);
+  assert.equal(instance.beforeLoad.count(), 0);
 });
 
 test("jQuery wrapper destroy removes its bindings, disposes and allows reinitialization", function () {

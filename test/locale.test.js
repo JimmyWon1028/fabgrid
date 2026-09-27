@@ -71,3 +71,64 @@ test('locale manager installs loaded packs into extensions registered later', fu
   assert.equal(disposed.locale, 'zh-CN');
   assert.equal(new Probe(null).locale, 'en');
 });
+
+test('locale manager unregisters both aliases without changing disposal arguments or return values', function() {
+  var manager = createLocaleManager();
+  var Probe = createProbeType();
+  Probe.prototype.destroy = function(force) {
+    assert.equal(force, true);
+    this.disposed = true;
+    return this;
+  };
+  Probe.prototype.dispose = Probe.prototype.destroy;
+  Probe = manager.registerTarget('Probe', Probe);
+  var first = new Probe(null);
+  var second = new Probe(null);
+
+  assert.equal(first.destroy, first.dispose);
+  assert.equal(first.dispose(true), first);
+  assert.equal(second.destroy(true), second);
+  manager.addLocale('zh-TW', { Probe: { label: 'Traditional Chinese' } });
+  assert.equal(first.locale, 'en');
+  assert.equal(second.locale, 'en');
+  assert.equal(new Probe(null).locale, 'zh-TW');
+});
+
+test('locale manager retains cancelled or failed destruction until it succeeds', function() {
+  var manager = createLocaleManager();
+  var instance = {
+    _destroyed: false,
+    setLocale: function(locale) { this.locale = locale; },
+    destroy: function(mode) {
+      if (mode === 'throw') throw new Error('retry');
+      if (!mode) return;
+      this._destroyed = true;
+    }
+  };
+  instance.dispose = instance.destroy;
+  manager.trackInstance(instance);
+  instance.dispose(false);
+  manager.setLocale('en');
+  assert.equal(instance.locale, 'en');
+  assert.throws(function() { instance.destroy('throw'); }, /retry/);
+  manager.addLocale('zh-TW', {});
+  assert.equal(instance.locale, 'zh-TW');
+  instance.destroy(true);
+  manager.setLocale('en');
+  assert.equal(instance.locale, 'zh-TW');
+});
+
+test('locale manager preserves separate dispose methods that delegate to destroy', function() {
+  var manager = createLocaleManager();
+  var instance = {
+    _destroyed: false,
+    setLocale: function(locale) { this.locale = locale; },
+    destroy: function() { this._destroyed = true; },
+    dispose: function() { this.destroy(); return 'done'; }
+  };
+  manager.trackInstance(instance);
+  manager.setLocale('en');
+  assert.equal(instance.dispose(), 'done');
+  manager.addLocale('zh-TW', {});
+  assert.equal(instance.locale, 'en');
+});

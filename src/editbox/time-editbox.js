@@ -43,11 +43,16 @@ export function createTimeBoxFactory(TextBox, editorDefinitions) {
     return typeof element === 'string' ? document.querySelector(element) : element;
   }
 
-  function normalizeLocale(value) {
+  function normalizeLocaleName(value) {
     var name = String(value || 'en').trim().replace(/_/g, '-');
     var lower = name.toLowerCase();
     if (lower === 'zh-hant' || lower === 'zh-hant-tw' || lower === 'zh-tw') return 'zh-TW';
     if (lower === 'zh-hans' || lower === 'zh-hans-cn' || lower === 'zh-cn') return 'zh-CN';
+    return name;
+  }
+
+  function normalizeLocale(value) {
+    var name = normalizeLocaleName(value);
     return localePacks[name] ? name : 'en';
   }
 
@@ -444,7 +449,7 @@ export function createTimeBoxFactory(TextBox, editorDefinitions) {
   };
 
   TimeBox.prototype.setLocale = function(locale, messages) {
-    var name = String(locale || 'en').trim().replace(/_/g, '-');
+    var name = normalizeLocaleName(locale);
     var pack;
     if (messages) localePacks[name] = assign({}, localePacks.en, messages);
     this._options.locale = normalizeLocale(name);
@@ -500,7 +505,7 @@ export function createTimeBoxFactory(TextBox, editorDefinitions) {
   TimeBox.editorDefinition = editorDefinition;
   TimeBox.locales = localePacks;
   TimeBox.extendLocale = function(name, pack) {
-    if (name && pack) localePacks[name] = assign({}, localePacks.en, pack);
+    if (name && pack) localePacks[normalizeLocaleName(name)] = assign({}, localePacks.en, pack);
   };
   return TimeBox;
 }

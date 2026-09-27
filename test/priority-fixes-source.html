@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Priority fixes source regression</title>
+  <link rel="stylesheet" href="../src/fabui.css">
+  <link rel="stylesheet" href="../src/fabui.htmleditor.css">
+</head>
+<body>
+  <pre id="result">Running...</pre>
+  <script src="../demo2/vendor/jquery-4.0.0.slim.min.js"></script>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260927-priority-audit-fixes-v1';
+    import { createHtmlEditorFactory } from '../src/htmleditor/htmleditor.js?v=20260927-priority-audit-fixes-v1';
+    import { createFabGridJQuery } from '../packages/fabgrid-jquery/src/fabgrid-jquery.js?v=20260927-priority-audit-fixes-v1';
+
+    const results = [];
+    function assert(value, message) {
+      if (!value) throw new Error(message);
+    }
+    function host(tag = 'div') {
+      const element = document.createElement(tag);
+      element.style.cssText = 'width:640px;height:240px';
+      document.body.appendChild(element);
+      return element;
+    }
+    function grid(items) {
+      return new fabui.FabGrid(host(), {
+        itemsSource: items,
+        columns: [{ binding: 'name', validate: () => 'Invalid' }]
+      });
+    }
+    async function check(name, run) {
+      try {
+        await run();
+        results.push({ name, passed: true });
+      } catch (error) {
+        results.push({ name, passed: false, error: error.stack || String(error) });
+      }
+    }
+    const Editor = createHtmlEditorFactory(fabui);
+    const parse = value => new DOMParser().parseFromString(value, 'text/html');
+    const filter = (value, options) => Editor.prototype._filterCode.call({ options }, value);
+
+    await check('F01: normalized script URLs and iframe srcdoc are removed', () => {
+      const options = { codeviewFilter: true, codeviewIframeFilter: true };
+      const html = '<p style="color:red"><strong>Keep formatting</strong></p>' +
+        '<a id="unsafe" href="java&#10;script:void(0)" onclick="void(0)">Link</a>' +
+        '<img id="unsafe-image" src="&#1;JaVa&#9;ScRiPt:void(0)">' +
+        '<svg><a id="unsafe-svg" xlink:href="java&#13;script:void(0)">SVG</a></svg>' +
+        '<iframe id="allowed" src="https://www.youtube.com/embed/example" ' +
+          'srcdoc="&lt;script&gt;void(0)&lt;/script&gt;"></iframe>' +
+        '<iframe id="blocked" src="https://example.com/embed/example"></iframe>' +
+        '<script>void(0)<\/script>';
+      const documentNode = parse(filter(html, options));
+      assert(!documentNode.querySelector('#unsafe').hasAttribute('href'), 'Script link survived');
+      assert(!documentNode.querySelector('#unsafe').hasAttribute('onclick'), 'Event attribute survived');
+      assert(!documentNode.querySelector('#unsafe-image').hasAttribute('src'), 'Script image URL survived');
+      assert(!documentNode.querySelector('#unsafe-svg').hasAttribute('xlink:href'), 'SVG script URL survived');
+      assert(!documentNode.querySelector('#allowed').hasAttribute('srcdoc'), 'Iframe srcdoc survived');
+      assert(documentNode.querySelector('#allowed').getAttribute('src') === 'https://www.youtube.com/embed/example', 'Allowed iframe changed');
+      assert(!documentNode.querySelector('#blocked'), 'Unsupported iframe survived');
+      assert(!documentNode.querySelector('script'), 'Script element survived');
+      assert(documentNode.querySelector('p').style.color === 'red', 'Text formatting changed');
+    });
+
+    await check('F01: safe content and independent filter switches stay compatible', () => {
+      const html = '<a href="../page?q=a b">Relative</a><a href="#part">Anchor</a>' +
+        '<a href="mailto:user@example.com">Mail</a><a href="tel:+886123">Phone</a>' +
+        '<a href="https://example.com">HTTPS</a>' +
+        '<img src="data:image/png;base64,iVBORw0KGgo=">' +
+        '<video src="/video.mp4" controls></video><table><tr><td>Cell</td></tr></table>';
+      const documentNode = parse(filter(html, { codeviewFilter: true, codeviewIframeFilter: true }));
+      assert(documentNode.querySelectorAll('a[href]').length === 5, 'Safe links changed');
+      assert(documentNode.querySelector('img').getAttribute('src').startsWith('data:image/png'), 'Data image changed');
+      assert(documentNode.querySelector('video').hasAttribute('controls'), 'Video changed');
+      assert(documentNode.querySelector('td').textContent === 'Cell', 'Table changed');
+      const raw = '<iframe src="https://www.youtube.com/embed/example" srcdoc="Text"></iframe>';
+      assert(filter(raw, { codeviewFilter: false, codeviewIframeFilter: false }) === raw, 'Disabled filters changed HTML');
+      const iframeOnly = parse(filter(raw, { codeviewFilter: false, codeviewIframeFilter: true }));
+      assert(!iframeOnly.querySelector('iframe').hasAttribute('srcdoc'), 'Iframe filter allowed srcdoc override');
+      const generalOnly = parse(filter(raw, { codeviewFilter: true, codeviewIframeFilter: false }));
+      assert(!generalOnly.querySelector('iframe').hasAttribute('srcdoc'), 'General filter allowed nested document');
+    });
+
+    await check('F01: real source-mode commit preserves formatting and form value', () => {
+      const element = host('textarea');
+      const editor = new Editor(element, { codeviewFilter: true, toolbar: [] });
+      try {
+        editor.toggleCodeView(true);
+        editor.codeElement.value = '<p><strong>Keep</strong> <a href="java&#10;script:void(0)">Link</a></p>';
+        editor.toggleCodeView(false);
+        const documentNode = parse(editor.getValue());
+        assert(documentNode.querySelector('strong').textContent === 'Keep', 'Formatting lost on commit');
+        assert(!documentNode.querySelector('a').hasAttribute('href'), 'Commit bypassed filtering');
+        assert(element.value === editor.getValue(), 'Textarea was not synchronized');
+      } finally {
+        editor.dispose();
+      }
+    });
+
+    createFabGridJQuery(window.jQuery, fabui);
+    await check('F02: real jQuery callback executes once and can be replaced or removed', () => {
+      const element = host();
+      const $element = window.jQuery(element);
+      const calls = [];
+      let externalCalls = 0;
+      $element.on('selectionchanged.fabgrid', () => { externalCalls += 1; });
+      const first = function(event, args, instance) {
+        assert(this === element && instance.host === element, 'Callback context changed');
+        assert(typeof event.preventDefault === 'function' && args.type === 'selectionChanged', 'Wrong callback signature');
+        calls.push('first');
+      };
+      $element.fabgrid({ itemsSource: [{ name: 'A' }, { name: 'B' }], columns: [{ binding: 'name' }], selectionChanged: first });
+      const instance = $element.fabgrid('instance');
+      try {
+        calls.length = 0;
+        externalCalls = 0;
+        instance.select(1, 0);
+        assert(calls.join() === 'first', 'Callback duplicated');
+        assert($element.fabgrid('option', 'selectionChanged') === instance.selectionChanged, 'Event option getter changed');
+        $element.fabgrid({ selectionChanged: () => { calls.push('second'); } });
+        instance.select(0, 0);
+        $element.fabgrid({ selectionChanged: null });
+        instance.select(1, 0);
+        assert(calls.join() === 'first,second', 'Old or removed callback survived');
+        assert(externalCalls === 3, 'User jQuery handlers changed');
+        $element.fabgrid({ sortingColumn: event => { event.preventDefault(); } });
+        assert(instance.toggleSort(0) === false && !instance.getSortState().active, 'Event cancellation failed');
+      } finally {
+        $element.fabgrid('destroy');
+      }
+      $element.triggerHandler('selectionchanged.fabgrid');
+      assert(externalCalls === 4, 'Destroy removed user handlers');
+    });
+
+    await check('F02: constructor beforeLoad runs once and can be removed before reload', async () => {
+      const $element = window.jQuery(host());
+      let callbacks = 0;
+      let loads = 0;
+      let successes = 0;
+      $element.fabgrid({
+        remote: true,
+        columns: [{ binding: 'name' }],
+        loader: () => { loads += 1; return { rows: [], total: 0 }; },
+        beforeLoad: (event, args, instance) => {
+          callbacks += 1;
+          assert(args.params && instance, 'Initial load arguments missing');
+          event.preventDefault();
+        }
+      });
+      try {
+        assert(callbacks === 1 && loads === 0, 'Initial request was not cancelled once');
+        $element.fabgrid({ beforeLoad: null, loadSuccess: () => { successes += 1; } });
+        await $element.fabgrid('instance').reload();
+        assert(callbacks === 1 && loads === 1 && successes === 1, 'Removed constructor callback affected reload');
+      } finally {
+        $element.fabgrid('destroy');
+      }
+    });
+
+    await check('F03: shared and frozen items keep independent validation errors', async () => {
+      const a = { name: 'A' };
+      const b = { name: 'B' };
+      const frozen = Object.freeze({ name: 'C' });
+      const ga = grid([a]);
+      const gb = grid([b]);
+      const combined = grid([a, b, frozen]);
+      try {
+        await ga.validateRow(0);
+        await gb.validateRow(0);
+        await combined.validateRow(0);
+        await combined.validateRow(1);
+        await combined.validateRow(2);
+        assert(combined.invalidItems.length === 3, 'Errors collided');
+        assert(!Object.hasOwn(a, '__fgValidationId') && !Object.hasOwn(b, '__fgValidationId'), 'Items were tagged');
+        combined.clearCellValidationError(a, combined.columns[0]);
+        assert(combined.invalidItems.length === 2 && ga.invalidItems.length === 1, 'Clearing affected another row or Grid');
+        combined.setItemsSource([frozen]);
+        assert(combined.invalidItems.length === 1 && combined.invalidItems[0].item === frozen, 'Data replacement lost the retained error');
+      } finally {
+        ga.dispose();
+        gb.dispose();
+        combined.dispose();
+      }
+    });
+
+    await check('F04: real Calendar disposal and cancelled Panel destruction stay correct', () => {
+      const calendar = new fabui.Calendar(host());
+      let disposedUpdates = 0;
+      const calendarSetLocale = calendar.setLocale;
+      calendar.setLocale = function(...args) { disposedUpdates += 1; return calendarSetLocale.apply(this, args); };
+      calendar.dispose();
+      fabui.setLocale('en');
+      assert(disposedUpdates === 0, 'Disposed Calendar remains tracked');
+      const panel = new fabui.Panel(host(), { onBeforeDestroy: () => false });
+      const panelSetLocale = panel.setLocale;
+      let liveUpdates = 0;
+      panel.setLocale = function(...args) { liveUpdates += 1; return panelSetLocale.apply(this, args); };
+      panel.destroy();
+      fabui.setLocale('en');
+      assert(!panel._destroyed && liveUpdates === 1, 'Cancelled destruction lost locale tracking');
+      panel.dispose(true);
+      fabui.setLocale('en');
+      assert(panel._destroyed && liveUpdates === 1, 'Forced disposal remains tracked');
+    });
+
+    await check('F05: missing locales fall back without changing time masks and spinner', () => {
+      ['zh-TW', 'zh-CN', 'zh_Hant_TW', 'zh-Hans', 'unknown'].forEach(locale => {
+        const box = new fabui.EditBox(host('input'), { editor: 'time', locale, value: '0930', spinner: true });
+        try {
+          assert(box._control.options().locale === 'en', 'Missing locale did not fall back');
+          assert(box.getValue() === '09:30', 'Default masked value changed');
+          assert(box._control._increaseButton.getAttribute('aria-label') === 'Increase value', 'Spinner fallback changed');
+          box.setLocale('zh-CN');
+          assert(box._control.options().locale === 'en', 'Runtime fallback changed');
+          box.setValue('1145');
+          assert(box.getValue() === '11:45', 'Value update failed');
+        } finally {
+          box.dispose();
+        }
+      });
+      const seconds = new fabui.EditBox(host('input'), { editor: 'time', locale: 'zh-TW', value: '235959', mask: '99:99:99', autoUnmask: true });
+      try {
+        assert(seconds.getValue() === '235959' && seconds.getText() === '23:59:59', 'Seconds or autoUnmask changed');
+      } finally {
+        seconds.dispose();
+      }
+    });
+
+    await check('F05: loaded Chinese packs and runtime updates still work', async () => {
+      window.fabui = fabui;
+      const existing = new fabui.EditBox(host('input'), { editor: 'time', spinner: true });
+      try {
+        await import('../src/locales/fabui-locale.zh-TW.js');
+        assert(existing._control.options().locale === 'zh-TW', 'Existing TimeBox did not update');
+        for (const locale of ['zh-TW', 'zh_Hant_TW']) {
+          const box = new fabui.EditBox(host('input'), { editor: 'time', locale, spinner: true });
+          assert(box._control.options().locale === 'zh-TW', 'Loaded locale alias failed');
+          assert(box._control._increaseButton.title === fabui.EditBox.locales['zh-TW'].increaseValueText, 'Loaded text changed');
+          box.dispose();
+        }
+        existing.setLocale('custom', { increaseValueText: 'Custom increase' });
+        assert(existing._control._increaseButton.title === 'Custom increase', 'Custom locale stopped working');
+      } finally {
+        existing.dispose();
+        await import('../src/locales/fabui-locale.en.js');
+      }
+    });
+
+    const result = document.getElementById('result');
+    result.textContent = JSON.stringify({ passed: results.every(entry => entry.passed), results }, null, 2);
+    result.dataset.complete = 'true';
+  </script>
+</body>
+</html>

@@ -145,21 +145,24 @@ export function createFabGridJQuery($, fabui) {
     instance.__fabgridJQueryCallbacks = callbacks;
   }
 
+  function forwardCoreEvent(element, instance, name, args, callback) {
+    var event = $.Event(toJQueryEventName(name) + EVENT_NAMESPACE);
+    args = args || {};
+    $(element).triggerHandler(event, [args, instance]);
+    if (typeof callback === 'function' && callback.call(element, event, args, instance) === false) {
+      args.cancel = true;
+    }
+    if (event.isDefaultPrevented && event.isDefaultPrevented()) args.cancel = true;
+    return args.cancel !== true;
+  }
+
   function bindCoreEvents(element, instance) {
     var bindings = [];
     GRID_EVENTS.forEach(function(name) {
       var coreEvent = instance[name];
       var handler;
       var forward = function(args) {
-        var event = $.Event(toJQueryEventName(name) + EVENT_NAMESPACE);
-        var callback = instance.__fabgridJQueryCallbacks[name];
-        args = args || {};
-        $(element).triggerHandler(event, [args, instance]);
-        if (typeof callback === 'function' && callback.call(element, event, args, instance) === false) {
-          args.cancel = true;
-        }
-        if (event.isDefaultPrevented && event.isDefaultPrevented()) args.cancel = true;
-        return args.cancel !== true;
+        return forwardCoreEvent(element, instance, name, args, instance.__fabgridJQueryCallbacks[name]);
       };
       if (coreEvent && typeof coreEvent.addHandler === 'function') {
         handler = function(sender, args) {
@@ -206,7 +209,27 @@ export function createFabGridJQuery($, fabui) {
   }
 
   function create(element, options) {
-    var instance = new fabui.FabGrid(element, options || {});
+    var coreOptions = Object.assign({}, options || {});
+    var initialHandlers = {};
+    var instance;
+    GRID_EVENTS.forEach(function(name) {
+      var callback = coreOptions[name];
+      if (typeof callback !== 'function') return;
+      initialHandlers[name] = coreOptions[name] = function(sender, args) {
+        return forwardCoreEvent(element, this, name, args, callback);
+      };
+    });
+    instance = new fabui.FabGrid(element, coreOptions);
+    // Preserve constructor events, then transfer ownership to the wrapper bindings.
+    Object.keys(initialHandlers).forEach(function(name) {
+      var coreEvent = instance[name];
+      if (coreEvent && typeof coreEvent.removeHandler === 'function') {
+        coreEvent.removeHandler(initialHandlers[name], instance);
+      }
+      if (instance.options && instance.options[name] === initialHandlers[name]) {
+        instance.options[name] = options[name];
+      }
+    });
     setInstance(element, instance);
     updateEventCallbacks(instance, options || {});
     bindCoreEvents(element, instance);
