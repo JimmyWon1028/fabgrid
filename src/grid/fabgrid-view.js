@@ -2954,12 +2954,10 @@ export function installFabGridView(FabGrid, context) {
     var templateApplied = this.applyCellTemplate(cell, item, column, value, text, rowIndex);
     var args;
     if (!templateApplied) {
-      if (this.isRowGroupFooter(item)) {
-        cell.textContent = text;
-      } else if (editorConfig.type === 'color' && typeof column.formatter !== 'function') {
+      if (!this.isRowGroupFooter(item) && editorConfig.type === 'color' && typeof column.formatter !== 'function') {
         this.renderColorCellContent(cell, text);
       } else {
-        cell.textContent = text;
+        cell.textContent = text.replace(/\r\n?|\n/g, ' ');
       }
     }
     args = this.createFormatItemEventArgs(this.cells, cell, rowIndex, column._index, {

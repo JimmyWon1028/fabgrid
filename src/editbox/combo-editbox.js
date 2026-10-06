@@ -1,4 +1,4 @@
-import { ComboPopup } from './combo-popup.js?v=20260725-remove-mono-variants-v1';
+import { ComboPopup } from './combo-popup.js?v=20261001-combo-hotkeys-v1';
 import { normalizeEditorIconDescriptors } from './editor-icons.js?v=20260718-editor-icons-v1';
 
 export function createComboBoxFactory(TextBox, editorDefinitions) {
@@ -40,7 +40,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
     multiline: false,
     separator: ',',
     hasDownArrow: true,
-    selectOnNavigation: true,
+    selectOnNavigation: false,
     showItemIcon: false,
     showValueInList: false,
     limitToList: false,
@@ -235,13 +235,15 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
       containsTarget: function(target) {
         return self._shell.contains(target);
       },
-      onSelect: function(descriptor) {
+      onSelect: function(descriptor, index, popup, event) {
         var row = descriptor.data;
         if (!row) return;
-        if (typeof self._options.onClick === 'function') {
-          self._options.onClick.call(self._source, row);
+        if (event) {
+          if (typeof self._options.onClick === 'function') {
+            self._options.onClick.call(self._source, row);
+          }
+          self._emit('click', { record: row });
         }
-        self._emit('click', { record: row });
         self._chooseRow(row);
       },
       onActiveChange: function(index) {
@@ -386,45 +388,32 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
   };
 
   ComboBox.prototype._handleKeyDown = function(event) {
+    var self = this;
     var key = event.key;
+    if (this._options.disabled || this._options.readonly ||
+        event.isComposing || event.keyCode === 229 || event.which === 229) return;
     if ((key === 'ArrowDown' && (event.altKey || event.metaKey)) || key === 'F4') {
       event.preventDefault();
+      event.stopPropagation();
       this.showPanel();
       return;
     }
-    if (key === 'Escape' && this._panelVisible) {
-      event.preventDefault();
-      this.hidePanel();
-      return;
-    }
-    if (key === 'ArrowDown' || key === 'ArrowUp') {
-      event.preventDefault();
-      this.showPanel();
-      this._moveActive(key === 'ArrowDown' ? 1 : -1);
-      return;
-    }
-    if (key === 'Enter' && this._panelVisible) {
-      event.preventDefault();
-      if (this._activeIndex >= 0) this._chooseRow(this._filteredData[this._activeIndex]);
-      if (!this._options.multiple) this.hidePanel();
+    if (key === 'ArrowDown' || key === 'ArrowUp') this.showPanel();
+    if (this._comboPopup.handleKeyDown(event, {
+      wrap: false,
+      onNavigate: function(index) {
+        if (index >= 0 && self._options.selectOnNavigation) {
+          self._setActiveIndex(index, true);
+        }
+      }
+    })) {
+      event.stopPropagation();
       return;
     }
     if (key === 'Enter') {
       event.preventDefault();
       this._fixInput();
     }
-  };
-
-  ComboBox.prototype._moveActive = function(direction) {
-    var length = this._filteredData.length;
-    var index = this._activeIndex;
-    var attempts = 0;
-    if (!length) return;
-    do {
-      index = (index + direction + length) % length;
-      attempts += 1;
-    } while (this._filteredData[index] && this._filteredData[index].disabled && attempts <= length);
-    this._setActiveIndex(index, this._options.selectOnNavigation);
   };
 
   ComboBox.prototype._setActiveIndex = function(index, selectRow) {
@@ -751,10 +740,16 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
   };
 
   ComboBox.prototype.showPanel = function() {
+    var self = this;
+    var index;
     if (this._options.disabled || this._panelVisible) return this;
     this._filteredData = this._data.slice();
     this._renderPanel();
     this._comboPopup.show();
+    index = this._filteredData.findIndex(function(row) {
+      return String(row[self._options.valueField]) === self.getValue();
+    });
+    this._comboPopup.setActiveIndex(index < 0 ? 0 : index);
     this.scrollTo(this.getValue());
     return this;
   };

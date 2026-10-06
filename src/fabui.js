@@ -1,5 +1,5 @@
 import { createEditorDefinitions } from './editbox/editbox-definitions.js?v=20260803-text-charcase-v2';
-import { createEditBoxFactory } from './editbox/editbox.js?v=20260927-priority-audit-fixes-v1';
+import { createEditBoxFactory } from './editbox/editbox.js?v=20261001-combo-hotkeys-v2';
 import { createButtonFactory } from './button/button.js?v=20260725-remove-mono-variants-v1';
 import { createAccordionFactory } from './accordion/accordion.js?v=20260728-locale-packs-v1';
 import { createCalendarFactory } from './calendar/calendar.js?v=20260728-locale-packs-v1';
@@ -21,7 +21,7 @@ import {
 import { Clipboard } from './core/clipboard.js?v=20260724-clipboard-v1';
 import { getConfig, setConfig } from './core/config.js?v=20260723-global-config-v1';
 import { createLocaleManager } from './core/locale.js?v=20260927-priority-audit-fixes-v1';
-import { createFabGridFactory } from './grid/fabgrid.js?v=20260927-priority-audit-fixes-v1';
+import { createFabGridFactory } from './grid/fabgrid.js?v=20261002-excel-blank-first-v1';
 import { createExcelNamespace } from './grid/fabgrid-export.js?v=20260922-excel-optional-decimals-v1';
 import { CellType } from './grid/fabgrid-types.js?v=20260716-row-types-v1';
 import { createLayoutFactory } from './layout/layout.js?v=20260728-locale-packs-v1';

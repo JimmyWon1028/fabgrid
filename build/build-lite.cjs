@@ -189,6 +189,8 @@ function createBrowserJavascriptBundle() {
     'global.fabui.setConfig = setConfig;\n' +
     'global.fabui.getConfig = getConfig;\n' +
     'global.fabui.Clipboard = Clipboard;\n' +
+    //2026.10.06 modify by codex, Publish the shared multi-sheet Excel export API in Lite.
+    'global.fabui.Excel = createExcelNamespace();\n' +
     'global.fabui.editorDefinitions = createEditorDefinitions();\n' +
     'global.fabui.Control = Control;\n' +
     'global.fabui.collections = { CollectionView: CollectionView };\n' +
@@ -268,6 +270,9 @@ function verifyBuildOutput(javascript) {
   }
   if (javascript.indexOf('global.fabui.Clipboard = Clipboard') < 0) {
     throw new Error('FabUI Lite is missing Clipboard.');
+  }
+  if (javascript.indexOf('global.fabui.Excel = createExcelNamespace()') < 0) {
+    throw new Error('FabUI Lite is missing Excel.');
   }
   if (javascript.indexOf('function installFabGridTree(') < 0 ||
       javascript.indexOf('FabGrid.prototype.isTreeGrid = function()') < 0 ||

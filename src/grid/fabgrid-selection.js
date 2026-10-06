@@ -1652,6 +1652,7 @@ export function installFabGridSelection(FabGrid, context) {
     }
 
     if (this.editing) {
+      if (event.isComposing || event.keyCode === 229 || event.which === 229) return;
       if (event.key === 'Enter' || event.key === 'Tab' ||
           event.key === 'ArrowDown' || event.key === 'ArrowUp' ||
           event.key === 'ArrowLeft' || event.key === 'ArrowRight' ||
@@ -1672,7 +1673,9 @@ export function installFabGridSelection(FabGrid, context) {
       if (event.target === this.editor && this.handleDateboxKeyDown(event, this.editor)) {
         return;
       }
-      if (event.target === this.editor && this.handleComboboxKeyDown(event)) {
+      if ((event.target === this.editor ||
+          (event.target === this.root && this.comboPopup && this.comboPopup.isOpen())) &&
+          this.handleComboboxKeyDown(event)) {
         return;
       }
       if (event.target === this.editor && this.handleColorKeyDown(event)) {
@@ -1717,6 +1720,16 @@ export function installFabGridSelection(FabGrid, context) {
     }
 
     if (targetName === 'INPUT' && event.target !== this.editor) {
+      return;
+    }
+
+    if (((event.key === 'ArrowDown' && (event.altKey || event.metaKey)) || event.key === 'F4') &&
+        !event.isComposing && event.keyCode !== 229 && event.which !== 229 &&
+        this.visibleColumns && this.visibleColumns[col] &&
+        getColumnEditorConfig(this.visibleColumns[col]).type === 'combo') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (this._startEditingVisible(row, col)) this.showComboboxPanel(true);
       return;
     }
 

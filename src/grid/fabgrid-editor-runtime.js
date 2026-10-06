@@ -1058,35 +1058,23 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   };
 
   FabGrid.prototype.handleComboboxKeyDown = function(event) {
-    if (!this.editorConfig || this.editorConfig.type !== 'combo') {
+    var key = event.key;
+    if (!this.editorConfig || this.editorConfig.type !== 'combo' ||
+        event.isComposing || event.keyCode === 229 || event.which === 229) {
       return false;
     }
-    if (event.key === 'ArrowDown' && event.altKey) {
+    if ((key === 'ArrowDown' && (event.altKey || event.metaKey)) || key === 'F4') {
       event.preventDefault();
-      this.showComboboxPanel(true);
+      event.stopPropagation();
+      if (!this.isComboboxPanelOpen()) this.showComboboxPanel(true);
       return true;
     }
     if (!this.isComboboxPanelOpen()) {
-      return false;
+      if (key !== 'ArrowDown' && key !== 'ArrowUp') return false;
+      this.showComboboxPanel(true);
     }
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      this.setComboboxActiveIndex(this.comboboxActiveIndex + 1);
-      return true;
-    }
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      this.setComboboxActiveIndex(this.comboboxActiveIndex - 1);
-      return true;
-    }
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      this.selectComboboxActiveOption();
-      return true;
-    }
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      this.hideComboboxPanel();
+    if (this.comboPopup.handleKeyDown(event, { wrap: false })) {
+      event.stopPropagation();
       return true;
     }
     return false;

@@ -69,6 +69,7 @@
 - FabGrid `getSortState()` 必須回傳可安全修改而不影響 Grid 的排序快照，包含 `active` 與 `sortStates`；每筆排序包含原始／可視欄位 index、binding、數字 direction、`asc`／`desc` order 與多欄排序順序。`getFilterState()` 必須回傳完整篩選快照，包含 active mode、`filterPredicateActive`、Quick Search、有效 filter rules、Search Row 值／運算符與 Excel-like filters；不得直接暴露 predicate 函式，所有物件與陣列也不得暴露可直接修改的內部狀態。
 - FabGrid `filterMode: false` 時，Grid 右鍵選單不得顯示「清除篩選」；只要至少啟用一個 filter mode，該項目仍須顯示。列號、匯出與全螢幕等其他選單項目不受影響。
 - Excel-like 篩選 popup 輸入候選值搜尋文字後按「套用」，必須只將符合搜尋文字且保持勾選的候選值寫入 filter；未符合而隱藏的候選值不得因先前預設全選而保留。搜尋文字清空時維持完整候選值的既有勾選狀態。
+- Excel-like 篩選 popup 的空白候選值必須顯示在清單最前面，其餘候選值維持原本順序。
 - 本機模式開啟 Excel-like 篩選 popup 時，候選值必須套用其他欄位目前的 Excel-like 篩選，但忽略目標欄位本身的條件；重新開啟同一欄位時仍須保留該欄完整候選值集合。
 - FabGrid `showRowHeaderMenu` 預設為 `false`；只有設為 `true` 時，Header cell 右鍵選單才顯示「列號」子選單。隱藏此項目不得改變目前 `showRowHeaders` 狀態或 `setShowRowHeaders()` API，清除篩選、匯出與全螢幕等其他選單項目不受影響。
 - FabGrid 設定 `rowGroups` 時，Header cell 右鍵選單必須在匯出 Excel 前顯示單一「全部疊合／全部展開」狀態項目；只要目前仍有可視的展開群組便顯示「全部疊合」，全部疊合後切換為「全部展開」。此項目不得依賴 `showRowHeaderMenu`，也不得放進「列號」子選單。
@@ -135,6 +136,7 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 - 共用 DatePopup 的 `showLunar` 預設為 `false`；設為 `true` 時在國曆日期下方顯示農曆日期，FabGrid cell editor、Search Row 與 `fabui.EditBox` 必須沿用同一個 option、轉換與 DOM／CSS，不得各自實作農曆 renderer。
 - 共用 DatePopup 的 Calendar theme 樣式以本機 `res/themes/*/calendar.css` 為視覺參考，但 source、Demo 與 build 不得依賴 `res/`。Date EditBox、FabGrid popup 與其他附加到 `body` 的 popup 都必須使用固定 component selector，並由頁面最後載入的 Theme CSS 統一決定配色；既有 `theme`／`setTheme(theme)` 僅保留 API 相容，不得再作為配色載入或切換機制。
 - FabGrid 與 `fabui.EditBox` 的清單 popup 共用 `src/editbox/combo-popup.js`；option、group、active／selected 狀態、鍵盤導覽、寬度量測、outside click、`Escape` lifecycle 與 `.fui-combobox-*` 樣式以 EditBox 視覺為唯一基準。Combo EditBox 的 `fitContent` 預設為 `true`，Popup 以 EditBox 寬度為下限，內容較長時自動加寬，並受 `panelMaxWidth` 與 viewport 限制。Grid 只保留 cell／Search Row 的資料過濾、驗證與值寫回邏輯，不得另建 `fg-combobox-*` popup renderer 或 CSS。
+- Grid cell editor、Search Row 與 Combo EditBox 的下拉熱鍵必須共用 ComboPopup：`Alt+Down`／`F4` 展開，`Up`／`Down` 導覽且首尾不循環並跳過 disabled，popup 開啟時 `Home`／`End` 移到首尾有效項目，`Enter` 確認，`Escape` 關閉且不套用反白項目，`Tab`／`Shift+Tab` 關閉並沿用宿主既有焦點／提交流程。Grid combo active cell 尚未編輯時也可用 `Alt+Down`／`F4` 進入編輯並展開。Combo EditBox `selectOnNavigation` 預設為 `false`，明確設定 `true` 時保留導覽即選取的相容行為；IME composition 按鍵不得被下拉熱鍵攔截。
 - FabGrid 與 `fabui.EditBox` 的顏色 popup 共用 `src/editbox/color-popup.js`；預設採 8×8、每格 20px 的固定色盤，包含 63 色與右上角清除色彩，outside click、`Escape` lifecycle 與 `.fui-colorbox-*` 樣式以 EditBox 視覺為唯一基準。Grid `color` cell editor 與 Color EditBox 點選色票或清除色彩後必須立即關閉 popup；Color cell 只以色塊顯示顏色，色碼文字必須使用一般 cell 文字色。Grid 只保留 cell／Search Row 的顏色寫回邏輯與顏色名稱原樣保存契約，不得另建 `fg-color-*` popup renderer 或 CSS。
 - FabGrid 的 `mask`、`autoUnmask` 與遮罩字面值設定統一屬於 Column option，即使省略 `editor` 也必須有效；舊版 editor 層設定只在初始化時正規化到 Column，核心遮罩流程不得維護兩套設定來源。FabGrid 年月編輯統一使用 `date`；當 mask 為 `9999/99` 或 `9999-99` 時，popup 固定使用年份／月份選擇模式，不另外定義年月專用 editor。FabGrid 與 `fabui.EditBox` 的所有 editor 類型 `autoUnmask` 預設皆為 `false`，複製與資料輸出時必須保留遮罩字面值；只有明確設定 `autoUnmask: true` 時才移除遮罩。
 - `fabui.EditBox` 與 FabGrid number cell editor 都以 `spinner` 控制數值增減箭頭：`true`／`'right'` 顯示於右側，`'left'` 顯示於左側，預設 `false`；Spinner 預設使用與 Date／Combo／Color trigger 相同的 28px 寬度、theme trigger 背景與 icon 色，每次依 `increment` 增減並沿用 `min`、`max`、`precision`、disabled、readonly 與 change／cell edit event 契約，公開 option 名稱統一為 `spinner`。FabGrid 啟用 Spinner 時，`ArrowUp`／`ArrowDown` 增減數值且不移動 cell；Search Row 不顯示 Spinner。
@@ -207,7 +209,7 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 - core 必須能打包成可在其他專案引用的 library 檔案。
 - 發佈主檔固定為 `fabui.js`、`fabui.min.js`、`fabui.css`、`fabui.min.css`，不得包含 Diagram，並輸出 `dist/theme/fabui.<theme>.css`、`dist/theme/fabui.<theme>.min.css` 與圖片依賴；`dist/` 不得產生以 `fabgrid.*` 命名的樣式檔。
 - Diagram 發佈檔固定為 `fabui.diagram.js`、`fabui.diagram.min.js`、`fabui.diagram.css`、`fabui.diagram.min.css`，不得併入 `dist/fabui.*`。
-- 精簡發佈檔固定為 `fabui.lite.js`、`fabui.lite.min.js`、`fabui.lite.css`、`fabui.lite.min.css`；只公開 FabGrid（必須包含 `src/grid/fabgrid-tree.js` 的 TreeGrid 行為）、Chart、`fabui.pivot` 與必要的 Control、editor definitions、locale、theme、popup 依賴，不得納入其他 FabUI 控件 factory 或元件 CSS。`npm run build:lite` 只更新這四個 Lite 檔與其必要圖片，不得清除完整 `dist/fabui.*`。
+- 精簡發佈檔固定為 `fabui.lite.js`、`fabui.lite.min.js`、`fabui.lite.css`、`fabui.lite.min.css`；只公開 FabGrid（必須包含 `src/grid/fabgrid-tree.js` 的 TreeGrid 行為）、Chart、`fabui.pivot`、`fabui.Excel` 多工作表匯出與必要的 Control、editor definitions、locale、theme、popup 依賴，不得納入其他 FabUI 控件 factory 或元件 CSS。`npm run build:lite` 只更新這四個 Lite 檔與其必要圖片，不得清除完整 `dist/fabui.*`。
 - `dist/fabui.min.js` 必須是可用 `<script>` 直接引用的 browser global 壓縮版本。
 - Vue 2、FabGrid jQuery 與 FabUI jQuery wrapper 不列入一般 `build` 或 smoke，但列入 `build all` 發佈輸出，並保留各自的獨立 build 命令。
 - Vue 2 Options API wrapper 位於 `packages/fabgrid-vue`，只負責把 props、events、lifecycle 對應到 pure JS core。

@@ -5153,6 +5153,26 @@ test('Column multiLine defaults to false and only explicit true is enabled', fun
   assert.equal(grid.columns[2].multiLine, false);
 });
 
+test('body cells display multiline text on one line without changing the value', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = Object.create(FabGrid.prototype);
+  var item = { notes: 'First\r\nSecond\nThird\rFourth' };
+  var column = { binding: 'notes', _index: 0, multiLine: false };
+  var cell = { textContent: '' };
+
+  grid.options = {};
+  grid.isRowGroupFooter = function() { return false; };
+  grid.createFormatItemEventArgs = function() { return {}; };
+  grid.raiseFormatItem = function() {};
+  grid.queueCellOverflowCheck = function() {};
+
+  grid.renderCellContent(cell, item, column, item.notes, 0, 0);
+
+  assert.equal(cell.textContent, 'First Second Third Fourth');
+  assert.equal(item.notes, 'First\r\nSecond\nThird\rFourth');
+  assert.equal(grid.getCellDisplayText(item, column, item.notes), item.notes);
+});
+
 test('Column multiLine uses a textarea only for the text editor', function() {
   var FabGrid = createFabGridFactory({});
   var listeners = [];

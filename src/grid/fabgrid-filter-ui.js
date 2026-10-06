@@ -697,6 +697,7 @@ export function installFabGridFilterUi(FabGrid, context) {
     var selectAll = document.createElement('input');
     var selectAllText = document.createElement('span');
     var list = document.createElement('div');
+    var firstValueItem = null;
     var item;
     var check;
     var text;
@@ -730,7 +731,14 @@ export function installFabGridFilterUi(FabGrid, context) {
       text.textContent = this.excelFilterDraft.valueItems[i].label;
       item.appendChild(check);
       item.appendChild(text);
-      list.appendChild(item);
+      if (this.excelFilterDraft.valueItems[i].isBlank) {
+        list.insertBefore(item, firstValueItem);
+      } else {
+        list.appendChild(item);
+        if (!firstValueItem) {
+          firstValueItem = item;
+        }
+      }
     }
 
     pane.appendChild(search);
@@ -774,7 +782,8 @@ export function installFabGridFilterUi(FabGrid, context) {
       result.push({
         key: key,
         value: value,
-        label: label || this.getText('filter.blankValue')
+        label: label || this.getText('filter.blankValue'),
+        isBlank: !label
       });
     }
     result.truncated = truncated;
@@ -1582,7 +1591,7 @@ export function installFabGridFilterUi(FabGrid, context) {
   FabGrid.prototype.handleHeaderSearchComboboxKeyDown = function(event, input) {
     var colIndex;
     var column;
-    if (!input) {
+    if (!input || event.isComposing || event.keyCode === 229 || event.which === 229) {
       return false;
     }
     colIndex = toNumber(input.getAttribute('data-col'), -1);
@@ -1590,36 +1599,17 @@ export function installFabGridFilterUi(FabGrid, context) {
     if (!column || getColumnEditorConfig(column).type !== 'combo') {
       return false;
     }
-    if (event.key === 'ArrowDown' && event.altKey) {
+    if ((event.key === 'ArrowDown' && (event.altKey || event.metaKey)) || event.key === 'F4') {
       event.preventDefault();
-      this.showHeaderSearchComboboxPanel(input, column, true);
+      if (!this.isComboboxPanelOpen() || !this.comboboxTarget || this.comboboxTarget.input !== input) {
+        this.showHeaderSearchComboboxPanel(input, column, true);
+      }
       return true;
     }
     if (!this.isComboboxPanelOpen() || !this.comboboxTarget || this.comboboxTarget.input !== input) {
       return false;
     }
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      this.setComboboxActiveIndex(this.comboboxActiveIndex + 1);
-      return true;
-    }
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      this.setComboboxActiveIndex(this.comboboxActiveIndex - 1);
-      return true;
-    }
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      this.selectComboboxActiveOption();
-      return true;
-    }
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      this.hideComboboxPanel();
-      input.focus();
-      return true;
-    }
-    return false;
+    return this.comboPopup.handleKeyDown(event, { wrap: false });
   };
 
   FabGrid.prototype.handleHeaderSearchColorKeyDown = function(event, input) {

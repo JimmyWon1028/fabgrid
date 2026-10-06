@@ -358,6 +358,7 @@ ComboPopup.prototype.setActiveIndex = function(index, reason) {
     next = (next + 1) % this.items.length;
     attempts += 1;
   }
+  if (this.items[next].disabled) next = -1;
   this.activeIndex = next;
   elements = this.panel.querySelectorAll('.fui-combobox-item');
   Array.prototype.forEach.call(elements, function(candidate, itemIndex) {
@@ -379,17 +380,29 @@ ComboPopup.prototype.setActiveIndex = function(index, reason) {
   return this;
 };
 
-ComboPopup.prototype.moveActive = function(direction) {
+ComboPopup.prototype.moveActive = function(direction, wrap) {
   var length = this.items.length;
-  var next;
-  var attempts = 0;
+  var next = this.activeIndex;
+  var attempts;
   if (!length) return this;
-  next = this.activeIndex;
-  do {
-    next = (next + direction + length) % length;
-    attempts += 1;
-  } while (this.items[next] && this.items[next].disabled && attempts <= length);
-  return this.setActiveIndex(next, 'keyboard');
+  if (next < 0) next = direction > 0 ? -1 : length;
+  for (attempts = 0; attempts < length; attempts += 1) {
+    next += direction;
+    if (wrap === false && (next < 0 || next >= length)) return this;
+    next = (next + length) % length;
+    if (!this.items[next].disabled) return this.setActiveIndex(next, 'keyboard');
+  }
+  return this;
+};
+
+ComboPopup.prototype.moveToBoundary = function(last) {
+  var direction = last ? -1 : 1;
+  var index = last ? this.items.length - 1 : 0;
+  while (index >= 0 && index < this.items.length) {
+    if (!this.items[index].disabled) return this.setActiveIndex(index, 'keyboard');
+    index += direction;
+  }
+  return this;
 };
 
 ComboPopup.prototype.selectActive = function() {
@@ -442,8 +455,10 @@ ComboPopup.prototype.isOpen = function() {
   return this.visible;
 };
 
-ComboPopup.prototype.handleKeyDown = function(event) {
+ComboPopup.prototype.handleKeyDown = function(event, options) {
   var key = event.key;
+  options = options || {};
+  if (event.isComposing || event.keyCode === 229 || event.which === 229) return false;
   if ((key === 'ArrowDown' && (event.altKey || event.metaKey)) || key === 'F4') {
     event.preventDefault();
     this.show();
@@ -452,8 +467,19 @@ ComboPopup.prototype.handleKeyDown = function(event) {
   if (!this.visible) return false;
   if (key === 'ArrowDown' || key === 'ArrowUp') {
     event.preventDefault();
-    this.moveActive(key === 'ArrowDown' ? 1 : -1);
+    this.moveActive(key === 'ArrowDown' ? 1 : -1, options.wrap);
+    if (typeof options.onNavigate === 'function') options.onNavigate(this.activeIndex);
     return true;
+  }
+  if ((key === 'Home' || key === 'End') && options.editable !== true) {
+    event.preventDefault();
+    this.moveToBoundary(key === 'End');
+    if (typeof options.onNavigate === 'function') options.onNavigate(this.activeIndex);
+    return true;
+  }
+  if (key === 'Tab') {
+    this.hide();
+    return false;
   }
   if (key === 'Enter') {
     event.preventDefault();
